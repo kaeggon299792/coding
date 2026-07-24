@@ -1,8 +1,15 @@
 {% extends "base.html" %}
-{% block title %}대시보드 - 경영기획 인텔리전스{% endblock %}
+{% block title %}대시보드{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <div class="page-container">
+
+  <div class="page-header">
+    <p class="page-eyebrow">Operations / Overview</p>
+    <h1 class="page-title">경영기획 인텔리전스 대시보드</h1>
+    <p class="page-description">핵심 업무 현황과 자동화 시스템의 운영 상태를 한 화면에서 확인합니다.</p>
+    <p class="page-updated">기준일 {{ now_str }}</p>
+  </div>
 
   <div class="kpi-row">
     <div class="kpi-card">
@@ -197,4 +204,5 @@
   </div>
 
 </div>
+{% include "_footer.html" %}
 {% endblock %}

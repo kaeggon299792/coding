@@ -1,16 +1,20 @@
 <div class="topbar">
-  <div>
-    <h1>경영기획 인텔리전스 대시보드</h1>
-    <span class="meta">기준일 {{ now_str }} · {{ current_username }}</span>
+  <div class="topbar-brand">
+    <span class="topbar-wordmark">SHINGOON</span>
+    <span class="topbar-context">Dashboard</span>
   </div>
-  <div class="actions">
-    <a class="btn" href="{{ url_for('dashboard_home') }}">홈</a>
-    <a class="btn" href="{{ url_for('action_items_page') }}">과제</a>
-    <a class="btn" href="{{ url_for('performance_page') }}">실적</a>
-    <a class="btn" href="{{ url_for('disclosures_page') }}">공시·재무</a>
-    <a class="btn" href="{{ url_for('laws_page') }}">법률·규제</a>
+  <nav class="topbar-nav">
+    <a href="{{ url_for('dashboard_home') }}" {% if request.endpoint == 'dashboard_home' %}class="active"{% endif %}>홈</a>
+    <a href="{{ url_for('action_items_page') }}" {% if request.endpoint == 'action_items_page' %}class="active"{% endif %}>과제</a>
+    <a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}>실적</a>
+    <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}>공시·재무</a>
+    <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}>법률·규제</a>
+  </nav>
+  <div class="topbar-actions">
+    <span class="topbar-meta">{{ now_str }} · {{ current_username }}</span>
+    <a class="portfolio-link" href="https://www.shingoon.me/" target="_blank" rel="noopener noreferrer">Portfolio ↗</a>
     <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
-      <button class="btn" type="submit">로그아웃</button>
+      <button class="btn btn-text" type="submit">로그아웃</button>
     </form>
   </div>
 </div>
