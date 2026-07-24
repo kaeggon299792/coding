@@ -1,9 +1,10 @@
 """
 DART 공시통합정보 OpenAPI 클라이언트 (https://opendart.fss.or.kr).
 
-주의: 이 클라이언트는 제가(Claude) 실제 API 키로 호출을 검증하지 못했다 -
-opendart.fss.or.kr의 공개 문서에 기술된 요청/응답 구조를 기준으로 작성했다.
-사용자가 DART_API_KEY를 발급받아 넣은 뒤 실제 호출로 최종 검증이 필요하다.
+실제 키로 검증 완료(search_disclosures, corpCode.xml 조회 모두 실사용 확인).
+corpCode.xml처럼 큰 응답은 PythonAnywhere 환경에서 청크 단위로 아주 느리게
+내려오며 requests의 timeout으로는 안 막히는 경우가 있어, http_utils의 하드
+타임아웃 래퍼를 사용한다.
 
 DART 서버 연결 실패/키 오류가 대시보드 전체 장애로 번지지 않도록, 모든 함수는
 예외를 밖으로 던지지 않고 {"ok": False, "error": ...} 형태로 실패를 반환한다.
@@ -17,6 +18,7 @@ import zipfile
 import requests
 
 import config
+from services.http_utils import HardTimeoutError, get_with_hard_timeout
 
 logger = logging.getLogger("dashboard")
 
@@ -45,11 +47,15 @@ def _get(endpoint, params):
     request_params["crtfc_key"] = config.DART_API_KEY
 
     try:
-        response = requests.get(
+        response = get_with_hard_timeout(
             f"{_API_BASE}/{endpoint}",
+            hard_timeout_seconds=config.DART_REQUEST_TIMEOUT_SECONDS,
             params=request_params,
             timeout=config.DART_REQUEST_TIMEOUT_SECONDS,
         )
+    except HardTimeoutError as error:
+        logger.error("DART API 응답 지연(%s): %s", endpoint, error)
+        return {"ok": False, "error": str(error)}
     except requests.RequestException as error:
         logger.error("DART API 호출 실패(%s): %s", endpoint, type(error).__name__)
         return {"ok": False, "error": f"네트워크 오류: {type(error).__name__}"}
@@ -109,11 +115,14 @@ def fetch_corp_code_map():
         return {"ok": False, "error": "DART_API_KEY가 설정되지 않았습니다."}
 
     try:
-        response = requests.get(
+        response = get_with_hard_timeout(
             f"{_API_BASE}/corpCode.xml",
+            hard_timeout_seconds=config.DART_CORP_CODE_TIMEOUT_SECONDS,
             params={"crtfc_key": config.DART_API_KEY},
-            timeout=config.DART_REQUEST_TIMEOUT_SECONDS,
+            timeout=config.DART_CORP_CODE_TIMEOUT_SECONDS,
         )
+    except HardTimeoutError as error:
+        return {"ok": False, "error": str(error)}
     except requests.RequestException as error:
         return {"ok": False, "error": f"네트워크 오류: {type(error).__name__}"}
 
