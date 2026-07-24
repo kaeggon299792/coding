@@ -2,4 +2,7 @@ Flask==3.0.3
 python-dotenv==1.0.1
 requests==2.32.3
 openai==1.51.0
+# httpx 0.28+에서 openai==1.51.0이 내부적으로 넘기는 Client(proxies=...) 인자가
+# 제거되어 "unexpected keyword argument 'proxies'" 오류가 발생한다. 0.27.x로 고정.
+httpx==0.27.2
 Werkzeug==3.0.4
