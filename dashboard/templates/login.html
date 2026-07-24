@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}로그인 - 경영기획 인텔리전스 대시보드{% endblock %}
+{% block title %}로그인{% endblock %}
 {% block body %}
 <div class="login-page">
   <form class="login-card" method="post" action="{{ url_for('auth.login') }}">
+    <p class="login-eyebrow">SHINGOON · DASHBOARD</p>
     <h1 class="login-title">경영기획 인텔리전스 대시보드</h1>
     <p class="login-subtitle">내부 업무용 시스템입니다</p>
     {% if error %}

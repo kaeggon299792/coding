@@ -1,8 +1,13 @@
 {% extends "base.html" %}
-{% block title %}미처리 과제 - 경영기획 인텔리전스{% endblock %}
+{% block title %}과제{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <div class="page-container">
+  <div class="page-header">
+    <p class="page-eyebrow">Operations / Action Items</p>
+    <h1 class="page-title">미처리 과제</h1>
+    <p class="page-description">뉴스·이메일에서 추출됐거나 직접 등록한 실행 과제를 관리합니다.</p>
+  </div>
   {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 
   <div class="panel" style="margin-bottom:20px;">
@@ -83,4 +88,5 @@
     {% endif %}
   </div>
 </div>
+{% include "_footer.html" %}
 {% endblock %}
