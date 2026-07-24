@@ -6,34 +6,52 @@
 
 ## 1. 토큰 출처
 
-색상·폰트 토큰은 claude.ai Projects("Portfolio-Archive")가 아니라 **`kaeggon299792/portfolio`
-GitHub 저장소에 실제 배포된 컴파일 산출물**(`static/index.html`, `static/assets/index-*.css`)을
-직접 읽어서 추출했다(스크린샷 추측이 아님). 확인된 사실:
+**정정 이력**: 최초 버전(PR #6)은 포트폴리오를 **라이트 테마**로 잘못 판단해 적용했다.
+`www.shingoon.me`에 `curl`로 직접 접속해 실제 렌더링되는 HTML/CSS(`/custom.css`,
+`/css/tips.css`, `/assets/index-*.css`)를 다시 읽은 결과, 실제로는 **다크 테마**(검정에
+가까운 배경 + 오프화이트 텍스트 + 흰색 강조)라는 게 확인되어 이후 커밋에서 전체 팔레트를
+반전했다. 최초 조사 때 `:root`에서 발견한 `--foreground-rgb: 255,255,255` /
+`--background-start-rgb: 0,0,0`을 "Next.js 보일러플레이트 잔재"로 오판해 무시한 것이
+근본 원인 — 실제로는 진짜 사용되는 다크모드 토큰이었다. 아래는 정정된 실측값이다.
 
-- 포트폴리오는 Vite로 빌드된 SPA + Tailwind CSS(Tailwind의 **zinc** 뉴트럴 팔레트 사용,
-  뚜렷한 채도 높은 브랜드 컬러 없이 사실상 모노크롬 — 블랙/화이트/그레이 중심).
+색상·폰트 토큰은 `kaeggon299792/portfolio`의 실제 배포 응답(HTML/CSS 원문)에서 직접
+추출했다(스크린샷 추측이 아님). 확인된 사실:
+
+- 포트폴리오는 Tailwind CSS 기반, **zinc** 뉴트럴 팔레트를 다크 테마로 사용
+  (뚜렷한 채도 높은 브랜드 컬러 없이 사실상 모노크롬 — 검정/화이트/그레이 중심,
+  단 배경이 어둡고 텍스트가 밝은 방향).
+- 실측 다크 팔레트 (`/css/tips.css`의 `--tips-*` 커스텀 프로퍼티 + 루트 페이지
+  `:root`의 `--background-start-rgb`/`--foreground-rgb`):
+  | 역할 | 실제 값 |
+  |---|---|
+  | 배경 | `#09090b` (zinc-950, 루트 페이지는 `#000000`에 더 가까움) |
+  | 표면(카드 등) | `#18181b` (zinc-900) |
+  | 표면(연한 단차) | `#1f1f23` |
+  | 보더 | `#27272a` (zinc-800) |
+  | 본문 텍스트 | `#f4f4f5` (zinc-100) |
+  | 보조 텍스트 | `#a1a1aa` (zinc-400) |
+  | 강조색 | `#ffffff` (흰색 — 다크 배경 위 최고 대비) |
 - 본문 폰트: `Inter, Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`
+  (최초 조사에서도 맞았음 — 변경 없음)
 - 제목(h1~h3) 폰트: 커스텀 웹폰트 `Trap`(ExtraBold, 800) — `static/fonts/Trap-ExtraBold.woff2`를
-  포트폴리오 저장소에서 그대로 복사해 재사용(동일 소유자·동일 브랜드 패밀리).
-- Radius: shadcn류 `--radius`(기본 0.5rem) + `calc(var(--radius) - 2px / 4px)` 중첩 패턴 확인.
-  정확한 base 값(0.5rem)은 컴파일된 CSS에서 직접 읽지 못해 shadcn 기본값을 그대로 채택한
-  가정값이다 — 실제 포트폴리오와 다르면 `--radius` 하나만 바꾸면 전체가 따라간다.
-- 다크모드: 발견된 `:root` 커스텀 프로퍼티(`--foreground-rgb` 등)는 Next.js 보일러플레이트
-  잔재로 실사용 근거가 없어 적용하지 않음(대시보드도 라이트 전용 유지).
+  포트폴리오 저장소에서 그대로 복사해 재사용(동일 소유자·동일 브랜드 패밀리). 변경 없음.
+- Radius: `/css/tips.css` 원문에서 직접 읽은 실측값은 대부분 `4px`~`6px`(카드/큰 요소는 6px,
+  버튼/인풋 등은 4px), 알약형 배지는 `999px`. 최초 버전의 "shadcn 기본값 0.5rem" 가정은
+  틀렸던 것으로 확인되어 폐기하고 고정 px 값으로 교체했다.
 
-**한계**: 이 세션의 샌드박스 환경에서 Playwright로 `www.shingoon.me`를 직접 렌더링해
-스크린샷 비교하는 것은 프록시 문제로 실패했다(`curl`로는 정상 접속됨 — Chromium-프록시
-조합 특유의 문제로 추정). 따라서 실제 렌더링 결과의 픽셀 단위 대조는 하지 못했고, 컴파일된
-소스 코드에서 추출한 값만 사용했다.
+**한계**: 이 세션의 샌드박스 환경에서 Playwright(Chromium)로 `www.shingoon.me`를 직접
+렌더링해 스크린샷 비교하는 것은 여전히 실패한다(프록시 특유의 문제로 추정). 다만 `curl`로는
+정상 접속되므로, 이번 정정은 실제 서버가 응답하는 HTML/CSS **원문 텍스트**를 직접 읽어
+확인한 것이며, 렌더링된 픽셀을 눈으로 대조한 것은 아니다.
 
 ## 2. 토큰 정의 위치
 
 `dashboard/static/css/dashboard.css` 최상단 `:root { ... }` 블록. 예:
 
 ```css
---brand-bg: #fafafa;        /* zinc-50 */
---brand-text-primary: #09090b; /* zinc-950 */
---brand-accent: #09090b;    /* 모노크롬 — 블랙이 곧 강조색 */
+--brand-bg: #09090b;           /* zinc-950 */
+--brand-text-primary: #f4f4f5; /* zinc-100 */
+--brand-accent: #ffffff;       /* 다크 배경 위 흰색이 강조색 */
 --font-display: 'Trap', 'Inter', 'Pretendard', sans-serif;
 --font-body: 'Inter', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 ```
@@ -41,7 +59,7 @@ GitHub 저장소에 실제 배포된 컴파일 산출물**(`static/index.html`, 
 ## 3. 강조색을 바꾸려면
 
 `--brand-accent`, `--brand-accent-hover` 두 값만 바꾸면 버튼/활성 네비/포커스 링 전체가
-따라간다. 현재는 포트폴리오 실측값(모노크롬 zinc-950)을 그대로 썼다.
+따라간다. 현재는 포트폴리오 실측값(다크 배경 위 흰색 강조)을 그대로 썼다.
 
 ## 4. 폰트를 바꾸려면
 
@@ -113,10 +131,10 @@ git revert <이 기능이 들어간 머지 커밋 SHA>
 
 ## 12. 남은 과제 (실측 불가로 보류된 것)
 
-- `www.shingoon.me` 실제 렌더링과의 픽셀 단위 시각 대조(샌드박스 네트워크 제약)
+- `www.shingoon.me` 실제 렌더링과의 픽셀 단위 시각 대조(샌드박스 네트워크 제약으로
+  Chromium 렌더링은 안 됨 — 다만 다크 테마 정정은 `curl`로 받은 HTML/CSS 원문에서
+  확인한 실측값이며, 렌더링 결과의 시각적 대조는 아직 안 한 상태)
 - 정확한 포트폴리오 파비콘 바이너리 재사용(이 세션 도구가 해당 이미지 바이너리를
   저장하지 못함 — 현재는 임시 SVG 파비콘 사용 중. `home/kaekun/portfolio/static/favicon.png`를
   `dashboard/static/`로 직접 복사하고 `templates/base.html`의 `<link rel="icon">`을
   `favicon.png`로 바꾸면 됨)
-- `--radius` 기준값(0.5rem)은 shadcn 기본값 가정 — 실측 필요시 브라우저 개발자도구로
-  포트폴리오 버튼의 `border-radius` computed 값을 확인해 교체
