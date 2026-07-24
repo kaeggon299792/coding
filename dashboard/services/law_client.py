@@ -8,9 +8,10 @@
 감지할 수 있고, 발의/심사 중인 법안의 진행 단계까지는 추적하지 못한다 - 그
 부분은 README에 다음 단계 과제로 명시한다.
 
-이 클라이언트도 dart_client.py와 마찬가지로 실제 키로 검증하지 못했다.
-open.law.go.kr의 공개 문서(OC/target/type/query/MST 파라미터)를 기준으로
-작성했으며, 사용자가 키를 발급한 뒤 최종 검증이 필요하다.
+실제 키로 검증 완료(search_law는 정상 동작 확인). 다만 lawService.do(본문 조회)는
+PythonAnywhere 환경에서 응답이 청크 단위로 아주 느리게 내려오는 경우가 있어,
+일반 requests timeout으로는 안 막히는 것을 확인했다 - http_utils의 하드
+타임아웃 래퍼를 사용해 우회한다.
 """
 
 import hashlib
@@ -19,6 +20,7 @@ import logging
 import requests
 
 import config
+from services.http_utils import HardTimeoutError, get_with_hard_timeout
 
 logger = logging.getLogger("dashboard")
 
@@ -42,9 +44,15 @@ def _get(path, params):
     request_params.setdefault("key", config.LAW_API_KEY)
 
     try:
-        response = requests.get(
-            f"{_API_BASE}/{path}", params=request_params, timeout=config.LAW_REQUEST_TIMEOUT_SECONDS
+        response = get_with_hard_timeout(
+            f"{_API_BASE}/{path}",
+            hard_timeout_seconds=config.LAW_REQUEST_TIMEOUT_SECONDS,
+            params=request_params,
+            timeout=config.LAW_REQUEST_TIMEOUT_SECONDS,
         )
+    except HardTimeoutError as error:
+        logger.error("법령정보 API 응답 지연(%s): %s", path, error)
+        return {"ok": False, "error": str(error)}
     except requests.RequestException as error:
         logger.error("법령정보 API 호출 실패(%s): %s", path, type(error).__name__)
         return {"ok": False, "error": f"네트워크 오류: {type(error).__name__}"}

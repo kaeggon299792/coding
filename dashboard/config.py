@@ -121,6 +121,8 @@ AI_LAW_PROMPT_VERSION = _get_str("AI_LAW_PROMPT_VERSION", "law-summary-v1")
 
 DART_API_KEY = _get_str("DART_API_KEY")
 DART_REQUEST_TIMEOUT_SECONDS = _get_int("DART_REQUEST_TIMEOUT_SECONDS", 20)
+# corpCode.xml(전체 상장사 목록 zip)은 응답이 커서 더 긴 타임아웃을 둔다.
+DART_CORP_CODE_TIMEOUT_SECONDS = _get_int("DART_CORP_CODE_TIMEOUT_SECONDS", 60)
 DART_SYNC_LOOKBACK_DAYS = _get_int("DART_SYNC_LOOKBACK_DAYS", 3)
 
 # 중요 공시로 간주해 텔레그램 긴급 알림을 보낼 보고서명 키워드
