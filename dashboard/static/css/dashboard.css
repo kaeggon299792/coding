@@ -1,12 +1,15 @@
 /* ============================================================
    경영기획 인텔리전스 대시보드 — 디자인 시스템
    ------------------------------------------------------------
-   토큰은 www.shingoon.me(포트폴리오)의 실제 배포 소스(/custom.css,
-   /css/tips.css, 컴파일된 Vite CSS 번들 /assets/index-*.css)에서 직접
-   읽어 추출한 값이다: Tailwind zinc 팔레트 기반의 **다크 테마**
-   (검정에 가까운 배경 + 오프화이트 텍스트 + 흰색 강조), Inter/Pretendard
-   본문 폰트, Trap(ExtraBold) 제목 폰트. 실측 --radius는 4~6px 범위(shadcn
-   기본값 0.5rem이 아님). 자세한 출처는 dashboard/DESIGN.md 참고.
+   "미니멀 에디토리얼 다크 테마" — 사용자가 다른 프로젝트(포트폴리오)에서
+   이미 확정한 디자인 시스템을 그대로 이식했다. 배경/표면/텍스트/보더는
+   www.shingoon.me의 실제 배포 소스(/custom.css, /css/tips.css, 컴파일된
+   Vite CSS 번들)에서 직접 읽은 값과도 일치한다 — 특히 3단 텍스트 계층
+   (본문 #f4f4f5 / 보조 #a1a1aa / 흐림 #71717a)은 포트폴리오의
+   --tips-text / --tips-text-muted / --tips-text-faint 세 값과 그대로
+   대응한다. 강조색은 별도 브랜드 컬러 없이 흰색 단독. 그림자는 전혀 쓰지
+   않고 얇은 1px 보더로만 구역을 구분하며, radius는 카드에도 거의 쓰지
+   않는다(2~3px 수준). 자세한 내용은 dashboard/DESIGN.md 참고.
    ============================================================ */
 
 @font-face {
@@ -18,24 +21,24 @@
 }
 
 :root {
-  /* ---- 색상: zinc 스케일, 다크 테마(포트폴리오 실측값) ---- */
-  --brand-bg: #09090b;              /* zinc-950 — 포트폴리오 --tips-bg */
-  --brand-surface: #18181b;         /* zinc-900 — 포트폴리오 --tips-surface */
-  --brand-surface-muted: #1f1f23;   /* 포트폴리오 --tips-surface-2 */
-  --brand-text-primary: #f4f4f5;    /* zinc-100 — 포트폴리오 --tips-text */
-  --brand-text-secondary: #d4d4d8;  /* zinc-300 */
-  --brand-text-muted: #a1a1aa;      /* zinc-400 — 포트폴리오 --tips-text-muted */
-  --brand-border: #27272a;          /* zinc-800 — 포트폴리오 --tips-border */
-  --brand-border-strong: #3f3f46;   /* zinc-700 */
-  --brand-accent: #ffffff;          /* 포트폴리오 --tips-accent — 흰색이 곧 강조색 */
-  --brand-accent-hover: #d4d4d8;    /* zinc-300 */
-  --brand-success: #22c55e;         /* green-500, 어두운 배경 대비용 */
-  --brand-warning: #f59e0b;         /* amber-500 */
-  --brand-danger: #ef4444;          /* red-500 */
+  /* ---- 색상: 다크 테마(포트폴리오 실측값과 동일) ---- */
+  --brand-bg: #09090b;
+  --brand-surface: #18181b;
+  --brand-surface-muted: #1f1f23;
+  --brand-text-primary: #f4f4f5;    /* 본문 */
+  --brand-text-secondary: #a1a1aa;  /* 보조 */
+  --brand-text-muted: #71717a;      /* 흐림/메타(날짜·라벨) */
+  --brand-border: #27272a;
+  --brand-border-strong: #3f3f46;
+  --brand-accent: #ffffff;          /* 흰색 단독 강조색 — 별도 브랜드 컬러 없음 */
+  --brand-accent-hover: #d4d4d8;
+  --brand-success: #22c55e;         /* 실적 델타 등 기능적 상태 표시 전용, 장식용 아님 */
+  --brand-warning: #f59e0b;
+  --brand-danger: #ef4444;
 
-  /* ---- 폰트 ---- */
-  --font-display: 'Trap', 'Inter', 'Pretendard', -apple-system, sans-serif;
-  --font-body: 'Inter', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* ---- 폰트: 제목은 Trap(굵고 각진 산세리프), 본문은 시스템 기본 산세리프 ---- */
+  --font-display: 'Trap', -apple-system, BlinkMacSystemFont, 'Segoe UI', Pretendard, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Pretendard, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* ---- 타이포 스케일 ---- */
@@ -47,25 +50,27 @@
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
 
-  /* ---- 간격 ---- */
+  /* ---- 간격: 정보 밀도가 높아도 답답하지 않도록 여유 있게 ---- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;
 
-  /* ---- Radius: 포트폴리오 실측값(4~6px, shadcn 0.5rem 아님) ---- */
-  --radius-sm: 4px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
+  /* ---- Radius: 카드에도 거의 안 씀(2~3px). 알약형 배지만 999px ---- */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
 
-  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
+  /* 장식용 그림자는 쓰지 않는다 — 포커스 링은 접근성 목적이라 예외 */
   --focus-ring: 0 0 0 3px rgba(244, 244, 245, 0.15);
 
   --transition-fast: 120ms ease;
   --transition-base: 200ms ease;
+  --transition-motion: 280ms ease;
 }
 
 * { box-sizing: border-box; }
@@ -76,7 +81,8 @@ body {
   margin: 0;
   font-family: var(--font-body);
   font-size: var(--text-base);
-  line-height: 1.55;
+  line-height: 1.6;
+  letter-spacing: 0.005em;
   background: var(--brand-bg);
   color: var(--brand-text-primary);
   -webkit-font-smoothing: antialiased;
@@ -97,8 +103,56 @@ a {
 }
 a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
 
+/* ---------- 모션: 은은하게, prefers-reduced-motion 존중 ---------- */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dividerSweep {
+  0%   { left: -96px; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.kpi-card, .panel, .item-list li {
+  animation: fadeInUp 360ms ease both;
+}
+.kpi-row .kpi-card:nth-child(1) { animation-delay: 0ms; }
+.kpi-row .kpi-card:nth-child(2) { animation-delay: 40ms; }
+.kpi-row .kpi-card:nth-child(3) { animation-delay: 80ms; }
+.kpi-row .kpi-card:nth-child(4) { animation-delay: 120ms; }
+.kpi-row .kpi-card:nth-child(5) { animation-delay: 160ms; }
+.kpi-row .kpi-card:nth-child(6) { animation-delay: 200ms; }
+.kpi-row .kpi-card:nth-child(7) { animation-delay: 240ms; }
+.kpi-row .kpi-card:nth-child(8) { animation-delay: 280ms; }
+.kpi-row .kpi-card:nth-child(n+9) { animation-delay: 320ms; }
+.item-list li:nth-child(1) { animation-delay: 0ms; }
+.item-list li:nth-child(2) { animation-delay: 40ms; }
+.item-list li:nth-child(3) { animation-delay: 80ms; }
+.item-list li:nth-child(4) { animation-delay: 120ms; }
+.item-list li:nth-child(5) { animation-delay: 160ms; }
+.item-list li:nth-child(n+6) { animation-delay: 200ms; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ---------- 재사용 유틸리티(현재 페이지에는 아직 연결 안 됨 — DESIGN.md 참고) ---------- */
+
+.progress-bar { height: 2px; background: var(--brand-border); position: relative; overflow: hidden; }
+.progress-bar-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 0%; background: var(--brand-accent);
+  transition: width var(--transition-motion);
+}
+
+.btn.is-success {
+  color: var(--brand-accent);
+  border-color: var(--brand-accent);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
 /* ---------- 로그인 화면 ---------- */
@@ -119,7 +173,6 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   padding: var(--space-8) var(--space-6);
   width: 360px;
   max-width: 100%;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
 }
 
 .login-eyebrow {
@@ -136,8 +189,8 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   color: var(--brand-danger);
   font-size: var(--text-sm);
   margin-bottom: var(--space-3);
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
 }
@@ -157,6 +210,7 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   font-family: var(--font-body);
   background: var(--brand-surface);
   color: var(--brand-text-primary);
+  transition: border-color var(--transition-fast);
 }
 .login-input:focus {
   outline: none;
@@ -167,16 +221,16 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   width: 100%;
   margin-top: var(--space-6);
   padding: 11px;
-  border: none;
+  border: 1px solid var(--brand-accent);
   border-radius: var(--radius-md);
   background: var(--brand-accent);
   color: var(--brand-bg);
   font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
-.login-button:hover { background: var(--brand-accent-hover); }
+.login-button:hover { background: var(--brand-accent-hover); border-color: var(--brand-accent-hover); }
 
 /* ---------- 상단 헤더 ---------- */
 
@@ -213,12 +267,14 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--brand-text-secondary);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  padding: 6px 2px;
+  margin: 0 8px;
+  border-bottom: 2px solid transparent;
   text-decoration: none;
+  transition: color var(--transition-fast), border-color var(--transition-base);
 }
-.topbar-nav a:hover { color: var(--brand-text-primary); background: var(--brand-surface-muted); text-decoration: none; }
-.topbar-nav a.active { color: var(--brand-text-primary); font-weight: 700; box-shadow: inset 0 -2px 0 var(--brand-text-primary); }
+.topbar-nav a:hover { color: var(--brand-text-primary); border-color: var(--brand-border-strong); text-decoration: none; }
+.topbar-nav a.active { color: var(--brand-accent); font-weight: 700; border-color: var(--brand-accent); }
 
 .topbar-actions { display: flex; align-items: center; gap: var(--space-3); }
 .portfolio-link {
@@ -228,6 +284,7 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   border: 1px solid var(--brand-border-strong);
   border-radius: 999px;
   padding: 5px 12px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 .portfolio-link:hover { color: var(--brand-text-primary); border-color: var(--brand-text-primary); text-decoration: none; }
 
@@ -251,7 +308,7 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
-.btn:hover { background: var(--brand-surface-muted); }
+.btn:hover { background: var(--brand-surface-muted); border-color: var(--brand-text-secondary); }
 .btn:focus-visible { outline: 2px solid var(--brand-text-primary); outline-offset: 2px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -289,16 +346,17 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
 .kpi-card {
   background: var(--brand-surface);
   border: 1px solid var(--brand-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  box-shadow: var(--shadow-subtle);
+  padding: var(--space-5);
+  transition: border-color var(--transition-fast);
 }
+.kpi-card:hover { border-color: var(--brand-border-strong); }
 .kpi-card .label {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -308,13 +366,14 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   margin-bottom: var(--space-2);
 }
 .kpi-card .value {
-  font-size: var(--text-2xl);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--brand-text-primary);
   letter-spacing: -0.02em;
 }
-.kpi-card .delta { font-size: var(--text-xs); margin-top: var(--space-1); font-variant-numeric: tabular-nums; }
+.kpi-card .delta { font-size: var(--text-xs); margin-top: var(--space-2); font-variant-numeric: tabular-nums; }
 .delta.favorable { color: var(--brand-success); }
 .delta.unfavorable { color: var(--brand-danger); }
 .delta.flat { color: var(--brand-text-muted); }
@@ -324,7 +383,7 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
 .section-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: var(--space-5);
   margin-bottom: var(--space-6);
 }
 
@@ -332,10 +391,10 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   background: var(--brand-surface);
   border: 1px solid var(--brand-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-5, var(--space-4));
-  box-shadow: var(--shadow-subtle);
+  padding: var(--space-5);
 }
 .panel h2 {
+  position: relative;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: var(--text-sm);
@@ -345,16 +404,34 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   border-bottom: 1px solid var(--brand-border);
   padding-bottom: var(--space-2);
 }
+.panel h2::after {
+  content: "";
+  position: absolute;
+  left: -96px;
+  bottom: -1px;
+  width: 96px;
+  height: 1px;
+  background: var(--brand-accent);
+  animation: dividerSweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
 .panel .empty-state { color: var(--brand-text-muted); font-size: var(--text-sm); padding: var(--space-4) 0; }
 
 .item-list { list-style: none; margin: 0; padding: 0; }
-.item-list li { padding: var(--space-3) 0; border-bottom: 1px solid var(--brand-border); }
+.item-list li {
+  padding: var(--space-3) var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  border-bottom: 1px solid var(--brand-border);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+.item-list li:hover { background: rgba(244, 244, 245, 0.03); }
 .item-list li:last-child { border-bottom: none; }
 .item-title { font-size: var(--text-sm); font-weight: 600; color: var(--brand-text-primary); }
 .item-meta { font-size: var(--text-xs); color: var(--brand-text-muted); margin-top: 3px; }
 .item-summary { font-size: var(--text-sm); color: var(--brand-text-secondary); margin-top: var(--space-1); }
 
-/* ---------- 상태 배지 ---------- */
+/* ---------- 상태 배지: 색은 텍스트/점에만, 채워진 배경 없음 ---------- */
 
 .badge {
   display: inline-flex;
@@ -368,16 +445,16 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
   color: var(--brand-text-secondary);
   border: 1px solid var(--brand-border);
 }
-.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; }
-.badge.urgent { color: var(--brand-danger); background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); }
-.badge.high { color: var(--brand-warning); background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+.badge.urgent { color: var(--brand-danger); }
+.badge.high { color: var(--brand-warning); }
 
 /* ---------- 표 ---------- */
 
 table.data-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 table.data-table th, table.data-table td {
   text-align: left;
-  padding: 10px var(--space-2);
+  padding: 12px var(--space-2);
   border-bottom: 1px solid var(--brand-border);
 }
 table.data-table th {
@@ -387,7 +464,8 @@ table.data-table th {
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-table.data-table tbody tr:hover { background: var(--brand-surface-muted); }
+table.data-table tbody tr { transition: background var(--transition-fast); }
+table.data-table tbody tr:hover { background: rgba(244, 244, 245, 0.03); }
 table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- 폼/필터 ---------- */
@@ -402,6 +480,7 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   font-family: var(--font-body);
   background: var(--brand-surface);
   color: var(--brand-text-primary);
+  transition: border-color var(--transition-fast);
 }
 .form-inline input:focus, .form-inline select:focus {
   outline: none;
@@ -409,13 +488,25 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   box-shadow: var(--focus-ring);
 }
 
-/* ---------- 알림/플래시 ---------- */
+/* ---------- 알림/플래시: 채워진 배경 없이 텍스트 색으로만 구분 ---------- */
 
-.flash { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); margin-bottom: var(--space-3); font-size: var(--text-sm); border: 1px solid transparent; }
-.flash.success { background: rgba(34, 197, 94, 0.12); color: var(--brand-success); border-color: rgba(34, 197, 94, 0.35); }
-.flash.error { background: rgba(239, 68, 68, 0.12); color: var(--brand-danger); border-color: rgba(239, 68, 68, 0.35); }
+.flash {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+}
+.flash.success { color: var(--brand-success); }
+.flash.error { color: var(--brand-danger); }
 
 .footer-links { margin-top: var(--space-6); font-size: var(--text-xs); color: var(--brand-text-muted); }
+.footer-links a {
+  display: inline-block;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+.footer-links a:hover { color: var(--brand-text-primary); transform: translateX(4px); text-decoration: none; }
 
 /* ---------- 사이트 푸터 ---------- */
 
