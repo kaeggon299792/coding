@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}대시보드 - 경영기획 인텔리전스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="label">오늘 수집 뉴스</div>
+      <div class="value">{{ kpis.today_news }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">중요 뉴스</div>
+      <div class="value">{{ kpis.important_news }}</div>
+      {% if kpis.important_news_delta is not none %}
+        <div class="delta flat">전일 대비 {{ '%+d'|format(kpis.important_news_delta) }}%</div>
+      {% endif %}
+    </div>
+    <div class="kpi-card">
+      <div class="label">신규 경쟁사 이슈</div>
+      <div class="value">{{ kpis.new_competitor_issues }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">신규 정책·규제 이슈</div>
+      <div class="value">{{ kpis.new_policy_issues }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">임원 확인 필요 이메일</div>
+      <div class="value">{{ kpis.important_emails }}</div>
+      {% if kpis.important_emails_delta is not none %}
+        <div class="delta flat">전일 대비 {{ '%+d'|format(kpis.important_emails_delta) }}%</div>
+      {% endif %}
+    </div>
+    <div class="kpi-card">
+      <div class="label">긴급 이메일</div>
+      <div class="value">{{ kpis.urgent_emails }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">미처리 과제</div>
+      <div class="value">{{ kpis.pending_action_items }}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">오늘 마감 과제</div>
+      <div class="value">{{ kpis.due_today_action_items }}</div>
+      {% if kpis.overdue_action_items %}
+        <div class="delta unfavorable">기한 초과 {{ kpis.overdue_action_items }}건</div>
+      {% endif %}
+    </div>
+    <div class="kpi-card">
+      <div class="label">AI 신규 시사점</div>
+      <div class="value">{{ kpis.ai_insights_count }}</div>
+    </div>
+  </div>
+
+  <div class="section-grid">
+    <div class="panel">
+      <h2>오늘의 중요 업계 뉴스</h2>
+      {% if important_news %}
+        <ul class="item-list">
+          {% for item in important_news %}
+          <li>
+            <div class="item-title">
+              <a href="{{ item.original_url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+            </div>
+            <div class="item-meta">
+              {{ item.publisher or '출처 미상' }} · {{ item.category or '미분류' }}
+              · 중요도 {{ item.importance_score if item.importance_score is not none else '-' }}
+            </div>
+            {% if item.latest_summary %}
+            <div class="item-summary">{{ item.latest_summary }}</div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">오늘 수집된 중요 뉴스가 없습니다.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>임원 확인 필요 이메일</h2>
+      {% if important_emails %}
+        <ul class="item-list">
+          {% for mail in important_emails %}
+          <li>
+            <div class="item-title">
+              {% if mail.importance == 'urgent' %}<span class="badge urgent">긴급</span>{% else %}<span class="badge high">높음</span>{% endif %}
+              {{ mail.subject or '(제목 없음)' }}
+            </div>
+            <div class="item-meta">
+              {{ mail.sender_name or mail.sender_address }} · {{ mail.received_at }}
+              {% if mail.deadline %} · 기한 {{ mail.deadline }}{% endif %}
+            </div>
+            {% if mail.summary %}
+            <div class="item-summary">{{ mail.summary }}</div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">오늘 확인이 필요한 중요 이메일이 없습니다.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section-grid">
+    <div class="panel">
+      <h2>실적 요약</h2>
+      {% if latest_performance and latest_performance.parsed %}
+        <table class="data-table">
+          <tbody>
+          {% for key, value in latest_performance.parsed.items() %}
+            <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <p class="item-meta">수신 {{ latest_performance.received_at }} ({{ latest_performance.header_type }})</p>
+      {% else %}
+        <p class="empty-state">비교 데이터 없음 — 아직 오늘 수신된 실적 알림이 없습니다.</p>
+      {% endif %}
+      <p class="footer-links"><a href="{{ url_for('performance_page') }}">전체 실적 이력 보기 →</a></p>
+    </div>
+
+    <div class="panel">
+      <h2>AI 경영진 관점 시사점</h2>
+      {% if insights %}
+        <ul class="item-list">
+          {% for insight in insights %}
+          <li>
+            <div class="item-title">
+              <span class="badge {% if insight.importance in ('high', '높음') %}urgent{% endif %}">{{ insight.importance }}</span>
+              {{ insight.title }}
+            </div>
+            <div class="item-meta">구분: {{ insight.category }} {% if insight.needs_executive_review %}· 경영진 확인 필요{% endif %}</div>
+            <div class="item-summary"><strong>사실</strong> {{ insight.facts }}</div>
+            <div class="item-summary"><strong>해석</strong> {{ insight.ai_interpretation }}</div>
+            <div class="item-summary"><strong>권고</strong> {{ insight.recommended_action }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">오늘 생성된 AI 시사점이 아직 없습니다(1일 1회 배치 작업 실행 대기 중이거나 근거 데이터 부족).</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section-grid">
+    <div class="panel">
+      <h2>최근 공시 (7일)</h2>
+      {% if recent_disclosures %}
+        <table class="data-table">
+          <thead><tr><th>기업</th><th>공시명</th><th>접수일</th><th></th></tr></thead>
+          <tbody>
+          {% for d in recent_disclosures %}
+            <tr>
+              <td>{{ d.corp_name }}</td>
+              <td>{% if d.is_important %}<span class="badge urgent">중요</span>{% endif %} {{ d.report_nm }}</td>
+              <td>{{ d.rcept_dt }}</td>
+              <td><a href="{{ d.dart_link }}" target="_blank" rel="noopener">원문</a></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="empty-state">최근 7일간 수집된 공시가 없습니다(DART_API_KEY 미설정이거나 신규 공시 없음).</p>
+      {% endif %}
+      <p class="footer-links"><a href="{{ url_for('disclosures_page') }}">전체 공시 보기 →</a></p>
+    </div>
+
+    <div class="panel">
+      <h2>지난주 대비 변화 · 신규 이슈</h2>
+      <p class="empty-state">이 영역(지난주 대비 상세 비교, 이슈 클러스터링)은 다음 단계에서 구현됩니다.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>미처리 과제 (최근 10건)</h2>
+    {% if action_items %}
+      <table class="data-table">
+        <thead><tr><th>과제</th><th>우선순위</th><th>마감일</th><th>상태</th><th>담당</th></tr></thead>
+        <tbody>
+        {% for item in action_items %}
+          <tr>
+            <td>{{ item.title }}</td>
+            <td>{{ item.priority }}</td>
+            <td>{{ item.due_date or '-' }} {% if item.due_date_confidence == 'estimated' %}(추정){% elif item.due_date_confidence == 'unclear' %}(확인필요){% endif %}</td>
+            <td>{{ item.status }} {% if item.ai_suggested and not item.approved_by_user %}<span class="badge">AI 제안(미승인)</span>{% endif %}</td>
+            <td>{{ item.owner or '-' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty-state">등록된 과제가 없습니다.</p>
+    {% endif %}
+    <p class="footer-links"><a href="{{ url_for('action_items_page') }}">전체 과제 관리로 이동 →</a></p>
+  </div>
+
+</div>
+{% endblock %}

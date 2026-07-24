@@ -1,0 +1,22 @@
+# Environment / secrets
+.env
+*.env
+!.env.example
+
+# Databases (dashboard's own DB is runtime data, never committed)
+dashboard/dashboard.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Logs
+dashboard/logs/
+*.log

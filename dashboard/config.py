@@ -1,0 +1,218 @@
+"""
+환경변수와 전역 설정을 모아두는 모듈.
+
+기존 casino_news_watch/config.py, email_monitor/config.py와 동일한 스타일을
+따른다: 모든 값은 .env(python-dotenv)로 덮어쓸 수 있고, 비밀값은 절대
+기본값으로 하드코딩하지 않는다.
+"""
+
+import os
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+ENV_FILE = BASE_DIR / ".env"
+
+KST = ZoneInfo("Asia/Seoul")
+
+load_dotenv(ENV_FILE)
+
+
+# ============================================================
+# 환경변수 파싱 헬퍼 (기존 프로그램들과 동일한 헬퍼를 그대로 재사용)
+# ============================================================
+
+def _get_str(name, default=""):
+    return os.environ.get(name, default).strip()
+
+
+def _get_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "y", "on")
+
+
+def _get_int(name, default):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        return default
+
+
+def _get_optional_float(name):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return float(value.strip())
+    except ValueError:
+        return None
+
+
+def _get_float(name, default):
+    value = _get_optional_float(name)
+    return default if value is None else value
+
+
+def _get_list(name, default_list=()):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return list(default_list)
+    items = [item.strip() for item in value.split(",")]
+    return [item for item in items if item]
+
+
+# ============================================================
+# 대시보드 자체 DB 및 기존 프로그램의 읽기 전용 DB 경로
+# ============================================================
+# 기존 뉴스/이메일 프로그램의 DB는 절대 쓰기 접근하지 않는다(읽기 전용 연결만 사용).
+# 경로는 PythonAnywhere 배포 환경에 맞춰 .env에서 절대경로로 지정한다.
+
+DASHBOARD_DB_FILE = _get_str("DASHBOARD_DB_FILE", str(BASE_DIR / "dashboard.db"))
+NEWS_DB_FILE = _get_str("NEWS_DB_FILE", "")  # 예: /home/사용자명/casino_news_watch/news_history.db
+EMAIL_DB_FILE = _get_str("EMAIL_DB_FILE", "")  # 예: /home/사용자명/email_monitor/email_monitor.db
+
+
+# ============================================================
+# 텔레그램 (기존 세 프로그램과 동일한 봇 재사용, 발송이 아닌 getUpdates 수신 전용)
+# ============================================================
+
+TELEGRAM_BOT_TOKEN = _get_str("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = _get_str("TELEGRAM_CHAT_ID")
+
+# 대시보드가 새로 "발송"하는 유일한 경로(중요 공시 긴급 알림). 발송 전용 함수와
+# 완전히 분리되어 있으며, 기존 세 프로그램의 발송 로직과는 무관하다.
+TELEGRAM_ALERT_DRY_RUN = _get_bool("TELEGRAM_ALERT_DRY_RUN", True)
+
+TELEGRAM_POLL_INTERVAL_SECONDS = _get_int("TELEGRAM_POLL_INTERVAL_SECONDS", 60)
+TELEGRAM_REQUEST_TIMEOUT_SECONDS = _get_int("TELEGRAM_REQUEST_TIMEOUT_SECONDS", 35)
+
+
+# ============================================================
+# OpenAI (경영진 시사점 / 공시 분석 / 법률 분석 공통)
+# ============================================================
+
+OPENAI_API_KEY = _get_str("OPENAI_API_KEY")
+OPENAI_INSIGHT_MODEL = _get_str("OPENAI_INSIGHT_MODEL")
+
+OPENAI_INPUT_COST_PER_1M = _get_optional_float("OPENAI_INPUT_COST_PER_1M")
+OPENAI_OUTPUT_COST_PER_1M = _get_optional_float("OPENAI_OUTPUT_COST_PER_1M")
+
+OPENAI_REQUEST_TIMEOUT_SECONDS = _get_int("OPENAI_REQUEST_TIMEOUT_SECONDS", 60)
+OPENAI_MAX_RETRIES = _get_int("OPENAI_MAX_RETRIES", 2)
+
+MAX_GPT_CALLS_PER_DAY = _get_int("MAX_GPT_CALLS_PER_DAY", 50)
+DAILY_OPENAI_BUDGET_USD = _get_float("DAILY_OPENAI_BUDGET_USD", 0.50)
+
+AI_INSIGHT_PROMPT_VERSION = _get_str("AI_INSIGHT_PROMPT_VERSION", "exec-insight-v1")
+AI_DISCLOSURE_PROMPT_VERSION = _get_str("AI_DISCLOSURE_PROMPT_VERSION", "dart-summary-v1")
+AI_LAW_PROMPT_VERSION = _get_str("AI_LAW_PROMPT_VERSION", "law-summary-v1")
+
+
+# ============================================================
+# DART 공시통합정보 OpenAPI (opendart.fss.or.kr, 별도 무료 API 키 필요)
+# ============================================================
+
+DART_API_KEY = _get_str("DART_API_KEY")
+DART_REQUEST_TIMEOUT_SECONDS = _get_int("DART_REQUEST_TIMEOUT_SECONDS", 20)
+DART_SYNC_LOOKBACK_DAYS = _get_int("DART_SYNC_LOOKBACK_DAYS", 3)
+
+# 중요 공시로 간주해 텔레그램 긴급 알림을 보낼 보고서명 키워드
+DEFAULT_DART_IMPORTANT_KEYWORDS = [
+    "사업보고서", "반기보고서", "분기보고서", "주요사항보고서", "유상증자",
+    "무상증자", "회사채", "소송", "제재", "최대주주", "합병", "분할",
+    "영업양수", "영업양도", "감사의견", "관리종목", "상장폐지",
+]
+DART_IMPORTANT_KEYWORDS = _get_list("DART_IMPORTANT_KEYWORDS", DEFAULT_DART_IMPORTANT_KEYWORDS)
+
+
+# ============================================================
+# 국가법령정보센터 Open API (open.law.go.kr, 별도 무료 API 키 필요)
+# ============================================================
+
+LAW_API_OC = _get_str("LAW_API_OC")  # 발급받은 기관코드(이메일 아이디 부분)
+LAW_API_KEY = _get_str("LAW_API_KEY")
+LAW_REQUEST_TIMEOUT_SECONDS = _get_int("LAW_REQUEST_TIMEOUT_SECONDS", 20)
+
+DEFAULT_MONITORED_LAWS = [
+    "관광진흥법", "관광진흥법 시행령", "관광진흥법 시행규칙",
+    "특정 금융거래정보의 보고 및 이용등에 관한 법률", "외국환거래법",
+    "개인정보 보호법", "근로기준법", "산업안전보건법", "중대재해 처벌 등에 관한 법률",
+]
+
+
+# ============================================================
+# 인증 / 세션 / CSRF
+# ============================================================
+
+FLASK_SECRET_KEY = _get_str("FLASK_SECRET_KEY")
+SESSION_LIFETIME_DAYS = _get_int("SESSION_LIFETIME_DAYS", 7)
+
+
+# ============================================================
+# 운영 시간 (KPI/실적 조회 기준일 = 한국시간 기준 오늘)
+# ============================================================
+
+TIMEZONE = "Asia/Seoul"
+
+
+# ============================================================
+# 로그
+# ============================================================
+
+LOG_DIR = _get_str("LOG_DIR", str(BASE_DIR / "logs"))
+LOG_LEVEL = _get_str("LOG_LEVEL", "INFO")
+LOG_MAX_BYTES = _get_int("LOG_MAX_BYTES", 5 * 1024 * 1024)
+LOG_BACKUP_COUNT = _get_int("LOG_BACKUP_COUNT", 5)
+
+
+class ConfigError(Exception):
+    """환경변수 설정 오류. 메시지에 실제 값은 절대 포함하지 않는다."""
+
+
+def validate_environment(require_ai=False, require_dart=False, require_law=False):
+    """단계별 필수 환경변수를 확인한다. 값 자체는 예외 메시지에 노출하지 않는다."""
+    missing = []
+
+    if not FLASK_SECRET_KEY:
+        missing.append("FLASK_SECRET_KEY")
+    if not NEWS_DB_FILE:
+        missing.append("NEWS_DB_FILE")
+    if not EMAIL_DB_FILE:
+        missing.append("EMAIL_DB_FILE")
+
+    if not TELEGRAM_BOT_TOKEN:
+        missing.append("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_CHAT_ID:
+        missing.append("TELEGRAM_CHAT_ID")
+
+    if require_ai and not OPENAI_API_KEY:
+        missing.append("OPENAI_API_KEY")
+    if require_dart and not DART_API_KEY:
+        missing.append("DART_API_KEY")
+    if require_law and not (LAW_API_OC and LAW_API_KEY):
+        missing.append("LAW_API_OC / LAW_API_KEY")
+
+    if missing:
+        raise ConfigError("다음 환경변수가 없습니다: " + ", ".join(missing))
+
+
+def known_secrets():
+    """로그에 절대 노출되면 안 되는 값들의 목록(로그 마스킹용)."""
+    return [
+        value
+        for value in (
+            TELEGRAM_BOT_TOKEN,
+            OPENAI_API_KEY,
+            DART_API_KEY,
+            LAW_API_KEY,
+            FLASK_SECRET_KEY,
+        )
+        if value
+    ]
