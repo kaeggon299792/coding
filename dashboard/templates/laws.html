@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}법률·규제 - 경영기획 인텔리전스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  <div class="panel">
+    <h2>최근 법령 변경 (90일)</h2>
+    <p class="item-meta">
+      이 목록은 "공포된 법령 원문의 변경"만 감지합니다. 발의·상임위 심사 등 입법
+      진행 단계 추적은 별도 API(국회 의안정보시스템 등)가 필요해 이번 범위에는
+      포함되지 않았습니다.
+    </p>
+    {% if updates %}
+      <table class="data-table">
+        <thead><tr><th>법령명</th><th>상태</th><th>시행일자</th><th>공포일자</th><th>확인일시</th></tr></thead>
+        <tbody>
+        {% for u in updates %}
+          <tr>
+            <td>{{ u.law_name }}</td>
+            <td>{{ u.status }}</td>
+            <td>{{ u.effective_date or '-' }}</td>
+            <td>{{ u.promulgation_date or '-' }}</td>
+            <td>{{ u.fetched_at }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty-state">
+        표시할 법령 변경 이력이 없습니다. LAW_API_OC/LAW_API_KEY가 설정되지 않았거나,
+        monitored_laws에 등록된 법령이 없거나, 변경이 감지되지 않았을 수 있습니다.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}실적 - 경영기획 인텔리전스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  <form class="form-inline" method="get">
+    <input type="date" name="date" value="{{ report_date }}">
+    <button class="btn" type="submit">조회</button>
+  </form>
+
+  <div class="panel">
+    <h2>{{ report_date }} 텔레그램 실적 알림 이력</h2>
+    <p class="item-meta">
+      데이터 출처: 회사 인트라넷(데이터랩) 전용 로컬 스크립트가 텔레그램으로 보낸 메시지를 수집한 결과입니다.
+      캡션에 없는 세부 지점별 수치(인천/부산/제주 등)는 수집되지 않습니다.
+    </p>
+    {% if reports %}
+      <table class="data-table">
+        <thead><tr><th>수신시각</th><th>헤더 유형</th><th>파싱 상태</th><th>지표</th></tr></thead>
+        <tbody>
+        {% for r in reports %}
+          <tr>
+            <td>{{ r.received_at }}</td>
+            <td>{{ r.header_type }}</td>
+            <td>
+              {% if r.parsing_status == 'ok' %}<span class="badge">정상</span>
+              {% else %}<span class="badge urgent">파싱 실패</span>{% endif %}
+            </td>
+            <td>
+              {% if r.parsed %}
+                {% for key, value in r.parsed.items() %}{{ key }}: {{ value }}<br>{% endfor %}
+              {% elif r.parsing_error %}
+                <span class="item-meta">{{ r.parsing_error }}</span>
+              {% else %}-{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty-state">해당 날짜에 수신된 실적 메시지가 없습니다.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

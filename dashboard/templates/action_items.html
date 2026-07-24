@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}미처리 과제 - 경영기획 인텔리전스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+  <div class="panel" style="margin-bottom:20px;">
+    <h2>새 과제 등록</h2>
+    <form method="post" action="{{ url_for('action_items_page') }}" class="form-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text" name="title" placeholder="과제명" required style="min-width:220px;">
+      <input type="text" name="description" placeholder="설명">
+      <input type="text" name="owner" placeholder="담당자">
+      <input type="date" name="due_date">
+      <select name="due_date_confidence">
+        <option value="confirmed">확정 마감일</option>
+        <option value="estimated">추정 마감일</option>
+        <option value="unclear" selected>날짜 확인 필요</option>
+      </select>
+      <select name="priority">
+        <option value="긴급">긴급</option>
+        <option value="높음">높음</option>
+        <option value="보통" selected>보통</option>
+        <option value="낮음">낮음</option>
+      </select>
+      <button class="btn btn-primary" type="submit">등록</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>과제 목록</h2>
+    {% if items %}
+      <table class="data-table">
+        <thead>
+          <tr><th>과제</th><th>우선순위</th><th>마감일</th><th>담당</th><th>상태</th><th>AI 제안</th><th>작업</th></tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+          <tr>
+            <td>{{ item.title }}{% if item.description %}<div class="item-meta">{{ item.description }}</div>{% endif %}</td>
+            <td>{{ item.priority }}</td>
+            <td>{{ item.due_date or '-' }}
+              {% if item.due_date_confidence == 'estimated' %}<span class="badge">추정</span>
+              {% elif item.due_date_confidence == 'unclear' %}<span class="badge">확인필요</span>{% endif %}
+            </td>
+            <td>{{ item.owner or '-' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <select name="status" onchange="this.form.submit()">
+                  {% for status in ['미착수', '진행 중', '검토 중', '완료', '보류'] %}
+                    <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </td>
+            <td>
+              {% if item.ai_suggested %}
+                {% if item.approved_by_user %}<span class="badge">AI 제안(승인됨)</span>
+                {% else %}
+                  <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="approve" value="1">
+                    <button class="btn" type="submit">AI 제안 승인</button>
+                  </form>
+                {% endif %}
+              {% else %}수동 등록{% endif %}
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('delete_action_item_route', item_id=item.id) }}" style="display:inline"
+                    onsubmit="return confirm('삭제하시겠습니까?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn" type="submit">삭제</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty-state">등록된 과제가 없습니다.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

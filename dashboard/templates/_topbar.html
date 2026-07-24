@@ -1,0 +1,16 @@
+<div class="topbar">
+  <div>
+    <h1>경영기획 인텔리전스 대시보드</h1>
+    <span class="meta">기준일 {{ now_str }} · {{ current_username }}</span>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('dashboard_home') }}">홈</a>
+    <a class="btn" href="{{ url_for('action_items_page') }}">과제</a>
+    <a class="btn" href="{{ url_for('performance_page') }}">실적</a>
+    <a class="btn" href="{{ url_for('disclosures_page') }}">공시·재무</a>
+    <a class="btn" href="{{ url_for('laws_page') }}">법률·규제</a>
+    <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
+      <button class="btn" type="submit">로그아웃</button>
+    </form>
+  </div>
+</div>
