@@ -104,17 +104,17 @@
     excelDrive.addEventListener("change", applyExcelDrive);
     applyExcelDrive();
   }
-  const toggle = (select, selector) => {
+  const toggle = (select, selector, otherValue = "OTHER") => {
     const field = document.querySelector(selector);
     if (!field || !select) return;
-    const visible = select.value === "OTHER";
+    const visible = select.value === otherValue;
     field.hidden = !visible;
     const input = field.querySelector("input");
     if (input) input.required = visible;
   };
   const refresh = () => {
     toggle(category, ".conditional-other");
-    toggle(folder, ".conditional-folder-other");
+    toggle(folder, ".conditional-folder-other", "078");
     document.querySelector(".video-fields")?.classList.toggle("emphasized", category?.value === "04");
     const mode = document.querySelector('input[name="folder_handling_type"]:checked')?.value || "CREATE_NEW";
     if (existingFields) existingFields.hidden = mode !== "LINK_EXISTING";
