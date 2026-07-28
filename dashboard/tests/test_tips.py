@@ -68,12 +68,13 @@ def test_draft_visibility_soft_delete_and_restore(db_connection):
 
 def test_markdown_is_sanitized_and_code_is_preserved():
     rendered = tips_content.render_markdown(
-        "<script>alert(1)</script>\n\n```python\nprint('ok')\n```"
+        "<script>alert(1)</script>\n\n## 자동 목차 제목\n\n```python\nprint('ok')\n```"
     )
     assert "<script" not in rendered
     assert "alert(1)" in rendered
     assert "codehilite" in rendered
     assert "print" in rendered
+    assert 'id="' in rendered
 
 
 def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
@@ -117,6 +118,8 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
     assert detail.status_code == 200
     assert "<strong>본문</strong>" in detail.get_data(as_text=True)
     assert 'id="share-tip-link"' in detail.get_data(as_text=True)
+    assert 'id="tip-toc"' in detail.get_data(as_text=True)
+    assert 'id="tip-progress-fill"' in detail.get_data(as_text=True)
     assert "&lt;script&gt;의견&lt;/script&gt;" in detail.get_data(as_text=True)
     assert "<script>의견</script>" not in detail.get_data(as_text=True)
 

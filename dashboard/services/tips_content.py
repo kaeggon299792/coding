@@ -24,6 +24,12 @@ ALLOWED_TAGS = set(bleach.sanitizer.ALLOWED_TAGS).union({
 ALLOWED_ATTRIBUTES = {
     "a": ["href", "title", "rel"],
     "img": ["src", "alt", "title", "width", "height"],
+    "h1": ["id"],
+    "h2": ["id"],
+    "h3": ["id"],
+    "h4": ["id"],
+    "h5": ["id"],
+    "h6": ["id"],
     "code": ["class"],
     "div": ["class"],
     "span": ["class"],
