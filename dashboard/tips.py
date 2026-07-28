@@ -39,7 +39,6 @@ def _form_values():
         "category": request.form.get("category", "기타"),
         "tags": request.form.get("tags", ""),
         "published_date": request.form.get("published_date", ""),
-        "reading_time": request.form.get("reading_time", ""),
         "cover_image": request.form.get("cover_image", ""),
         "featured": request.form.get("featured") == "1",
         "draft": request.form.get("draft") == "1",
