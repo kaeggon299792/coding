@@ -21,8 +21,31 @@
   const folderBrowserList = document.querySelector("#folder-browser-list");
   const folderBrowserUp = document.querySelector("#folder-browser-up");
   const folderBrowserSelect = document.querySelector("#folder-browser-select");
+  const receiptDateInput = document.querySelector('input[name="receipt_date"]');
+  const nativeDatePicker = document.querySelector(".native-date-picker");
+  const datePickerButton = document.querySelector(".date-picker-button");
   let browserPath = "";
   const browserHistory = [];
+  if (receiptDateInput && nativeDatePicker && datePickerButton) {
+    const normalizedDate = receiptDateInput.value.trim().replace(
+      /^(\d{4})(\d{2})(\d{2})$/,
+      "$1-$2-$3"
+    );
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      nativeDatePicker.value = normalizedDate;
+    }
+    nativeDatePicker.addEventListener("change", () => {
+      if (nativeDatePicker.value) receiptDateInput.value = nativeDatePicker.value;
+    });
+    datePickerButton.addEventListener("click", () => {
+      if (typeof nativeDatePicker.showPicker === "function") {
+        nativeDatePicker.showPicker();
+      } else {
+        nativeDatePicker.focus();
+        nativeDatePicker.click();
+      }
+    });
+  }
   const setupFieldSuggestions = (fieldName) => {
     const input = document.querySelector(`input[name="${fieldName}"]`);
     const list = document.querySelector(`#${fieldName}-suggestions`);

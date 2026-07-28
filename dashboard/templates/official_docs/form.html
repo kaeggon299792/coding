@@ -28,7 +28,7 @@
       <label class="conditional-folder-other"><span>폴더 기타 상세내용</span><input name="folder_category_detail" value="{{ form_values.folder_category_detail or '' }}"></label>
       <label><span>접수번호</span><input value="저장 시 자동 생성" readonly aria-describedby="receipt-number-help"><small id="receipt-number-help" class="field-help">YYMMDD_담당자_0001 · 담당자별 연간 순번</small></label>
       <label class="autocomplete-field"><span>담당 *</span><input name="manager" value="{{ form_values.manager or '' }}" autocomplete="off" aria-autocomplete="list" aria-controls="manager-suggestions" required><div id="manager-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
-      <label><span>접수일 *</span><input name="receipt_date" value="{{ form_values.receipt_date or '' }}" placeholder="2026-07-28 또는 20260728" required></label>
+      <label><span>접수일 *</span><div class="date-input-picker"><input name="receipt_date" value="{{ form_values.receipt_date or '' }}" placeholder="2026-07-28 또는 20260728" inputmode="numeric" required><button class="btn date-picker-button" type="button" aria-label="접수일 달력 열기">달력</button><input class="native-date-picker" type="date" aria-label="접수일 선택" tabindex="-1"></div></label>
       <label class="autocomplete-field"><span>기관명·회사명 *</span><input name="organization" value="{{ form_values.organization or '' }}" autocomplete="off" aria-autocomplete="list" aria-controls="organization-suggestions" required><div id="organization-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
     </fieldset>
     <fieldset><legend>업무 내용</legend>
@@ -73,6 +73,6 @@
     <button class="btn btn-primary" type="submit" id="official-submit">등록하고 저장 대기</button>
   </form>
 </div>
-<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260729-folder-other-fix"></script>
+<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260729-receipt-calendar"></script>
 {% include "_footer.html" %}
 {% endblock %}
