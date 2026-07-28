@@ -23,7 +23,9 @@ DASHBOARD_TIPS_DB = os.getenv(
     "/home/kaekun/coding-dashboard/dashboard/dashboard.db",
 )
 
-REQUIRED_FIELDS = ("title", "summary", "category", "date", "body")
+# 대시보드 자료실에서는 요약을 선택 입력으로 받으므로 요약이 비어 있어도
+# 제목·분류·작성일·본문이 있으면 정상 공개 글로 취급한다.
+REQUIRED_FIELDS = ("title", "category", "date", "body")
 
 MAX_TITLE_LENGTH = 150
 MAX_SUMMARY_LENGTH = 300

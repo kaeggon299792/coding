@@ -142,3 +142,35 @@ def test_comment_update_and_soft_delete(db_connection):
     tips_content.delete_comment(db_connection, comment_id, user_id)
     assert tips_content.comments(db_connection, item["id"]) == []
     assert tips_content.get_comment(db_connection, comment_id)["is_deleted"] == 1
+
+
+def test_portfolio_adapter_accepts_dashboard_tip_without_summary(
+    db_connection, monkeypatch
+):
+    import importlib.util
+    from pathlib import Path
+
+    item = tips_content.save_tip(db_connection, {
+        "title": "요약 없는 공개 자료",
+        "summary": "",
+        "body": "본문은 정상적으로 작성되어 있습니다.",
+        "category": "기타",
+        "published_date": "2026-07-29",
+    }, None)
+    db_path = db_connection.execute("PRAGMA database_list").fetchone()[2]
+    adapter_path = (
+        Path(__file__).resolve().parents[1]
+        / "deployment"
+        / "portfolio_tips_content.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_tips_content_test", adapter_path
+    )
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    monkeypatch.setattr(adapter, "DASHBOARD_TIPS_DB", db_path)
+
+    articles = adapter.load_all_articles()
+
+    assert [article.id for article in articles] == [item["id"]]
+    assert articles[0].summary == ""
