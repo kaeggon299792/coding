@@ -33,12 +33,23 @@
     <fieldset><legend>폴더 연결</legend>
       <div class="wide folder-mode"><span>폴더 처리방식</span><label><input type="radio" name="folder_handling_type" value="CREATE_NEW" {% if form_values.folder_handling_type!='LINK_EXISTING' %}checked{% endif %}> 새 폴더 자동 생성</label><label><input type="radio" name="folder_handling_type" value="LINK_EXISTING" {% if form_values.folder_handling_type=='LINK_EXISTING' %}checked{% endif %}> 기존 폴더 연결</label></div>
       <div class="wide existing-folder-fields" hidden>
-        <label><span>기존 폴더 경로 *</span><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}"></label>
+        <p>검색 또는 폴더 탐색으로 기존 경로를 선택할 수 있으며, 경로를 직접 입력해도 됩니다.</p>
+        <div class="folder-choice-tools">
+          <section class="folder-choice-tool"><strong>방법 1 · 폴더명 검색</strong><p>폴더명, 연도 또는 기관명의 일부를 입력하세요.</p><div class="folder-search-row"><input id="folder-index-query" placeholder="예: 서울경찰청 또는 2026"><button type="button" class="btn" id="folder-index-search">검색</button></div><div id="folder-index-results" class="folder-index-results" aria-live="polite"></div></section>
+          <section class="folder-choice-tool"><strong>방법 2 · 동기화 폴더 탐색</strong><p>Windows 탐색기처럼 동기화된 Y드라이브 폴더를 단계별로 찾아갑니다.</p><button type="button" class="btn" id="folder-browse-button">폴더 탐색 열기</button></section>
+        </div>
+        <label><span>기존 폴더 경로 *</span><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}" placeholder="Y:\07. 외부자료제공\... 또는 \\회사파일서버\..."></label>
+        <div id="folder-browser" class="folder-browser" hidden>
+          <div class="folder-browser-head"><strong>기존 폴더 찾기</strong><button type="button" class="btn btn-small" id="folder-browser-close">닫기</button></div>
+          <div id="folder-browser-path" class="folder-browser-path">동기화된 폴더</div>
+          <div id="folder-browser-list" class="folder-browser-list" aria-live="polite"></div>
+          <div class="folder-browser-actions"><button type="button" class="btn" id="folder-browser-up">상위 폴더</button><button type="button" class="btn btn-primary" id="folder-browser-select" disabled>현재 폴더 선택</button></div>
+        </div>
         <label><span>폴더 표시명</span><input name="folder_display_name" value="{{ form_values.folder_display_name or '' }}"></label>
       </div>
     </fieldset>
     <div class="form-actions"><button class="btn btn-primary" type="submit">수정사항 저장</button><a class="btn" href="{{ url_for('official_docs.document_detail', document_id=document.id) }}">취소</a></div>
   </form>
 </div>
-<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260728-security-audit"></script>
+<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260729-folder-tools"></script>
 {% include "_footer.html" %}{% endblock %}

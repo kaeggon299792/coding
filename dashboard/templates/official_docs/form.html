@@ -53,9 +53,11 @@
       </div>
       <div class="wide existing-folder-fields" hidden>
         <p>입력한 폴더 경로는 관리자 PC에서 실제 존재 여부를 확인한 후 연결됩니다.</p>
-        <div class="folder-search-row"><input id="folder-index-query" placeholder="폴더명·연도·기관명 검색"><button type="button" class="btn" id="folder-index-search">검색</button></div>
-        <div id="folder-index-results" class="folder-index-results" aria-live="polite"></div>
-        <label><span>기존 폴더 경로 *</span><div class="folder-path-picker"><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}" placeholder="Y:\공문자료\... 또는 \\회사파일서버\공용디스크\..."><button type="button" class="btn" id="folder-browse-button">찾기</button></div></label>
+        <div class="folder-choice-tools">
+          <section class="folder-choice-tool"><strong>방법 1 · 폴더명 검색</strong><p>폴더명, 연도 또는 기관명의 일부를 입력하세요.</p><div class="folder-search-row"><input id="folder-index-query" placeholder="예: 서울경찰청 또는 2026"><button type="button" class="btn" id="folder-index-search">검색</button></div><div id="folder-index-results" class="folder-index-results" aria-live="polite"></div></section>
+          <section class="folder-choice-tool"><strong>방법 2 · 동기화 폴더 탐색</strong><p>Windows 탐색기처럼 동기화된 Y드라이브 폴더를 단계별로 찾아갑니다.</p><button type="button" class="btn" id="folder-browse-button">폴더 탐색 열기</button></section>
+        </div>
+        <label><span>기존 폴더 경로 *</span><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}" placeholder="Y:\07. 외부자료제공\... 또는 \\회사파일서버\..."></label>
         <div id="folder-browser" class="folder-browser" hidden>
           <div class="folder-browser-head"><strong>기존 폴더 찾기</strong><button type="button" class="btn btn-small" id="folder-browser-close">닫기</button></div>
           <div id="folder-browser-path" class="folder-browser-path">동기화된 폴더</div>
@@ -71,6 +73,6 @@
     <button class="btn btn-primary" type="submit" id="official-submit">등록하고 저장 대기</button>
   </form>
 </div>
-<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260728-ai-prefill"></script>
+<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260729-folder-tools"></script>
 {% include "_footer.html" %}
 {% endblock %}

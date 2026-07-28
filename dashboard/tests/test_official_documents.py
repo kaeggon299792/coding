@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import os
 import zipfile
+from pathlib import Path
 
 import pytest
 from werkzeug.datastructures import MultiDict
@@ -15,6 +16,17 @@ from services.official_document_manager import (
 )
 from services.official_excel_export import HEADERS, create_workbook
 from sync_client.file_manager import UnsafeArchivePath, drive_path_to_unc
+
+
+def test_new_and_edit_forms_keep_both_existing_folder_selection_tools():
+    template_dir = Path(__file__).resolve().parents[1] / "templates" / "official_docs"
+    for filename in ("form.html", "edit.html"):
+        source = (template_dir / filename).read_text(encoding="utf-8")
+        assert "방법 1 · 폴더명 검색" in source
+        assert "방법 2 · 동기화 폴더 탐색" in source
+        assert 'id="folder-index-search"' in source
+        assert 'id="folder-browse-button"' in source
+        assert 'id="folder-browser-select"' in source
 
 
 @pytest.mark.parametrize(
