@@ -1,6 +1,7 @@
 """공문·자료관리 웹 화면과 관리자 PC 전용 동기화 API."""
 
 import hmac
+import io
 import json
 import ntpath
 import os
@@ -162,6 +163,21 @@ def import_excel():
         )
     finally:
         connection.close()
+
+
+@official_docs_bp.get("/import-excel/template")
+@login_required
+def import_excel_template():
+    """Header-only upload template; available to every authorized user."""
+    return send_file(
+        io.BytesIO(official_excel_import.build_header_template()),
+        as_attachment=True,
+        download_name="외부자료제공_공문접수_업로드_샘플.xlsx",
+        mimetype=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+    )
 
 
 @official_docs_bp.route("/field-suggestions")

@@ -5,7 +5,8 @@ import re
 import unicodedata
 from datetime import date, datetime
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from services import official_document_manager as manager
 from utils import now_kst
@@ -22,6 +23,29 @@ MAX_IMPORT_BYTES = 20 * 1024 * 1024
 
 class LedgerImportError(ValueError):
     pass
+
+
+def build_header_template():
+    """Return a header-only XLSX that exactly matches the import contract."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "DB"
+    sheet.append(EXPECTED_HEADERS)
+    header_fill = PatternFill("solid", fgColor="1F2937")
+    for index, cell in enumerate(sheet[1], 1):
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        sheet.column_dimensions[cell.column_letter].width = max(
+            12, min(28, len(EXPECTED_HEADERS[index - 1]) * 2 + 4)
+        )
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = f"A1:{sheet.cell(1, len(EXPECTED_HEADERS)).column_letter}1"
+    sheet.row_dimensions[1].height = 24
+    output = io.BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
 
 
 def _text(value):
