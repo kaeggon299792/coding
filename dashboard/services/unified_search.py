@@ -12,7 +12,7 @@ SOURCE_LABELS = {
     "performance": "실적",
     "action": "액션아이템",
     "insight": "AI 분석",
-    "research": "자료실",
+    "research": "리서치",
 }
 
 

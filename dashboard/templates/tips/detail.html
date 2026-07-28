@@ -16,9 +16,9 @@
     <div class="tip-body" id="tip-body">{{ rendered_body|safe }}</div>
     {% if attachments %}<section class="tip-attachments"><h2>첨부파일</h2><ul>{% for file in attachments %}<li><a href="{{ url_for('tips.attachment_file', attachment_id=file.id) }}">{{ file.original_filename }}</a><span>{{ (file.file_size / 1024)|round|int }} KB</span></li>{% endfor %}</ul></section>{% endif %}
   </article>
-  <nav class="tip-adjacent" aria-label="이전 및 다음 팁">
-    {% if previous_tip %}<a href="{{ url_for('tips.detail_page', slug=previous_tip.slug) }}"><small>이전 글</small><strong>{{ previous_tip.title }}</strong></a>{% else %}<span></span>{% endif %}
-    {% if next_tip %}<a href="{{ url_for('tips.detail_page', slug=next_tip.slug) }}"><small>다음 글</small><strong>{{ next_tip.title }}</strong></a>{% endif %}
+  <nav class="tip-adjacent" aria-label="이전 및 다음 자료">
+    {% if previous_tip %}<a href="{{ url_for('tips.detail_page', slug=previous_tip.slug) }}"><small>이전 자료</small><strong>{{ previous_tip.title }}</strong></a>{% else %}<span></span>{% endif %}
+    {% if next_tip %}<a href="{{ url_for('tips.detail_page', slug=next_tip.slug) }}"><small>다음 자료</small><strong>{{ next_tip.title }}</strong></a>{% endif %}
   </nav>
 </main>
 {% endblock %}

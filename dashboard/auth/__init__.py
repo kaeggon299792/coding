@@ -35,10 +35,10 @@ MENU_PERMISSIONS = {
     "disclosures": "공시·재무",
     "laws": "법률·규제",
     "companies": "기업 360°",
-    "research_library": "자료실",
+    "research_library": "리서치",
     "official_docs": "공문·자료관리",
     "unified_search": "통합검색",
-    "tips": "팁게시판",
+    "tips": "자료실",
 }
 LANDING_ENDPOINTS = {
     "dashboard": "dashboard_home",

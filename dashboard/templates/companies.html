@@ -105,7 +105,7 @@
           </li>
           {% endfor %}
         </ul>
-        <a class="btn btn-text" href="{{ url_for('research_library_page', company=company.name) }}">이 회사 자료실 보기 →</a>
+        <a class="btn btn-text" href="{{ url_for('research_library_page', company=company.name) }}">이 회사 리서치 보기 →</a>
         {% else %}
         <p class="empty-state">등록된 리포트가 없습니다. <a href="{{ url_for('research_library_page', company=company.name) }}">자료 업로드</a></p>
         {% endif %}

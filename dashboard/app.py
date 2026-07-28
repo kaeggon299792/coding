@@ -220,9 +220,9 @@ def _site_map_links():
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
         ("laws", "법률·규제", "카지노 관련 법령 모니터링", "laws_page"),
         ("companies", "기업 360°", "회사별 통합 기업분석", "companies_page"),
-        ("research_library", "기업분석 자료실", "증권사·산업 리포트", "research_library_page"),
+        ("research_library", "리서치", "기업·산업 리포트 분석", "research_library_page"),
         ("unified_search", "통합검색", "뉴스·공시·법령·자료 검색", "unified_search_page"),
-        ("tips", "팁게시판", "업무 노하우와 자동화 팁", "tips.list_page"),
+        ("tips", "자료실", "업무 노하우와 자동화 자료", "tips.list_page"),
         ("bug_reports", "버그 제보", "오류 등록 및 처리현황", "action_items_page"),
     )
     links.extend(
@@ -613,7 +613,7 @@ def companies_page():
 
 
 # ============================================================
-# 기업분석 자료실
+# 리서치
 # ============================================================
 
 def _library_context(connection, error=None):
@@ -736,7 +736,7 @@ def research_library_page():
     except Exception:
         if saved_file:
             document_library.remove_file(saved_file)
-        logger.exception("자료실 업로드 처리 실패")
+        logger.exception("리서치 업로드 처리 실패")
         return render_template(
             "library.html",
             **_library_context(connection, "자료 처리 중 오류가 발생했습니다."),

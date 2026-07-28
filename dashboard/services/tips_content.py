@@ -173,7 +173,7 @@ def save_tip(connection, values, author_id, tip_id=None):
     if tip_id:
         current = get_tip_by_id(connection, tip_id)
         if not current:
-            raise ValueError("수정할 팁을 찾을 수 없습니다.")
+            raise ValueError("수정할 자료를 찾을 수 없습니다.")
         slug = unique_slug(
             connection, title, values.get("slug") or current["slug"], tip_id
         )

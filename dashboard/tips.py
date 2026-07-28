@@ -141,7 +141,7 @@ def new_page():
             ), 400
         finally:
             connection.close()
-        flash("팁을 등록했습니다.", "success")
+        flash("자료를 등록했습니다.", "success")
         return redirect(url_for("tips.detail_page", slug=item["slug"]))
     return render_template(
         "tips/form.html", tip={}, categories=tips_content.CATEGORIES, mode="new"
@@ -201,7 +201,7 @@ def edit_page(slug):
                     "tips/form.html", tip=values,
                     categories=tips_content.CATEGORIES, mode="edit",
                 ), 400
-            flash("팁을 수정했습니다.", "success")
+            flash("자료를 수정했습니다.", "success")
             return redirect(url_for("tips.detail_page", slug=item["slug"]))
         return render_template(
             "tips/form.html", tip=item,
@@ -243,7 +243,7 @@ def restore_page(tip_id):
         tips_content.restore(connection, tip_id)
     finally:
         connection.close()
-    flash("팁을 복구했습니다.", "success")
+    flash("자료를 복구했습니다.", "success")
     return redirect(url_for("tips.trash_page"))
 
 
