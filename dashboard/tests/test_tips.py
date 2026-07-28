@@ -103,10 +103,41 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
             browser_session["user_id"] = user_id
             browser_session["username"] = "admin"
             browser_session["role"] = "admin"
+            browser_session["csrf_token"] = "c" * 64
         listing = client.get("/tips")
+        comment_response = client.post(
+            f"/tips/{item['slug']}/comments",
+            data={"csrf_token": "c" * 64, "content": "<script>의견</script>"},
+        )
         detail = client.get(f"/tips/{item['slug']}")
 
     assert listing.status_code == 200
     assert "라우트 테스트" in listing.get_data(as_text=True)
+    assert comment_response.status_code == 302
     assert detail.status_code == 200
     assert "<strong>본문</strong>" in detail.get_data(as_text=True)
+    assert "&lt;script&gt;의견&lt;/script&gt;" in detail.get_data(as_text=True)
+    assert "<script>의견</script>" not in detail.get_data(as_text=True)
+
+
+def test_comment_update_and_soft_delete(db_connection):
+    cursor = db_connection.execute(
+        """INSERT INTO dashboard_users
+           (username, password_hash, role, is_active, created_at)
+           VALUES ('commenter', 'unused', 'user', 1, '2026-07-29T00:00:00')"""
+    )
+    user_id = cursor.lastrowid
+    item = tips_content.save_tip(
+        db_connection, {"title": "댓글 자료", "body": "본문"}, user_id
+    )
+    comment_id = tips_content.add_comment(
+        db_connection, item["id"], user_id, "첫 댓글"
+    )
+    assert tips_content.comments(db_connection, item["id"])[0]["content"] == "첫 댓글"
+
+    tips_content.update_comment(db_connection, comment_id, "수정 댓글")
+    assert tips_content.get_comment(db_connection, comment_id)["content"] == "수정 댓글"
+
+    tips_content.delete_comment(db_connection, comment_id, user_id)
+    assert tips_content.comments(db_connection, item["id"]) == []
+    assert tips_content.get_comment(db_connection, comment_id)["is_deleted"] == 1

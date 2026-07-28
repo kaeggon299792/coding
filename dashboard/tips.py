@@ -164,14 +164,90 @@ def detail_page(slug):
             viewed.add(item["id"])
             session["viewed_tips"] = list(viewed)[-100:]
         files = tips_content.attachments(connection, item["id"])
+        item_comments = tips_content.comments(connection, item["id"])
         previous, following = tips_content.adjacent_tips(connection, item)
         rendered = tips_content.render_markdown(item["body"])
     finally:
         connection.close()
     return render_template(
         "tips/detail.html", tip=item, rendered_body=rendered,
-        attachments=files, previous_tip=previous, next_tip=following,
+        attachments=files, comments=item_comments,
+        previous_tip=previous, next_tip=following,
     )
+
+
+@tips_bp.post("/<slug>/comments")
+@login_required
+def add_comment_page(slug):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        if not item:
+            abort(404)
+        try:
+            tips_content.add_comment(
+                connection, item["id"], session["user_id"],
+                request.form.get("content", ""),
+            )
+            flash("댓글을 등록했습니다.", "success")
+        except ValueError as exc:
+            flash(str(exc), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
+
+
+@tips_bp.post("/<slug>/comments/<int:comment_id>/edit")
+@login_required
+def edit_comment_page(slug, comment_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        comment = tips_content.get_comment(connection, comment_id)
+        if not item or not comment or comment["tip_id"] != item["id"] or comment["is_deleted"]:
+            abort(404)
+        if comment["author_id"] != session["user_id"] and not _is_admin():
+            abort(403)
+        try:
+            tips_content.update_comment(
+                connection, comment_id, request.form.get("content", "")
+            )
+            flash("댓글을 수정했습니다.", "success")
+        except ValueError as exc:
+            flash(str(exc), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
+
+
+@tips_bp.post("/<slug>/comments/<int:comment_id>/delete")
+@login_required
+def delete_comment_page(slug, comment_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        comment = tips_content.get_comment(connection, comment_id)
+        if not item or not comment or comment["tip_id"] != item["id"] or comment["is_deleted"]:
+            abort(404)
+        if comment["author_id"] != session["user_id"] and not _is_admin():
+            abort(403)
+        tips_content.delete_comment(connection, comment_id, session["user_id"])
+        flash("댓글을 삭제했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
 
 
 @tips_bp.route("/<slug>/edit", methods=["GET", "POST"])

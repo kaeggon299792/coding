@@ -4,7 +4,7 @@ import json
 import re
 import secrets
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 import bleach
 import markdown
@@ -113,6 +113,84 @@ def attachments(connection, tip_id, include_deleted=False):
     return [dict(row) for row in connection.execute(
         sql + " ORDER BY created_at", (tip_id,)
     ).fetchall()]
+
+
+def comments(connection, tip_id):
+    return [
+        dict(row) for row in connection.execute(
+            """SELECT c.*, u.username AS author_name
+               FROM tips_comments c
+               JOIN dashboard_users u ON u.id=c.author_id
+               WHERE c.tip_id=? AND c.is_deleted=0
+               ORDER BY c.created_at ASC, c.id ASC""",
+            (tip_id,),
+        ).fetchall()
+    ]
+
+
+def get_comment(connection, comment_id):
+    row = connection.execute(
+        """SELECT c.*, u.username AS author_name
+           FROM tips_comments c
+           JOIN dashboard_users u ON u.id=c.author_id
+           WHERE c.id=?""",
+        (comment_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def add_comment(connection, tip_id, author_id, content):
+    content = (content or "").strip()
+    if not content:
+        raise ValueError("댓글 내용을 입력해주세요.")
+    if len(content) > 1000:
+        raise ValueError("댓글은 1,000자 이하로 입력해주세요.")
+    recent = connection.execute(
+        """SELECT created_at FROM tips_comments
+           WHERE author_id=? ORDER BY id DESC LIMIT 1""",
+        (author_id,),
+    ).fetchone()
+    if recent:
+        try:
+            elapsed = now_kst() - datetime.fromisoformat(recent["created_at"])
+        except (TypeError, ValueError):
+            # 과거 형식의 시간이 있더라도 댓글 작성을 막지 않는다.
+            elapsed = None
+        if elapsed is not None and elapsed.total_seconds() < 5:
+            raise ValueError("댓글은 5초 후 다시 등록할 수 있습니다.")
+    now = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """INSERT INTO tips_comments
+           (tip_id, author_id, content, is_deleted, created_at, updated_at)
+           VALUES (?, ?, ?, 0, ?, ?)""",
+        (tip_id, author_id, content, now, now),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def update_comment(connection, comment_id, content):
+    content = (content or "").strip()
+    if not content:
+        raise ValueError("댓글 내용을 입력해주세요.")
+    if len(content) > 1000:
+        raise ValueError("댓글은 1,000자 이하로 입력해주세요.")
+    connection.execute(
+        """UPDATE tips_comments SET content=?, updated_at=?
+           WHERE id=? AND is_deleted=0""",
+        (content, now_kst().isoformat(timespec="seconds"), comment_id),
+    )
+    connection.commit()
+
+
+def delete_comment(connection, comment_id, user_id):
+    now = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """UPDATE tips_comments SET is_deleted=1, deleted_at=?, deleted_by=?,
+           updated_at=? WHERE id=? AND is_deleted=0""",
+        (now, user_id, now, comment_id),
+    )
+    connection.commit()
 
 
 def adjacent_tips(connection, tip):

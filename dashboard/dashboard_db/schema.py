@@ -762,6 +762,25 @@ def migrate(connection):
     )
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS tips_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tip_id TEXT NOT NULL REFERENCES tips_articles(id) ON DELETE CASCADE,
+            author_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+            content TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            deleted_by INTEGER REFERENCES dashboard_users(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tips_comments_tip "
+        "ON tips_comments(tip_id, is_deleted, created_at)"
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS tips_attachments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tip_id TEXT NOT NULL REFERENCES tips_articles(id) ON DELETE CASCADE,
