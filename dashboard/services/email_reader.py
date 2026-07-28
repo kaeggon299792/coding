@@ -95,3 +95,25 @@ def count_yesterday_important_emails():
         IMPORTANT_LEVELS,
     )
     return rows[0]["c"] if rows else 0
+
+
+def search_emails(term, days=365, limit=100):
+    """저장된 메일 메타데이터와 AI 요약에서 검색한다."""
+    term = (term or "").strip()
+    if not term:
+        return []
+    like = f"%{term}%"
+    rows = _safe_query(
+        """
+        SELECT * FROM emails
+        WHERE received_at >= datetime('now', ?)
+          AND (
+            subject LIKE ? OR sender_name LIKE ? OR sender_address LIKE ?
+            OR summary LIKE ? OR analysis_json LIKE ? OR mail_type LIKE ?
+          )
+        ORDER BY received_at DESC
+        LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, like, max(1, int(limit))),
+    )
+    return _attach_analysis(rows)

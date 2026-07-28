@@ -12,7 +12,6 @@ import pytest  # noqa: E402
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("DASHBOARD_DB_FILE", ":memory:")
 os.environ.setdefault("NEWS_DB_FILE", "")
-os.environ.setdefault("EMAIL_DB_FILE", "")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 os.environ.setdefault("TELEGRAM_CHAT_ID", "-1")
 

@@ -1,92 +1,61 @@
 {% extends "base.html" %}
-{% block title %}과제{% endblock %}
+{% block title %}버그 제보{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
-<div class="page-container">
+<div class="page-container bug-report-page">
   <div class="page-header">
-    <p class="page-eyebrow">Operations / Action Items</p>
-    <h1 class="page-title">미처리 과제</h1>
-    <p class="page-description">뉴스·이메일에서 추출됐거나 직접 등록한 실행 과제를 관리합니다.</p>
+    <p class="page-eyebrow">Support / Bug Reports</p>
+    <h1 class="page-title">버그 제보</h1>
+    <p class="page-description">대시보드 사용 중 발견한 오류와 불편사항을 등록하고 처리 상태를 확인합니다.</p>
   </div>
   {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 
-  <div class="panel" style="margin-bottom:20px;">
-    <h2>새 과제 등록</h2>
-    <form method="post" action="{{ url_for('action_items_page') }}" class="form-inline">
+  <section class="panel bug-report-form-panel">
+    <div class="section-heading"><div><h2>새 버그 제보</h2><p>오류가 발생한 화면과 재현 방법을 구체적으로 적으면 더 빠르게 확인할 수 있습니다.</p></div></div>
+    <form method="post" action="{{ url_for('action_items_page') }}" class="bug-report-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="text" name="title" placeholder="과제명" required style="min-width:220px;">
-      <input type="text" name="description" placeholder="설명">
-      <input type="text" name="owner" placeholder="담당자">
-      <input type="date" name="due_date">
-      <select name="due_date_confidence">
-        <option value="confirmed">확정 마감일</option>
-        <option value="estimated">추정 마감일</option>
-        <option value="unclear" selected>날짜 확인 필요</option>
-      </select>
-      <select name="priority">
-        <option value="긴급">긴급</option>
-        <option value="높음">높음</option>
-        <option value="보통" selected>보통</option>
-        <option value="낮음">낮음</option>
-      </select>
-      <button class="btn btn-primary" type="submit">등록</button>
+      <label class="wide"><span>버그 제목 <em>필수</em></span><input type="text" name="title" required maxlength="150" placeholder="예: 선택 자료 다운로드 후 로딩 게이지가 멈춤"></label>
+      <label><span>발생 화면</span><input type="text" name="bug_page" maxlength="200" placeholder="예: 공문·자료관리 > 자료목록"></label>
+      <label><span>사용 환경</span><input type="text" name="environment" maxlength="200" placeholder="예: 회사 VM / Chrome"></label>
+      <label><span>심각도 <em>필수</em></span><select name="priority" required><option value="긴급">긴급 · 업무 불가</option><option value="높음">높음 · 주요 기능 오류</option><option value="보통" selected>보통 · 우회 가능</option><option value="낮음">낮음 · 불편/개선</option></select></label>
+      <label><span>처리 담당자</span><input type="text" name="owner" maxlength="80" placeholder="미지정 가능"></label>
+      <label class="wide"><span>증상 및 재현 방법 <em>필수</em></span><textarea name="description" required rows="5" placeholder="1. 어떤 버튼을 눌렀는지&#10;2. 기대한 동작&#10;3. 실제 발생한 현상"></textarea></label>
+      <div class="bug-form-footer"><span>제보자: {{ current_username }}</span><button class="btn btn-primary" type="submit">버그 제보 등록</button></div>
     </form>
-  </div>
+  </section>
 
-  <div class="panel">
-    <h2>과제 목록</h2>
+  <section class="panel">
+    <div class="section-heading"><div><h2>{{ '전체 제보 목록' if is_admin else '내 제보 목록' }}</h2><p>{{ '관리자는 처리 상태와 담당자를 관리할 수 있습니다.' if is_admin else '본인이 등록한 제보만 확인하고 수정할 수 있습니다.' }}</p></div><span>{{ items|length }}건</span></div>
     {% if items %}
-      <table class="data-table">
-        <thead>
-          <tr><th>과제</th><th>우선순위</th><th>마감일</th><th>담당</th><th>상태</th><th>AI 제안</th><th>작업</th></tr>
-        </thead>
-        <tbody>
-        {% for item in items %}
-          <tr>
-            <td>{{ item.title }}{% if item.description %}<div class="item-meta">{{ item.description }}</div>{% endif %}</td>
-            <td>{{ item.priority }}</td>
-            <td>{{ item.due_date or '-' }}
-              {% if item.due_date_confidence == 'estimated' %}<span class="badge">추정</span>
-              {% elif item.due_date_confidence == 'unclear' %}<span class="badge">확인필요</span>{% endif %}
-            </td>
-            <td>{{ item.owner or '-' }}</td>
-            <td>
-              <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" style="display:inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <select name="status" onchange="this.form.submit()">
-                  {% for status in ['미착수', '진행 중', '검토 중', '완료', '보류'] %}
-                    <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>
-                  {% endfor %}
-                </select>
-              </form>
-            </td>
-            <td>
-              {% if item.ai_suggested %}
-                {% if item.approved_by_user %}<span class="badge">AI 제안(승인됨)</span>
-                {% else %}
-                  <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" style="display:inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="approve" value="1">
-                    <button class="btn" type="submit">AI 제안 승인</button>
-                  </form>
-                {% endif %}
-              {% else %}수동 등록{% endif %}
-            </td>
-            <td>
-              <form method="post" action="{{ url_for('delete_action_item_route', item_id=item.id) }}" style="display:inline"
-                    onsubmit="return confirm('삭제하시겠습니까?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button class="btn" type="submit">삭제</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="empty-state">등록된 과제가 없습니다.</p>
-    {% endif %}
-  </div>
+    <div class="table-scroll"><table class="data-table bug-report-table">
+      <thead><tr><th>버그</th><th>발생 화면·환경</th><th>심각도</th><th>제보자</th><th>담당</th><th>상태</th><th>등록일</th><th>삭제</th></tr></thead>
+      <tbody>{% for item in items %}<tr>
+        <td>
+          <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" class="bug-edit-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input name="title" value="{{ item.title }}" required maxlength="150" aria-label="버그 제목">
+            <textarea name="description" rows="3" aria-label="증상 및 재현 방법">{{ item.description or '' }}</textarea>
+            <input name="bug_page" value="{{ item.bug_page or '' }}" maxlength="200" placeholder="발생 화면" aria-label="발생 화면">
+            <input name="environment" value="{{ item.environment or '' }}" maxlength="200" placeholder="사용 환경" aria-label="사용 환경">
+            <select name="priority" aria-label="심각도">{% for priority in ['긴급','높음','보통','낮음'] %}<option value="{{ priority }}" {% if item.priority == priority %}selected{% endif %}>{{ priority }}</option>{% endfor %}</select>
+            <button class="btn btn-small" type="submit">내용 수정</button>
+          </form>
+        </td>
+        <td>{{ item.bug_page or '-' }}{% if item.environment %}<div class="item-meta">{{ item.environment }}</div>{% endif %}</td>
+        <td><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span></td>
+        <td>{{ item.reported_by or ('AI/기존 기록' if item.ai_suggested else '-') }}</td>
+        <td>{% if is_admin %}
+          <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" class="inline-bug-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="owner" value="{{ item.owner or '' }}" placeholder="담당자"><button class="btn btn-small">저장</button>
+          </form>
+        {% else %}{{ item.owner or '-' }}{% endif %}</td>
+        <td>{% if is_admin %}<form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="status" onchange="this.form.submit()">{% for status in ['접수','확인 중','수정 중','검증 중','해결','보류'] %}<option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}{% if item.status not in ['접수','확인 중','수정 중','검증 중','해결','보류'] %}<option value="{{ item.status }}" selected>{{ item.status }} · 기존</option>{% endif %}</select></form>{% else %}{{ item.status }}{% endif %}</td>
+        <td>{{ item.created_at|replace('T',' ')|truncate(17, true, '') }}</td>
+        <td>{% if is_admin %}<form method="post" action="{{ url_for('delete_action_item_route', item_id=item.id) }}" onsubmit="return confirm('이 제보를 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button">삭제</button></form>{% else %}-{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty-state">등록된 버그 제보가 없습니다.</p>{% endif %}
+  </section>
 </div>
 {% include "_footer.html" %}
 {% endblock %}

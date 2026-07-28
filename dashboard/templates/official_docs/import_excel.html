@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}공문 Excel 업로드{% endblock %}
+{% block body %}{% include "_topbar.html" %}
+<div class="page-container">
+  {% include "official_docs/_subnav.html" %}
+  <div class="page-header"><p class="page-eyebrow">Official Documents / Excel Import</p><h1 class="page-title">기존 대장 업로드</h1><p class="page-description">기존 「외부자료제공 및 공문접수 대장」의 DB 시트를 일괄 등록합니다. XLSX와 XLSM을 지원하며 매크로는 실행하지 않습니다.</p></div>
+  <aside class="import-guide"><strong>경로 연결 기준</strong><p>위치 값이 동기화된 <code>Y:\07. 외부자료제공</code> 폴더와 정확히 일치하는 경우에만 클릭 가능한 Y드라이브 링크로 연결합니다. 일치하는 폴더가 없거나 둘 이상이면 잘못 연결하지 않고 빈칸으로 둡니다.</p></aside>
+  {% if import_error %}<div class="flash error">{{ import_error }}</div>{% endif %}
+  {% if result %}<section class="panel import-result"><h2>업로드 결과</h2><div class="metric-grid"><div class="kpi-card"><span>신규 등록</span><strong>{{ result.inserted }}건</strong></div><div class="kpi-card"><span>중복 제외</span><strong>{{ result.skipped }}건</strong></div><div class="kpi-card"><span>경로 연결</span><strong>{{ result.linked }}건</strong></div><div class="kpi-card"><span>경로 빈칸</span><strong>{{ result.blank_location }}건</strong></div></div>{% if result.errors %}<details><summary>확인이 필요한 행 {{ result.errors|length }}건</summary><ul>{% for item in result.errors %}<li>{{ item.row }}행 · {{ item.message }}</li>{% endfor %}</ul></details>{% endif %}</section>{% endif %}
+  <form method="post" enctype="multipart/form-data" class="official-form import-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <fieldset><legend>업로드 설정</legend>
+      <label class="wide"><span>Excel 대장 *</span><input type="file" name="ledger" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12" required><small class="field-help">DB 시트와 기존 15개 열 제목이 동일해야 합니다. 최대 20MB, 5,000행</small></label>
+      <label><span>기본 분류 *</span><select name="default_category_code" required>{% for row in categories %}<option value="{{ row.code }}" {% if selected_category==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+      <label><span>경로가 없을 때 기본 폴더구분 *</span><select name="default_folder_category_code" required>{% for row in folder_categories %}<option value="{{ row.code }}" {% if selected_folder==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+    </fieldset>
+    <button class="btn btn-primary" type="submit">검증 후 일괄 등록</button>
+  </form>
+</div>
+{% include "_footer.html" %}{% endblock %}

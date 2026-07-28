@@ -21,11 +21,11 @@ def get_user_by_username(connection, username):
     return dict(row) if row else None
 
 
-def create_user(connection, username, password_hash):
+def create_user(connection, username, password_hash, role="user"):
     now_iso = now_kst().isoformat()
     cursor = connection.execute(
-        "INSERT INTO dashboard_users (username, password_hash, created_at) VALUES (?, ?, ?)",
-        (username, password_hash, now_iso),
+        "INSERT INTO dashboard_users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)",
+        (username, password_hash, role, now_iso),
     )
     connection.commit()
     return cursor.lastrowid
@@ -44,6 +44,36 @@ def any_user_exists(connection):
     return row is not None
 
 
+def get_user_permissions(connection, user_id, permission_codes):
+    rows = connection.execute(
+        "SELECT permission_code, allowed FROM dashboard_user_permissions WHERE user_id=?",
+        (user_id,),
+    ).fetchall()
+    saved = {row["permission_code"]: bool(row["allowed"]) for row in rows}
+    # Existing accounts keep their current access until an administrator saves
+    # an explicit permission matrix for them.
+    return {code: saved.get(code, True) for code in permission_codes}
+
+
+def replace_user_permissions(connection, user_id, permission_codes, allowed_codes, updated_by):
+    now_iso = now_kst().isoformat()
+    connection.execute(
+        "DELETE FROM dashboard_user_permissions WHERE user_id=?", (user_id,)
+    )
+    connection.executemany(
+        """
+        INSERT INTO dashboard_user_permissions
+            (user_id, permission_code, allowed, updated_at, updated_by)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        [
+            (user_id, code, 1 if code in allowed_codes else 0, now_iso, updated_by)
+            for code in permission_codes
+        ],
+    )
+    connection.commit()
+
+
 # ============================================================
 # action_items
 # ============================================================
@@ -60,6 +90,10 @@ def create_action_item(
     priority="normal",
     ai_suggested=False,
     ai_recommended_action=None,
+    status="not_started",
+    reported_by=None,
+    bug_page=None,
+    environment=None,
 ):
     now_iso = now_kst().isoformat()
     cursor = connection.execute(
@@ -67,28 +101,32 @@ def create_action_item(
         INSERT INTO action_items (
             title, description, source_type, source_ref_id, owner, created_at,
             due_date, due_date_confidence, priority, status, ai_suggested,
-            approved_by_user, ai_recommended_action, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_started', ?, ?, ?, ?)
+            approved_by_user, ai_recommended_action, updated_at, reported_by,
+            bug_page, environment
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             title, description, source_type, source_ref_id, owner, now_iso,
-            due_date, due_date_confidence, priority,
+            due_date, due_date_confidence, priority, status,
             1 if ai_suggested else 0,
             0 if ai_suggested else 1,  # AI 제안은 기본 미승인 상태로 저장
-            ai_recommended_action, now_iso,
+            ai_recommended_action, now_iso, reported_by, bug_page, environment,
         ),
     )
     connection.commit()
     return cursor.lastrowid
 
 
-def list_action_items(connection, status=None, only_pending_due=False):
+def list_action_items(connection, status=None, only_pending_due=False, reported_by=None):
     query = "SELECT * FROM action_items"
     params = []
     clauses = []
     if status:
         clauses.append("status = ?")
         params.append(status)
+    if reported_by is not None:
+        clauses.append("reported_by = ?")
+        params.append(reported_by)
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
     query += " ORDER BY CASE priority WHEN '긴급' THEN 0 WHEN 'urgent' THEN 0 ELSE 1 END, due_date IS NULL, due_date ASC"
@@ -127,9 +165,15 @@ def delete_action_item(connection, item_id):
     connection.commit()
 
 
-def count_action_items(connection, status=None, overdue_only=False, due_today_only=False):
+def count_action_items(
+    connection, status=None, overdue_only=False, due_today_only=False,
+    urgent_only=False, reported_by=None,
+):
     today = now_kst().strftime("%Y-%m-%d")
-    query = "SELECT COUNT(*) AS c FROM action_items WHERE status != '완료' AND status != 'done'"
+    query = (
+        "SELECT COUNT(*) AS c FROM action_items "
+        "WHERE status NOT IN ('완료', 'done', '해결', '종료')"
+    )
     params = []
     if status:
         query = "SELECT COUNT(*) AS c FROM action_items WHERE status = ?"
@@ -140,6 +184,11 @@ def count_action_items(connection, status=None, overdue_only=False, due_today_on
     elif due_today_only:
         query += " AND due_date = ?"
         params.append(today)
+    elif urgent_only:
+        query += " AND priority IN ('긴급', 'urgent')"
+    if reported_by is not None:
+        query += " AND reported_by = ?"
+        params.append(reported_by)
     row = connection.execute(query, params).fetchone()
     return row["c"] if row else 0
 
@@ -335,6 +384,211 @@ def upsert_monitored_company(connection, name, dart_corp_code, aliases=None, act
     connection.commit()
 
 
+def upsert_company_research(connection, company_name, **fields):
+    allowed = {
+        "dart_corp_code", "stock_code", "legal_name", "legal_name_eng", "ceo_names",
+        "headquarters", "established_date", "fiscal_month", "website_url", "ir_url",
+        "business_summary", "strategy_summary", "key_assets_json", "opportunities_json",
+        "risks_json", "financials_json", "sources_json", "source_period",
+        "researched_at", "updated_at",
+    }
+    values = {key: value for key, value in fields.items() if key in allowed}
+    now_iso = now_kst().isoformat()
+    values.setdefault("researched_at", now_iso)
+    values.setdefault("updated_at", now_iso)
+    columns = ["company_name", *values]
+    params = [company_name, *values.values()]
+    updates = ", ".join(f"{column}=excluded.{column}" for column in values)
+    connection.execute(
+        f"INSERT INTO company_research_profiles ({', '.join(columns)}) "
+        f"VALUES ({', '.join('?' for _ in columns)}) "
+        f"ON CONFLICT(company_name) DO UPDATE SET {updates}",
+        params,
+    )
+    connection.commit()
+
+
+def list_company_research(connection):
+    rows = connection.execute(
+        "SELECT * FROM company_research_profiles ORDER BY company_name"
+    ).fetchall()
+    results = []
+    for row in rows:
+        item = dict(row)
+        for field in ("key_assets_json", "opportunities_json", "risks_json",
+                      "financials_json", "sources_json"):
+            target = field.removesuffix("_json")
+            try:
+                raw_value = item.get(field) or ("{}" if field == "financials_json" else "[]")
+                item[target] = json.loads(raw_value)
+            except (TypeError, ValueError):
+                item[target] = {} if field == "financials_json" else []
+        results.append(item)
+    return results
+
+
+# ============================================================
+# research_documents
+# ============================================================
+
+def create_research_document(connection, **fields):
+    now_iso = now_kst().isoformat()
+    company_names = list(dict.fromkeys(
+        str(name).strip() for name in (fields.pop("company_names", None) or [])
+        if str(name).strip()
+    ))
+    if not company_names and fields.get("company_name"):
+        company_names = [fields["company_name"]]
+    columns = (
+        "company_name", "title", "publisher", "report_date", "original_filename",
+        "stored_filename", "mime_type", "file_size", "sha256", "page_count",
+        "extracted_text", "extraction_status", "uploaded_by", "created_at", "updated_at",
+    )
+    values = [fields.get(column) for column in columns]
+    values[-2] = fields.get("created_at") or now_iso
+    values[-1] = fields.get("updated_at") or now_iso
+    cursor = connection.execute(
+        f"INSERT INTO research_documents ({', '.join(columns)}) "
+        f"VALUES ({', '.join('?' for _ in columns)})",
+        values,
+    )
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO research_document_companies
+            (document_id, company_name, created_at)
+        VALUES (?, ?, ?)
+        """,
+        [(cursor.lastrowid, name, now_iso) for name in company_names],
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def _decode_research_document(row):
+    if not row:
+        return None
+    item = dict(row)
+    company_names = [
+        name for name in str(item.get("company_names_csv") or "").split("\x1f")
+        if name
+    ]
+    item["company_names"] = company_names or [item["company_name"]]
+    for field in ("key_points_json", "risks_json"):
+        target = field.removesuffix("_json")
+        try:
+            item[target] = json.loads(item.get(field) or "[]")
+        except (TypeError, ValueError):
+            item[target] = []
+    return item
+
+
+def get_research_document(connection, document_id):
+    row = connection.execute(
+        """
+        SELECT d.*, (
+            SELECT GROUP_CONCAT(company_name, char(31))
+            FROM research_document_companies rc WHERE rc.document_id=d.id
+        ) AS company_names_csv
+        FROM research_documents d WHERE d.id = ?
+        """,
+        (document_id,),
+    ).fetchone()
+    return _decode_research_document(row)
+
+
+def find_research_document_by_hash(connection, company_name, sha256):
+    row = connection.execute(
+        "SELECT * FROM research_documents WHERE company_name = ? AND sha256 = ?",
+        (company_name, sha256),
+    ).fetchone()
+    return _decode_research_document(row)
+
+
+def list_research_documents(connection, company_name=None, limit=200):
+    where = ""
+    params = []
+    if company_name:
+        where = """
+        WHERE EXISTS (
+            SELECT 1 FROM research_document_companies rc
+            WHERE rc.document_id=d.id AND rc.company_name=?
+        )
+        """
+        params.append(company_name)
+    params.append(max(1, int(limit)))
+    rows = connection.execute(
+        f"""
+        SELECT d.*, (
+            SELECT GROUP_CONCAT(company_name, char(31))
+            FROM research_document_companies rc WHERE rc.document_id=d.id
+        ) AS company_names_csv
+        FROM research_documents d
+        {where}
+        ORDER BY COALESCE(report_date, substr(created_at, 1, 10)) DESC, created_at DESC
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    return [_decode_research_document(row) for row in rows]
+
+
+def update_research_document_analysis(connection, document_id, analysis=None, error_message=None):
+    analysis = analysis or {}
+    now_iso = now_kst().isoformat()
+    connection.execute(
+        """
+        UPDATE research_documents
+        SET ai_summary = ?, investment_stance = ?, target_price = ?,
+            key_points_json = ?, risks_json = ?, analyzed_at = ?,
+            error_message = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            analysis.get("ai_summary"),
+            analysis.get("investment_stance"),
+            analysis.get("target_price"),
+            json.dumps(analysis.get("key_points") or [], ensure_ascii=False),
+            json.dumps(analysis.get("risks") or [], ensure_ascii=False),
+            now_iso if analysis else None,
+            error_message,
+            now_iso,
+            document_id,
+        ),
+    )
+    connection.commit()
+
+
+def delete_research_document(connection, document_id):
+    connection.execute("DELETE FROM research_documents WHERE id = ?", (document_id,))
+    connection.commit()
+
+
+def search_research_documents(connection, term, days=365, limit=100):
+    pattern = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT d.*, (
+            SELECT GROUP_CONCAT(company_name, char(31))
+            FROM research_document_companies rc WHERE rc.document_id=d.id
+        ) AS company_names_csv
+        FROM research_documents d
+        WHERE d.created_at >= datetime('now', ?)
+          AND (
+              EXISTS (
+                  SELECT 1 FROM research_document_companies rc
+                  WHERE rc.document_id=d.id AND rc.company_name LIKE ?
+              )
+              OR d.title LIKE ? OR d.publisher LIKE ?
+              OR d.ai_summary LIKE ? OR d.extracted_text LIKE ?
+          )
+        ORDER BY COALESCE(d.report_date, substr(d.created_at, 1, 10)) DESC
+        LIMIT ?
+        """,
+        (f"-{int(days)} days", pattern, pattern, pattern, pattern, pattern, int(limit)),
+    ).fetchall()
+    return [_decode_research_document(row) for row in rows]
+
+
 # ============================================================
 # dart_disclosures / disclosure_analysis
 # ============================================================
@@ -382,6 +636,47 @@ def list_recent_disclosures(connection, days=7, important_only=False):
         query += " AND is_important = 1"
     query += " ORDER BY rcept_dt DESC"
     return [dict(row) for row in connection.execute(query, params).fetchall()]
+
+
+def list_disclosures_for_company(connection, company_name, dart_corp_code=None, days=90):
+    clauses = ["rcept_dt >= date('now', ?)"]
+    params = [f"-{max(1, int(days))} days"]
+    if dart_corp_code:
+        clauses.append("(dart_corp_code = ? OR corp_name LIKE ?)")
+        params.extend([dart_corp_code, f"%{company_name}%"])
+    else:
+        clauses.append("corp_name LIKE ?")
+        params.append(f"%{company_name}%")
+    rows = connection.execute(
+        f"SELECT * FROM dart_disclosures WHERE {' AND '.join(clauses)} "
+        "ORDER BY rcept_dt DESC LIMIT 100",
+        params,
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_disclosures(connection, term, days=365, limit=100):
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT d.*, a.ai_summary, a.importance, a.financial_impact,
+               a.competitive_impact, a.risk_category
+        FROM dart_disclosures d
+        LEFT JOIN disclosure_analysis a ON a.id = (
+            SELECT id FROM disclosure_analysis
+            WHERE disclosure_id = d.id ORDER BY id DESC LIMIT 1
+        )
+        WHERE d.rcept_dt >= date('now', ?)
+          AND (
+            d.corp_name LIKE ? OR d.report_nm LIKE ? OR d.flr_nm LIKE ?
+            OR a.ai_summary LIKE ? OR a.financial_impact LIKE ?
+            OR a.competitive_impact LIKE ? OR a.risk_category LIKE ?
+          )
+        ORDER BY d.rcept_dt DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, like, like, max(1, int(limit))),
+    ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def save_disclosure_analysis(connection, disclosure_id, ai_summary, importance,
@@ -471,6 +766,80 @@ def list_recent_law_updates(connection, days=30):
         "WHERE law_updates.fetched_at >= datetime('now', ?) "
         "ORDER BY law_updates.fetched_at DESC",
         (f"-{days} days",),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_law_updates(connection, term, days=365, limit=100):
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT u.*, l.law_name, a.ai_summary, a.affected_scope,
+               a.company_impact, a.action_needed
+        FROM law_updates u
+        JOIN monitored_laws l ON l.id = u.monitored_law_id
+        LEFT JOIN law_analysis a ON a.id = (
+            SELECT id FROM law_analysis
+            WHERE law_update_id = u.id ORDER BY id DESC LIMIT 1
+        )
+        WHERE u.fetched_at >= datetime('now', ?)
+          AND (
+            l.law_name LIKE ? OR u.status LIKE ? OR u.raw_summary_json LIKE ?
+            OR a.ai_summary LIKE ? OR a.affected_scope LIKE ?
+            OR a.company_impact LIKE ? OR a.action_needed LIKE ?
+          )
+        ORDER BY u.fetched_at DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, like, like, max(1, int(limit))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_performance_reports(connection, term, days=365, limit=100):
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT * FROM performance_reports
+        WHERE received_at >= datetime('now', ?)
+          AND (raw_text LIKE ? OR parsed_json LIKE ? OR header_type LIKE ?)
+        ORDER BY received_at DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, max(1, int(limit))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_action_items(connection, term, days=365, limit=100):
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT * FROM action_items
+        WHERE created_at >= datetime('now', ?)
+          AND (
+            title LIKE ? OR description LIKE ? OR owner LIKE ? OR memo LIKE ?
+            OR ai_recommended_action LIKE ? OR source_type LIKE ?
+          )
+        ORDER BY updated_at DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, like, max(1, int(limit))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_executive_insights(connection, term, days=365, limit=100):
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT * FROM executive_insights
+        WHERE created_at >= datetime('now', ?)
+          AND (
+            title LIKE ? OR evidence_json LIKE ? OR facts LIKE ?
+            OR ai_interpretation LIKE ? OR expected_impact LIKE ?
+            OR recommended_action LIKE ? OR category LIKE ?
+          )
+        ORDER BY created_at DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, like, like, max(1, int(limit))),
     ).fetchall()
     return [dict(row) for row in rows]
 

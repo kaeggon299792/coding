@@ -69,14 +69,26 @@ def _get_list(name, default_list=()):
 
 
 # ============================================================
-# 대시보드 자체 DB 및 기존 프로그램의 읽기 전용 DB 경로
+# 대시보드 자체 DB 및 뉴스 프로그램의 읽기 전용 DB 경로
 # ============================================================
-# 기존 뉴스/이메일 프로그램의 DB는 절대 쓰기 접근하지 않는다(읽기 전용 연결만 사용).
+# 기존 뉴스 프로그램의 DB는 절대 쓰기 접근하지 않는다(읽기 전용 연결만 사용).
 # 경로는 PythonAnywhere 배포 환경에 맞춰 .env에서 절대경로로 지정한다.
 
 DASHBOARD_DB_FILE = _get_str("DASHBOARD_DB_FILE", str(BASE_DIR / "dashboard.db"))
 NEWS_DB_FILE = _get_str("NEWS_DB_FILE", "")  # 예: /home/사용자명/casino_news_watch/news_history.db
-EMAIL_DB_FILE = _get_str("EMAIL_DB_FILE", "")  # 예: /home/사용자명/email_monitor/email_monitor.db
+RESEARCH_LIBRARY_DIR = _get_str(
+    "RESEARCH_LIBRARY_DIR", str(BASE_DIR / "data" / "research_library")
+)
+RESEARCH_MAX_FILE_BYTES = _get_int("RESEARCH_MAX_FILE_BYTES", 20 * 1024 * 1024)
+RESEARCH_MAX_PDF_PAGES = _get_int("RESEARCH_MAX_PDF_PAGES", 250)
+RESEARCH_MAX_EXTRACTED_CHARS = _get_int("RESEARCH_MAX_EXTRACTED_CHARS", 160_000)
+OFFICIAL_DOC_TEMP_DIR = _get_str(
+    "OFFICIAL_DOC_TEMP_DIR", str(BASE_DIR / "data" / "official_doc_temp")
+)
+OFFICIAL_DOC_MAX_UPLOAD_MB = _get_int("OFFICIAL_DOC_MAX_UPLOAD_MB", 50)
+OFFICIAL_DOC_TEMP_RETENTION_DAYS = _get_int("OFFICIAL_DOC_TEMP_RETENTION_DAYS", 3)
+SYNC_CLAIM_TIMEOUT_MINUTES = _get_int("SYNC_CLAIM_TIMEOUT_MINUTES", 30)
+SYNC_API_TOKEN = _get_str("SYNC_API_TOKEN")
 
 
 # ============================================================
@@ -155,6 +167,15 @@ DEFAULT_MONITORED_LAWS = [
 
 FLASK_SECRET_KEY = _get_str("FLASK_SECRET_KEY")
 SESSION_LIFETIME_DAYS = _get_int("SESSION_LIFETIME_DAYS", 7)
+SESSION_IDLE_MINUTES = _get_int("SESSION_IDLE_MINUTES", 30)
+SESSION_ABSOLUTE_HOURS = _get_int("SESSION_ABSOLUTE_HOURS", 8)
+TRUSTED_HOSTS = tuple(
+    host.strip().lower()
+    for host in _get_str(
+        "TRUSTED_HOSTS", "dashboard-kaekun.pythonanywhere.com"
+    ).split(",")
+    if host.strip()
+)
 
 
 # ============================================================
@@ -186,8 +207,6 @@ def validate_environment(require_ai=False, require_dart=False, require_law=False
         missing.append("FLASK_SECRET_KEY")
     if not NEWS_DB_FILE:
         missing.append("NEWS_DB_FILE")
-    if not EMAIL_DB_FILE:
-        missing.append("EMAIL_DB_FILE")
 
     if not TELEGRAM_BOT_TOKEN:
         missing.append("TELEGRAM_BOT_TOKEN")

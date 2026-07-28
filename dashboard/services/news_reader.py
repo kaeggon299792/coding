@@ -70,6 +70,11 @@ def count_today_articles():
     return rows[0]["c"] if rows else 0
 
 
+def last_updated_at():
+    rows = _safe_query("SELECT MAX(collected_at) AS updated_at FROM articles")
+    return rows[0]["updated_at"] if rows and rows[0].get("updated_at") else None
+
+
 def count_today_important_articles(min_importance_score=60):
     today = today_kst_str()
     rows = _safe_query(
@@ -120,6 +125,70 @@ def recent_issues_by_category(category_keywords, days=7):
         WHERE last_seen_at >= datetime('now', ?) AND ({placeholders})
         ORDER BY last_seen_at DESC
         LIMIT 50
+        """,
+        params,
+    )
+
+
+def search_articles(term, days=365, limit=100):
+    """제목·발행사·이슈명·요약에서 검색어를 찾는다."""
+    term = (term or "").strip()
+    if not term:
+        return []
+    like = f"%{term}%"
+    return _safe_query(
+        """
+        SELECT
+            articles.article_id, articles.title, articles.publisher,
+            articles.original_url, articles.published_at, articles.collected_at,
+            articles.importance_score, articles.relevance_score,
+            issues.issue_id, issues.issue_key, issues.issue_title, issues.category,
+            issues.importance, issues.impact_direction, issues.latest_summary,
+            issues.first_seen_at, issues.last_seen_at
+        FROM articles
+        LEFT JOIN issues ON issues.issue_id = articles.issue_id
+        WHERE articles.collected_at >= datetime('now', ?)
+          AND (
+            articles.title LIKE ? OR articles.publisher LIKE ?
+            OR issues.issue_title LIKE ? OR issues.category LIKE ?
+            OR issues.latest_summary LIKE ?
+          )
+        ORDER BY COALESCE(articles.published_at, articles.collected_at) DESC
+        LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", like, like, like, like, like, max(1, int(limit))),
+    )
+
+
+def articles_for_aliases(aliases, days=90, limit=100):
+    """회사명과 별칭 가운데 하나라도 포함된 최근 기사를 반환한다."""
+    aliases = [str(alias).strip() for alias in aliases if str(alias).strip()]
+    if not aliases:
+        return []
+    clauses = []
+    params = [f"-{max(1, int(days))} days"]
+    for alias in aliases:
+        clauses.append(
+            "(articles.title LIKE ? OR issues.issue_title LIKE ? "
+            "OR issues.category LIKE ? OR issues.latest_summary LIKE ?)"
+        )
+        params.extend([f"%{alias}%"] * 4)
+    params.append(max(1, int(limit)))
+    return _safe_query(
+        f"""
+        SELECT
+            articles.article_id, articles.title, articles.publisher,
+            articles.original_url, articles.published_at, articles.collected_at,
+            articles.importance_score, articles.relevance_score,
+            issues.issue_id, issues.issue_title, issues.category,
+            issues.importance, issues.impact_direction, issues.latest_summary,
+            issues.first_seen_at, issues.last_seen_at
+        FROM articles
+        LEFT JOIN issues ON issues.issue_id = articles.issue_id
+        WHERE articles.collected_at >= datetime('now', ?)
+          AND ({" OR ".join(clauses)})
+        ORDER BY COALESCE(articles.published_at, articles.collected_at) DESC
+        LIMIT ?
         """,
         params,
     )

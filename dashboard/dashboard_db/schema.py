@@ -4,7 +4,7 @@
 기존 casino_news_watch/database.py, email_monitor/database.py와 동일한 패턴을
 따른다: CREATE TABLE IF NOT EXISTS + ALTER TABLE ADD COLUMN(멱등)으로 안전하게
 반복 실행 가능한 마이그레이션. 뉴스/이메일 프로그램의 DB는 이 모듈에서 전혀
-다루지 않는다(읽기 전용 접근은 services/news_reader.py, services/email_reader.py 참고).
+다루지 않는다(읽기 전용 접근은 services/news_reader.py 참고).
 """
 
 import sqlite3
@@ -42,6 +42,110 @@ def migrate(connection):
         )
         """
     )
+    # 기존 계정은 이 기능 도입 전부터 대시보드를 관리하던 계정이므로 admin으로 이관한다.
+    _ensure_column(connection, "dashboard_users", "role", "TEXT NOT NULL DEFAULT 'admin'")
+    _ensure_column(connection, "dashboard_users", "is_active", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(connection, "dashboard_users", "updated_at", "TEXT")
+    _ensure_column(connection, "dashboard_users", "password_changed_at", "TEXT")
+    _ensure_column(connection, "dashboard_users", "landing_page", "TEXT NOT NULL DEFAULT 'dashboard'")
+    _ensure_column(connection, "dashboard_users", "email", "TEXT")
+    _ensure_column(
+        connection, "dashboard_users", "approval_status",
+        "TEXT NOT NULL DEFAULT 'approved'",
+    )
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_dashboard_users_email_unique
+        ON dashboard_users(LOWER(email))
+        WHERE email IS NOT NULL AND TRIM(email) != ''
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_user_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target_user_id INTEGER,
+            target_username TEXT NOT NULL,
+            action TEXT NOT NULL,
+            actor_user_id INTEGER,
+            actor_username TEXT NOT NULL,
+            detail_json TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_user_audit_created "
+        "ON dashboard_user_audit(created_at DESC)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_user_permissions (
+            user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            permission_code TEXT NOT NULL,
+            allowed INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL,
+            updated_by INTEGER,
+            PRIMARY KEY (user_id, permission_code)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS login_ip_security (
+            ip_address TEXT PRIMARY KEY,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            first_failed_at TEXT,
+            last_failed_at TEXT,
+            blocked_at TEXT,
+            blocked_by TEXT,
+            unblocked_at TEXT,
+            note TEXT,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS security_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            action TEXT NOT NULL,
+            resource_type TEXT,
+            resource_id TEXT,
+            success INTEGER NOT NULL DEFAULT 1,
+            detail_json TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_security_audit_created "
+        "ON security_audit_log(created_at DESC)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_active_sessions (
+            session_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            username TEXT NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            absolute_expires_at TEXT NOT NULL,
+            revoked_at TEXT,
+            revoke_reason TEXT
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_active_sessions_user "
+        "ON dashboard_active_sessions(user_id, revoked_at, last_seen_at DESC)"
+    )
 
     # ---- action_items ----
     connection.execute(
@@ -69,6 +173,9 @@ def migrate(connection):
     )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items(status)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_action_items_due_date ON action_items(due_date)")
+    _ensure_column(connection, "action_items", "reported_by", "TEXT")
+    _ensure_column(connection, "action_items", "bug_page", "TEXT")
+    _ensure_column(connection, "action_items", "environment", "TEXT")
 
     # ---- executive_insights ----
     connection.execute(
@@ -168,6 +275,101 @@ def migrate(connection):
     connection.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_monitored_companies_code "
         "ON monitored_companies(dart_corp_code)"
+    )
+
+    # ---- company_research_profiles (공식 자료 기반 기초 조사 베이스라인) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS company_research_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT NOT NULL UNIQUE,
+            dart_corp_code TEXT,
+            stock_code TEXT,
+            legal_name TEXT,
+            legal_name_eng TEXT,
+            ceo_names TEXT,
+            headquarters TEXT,
+            established_date TEXT,
+            fiscal_month TEXT,
+            website_url TEXT,
+            ir_url TEXT,
+            business_summary TEXT,
+            strategy_summary TEXT,
+            key_assets_json TEXT,
+            opportunities_json TEXT,
+            risks_json TEXT,
+            financials_json TEXT,
+            sources_json TEXT,
+            source_period TEXT,
+            researched_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_company_research_code "
+        "ON company_research_profiles(dart_corp_code)"
+    )
+
+    # ---- research_documents (사용자 업로드 증권사·산업 리포트 자료실) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS research_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT NOT NULL,
+            title TEXT NOT NULL,
+            publisher TEXT,
+            report_date TEXT,
+            original_filename TEXT NOT NULL,
+            stored_filename TEXT NOT NULL UNIQUE,
+            mime_type TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            sha256 TEXT NOT NULL,
+            page_count INTEGER,
+            extracted_text TEXT,
+            extraction_status TEXT NOT NULL DEFAULT 'pending',
+            ai_summary TEXT,
+            investment_stance TEXT,
+            target_price TEXT,
+            key_points_json TEXT,
+            risks_json TEXT,
+            analyzed_at TEXT,
+            error_message TEXT,
+            uploaded_by TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(company_name, sha256)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_research_documents_company "
+        "ON research_documents(company_name, report_date, created_at)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS research_document_companies (
+            document_id INTEGER NOT NULL
+                REFERENCES research_documents(id) ON DELETE CASCADE,
+            company_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (document_id, company_name)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_research_document_companies_company "
+        "ON research_document_companies(company_name, document_id)"
+    )
+    # 기존 단일 회사 자료도 새 다중 연결 구조에서 그대로 검색되도록 이관한다.
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO research_document_companies
+            (document_id, company_name, created_at)
+        SELECT id, company_name, created_at
+        FROM research_documents
+        WHERE company_name IS NOT NULL AND TRIM(company_name) != ''
+        """
     )
 
     # ---- dart_disclosures ----
@@ -297,5 +499,256 @@ def migrate(connection):
         """
     )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_errors_occurred_at ON errors(occurred_at)")
+
+    # ---- 공문·자료관리 기준정보 ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_doc_reference_values (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            code TEXT NOT NULL,
+            label TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(kind, code)
+        )
+        """
+    )
+
+    # ---- 공문·자료관리 문서 ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            management_number TEXT NOT NULL UNIQUE,
+            receipt_number TEXT,
+            manager TEXT NOT NULL,
+            receipt_date TEXT NOT NULL,
+            organization TEXT NOT NULL,
+            case_name TEXT,
+            request_content TEXT NOT NULL,
+            special_note TEXT,
+            requester TEXT,
+            contact TEXT,
+            email TEXT,
+            dispatch_number TEXT,
+            reply_date TEXT,
+            location TEXT,
+            legacy_location TEXT,
+            video_exported TEXT NOT NULL DEFAULT '해당없음',
+            export_pledge TEXT NOT NULL DEFAULT '해당없음',
+            category_code TEXT NOT NULL,
+            category_detail TEXT,
+            folder_category_code TEXT NOT NULL,
+            folder_category_detail TEXT,
+            processing_result TEXT NOT NULL DEFAULT '처리 필요',
+            registered_by TEXT NOT NULL,
+            registered_user_id INTEGER REFERENCES dashboard_users(id),
+            registered_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            file_count INTEGER NOT NULL DEFAULT 0,
+            temp_file_status TEXT NOT NULL DEFAULT 'UPLOADED',
+            storage_status TEXT NOT NULL DEFAULT 'UPLOADED',
+            sha256_hash TEXT,
+            verified_at TEXT,
+            error_message TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            duplicate_warning_ack INTEGER NOT NULL DEFAULT 0,
+            claim_client TEXT,
+            claimed_at TEXT,
+            claim_expires_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_documents_dates "
+        "ON official_documents(receipt_date, registered_at)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_documents_status "
+        "ON official_documents(storage_status, processing_result, is_active)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_receipt_counters (
+            year TEXT NOT NULL,
+            manager TEXT NOT NULL,
+            last_sequence INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (year, manager)
+        )
+        """
+    )
+    for column, definition in (
+        ("folder_handling_type", "TEXT NOT NULL DEFAULT 'CREATE_NEW'"),
+        ("requested_folder_path", "TEXT"),
+        ("normalized_unc_path", "TEXT"),
+        ("folder_display_name", "TEXT"),
+        ("folder_link_status", "TEXT"),
+        ("folder_link_note", "TEXT"),
+        ("folder_verified_at", "TEXT"),
+        ("folder_verified_by_client", "TEXT"),
+        ("excel_exported_at", "TEXT"),
+        ("deleted_at", "TEXT"),
+        ("delete_after", "TEXT"),
+        ("deleted_by", "TEXT"),
+        ("file_delete_status", "TEXT"),
+        ("file_deleted_at", "TEXT"),
+        ("file_delete_client", "TEXT"),
+        ("file_delete_error", "TEXT"),
+    ):
+        _ensure_column(connection, "official_documents", column, definition)
+    connection.execute(
+        """
+        UPDATE official_documents SET file_delete_status='PENDING'
+        WHERE is_active=0 AND delete_after IS NOT NULL AND file_delete_status IS NULL
+        """
+    )
+
+    # ---- 공문·자료관리 다중 PDF 첨부 ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_document_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL REFERENCES official_documents(id),
+            attachment_type TEXT NOT NULL DEFAULT '일반자료',
+            original_filename TEXT NOT NULL,
+            temp_filename TEXT,
+            final_filename TEXT,
+            file_size INTEGER NOT NULL,
+            mime_type TEXT NOT NULL,
+            sha256 TEXT NOT NULL,
+            temp_status TEXT NOT NULL DEFAULT 'UPLOADED',
+            final_path TEXT,
+            registered_at TEXT NOT NULL,
+            stored_at TEXT,
+            temp_deleted_at TEXT,
+            UNIQUE(document_id, sha256)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_attachments_document "
+        "ON official_document_attachments(document_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_attachments_hash "
+        "ON official_document_attachments(sha256)"
+    )
+
+    # ---- 공문·자료관리 처리이력 ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_document_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER REFERENCES official_documents(id),
+            attachment_id INTEGER REFERENCES official_document_attachments(id),
+            action TEXT NOT NULL,
+            actor TEXT,
+            client_name TEXT,
+            detail_json TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_history_document "
+        "ON official_document_history(document_id, created_at)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_document_change_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_history_id INTEGER UNIQUE,
+            document_id INTEGER,
+            management_number TEXT,
+            attachment_id INTEGER,
+            action TEXT NOT NULL,
+            actor TEXT,
+            client_name TEXT,
+            detail_json TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_change_log_created "
+        "ON official_document_change_log(created_at DESC)"
+    )
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO official_document_change_log
+            (source_history_id, document_id, management_number, attachment_id,
+             action, actor, client_name, detail_json, created_at)
+        SELECT h.id, h.document_id, d.management_number, h.attachment_id,
+               h.action, h.actor, h.client_name, h.detail_json, h.created_at
+        FROM official_document_history h
+        LEFT JOIN official_documents d ON d.id=h.document_id
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_folder_index (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            folder_name TEXT NOT NULL,
+            relative_path TEXT NOT NULL,
+            unc_path TEXT NOT NULL UNIQUE,
+            year INTEGER,
+            folder_category TEXT,
+            file_count INTEGER NOT NULL DEFAULT 0,
+            last_modified_at TEXT,
+            last_scanned_at TEXT NOT NULL,
+            is_available INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_official_folder_search "
+        "ON official_folder_index(year, folder_category, is_available)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS official_excel_exports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            export_type TEXT NOT NULL,
+            exported_by TEXT NOT NULL,
+            exported_user_id INTEGER REFERENCES dashboard_users(id),
+            exported_at TEXT NOT NULL,
+            filter_conditions TEXT,
+            record_count INTEGER NOT NULL,
+            output_filename TEXT NOT NULL,
+            includes_personal_data INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+
+    defaults = {
+        "category": [
+            ("01-1", "01-1. 공문접수"), ("01-2", "01-2. 공문발송"),
+            ("02", "02. 문서접수(공문 外)"), ("03", "03. 수사협조요청"),
+            ("04", "04. 영상반출확약서"), ("OTHER", "기타"),
+        ],
+        "folder_category": [
+            ("071", "071. 본사"), ("072", "072. 수사기관"), ("073", "073. 문체부"),
+            ("074", "074. 카지노협회"), ("075", "075. 국회"),
+            ("076", "076. 사행성감독위원회"), ("077", "077. 고객"),
+            ("078", "078. 기타"), ("079", "079. 직원"),
+        ],
+    }
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for kind, values in defaults.items():
+        for order, (code, label) in enumerate(values, 1):
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO official_doc_reference_values
+                    (kind, code, label, active, sort_order, created_at, updated_at)
+                VALUES (?, ?, ?, 1, ?, ?, ?)
+                """,
+                (kind, code, label, order, now_iso, now_iso),
+            )
 
     connection.commit()

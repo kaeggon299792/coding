@@ -49,7 +49,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements-dev.txt
 
 cp .env.example .env
-# .env를 열어 최소한 FLASK_SECRET_KEY, DASHBOARD_DB_FILE, NEWS_DB_FILE, EMAIL_DB_FILE,
+# .env를 열어 최소한 FLASK_SECRET_KEY, DASHBOARD_DB_FILE, NEWS_DB_FILE,
 # TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID를 채운다.
 # python -c "import secrets; print(secrets.token_hex(32))" 로 FLASK_SECRET_KEY 생성
 
@@ -73,7 +73,6 @@ pytest tests/ -v
 | `FLASK_SECRET_KEY` | 세션 서명 키 |
 | `DASHBOARD_DB_FILE` | 대시보드 자체 SQLite 파일 경로 |
 | `NEWS_DB_FILE` | `casino_news_watch/news_history.db`의 **절대경로** (읽기 전용) |
-| `EMAIL_DB_FILE` | `email_monitor/email_monitor.db`의 **절대경로** (읽기 전용) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | 기존 세 프로그램과 동일한 봇/챗 |
 | `TELEGRAM_ALERT_DRY_RUN` | 대시보드가 새로 보내는 "중요 공시/법령변경 긴급알림" 스위치. 처음엔 반드시 `true` |
 | `OPENAI_API_KEY` / `OPENAI_INSIGHT_MODEL` | 경영진 시사점/공시분석/법률분석 공통 |
@@ -86,7 +85,7 @@ pytest tests/ -v
 `migrate()`가 자동 실행되어 `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN`(멱등)으로
 스키마를 최신 상태로 맞춥니다. 별도의 수동 마이그레이션 스크립트가 필요 없습니다.
 
-`news_history.db`, `email_monitor.db`는 **절대 이 프로젝트가 마이그레이션하지 않습니다** —
+`news_history.db`는 **절대 이 프로젝트가 마이그레이션하지 않습니다** —
 읽기 전용 URI(`file:...?mode=ro`)로만 연결되어 물리적으로 쓰기가 불가능합니다.
 
 ## 6. 초기 설정 (관심기업 / 모니터링 법령)
@@ -115,7 +114,7 @@ python manage.py seed-default-laws
 4. **Web** 탭에서 새 웹앱을 추가하고 WSGI 파일에서 `dashboard/app.py`의 `app` 객체를 가리키도록
    설정합니다(기존 portfolio 웹앱과는 별도의 웹앱/서브도메인으로 분리).
 5. `python manage.py create-user <아이디>`로 최초 관리자 계정을 만듭니다.
-6. 먼저 `TELEGRAM_ALERT_DRY_RUN=true`, DART/법률 키 없이 웹앱만 켜서 뉴스/이메일 읽기 전용
+6. 먼저 `TELEGRAM_ALERT_DRY_RUN=true`, DART/법률 키 없이 웹앱만 켜서 뉴스 읽기 전용
    연동이 정상인지 확인합니다.
 
 ## 8. 스케줄 작업 등록
@@ -125,20 +124,19 @@ python manage.py seed-default-laws
 | `scheduler/poll_telegram_performance.py` | **Always-on Task** | 상시(내부적으로 60초 간격 폴링) |
 | `scheduler/sync_dart_disclosures.py` | Scheduled Task | 평일 업무시간 1시간 간격 |
 | `scheduler/sync_law_updates.py` | Scheduled Task | 1일 1회 |
-| `scheduler/daily_insight_batch.py` | Scheduled Task | 1일 1회(뉴스/이메일 수집 이후) |
+| `scheduler/daily_insight_batch.py` | Scheduled Task | 1일 1회(뉴스 수집 이후) |
 
 등록 명령 예시(PythonAnywhere Tasks 탭):
 ```bash
 /home/사용자명/.virtualenvs/mgmt-dashboard/bin/python3.11 /home/사용자명/coding/dashboard/scheduler/poll_telegram_performance.py
 ```
 
-## 9. 뉴스 / 이메일 / 텔레그램 실적 수집 흐름
+## 9. 뉴스 / 공문 / 텔레그램 실적 수집 흐름
 
 - **뉴스**: `casino_news_watch`가 이미 수집·분석해 `news_history.db`의 `articles`/`issues`
   테이블에 저장한 결과를 그대로 읽습니다(`services/news_reader.py`). 대시보드가 직접
   뉴스를 수집하거나 재분석하지 않습니다.
-- **이메일**: `email_monitor`가 이미 분석한 `email_monitor.db`의 `emails` 테이블을
-  읽습니다(`services/email_reader.py`).
+- **공문**: 대시보드 자체 공문·자료관리 DB에서 처리상태와 7일 초과 미처리 건을 읽습니다.
 - **실적**: 회사 인트라넷 "데이터랩"은 사내망에서만 접근 가능해 서버에서 원본 데이터에 접근할
   수 없습니다. 대신 로컬 PC의 `datalab_capture.py`가 같은 텔레그램 봇으로 보내는 메시지
   (사진 caption 또는 텍스트)를 `getUpdates`로 수집해 정규식으로 파싱합니다
@@ -149,8 +147,7 @@ python manage.py seed-default-laws
 
 ## 10. AI 분석 흐름
 
-- 뉴스/이메일 자체의 1·2차 GPT 분석은 기존 두 프로그램이 이미 수행합니다(대시보드가
-  재분석하지 않음).
+- 뉴스 자체의 수집·분석 결과는 기존 뉴스 프로그램에서 읽고 대시보드가 재분석하지 않습니다.
 - 대시보드가 새로 추가하는 AI 분석 3종(`services/ai_insights.py`)은 모두 하루 실행 주기가
   정해진 배치 스크립트에서만 호출되고, 페이지를 열 때마다 재실행되지 않습니다.
   - 중요 공시 발생 시: 공시 메타데이터 기반 요약(`sync_dart_disclosures.py`)
@@ -169,7 +166,7 @@ python manage.py seed-default-laws
   sqlite3 dashboard.db "SELECT occurred_at, stage, error_type, error_message FROM errors ORDER BY occurred_at DESC LIMIT 20;"
   ```
 - `dashboard_analysis_runs` 테이블: 각 배치 작업의 성공/실패/부분실패 이력과 오류 메시지.
-- 뉴스/이메일 DB 연결 실패, DART/법률 API 키 미설정 등은 대시보드 전체를 중단시키지 않고
+- 뉴스 DB 연결 실패, DART/법률 API 키 미설정 등은 대시보드 전체를 중단시키지 않고
   해당 영역만 "비교 데이터 없음"/빈 목록으로 표시됩니다.
 
 ## 12. 백업 및 복원

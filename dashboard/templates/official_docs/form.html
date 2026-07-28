@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}공문 신규 등록{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  {% include "official_docs/_subnav.html" %}
+  <div class="page-header"><p class="page-eyebrow">Official Documents / New</p><h1 class="page-title">신규 등록</h1><p class="page-description">PDF는 Y디스크로 옮겨질 때까지만 비공개 임시공간에 보관됩니다.</p></div>
+  <aside class="folder-rule-guide" aria-label="폴더명 규칙 안내">
+    <div><strong>폴더명 규칙</strong><span>새 폴더 자동 생성 시 아래 형식으로 저장됩니다.</span></div>
+    <code>접수일_분류_기관명·회사명_요청내용</code>
+    <p>예: <b>2026.07.28_03.수사협조요청_서울세관_게임기록요청</b></p>
+    <ul><li>공백은 제거되고 사용할 수 없는 문자 <code>\ / : * ? &quot; &lt; &gt; |</code>는 밑줄로 바뀝니다.</li><li>폴더명은 최대 120자로 생성됩니다. 기존 폴더 연결을 선택하면 지정한 폴더명을 그대로 사용합니다.</li></ul>
+  </aside>
+  {% if errors %}<div class="flash error"><strong>입력 내용을 확인해주세요.</strong><ul>{% for field,message in errors.items() %}<li>{{ message }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if duplicate_candidates %}<div class="duplicate-warning"><strong>중복 가능성이 있는 자료가 {{ duplicate_candidates|length }}건 있습니다.</strong><ul>{% for item in duplicate_candidates %}<li><a href="{{ url_for('official_docs.document_detail', document_id=item.id) }}" target="_blank">{{ item.management_number }}</a> · {{ item.organization }} · {{ item.request_content }}</li>{% endfor %}</ul><p>기존 자료를 확인한 뒤 계속 등록하려면 아래 확인란을 선택하세요.</p></div>{% endif %}
+  <form method="post" enctype="multipart/form-data" class="official-form" id="official-document-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <section class="ai-prefill-panel">
+      <div><strong>1. 관련 PDF 먼저 업로드</strong><p>텍스트 PDF와 스캔·이미지 PDF를 AI가 읽고 아래 등록 폼의 초안을 작성합니다. 제안값은 반드시 확인 후 저장해주세요.</p></div>
+      <label class="wide"><span id="pdf-requirement">PDF 파일 1개 이상 *</span><input id="official-attachments" type="file" name="attachments" accept=".pdf,application/pdf" multiple required></label>
+      <div class="ai-prefill-actions"><button class="btn btn-primary" type="button" id="official-ai-prefill">첫 번째 PDF 분석하고 폼 채우기</button><span id="official-ai-status" aria-live="polite">PDF를 선택한 뒤 분석 버튼을 누르세요.</span></div>
+      <div id="official-ai-warnings" class="ai-prefill-warnings" hidden></div>
+    </section>
+    <fieldset><legend>분류·접수</legend>
+      <label><span>분류 *</span><select name="category_code" id="official-category" required><option value="">선택</option>{% for row in categories %}<option value="{{ row.code }}" {% if form_values.category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+      <label class="conditional-other"><span>분류 기타 상세내용</span><input name="category_detail" value="{{ form_values.category_detail or '' }}"></label>
+      <label><span>폴더구분 *</span><select name="folder_category_code" id="official-folder-category" required><option value="">선택</option>{% for row in folder_categories %}<option value="{{ row.code }}" {% if form_values.folder_category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+      <label class="conditional-folder-other"><span>폴더 기타 상세내용</span><input name="folder_category_detail" value="{{ form_values.folder_category_detail or '' }}"></label>
+      <label><span>접수번호</span><input value="저장 시 자동 생성" readonly aria-describedby="receipt-number-help"><small id="receipt-number-help" class="field-help">YYMMDD_담당자_0001 · 담당자별 연간 순번</small></label>
+      <label class="autocomplete-field"><span>담당 *</span><input name="manager" value="{{ form_values.manager or '' }}" autocomplete="off" aria-autocomplete="list" aria-controls="manager-suggestions" required><div id="manager-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
+      <label><span>접수일 *</span><input name="receipt_date" value="{{ form_values.receipt_date or '' }}" placeholder="2026-07-28 또는 20260728" required></label>
+      <label class="autocomplete-field"><span>기관명·회사명 *</span><input name="organization" value="{{ form_values.organization or '' }}" autocomplete="off" aria-autocomplete="list" aria-controls="organization-suggestions" required><div id="organization-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
+    </fieldset>
+    <fieldset><legend>업무 내용</legend>
+      <label><span>사건</span><input name="case_name" value="{{ form_values.case_name or '' }}"></label>
+      <label class="wide"><span>요청내용 *</span><textarea name="request_content" required>{{ form_values.request_content or '' }}</textarea></label>
+      <label class="wide"><span>특이사항</span><textarea name="special_note">{{ form_values.special_note or '' }}</textarea></label>
+      <label><span>의뢰자</span><input name="requester" value="{{ form_values.requester or '' }}"></label>
+      <label><span>연락처</span><input name="contact" value="{{ form_values.contact or '' }}"></label>
+      <label><span>이메일</span><input type="email" name="email" value="{{ form_values.email or '' }}"></label>
+      <label><span>발송번호</span><input name="dispatch_number" value="{{ form_values.dispatch_number or '' }}"></label>
+      <label><span>회신일</span><input name="reply_date" value="{{ form_values.reply_date or '' }}"></label>
+      <label><span>처리결과</span><select name="processing_result">{% for value in ('처리 필요','진행 중','완료') %}<option {% if form_values.processing_result==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    </fieldset>
+    <fieldset class="video-fields"><legend>영상반출·확약서</legend>
+      <label><span>영상반출여부</span><select name="video_exported" id="video-exported">{% for value in ('해당없음','아니오','예') %}<option {% if form_values.video_exported==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+      <label><span>반출확약서</span><select name="export_pledge" id="export-pledge">{% for value in ('해당없음','미접수','접수완료','확인완료') %}<option {% if form_values.export_pledge==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    </fieldset>
+    <fieldset><legend>저장 위치·첨부 설정</legend>
+      <div class="wide folder-mode"><span>폴더 처리방식</span>
+        <label><input type="radio" name="folder_handling_type" value="CREATE_NEW" {% if form_values.folder_handling_type != 'LINK_EXISTING' %}checked{% endif %}> 새 폴더 자동 생성</label>
+        <label><input type="radio" name="folder_handling_type" value="LINK_EXISTING" {% if form_values.folder_handling_type == 'LINK_EXISTING' %}checked{% endif %}> 기존 폴더 연결</label>
+      </div>
+      <div class="wide existing-folder-fields" hidden>
+        <p>입력한 폴더 경로는 관리자 PC에서 실제 존재 여부를 확인한 후 연결됩니다.</p>
+        <div class="folder-search-row"><input id="folder-index-query" placeholder="폴더명·연도·기관명 검색"><button type="button" class="btn" id="folder-index-search">검색</button></div>
+        <div id="folder-index-results" class="folder-index-results" aria-live="polite"></div>
+        <label><span>기존 폴더 경로 *</span><div class="folder-path-picker"><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}" placeholder="Y:\공문자료\... 또는 \\회사파일서버\공용디스크\..."><button type="button" class="btn" id="folder-browse-button">찾기</button></div></label>
+        <div id="folder-browser" class="folder-browser" hidden>
+          <div class="folder-browser-head"><strong>기존 폴더 찾기</strong><button type="button" class="btn btn-small" id="folder-browser-close">닫기</button></div>
+          <div id="folder-browser-path" class="folder-browser-path">동기화된 폴더</div>
+          <div id="folder-browser-list" class="folder-browser-list" aria-live="polite"></div>
+          <div class="folder-browser-actions"><button type="button" class="btn" id="folder-browser-up">상위 폴더</button><button type="button" class="btn btn-primary" id="folder-browser-select" disabled>현재 폴더 선택</button></div>
+        </div>
+        <label><span>기존 폴더 표시명</span><input name="folder_display_name" value="{{ form_values.folder_display_name or '' }}"></label>
+        <label><span>폴더 연결 사유 또는 비고</span><textarea name="folder_link_note">{{ form_values.folder_link_note or '' }}</textarea></label>
+      </div>
+      <label><span>첨부 유형</span><select name="attachment_type">{% for value in attachment_types %}<option>{{ value }}</option>{% endfor %}</select></label>
+    </fieldset>
+    {% if duplicate_candidates %}<label class="acknowledge"><input type="checkbox" name="duplicate_ack" value="1" required> 중복 가능성 자료를 확인했으며 계속 등록합니다.</label>{% endif %}
+    <button class="btn btn-primary" type="submit" id="official-submit">등록하고 저장 대기</button>
+  </form>
+</div>
+<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260728-ai-prefill"></script>
+{% include "_footer.html" %}
+{% endblock %}

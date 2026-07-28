@@ -1,0 +1,17 @@
+<nav class="official-subnav" aria-label="공문·자료관리 메뉴">
+  <a href="{{ url_for('official_docs.dashboard') }}" {% if request.endpoint == 'official_docs.dashboard' %}class="active"{% endif %}>관리현황</a>
+  <a href="{{ url_for('official_docs.document_list') }}" {% if request.endpoint in ('official_docs.document_list', 'official_docs.document_detail') %}class="active"{% endif %}>자료 목록</a>
+  <a href="{{ url_for('official_docs.document_new') }}" {% if request.endpoint == 'official_docs.document_new' %}class="active"{% endif %}>신규 등록</a>
+  <a href="{{ url_for('official_docs.import_excel') }}" {% if request.endpoint == 'official_docs.import_excel' %}class="active"{% endif %}>Excel 업로드</a>
+  <a href="{{ url_for('official_docs.review_list') }}" {% if request.endpoint == 'official_docs.review_list' %}class="active"{% endif %}>검토 필요</a>
+  {% if is_admin %}
+  <a href="{{ url_for('official_docs.history') }}" {% if request.endpoint == 'official_docs.history' %}class="active"{% endif %}>수정로그</a>
+  <a href="{{ url_for('official_docs.trash') }}" {% if request.endpoint == 'official_docs.trash' %}class="active"{% endif %}>삭제자료 복구</a>
+  <a href="{{ url_for('official_docs.settings') }}" {% if request.endpoint == 'official_docs.settings' %}class="active"{% endif %}>관리자 설정</a>
+  {% endif %}
+</nav>
+<div class="official-update-strip">
+  <span><b>공문 DB 최종 업데이트</b> {{ official_db_updated_at or '업데이트 기록 없음' }}</span>
+  <span><b>문서 변경</b> {{ official_document_updated_at or '기록 없음' }}</span>
+  <span><b>Y폴더 동기화</b> {{ folder_index_updated_at or '기록 없음' }}</span>
+</div>

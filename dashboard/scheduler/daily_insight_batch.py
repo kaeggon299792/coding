@@ -1,7 +1,7 @@
 """
-PythonAnywhere Scheduled Task 진입점 (1일 1회, 뉴스/이메일 수집 이후 시간대 권장).
+PythonAnywhere Scheduled Task 진입점 (1일 1회, 뉴스 수집 이후 시간대 권장).
 
-오늘의 중요 뉴스 + 임원 확인 필요 이메일 + 오늘 실적 데이터를 모아 AI에게
+오늘의 중요 뉴스 + 공문·자료관리 현황 + 오늘 실적 데이터를 모아 AI에게
 경영진 관점 시사점을 생성하도록 요청하고 executive_insights에 저장한다.
 페이지를 열 때마다 재분석하지 않고 하루 1회만 실행한다(스펙 12절).
 """
@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 from dashboard_db import queries  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import ai_insights, email_reader, news_reader  # noqa: E402
+from services import ai_insights, news_reader, official_document_manager  # noqa: E402
 from utils import setup_logger, today_kst_str  # noqa: E402
 
 logger = setup_logger("daily_insight_batch")
@@ -22,8 +22,11 @@ logger = setup_logger("daily_insight_batch")
 
 def _build_context_text(connection, today):
     news_items = news_reader.today_important_articles()[:15]
-    email_items = email_reader.today_important_emails()[:15]
+    official_documents, _ = official_document_manager.list_documents(
+        connection, per_page=100000, review_only=True
+    )
     performance = queries.get_latest_performance_report(connection, today)
+    research_documents = queries.list_research_documents(connection, limit=10)
 
     lines = [f"기준일: {today}", ""]
 
@@ -39,13 +42,13 @@ def _build_context_text(connection, today):
         lines.append("- 없음")
     lines.append("")
 
-    lines.append(f"## 임원 확인 필요 이메일 ({len(email_items)}건)")
-    if email_items:
-        for item in email_items:
+    lines.append(f"## 검토가 필요한 공문·자료 ({len(official_documents)}건)")
+    if official_documents:
+        for item in official_documents[:15]:
             lines.append(
-                f"- [{item.get('importance')}] {item.get('subject')} "
-                f"(발신: {item.get('sender_name') or item.get('sender_address')}) - "
-                f"{item.get('summary') or '요약 없음'}"
+                f"- [{item.get('receipt_date')}] {item.get('organization')} "
+                f"(담당: {item.get('manager')}) - "
+                f"{' / '.join(item.get('review_reasons') or [])}: {item.get('request_content')}"
             )
     else:
         lines.append("- 없음")
@@ -58,6 +61,19 @@ def _build_context_text(connection, today):
             lines.append(f"- {key}: {value}")
     else:
         lines.append("- 오늘 파싱된 실적 데이터 없음")
+    lines.append("")
+
+    lines.append(f"## 최근 업로드 리서치 자료 ({len(research_documents)}건)")
+    if research_documents:
+        for item in research_documents:
+            summary = item.get("ai_summary") or "AI 요약 없음"
+            lines.append(
+                f"- [{item.get('company_name')}] {item.get('title')} "
+                f"({item.get('publisher') or '발행처 미입력'}, "
+                f"{item.get('report_date') or item.get('created_at', '')[:10]}) - {summary}"
+            )
+    else:
+        lines.append("- 없음")
 
     return "\n".join(lines)
 

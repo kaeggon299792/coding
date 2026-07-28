@@ -1,19 +1,26 @@
 <div class="topbar">
   <div class="topbar-brand">
-    <span class="topbar-wordmark">SHINGOON</span>
+    <span class="topbar-wordmark">PARADISE</span>
     <span class="topbar-context">Dashboard</span>
   </div>
   <nav class="topbar-nav">
     <a href="{{ url_for('dashboard_home') }}" {% if request.endpoint == 'dashboard_home' %}class="active"{% endif %}>홈</a>
-    <a href="{{ url_for('action_items_page') }}" {% if request.endpoint == 'action_items_page' %}class="active"{% endif %}>과제</a>
-    <a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}>실적</a>
-    <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}>공시·재무</a>
-    <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}>법률·규제</a>
+    <a href="{{ url_for('official_docs.dashboard') }}" {% if request.blueprint == 'official_docs' %}class="active"{% endif %}{% if not menu_permissions.official_docs %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공문·자료관리</a>
+    <a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}{% if not menu_permissions.performance %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>실적</a>
+    <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}{% if not menu_permissions.disclosures %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공시·재무</a>
+    <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}{% if not menu_permissions.laws %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>법률·규제</a>
+    <a href="{{ url_for('companies_page') }}" {% if request.endpoint == 'companies_page' %}class="active"{% endif %}{% if not menu_permissions.companies %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>기업 360°</a>
+    <a href="{{ url_for('research_library_page') }}" {% if request.endpoint in ('research_library_page', 'download_research_document', 'reanalyze_research_document', 'delete_research_document') %}class="active"{% endif %}{% if not menu_permissions.research_library %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>자료실</a>
+    <a href="{{ url_for('unified_search_page') }}" {% if request.endpoint == 'unified_search_page' %}class="active"{% endif %}{% if not menu_permissions.unified_search %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>통합검색</a>
+    <a href="{{ url_for('action_items_page') }}" {% if request.endpoint == 'action_items_page' %}class="active"{% endif %}>버그 제보</a>
   </nav>
   <div class="topbar-actions">
+    {% if current_user_role == 'admin' %}
+    <a class="topbar-account-link" href="{{ url_for('auth.user_management') }}">계정관리</a>
+    {% endif %}
     <span class="topbar-meta">{{ now_str }} · {{ current_username }}</span>
-    <a class="portfolio-link" href="https://www.shingoon.me/" target="_blank" rel="noopener noreferrer">Portfolio ↗</a>
     <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <button class="btn btn-text" type="submit">로그아웃</button>
     </form>
   </div>

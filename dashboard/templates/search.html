@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}통합 검색{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  <div class="page-header">
+    <p class="page-eyebrow">Intelligence / Unified Search</p>
+    <h1 class="page-title">통합 검색·이슈 타임라인</h1>
+    <p class="page-description">뉴스·공시·법령·실적·액션아이템·과거 AI 분석을 시간순으로 찾습니다.</p>
+  </div>
+
+  <form class="search-console" method="get">
+    <div class="search-row">
+      <input type="search" name="q" value="{{ term }}" maxlength="100" placeholder="예: 영종도, 파라다이스, 관광진흥법" autofocus>
+      <select name="days">
+        <option value="30" {% if days == 30 %}selected{% endif %}>30일</option>
+        <option value="90" {% if days == 90 %}selected{% endif %}>90일</option>
+        <option value="365" {% if days == 365 %}selected{% endif %}>1년</option>
+        <option value="1095" {% if days == 1095 %}selected{% endif %}>3년</option>
+      </select>
+      <button class="btn btn-primary" type="submit">검색</button>
+    </div>
+    <div class="source-filter">
+      {% for source, label in source_labels.items() %}
+      <label>
+        <input type="checkbox" name="source" value="{{ source }}" {% if source in selected_sources %}checked{% endif %}>
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+  </form>
+
+  {% if term %}
+    <div class="search-summary">
+      <strong>“{{ term }}”</strong> 검색 결과 {{ results|length }}건
+      <span>
+      {% for source, label in source_labels.items() %}
+        {% if counts[source] %}<span class="badge source-{{ source }}">{{ label }} {{ counts[source] }}</span>{% endif %}
+      {% endfor %}
+      </span>
+    </div>
+
+    {% if results %}
+    <div class="timeline">
+      {% for item in results %}
+      <article class="timeline-item source-{{ item.source }}">
+        <div class="timeline-marker"></div>
+        <div class="timeline-content">
+          <div class="timeline-head">
+            <span class="badge">{{ item.source_label }}</span>
+            <time>{{ (item.occurred_at or "날짜 없음")[:16] }}</time>
+            {% if item.importance %}<span class="item-meta">{{ item.importance }}</span>{% endif %}
+          </div>
+          <h2>
+            {% if item.url %}<a href="{{ item.url }}" {% if item.url.startswith('http') %}target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a>
+            {% else %}{{ item.title }}{% endif %}
+          </h2>
+          {% if item.meta %}<p class="item-meta">{{ item.meta }}</p>{% endif %}
+          {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="panel"><p class="empty-state">선택한 기간과 데이터 소스에서 일치하는 결과가 없습니다.</p></div>
+    {% endif %}
+  {% else %}
+    <div class="panel search-empty">
+      <h2>검색어를 입력하세요</h2>
+      <p class="empty-state">회사 업무 데이터를 한 번에 검색합니다.</p>
+      <div class="suggestion-row">
+        {% for suggestion in ["영종도", "파라다이스", "강원랜드", "관광진흥법", "VIP"] %}
+          <a class="badge" href="{{ url_for('unified_search_page', q=suggestion) }}">{{ suggestion }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% include "_footer.html" %}
+{% endblock %}

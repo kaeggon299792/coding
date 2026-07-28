@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}기업분석 자료실{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<div class="page-container">
+  <div class="page-header">
+    <p class="page-eyebrow">Intelligence / Research Library</p>
+    <h1 class="page-title">기업분석 자료실</h1>
+    <p class="page-description">증권사·산업 리포트 PDF를 회사별로 보관하고, 추출된 내용을 기업분석과 AI 시사점의 근거로 활용합니다.</p>
+  </div>
+
+  {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+  {% if notice %}<p class="flash success">{{ notice }}</p>{% endif %}
+
+  <section class="library-upload">
+    <h2>새 자료 등록</h2>
+    <form method="post" enctype="multipart/form-data" class="library-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="library-company-field">
+        <span>대상 회사 * <small>복수 선택 가능</small></span>
+        <span class="company-multi-select">
+          {% for company in companies %}
+          <label><input type="checkbox" name="company_names" value="{{ company.name }}" {% if selected_company == company.name %}checked{% endif %}><span>{{ company.name }}</span></label>
+          {% endfor %}
+        </span>
+      </div>
+      <label>
+        <span>자료 제목</span>
+        <input type="text" name="title" maxlength="200" placeholder="비워두면 파일명을 사용합니다">
+      </label>
+      <label>
+        <span>발행처</span>
+        <input type="text" name="publisher" maxlength="120" placeholder="예: NH투자증권">
+      </label>
+      <label>
+        <span>자료 기준일</span>
+        <input type="date" name="report_date">
+      </label>
+      <label class="library-file-field">
+        <span>PDF 파일 * <small>최대 20MB</small></span>
+        <input type="file" name="document" accept="application/pdf,.pdf" required>
+      </label>
+      <button class="btn btn-primary" type="submit">업로드하고 분석</button>
+    </form>
+    <p class="integration-note">텍스트형 PDF를 지원합니다. 스캔 이미지만 있는 PDF는 본문 추출이 제한될 수 있습니다.</p>
+  </section>
+
+  <div class="library-toolbar">
+    <h2>등록 자료 <span class="item-meta">{{ documents|length }}건</span></h2>
+    <form method="get" class="form-inline">
+      <label for="company-filter" class="item-meta">회사 필터</label>
+      <select id="company-filter" name="company" onchange="this.form.submit()">
+        <option value="">전체 회사</option>
+        {% for company in companies %}
+        <option value="{{ company.name }}" {% if selected_company == company.name %}selected{% endif %}>{{ company.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if documents %}
+  <div class="library-grid">
+    {% for doc in documents %}
+    <article class="library-card">
+      <div class="library-card-head">
+        <div>
+          {% for company_name in doc.company_names %}<span class="badge high">{{ company_name }}</span>{% endfor %}
+          <h2>{{ doc.title }}</h2>
+          <p class="item-meta">
+            {{ doc.publisher or "발행처 미입력" }} · {{ doc.report_date or doc.created_at[:10] }}
+            · {{ doc.page_count or 0 }}쪽 · {{ "%.1f"|format(doc.file_size / 1024 / 1024) }}MB
+          </p>
+        </div>
+        <span class="badge {% if doc.ai_summary %}high{% endif %}">
+          {% if doc.ai_summary %}AI 분석 완료{% elif doc.extraction_status == "no_text" %}본문 없음{% else %}분석 필요{% endif %}
+        </span>
+      </div>
+
+      {% if doc.ai_summary %}
+      <p class="library-summary">{{ doc.ai_summary }}</p>
+      <div class="library-facts">
+        <span><strong>투자의견</strong>{{ doc.investment_stance or "명시 없음" }}</span>
+        <span><strong>목표주가</strong>{{ doc.target_price or "명시 없음" }}</span>
+      </div>
+      {% if doc.key_points %}
+      <details open>
+        <summary>핵심 논점</summary>
+        <ul>{% for point in doc.key_points %}<li>{{ point }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      {% if doc.risks %}
+      <details>
+        <summary>리스크·확인사항</summary>
+        <ul>{% for risk in doc.risks %}<li>{{ risk }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      {% elif doc.error_message %}
+      <p class="flash error">{{ doc.error_message }}</p>
+      {% endif %}
+
+      <div class="library-actions">
+        <a class="btn" href="{{ url_for('download_research_document', document_id=doc.id) }}">원본 다운로드</a>
+        <form method="post" action="{{ url_for('reanalyze_research_document', document_id=doc.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn" type="submit">AI 재분석</button>
+        </form>
+        <form method="post" action="{{ url_for('delete_research_document', document_id=doc.id) }}" onsubmit="return confirm('이 자료와 분석 결과를 삭제할까요?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-text danger-text" type="submit">삭제</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">등록된 기업분석 자료가 없습니다.</div>
+  {% endif %}
+</div>
+{% include "_footer.html" %}
+{% endblock %}

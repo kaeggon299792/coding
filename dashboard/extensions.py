@@ -2,7 +2,7 @@
 DB 커넥션 헬퍼.
 
 - dashboard_db(): 대시보드 자체 DB, 읽기/쓰기 가능(migrate 포함).
-- news_db_readonly() / email_db_readonly(): 기존 뉴스/이메일 프로그램의 DB에
+- news_db_readonly(): 기존 뉴스 프로그램의 DB에
   URI 모드로 read-only 연결한다. 이 연결로는 물리적으로 INSERT/UPDATE/DELETE가
   불가능하므로(SQLite가 자체적으로 거부), 실수로라도 기존 데이터를 손상시킬 수 없다.
 """
@@ -33,6 +33,3 @@ def _readonly_connect(path):
 def news_db_readonly():
     return _readonly_connect(config.NEWS_DB_FILE)
 
-
-def email_db_readonly():
-    return _readonly_connect(config.EMAIL_DB_FILE)

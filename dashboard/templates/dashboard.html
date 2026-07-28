@@ -8,8 +8,41 @@
     <p class="page-eyebrow">Operations / Overview</p>
     <h1 class="page-title">경영기획 인텔리전스 대시보드</h1>
     <p class="page-description">핵심 업무 현황과 자동화 시스템의 운영 상태를 한 화면에서 확인합니다.</p>
-    <p class="page-updated">기준일 {{ now_str }}</p>
+    <div class="data-freshness-row">
+      <span class="data-freshness"><b>카지노 뉴스 최종 업데이트</b>{{ casino_news_updated_at or '업데이트 기록 없음' }}</span>
+      <span class="data-freshness"><b>공문 DB 최종 업데이트</b>{{ official_db_updated_at or '업데이트 기록 없음' }}</span>
+    </div>
   </div>
+
+  <section class="official-priority">
+    <div class="official-priority-head">
+      <div>
+        <p class="page-eyebrow">Priority / Official Documents</p>
+        <h2>공문·자료관리</h2>
+        <p>접수 후 처리와 Y디스크 보관 상태를 가장 먼저 확인합니다.</p>
+      </div>
+      <a class="btn btn-primary" href="{{ url_for('official_docs.dashboard') }}">공문자료관리 열기</a>
+    </div>
+    <div class="kpi-row official-home-kpis">
+      <a class="kpi-card official-overdue-card" href="{{ url_for('official_docs.review_list') }}">
+        <div class="label">7일 초과 미처리</div>
+        <div class="value">{{ official_metrics.overdue }}</div>
+        <div class="delta unfavorable">즉시 확인 필요</div>
+      </a>
+      <a class="kpi-card" href="{{ url_for('official_docs.document_list') }}"><div class="label">전체 자료</div><div class="value">{{ official_metrics.total }}</div></a>
+      <a class="kpi-card" href="{{ url_for('official_docs.document_list', storage_status='UPLOADED') }}"><div class="label">Y디스크 저장 대기</div><div class="value">{{ official_metrics.pending }}</div></a>
+      <a class="kpi-card" href="{{ url_for('official_docs.document_list', storage_status='FAILED') }}"><div class="label">저장 실패</div><div class="value">{{ official_metrics.failed }}</div></a>
+      <a class="kpi-card" href="{{ url_for('official_docs.review_list') }}"><div class="label">확약서 확인 필요</div><div class="value">{{ official_metrics.pledge }}</div></a>
+    </div>
+    {% if official_overdue %}
+    <div class="official-overdue-list">
+      <div class="section-heading"><h3>7일 초과 미처리 자료</h3><a href="{{ url_for('official_docs.review_list') }}">전체 보기 →</a></div>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>접수일</th><th>관리번호</th><th>기관</th><th>담당</th><th>요청내용</th><th>처리결과</th></tr></thead><tbody>
+      {% for item in official_overdue %}<tr><td>{{ item.receipt_date }}</td><td><a href="{{ url_for('official_docs.document_detail', document_id=item.id) }}">{{ item.management_number }}</a></td><td>{{ item.organization }}</td><td>{{ item.manager }}</td><td class="truncate-cell" title="{{ item.request_content }}">{{ item.request_content }}</td><td><span class="badge urgent">{{ item.processing_result }}</span></td></tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+    {% else %}<p class="official-clear">7일을 초과한 미처리 공문이 없습니다.</p>{% endif %}
+  </section>
 
   <div class="kpi-row">
     <div class="kpi-card">
@@ -32,26 +65,12 @@
       <div class="value">{{ kpis.new_policy_issues }}</div>
     </div>
     <div class="kpi-card">
-      <div class="label">임원 확인 필요 이메일</div>
-      <div class="value">{{ kpis.important_emails }}</div>
-      {% if kpis.important_emails_delta is not none %}
-        <div class="delta flat">전일 대비 {{ '%+d'|format(kpis.important_emails_delta) }}%</div>
-      {% endif %}
-    </div>
-    <div class="kpi-card">
-      <div class="label">긴급 이메일</div>
-      <div class="value">{{ kpis.urgent_emails }}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">미처리 과제</div>
+      <div class="label">미해결 버그</div>
       <div class="value">{{ kpis.pending_action_items }}</div>
     </div>
     <div class="kpi-card">
-      <div class="label">오늘 마감 과제</div>
-      <div class="value">{{ kpis.due_today_action_items }}</div>
-      {% if kpis.overdue_action_items %}
-        <div class="delta unfavorable">기한 초과 {{ kpis.overdue_action_items }}건</div>
-      {% endif %}
+      <div class="label">긴급 버그</div>
+      <div class="value">{{ kpis.urgent_action_items }}</div>
     </div>
     <div class="kpi-card">
       <div class="label">AI 신규 시사점</div>
@@ -59,7 +78,7 @@
     </div>
   </div>
 
-  <div class="section-grid">
+  <div class="section-grid single-feature">
     <div class="panel">
       <h2>오늘의 중요 업계 뉴스</h2>
       {% if important_news %}
@@ -84,30 +103,6 @@
       {% endif %}
     </div>
 
-    <div class="panel">
-      <h2>임원 확인 필요 이메일</h2>
-      {% if important_emails %}
-        <ul class="item-list">
-          {% for mail in important_emails %}
-          <li>
-            <div class="item-title">
-              {% if mail.importance == 'urgent' %}<span class="badge urgent">긴급</span>{% else %}<span class="badge high">높음</span>{% endif %}
-              {{ mail.subject or '(제목 없음)' }}
-            </div>
-            <div class="item-meta">
-              {{ mail.sender_name or mail.sender_address }} · {{ mail.received_at }}
-              {% if mail.deadline %} · 기한 {{ mail.deadline }}{% endif %}
-            </div>
-            {% if mail.summary %}
-            <div class="item-summary">{{ mail.summary }}</div>
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">오늘 확인이 필요한 중요 이메일이 없습니다.</p>
-      {% endif %}
-    </div>
   </div>
 
   <div class="section-grid">
@@ -181,16 +176,16 @@
   </div>
 
   <div class="panel">
-    <h2>미처리 과제 (최근 10건)</h2>
+    <h2>최근 버그 제보</h2>
     {% if action_items %}
       <table class="data-table">
-        <thead><tr><th>과제</th><th>우선순위</th><th>마감일</th><th>상태</th><th>담당</th></tr></thead>
+        <thead><tr><th>버그</th><th>심각도</th><th>발생 화면</th><th>상태</th><th>담당</th></tr></thead>
         <tbody>
         {% for item in action_items %}
           <tr>
             <td>{{ item.title }}</td>
             <td>{{ item.priority }}</td>
-            <td>{{ item.due_date or '-' }} {% if item.due_date_confidence == 'estimated' %}(추정){% elif item.due_date_confidence == 'unclear' %}(확인필요){% endif %}</td>
+            <td>{{ item.bug_page or '-' }}</td>
             <td>{{ item.status }} {% if item.ai_suggested and not item.approved_by_user %}<span class="badge">AI 제안(미승인)</span>{% endif %}</td>
             <td>{{ item.owner or '-' }}</td>
           </tr>
@@ -198,9 +193,9 @@
         </tbody>
       </table>
     {% else %}
-      <p class="empty-state">등록된 과제가 없습니다.</p>
+      <p class="empty-state">등록된 버그 제보가 없습니다.</p>
     {% endif %}
-    <p class="footer-links"><a href="{{ url_for('action_items_page') }}">전체 과제 관리로 이동 →</a></p>
+    <p class="footer-links"><a href="{{ url_for('action_items_page') }}">버그 제보 페이지로 이동 →</a></p>
   </div>
 
 </div>

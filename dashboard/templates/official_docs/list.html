@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}공문 자료 목록{% endblock %}
+{% block body %}{% include "_topbar.html" %}
+<div class="page-container">{% include "official_docs/_subnav.html" %}
+  <div class="page-header"><p class="page-eyebrow">Official Documents / List</p><h1 class="page-title">자료 목록</h1></div>
+  {% if request.args.get('export_error') %}<div class="flash error">{{ request.args.get('export_error') }}</div>{% endif %}
+  {% if request.args.get('bulk_error') %}<div class="flash error">{{ request.args.get('bulk_error') }}</div>{% endif %}
+  {% if request.args.get('bulk_done') %}<div class="flash success">선택 자료 {{ request.args.get('bulk_done') }}건의 {{ request.args.get('bulk_kind') }}을 완료했습니다.</div>{% endif %}
+  <form method="get" class="official-filter">
+    <input type="search" name="q" value="{{ filters.q or '' }}" placeholder="접수번호·기관·사건·요청내용 통합검색">
+    <div class="filter-autocomplete"><input name="organization" value="{{ filters.organization or '' }}" placeholder="기관명" autocomplete="off"><div id="organization-suggestions" class="field-suggestions" role="listbox" hidden></div></div>
+    <div class="filter-autocomplete"><input name="manager" value="{{ filters.manager or '' }}" placeholder="담당" autocomplete="off"><div id="manager-suggestions" class="field-suggestions" role="listbox" hidden></div></div>
+    <div class="filter-autocomplete"><input name="registered_by" value="{{ filters.registered_by or '' }}" placeholder="작성자" autocomplete="off"><div id="registered_by-suggestions" class="field-suggestions" role="listbox" hidden></div></div>
+    <select name="category_code"><option value="">전체 분류</option>{% for row in categories %}<option value="{{ row.code }}" {% if filters.category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select>
+    <select name="folder_category_code"><option value="">전체 폴더</option>{% for row in folder_categories %}<option value="{{ row.code }}" {% if filters.folder_category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select>
+    <select name="storage_status"><option value="">전체 저장상태</option>{% for code,label in storage_labels.items() %}<option value="{{ code }}" {% if filters.storage_status==code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="video_exported"><option value="">영상반출 전체</option>{% for value in ('해당없음','아니오','예') %}<option {% if filters.video_exported==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+    <select name="export_pledge"><option value="">확약서 전체</option>{% for value in ('해당없음','미접수','접수완료','확인완료') %}<option {% if filters.export_pledge==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+    <select name="processing_result"><option value="">처리결과 전체</option>{% for value in ('처리 필요','진행 중','완료') %}<option {% if filters.processing_result==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+    <input type="date" name="date_from" value="{{ filters.date_from or '' }}" aria-label="접수일 시작"><input type="date" name="date_to" value="{{ filters.date_to or '' }}" aria-label="접수일 종료">
+    <button class="btn btn-primary">검색</button><a class="btn" href="{{ url_for('official_docs.document_list') }}">초기화</a>
+  </form>
+  <div class="export-toolbar">
+    <label class="excel-drive-selector"><span>엑셀 위치 링크</span><select id="excel-drive-letter" aria-label="엑셀 위치 링크 드라이브">{% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}<option value="{{ letter }}" {% if letter == 'Y' %}selected{% endif %}>{{ letter }} 드라이브</option>{% endfor %}</select></label>
+    <a class="btn btn-primary" href="{{ url_for('official_docs.import_excel') }}">Excel 대장 업로드</a>
+    <a class="btn excel-export-link file-download-trigger" href="{{ url_for('official_docs.export_excel', export_type='filtered', **filters) }}">현재 검색결과 Excel 다운로드</a>
+    {% if is_admin %}<a class="btn excel-export-link file-download-trigger" href="{{ url_for('official_docs.export_excel', export_type='all') }}">전체 대장 Excel 다운로드</a>
+    <form method="get" action="{{ url_for('official_docs.export_excel') }}"><input type="hidden" name="export_type" value="year"><input type="hidden" name="drive_letter" class="excel-drive-value" value="Y"><input name="year" inputmode="numeric" maxlength="4" placeholder="접수연도"><button class="btn file-download-trigger">연도별 대장 다운로드</button></form>{% endif %}
+  </div>
+  <p class="item-meta">총 {{ total }}건</p>
+  <form method="post" action="{{ url_for('official_docs.export_excel') }}" id="selected-export-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="export_type" value="selected"><input type="hidden" name="drive_letter" class="excel-drive-value" value="Y">
+    {% for key,value in filters.items() %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+    {% if is_admin %}<div class="bulk-toolbar"><button class="btn file-download-trigger" type="submit">선택 자료 Excel 다운로드</button><select name="processing_result" aria-label="일괄 처리결과"><option>처리 필요</option><option>진행 중</option><option>완료</option></select><button class="btn" type="submit" formaction="{{ url_for('official_docs.bulk_action') }}" name="bulk_action" value="processing">선택 처리결과 변경</button><button class="btn danger-button" type="submit" formaction="{{ url_for('official_docs.bulk_action') }}" name="bulk_action" value="delete" onclick="return confirm('선택 자료를 휴지통으로 이동할까요? 30일 후 관리 파일도 삭제됩니다.');">선택 일괄삭제</button></div>{% endif %}
+    <div class="table-scroll"><table class="data-table official-table"><thead><tr>{% if is_admin %}<th><input type="checkbox" id="select-all-documents" aria-label="전체 선택"></th>{% endif %}<th>접수번호</th><th>담당</th><th>접수일</th><th>기관명(회사명)</th><th>사건</th><th>요청내용</th><th>작성자</th><th>처리결과</th><th>최초 등록일</th><th>최종 수정일</th><th>저장상태</th><th>위치</th><th>수정</th></tr></thead>
+    <tbody>{% for item in documents %}<tr>{% if is_admin %}<td><input type="checkbox" name="document_ids" value="{{ item.id }}" aria-label="{{ item.management_number }} 선택"></td>{% endif %}<td><a href="{{ url_for('official_docs.document_detail', document_id=item.id) }}">{{ item.receipt_number or "-" }}</a><small>{{ item.management_number }}</small></td><td>{{ item.manager }}</td><td>{{ item.receipt_date }}</td><td>{{ item.organization }}</td><td class="truncate-cell" title="{{ item.case_name or '' }}">{{ item.case_name or "-" }}</td><td class="truncate-cell" title="{{ item.request_content }}">{{ item.request_content }}</td><td>{{ item.registered_by or "-" }}</td><td>{{ item.processing_result }}</td><td>{{ datetime_minute(item.registered_at) }}</td><td>{{ datetime_minute(item.updated_at) }}</td><td><span class="status-badge status-{{ item.storage_status|lower }}">{{ storage_labels.get(item.storage_status, item.storage_status) }}</span></td><td class="truncate-cell" title="{{ item.location or item.requested_folder_path or '' }}">{% set path=item.requested_folder_path or item.location %}{% if path %}<button type="button" class="path-link copy-path" data-path="{{ path }}" data-document-id="{{ item.id }}" title="클릭하여 경로 복사">{{ path }}</button>{% else %}-{% endif %}</td><td>{% if is_admin %}<a class="btn btn-small" href="{{ url_for('official_docs.document_edit', document_id=item.id) }}">수정</a>{% else %}-{% endif %}</td></tr>{% else %}<tr><td colspan="{{ 14 if is_admin else 13 }}" class="empty-state">검색 결과가 없습니다.</td></tr>{% endfor %}</tbody></table></div>
+  </form>
+  {% if total > 30 %}<div class="pagination">{% if page>1 %}<a class="btn" href="?page={{ page-1 }}&q={{ filters.q or '' }}">이전</a>{% endif %}<span>{{ page }} / {{ (total/30)|round(0,'ceil')|int }}</span>{% if page*30<total %}<a class="btn" href="?page={{ page+1 }}&q={{ filters.q or '' }}">다음</a>{% endif %}</div>{% endif %}
+</div><script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260728-security-audit"></script>{% include "_footer.html" %}{% endblock %}

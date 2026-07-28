@@ -3,6 +3,7 @@ from dashboard_db import schema
 EXPECTED_TABLES = {
     "dashboard_users", "action_items", "executive_insights", "performance_reports",
     "dashboard_analysis_runs", "telegram_ingest_state", "monitored_companies",
+    "company_research_profiles", "research_documents",
     "dart_disclosures", "disclosure_analysis", "monitored_laws", "law_updates",
     "law_analysis", "api_usage", "errors",
 }

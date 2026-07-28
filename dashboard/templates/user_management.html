@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}계정 및 권한관리{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container account-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Administration / Accounts</p>
+    <h1 class="page-title">계정 및 권한관리</h1>
+    <p class="page-description">사용자 계정을 만들고 접근 권한, 사용 상태, 비밀번호를 관리합니다.</p>
+  </header>
+
+  {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="account-notice">{{ success }}</div>{% endif %}
+
+  <section class="panel account-create-panel">
+    <div class="section-heading"><div><h2>새 계정 생성</h2><p>비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.</p></div></div>
+    <form method="post" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>아이디 <em>필수</em></span><input name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" autocomplete="off" required placeholder="영문·숫자·.-_"></label>
+      <label><span>임시 비밀번호 <em>필수</em></span><input type="password" name="password" minlength="10" autocomplete="new-password" required placeholder="10자 이상"></label>
+      <label><span>권한 <em>필수</em></span><select name="role" required><option value="user">일반 사용자</option><option value="admin">관리자</option></select></label>
+      <button class="btn btn-primary" type="submit">계정 생성</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>로그인 IP 보안</h2><p>로그인에 {{ login_ip_max_failures }}회 실패한 IP는 관리자 해제 전까지 차단됩니다. 정상 로그인 시 누적 실패 횟수는 초기화됩니다.</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_ip_security') }}" class="ip-manual-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input name="ip_address" required placeholder="차단할 IP 주소">
+      <input name="note" maxlength="300" placeholder="관리 메모">
+      <button class="btn danger-button" name="action" value="block">IP 수동 차단</button>
+    </form>
+    <div class="table-scroll"><table class="data-table ip-security-table">
+      <thead><tr><th>IP 주소</th><th>실패 횟수</th><th>상태</th><th>최근 실패</th><th>차단일</th><th>관리 메모·작업</th></tr></thead>
+      <tbody>{% for item in ip_security %}<tr>
+        <td><code>{{ item.ip_address }}</code></td><td>{{ item.failed_attempts }} / {{ login_ip_max_failures }}</td>
+        <td><span class="account-state {{ 'is-disabled' if item.blocked_at else 'is-active' }}">{{ '차단' if item.blocked_at else '정상' }}</span></td>
+        <td>{{ (item.last_failed_at or '-')|replace('T',' ')|truncate(17,true,'') }}</td><td>{{ (item.blocked_at or '-')|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td><form method="post" action="{{ url_for('auth.update_ip_security') }}" class="ip-row-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="ip_address" value="{{ item.ip_address }}">
+          <input name="note" maxlength="300" value="{{ item.note or '' }}" placeholder="관리 메모">
+          <button class="btn btn-small" name="action" value="note">메모 저장</button>
+          {% if item.blocked_at %}<button class="btn btn-small" name="action" value="unblock">차단 해제</button>{% else %}<button class="btn btn-small danger-button" name="action" value="block">차단</button>{% endif %}
+        </form></td>
+      </tr>{% else %}<tr><td colspan="6" class="empty-state">아직 기록된 로그인 실패 IP가 없습니다.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>활성 로그인 세션</h2><p>{{ session_idle_minutes }}분 미사용 또는 로그인 후 {{ session_absolute_hours }}시간이 지나면 자동 종료됩니다.</p></div><span>{{ active_sessions|length }}개</span></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>계정</th><th>IP</th><th>로그인</th><th>최근 활동</th><th>브라우저</th><th>작업</th></tr></thead><tbody>
+      {% for item in active_sessions %}<tr>
+        <td><strong>{{ item.username }}</strong>{% if item.session_hash == current_session_hash %}<small class="self-label">현재 로그인</small>{% endif %}</td>
+        <td><code>{{ item.ip_address or '-' }}</code></td>
+        <td>{{ item.created_at|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td>{{ item.last_seen_at|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td class="truncate-cell" title="{{ item.user_agent or '' }}">{{ item.user_agent or '-' }}</td>
+        <td><form method="post" action="{{ url_for('auth.revoke_active_session', session_hash=item.session_hash) }}" onsubmit="return confirm('이 로그인을 종료할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button">세션 종료</button></form></td>
+      </tr>{% else %}<tr><td colspan="6" class="empty-state">활성 로그인 세션이 없습니다.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>메뉴별 접근 권한</h2><p>체크를 해제하면 메뉴가 숨겨지고 주소를 직접 입력해도 접근이 차단됩니다. 홈은 모든 활성 계정에 제공됩니다.</p></div></div>
+    <div class="permission-user-list">
+      {% for user in users %}
+      <form method="post" action="{{ url_for('auth.update_user_permissions', user_id=user.id) }}" class="permission-user-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="permission-user-name"><strong>{{ user.username }}</strong><span>{{ '관리자 · 전체 허용' if user.role == 'admin' else '일반 사용자' }}</span></div>
+        <div class="permission-controls">
+        <label class="landing-page-select"><span>로그인 후 첫 화면</span><select name="landing_page"><option value="dashboard" {% if (user.landing_page or 'dashboard') == 'dashboard' %}selected{% endif %}>홈</option>{% for code,label in menu_permissions_catalog.items() %}<option value="{{ code }}" {% if user.landing_page == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <div class="permission-check-grid">
+          {% for code,label in menu_permissions_catalog.items() %}
+          <label><input type="checkbox" name="permissions" value="{{ code }}" {% if permission_matrix[user.id][code] %}checked{% endif %} {% if user.role == 'admin' %}disabled{% endif %}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        </div>
+        <button class="btn btn-small" type="submit">권한·첫 화면 저장</button>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>등록 계정</h2><p>권한 변경과 비활성화는 즉시 적용됩니다. 본인 계정은 보호됩니다.</p></div><span>{{ users|length }}명</span></div>
+    <div class="table-scroll">
+      <table class="data-table account-table">
+        <thead><tr><th>아이디·이메일</th><th>상태</th><th>권한</th><th>최근 로그인</th><th>생성일</th><th>비밀번호 초기화</th><th>계정 상태 변경</th></tr></thead>
+        <tbody>
+        {% for user in users %}
+          <tr>
+            <td><strong>{{ user.username }}</strong>{% if user.email %}<small class="self-label">{{ user.email }}</small>{% endif %}{% if user.id == session.user_id %}<small class="self-label">내 계정</small>{% endif %}</td>
+            <td><span class="account-state {{ 'is-active' if user.is_active else 'is-disabled' }}">{{ '사용 중' if user.is_active else ('승인 대기' if user.approval_status == 'pending' else '비활성') }}</span></td>
+            <td>
+              <form method="post" action="{{ url_for('auth.update_user_role', user_id=user.id) }}" class="inline-account-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <select name="role" {% if user.id == session.user_id %}disabled{% endif %}><option value="user" {% if user.role == 'user' %}selected{% endif %}>일반 사용자</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>관리자</option></select>
+                <button class="btn btn-small" {% if user.id == session.user_id %}disabled{% endif %}>변경</button>
+              </form>
+            </td>
+            <td>{{ (user.last_login_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>{{ (user.created_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>
+              <form method="post" action="{{ url_for('auth.reset_user_password', user_id=user.id) }}" class="inline-account-form" onsubmit="return confirm('이 계정의 비밀번호를 초기화할까요?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="password" name="new_password" minlength="10" required placeholder="새 비밀번호" autocomplete="new-password">
+                <button class="btn btn-small">초기화</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('auth.toggle_user_active', user_id=user.id) }}" onsubmit="return confirm('계정 상태를 변경할까요?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small {% if user.is_active %}danger-button{% endif %}" {% if user.id == session.user_id %}disabled{% endif %}>{{ '비활성화' if user.is_active else ('가입 승인' if user.approval_status == 'pending' else '활성화') }}</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}<tr><td colspan="7" class="empty-state">등록된 계정이 없습니다.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>계정 변경 로그</h2><p>최근 100건의 생성, 권한 변경, 상태 변경, 비밀번호 초기화 기록입니다.</p></div></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>일시</th><th>대상 계정</th><th>작업</th><th>처리자</th></tr></thead><tbody>
+      {% for item in audit %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.target_username }}</td><td>{{ {'ACCOUNT_CREATED':'계정 생성','ACCOUNT_APPROVED':'가입 승인','ROLE_CHANGED':'권한 변경','ACCOUNT_ACTIVATED':'계정 활성화','ACCOUNT_DEACTIVATED':'계정 비활성화','PASSWORD_RESET':'비밀번호 초기화','MENU_PERMISSIONS_CHANGED':'메뉴 권한 변경'}.get(item.action, item.action) }}</td><td>{{ item.actor_username }}</td></tr>
+      {% else %}<tr><td colspan="4" class="empty-state">변경 기록이 없습니다.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>로그인·활동 로그</h2><p>로그인 성공·실패·차단·로그아웃과 화면 조회, 자료 등록·수정·다운로드 등 최근 200건입니다.</p></div></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>일시</th><th>사용자</th><th>IP</th><th>작업</th><th>대상</th><th>상세</th></tr></thead><tbody>
+      {% for item in security_events %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.username }}</td><td><code>{{ item.ip_address or '-' }}</code></td><td>{{ {'LOGIN_SUCCESS':'로그인 성공','TEST_LOGIN_SUCCESS':'테스트 로그인','LOGIN_FAILED':'로그인 실패','LOGIN_BLOCKED':'차단 IP 로그인 시도','LOGOUT':'로그아웃','PAGE_VIEW':'화면 조회','USER_ACTION':'사용자 작업'}.get(item.action, item.action) }}</td><td>{{ item.resource_type or '-' }} · {{ item.resource_id or '-' }}</td><td class="change-detail"><code>{{ item.detail_json or '{}' }}</code></td></tr>
+      {% else %}<tr><td colspan="6" class="empty-state">보안 감사 기록이 없습니다.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

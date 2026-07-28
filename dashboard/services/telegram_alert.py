@@ -17,8 +17,8 @@ logger = logging.getLogger("dashboard")
 _API_BASE = "https://api.telegram.org"
 
 
-def send_alert(text: str) -> bool:
-    if config.TELEGRAM_ALERT_DRY_RUN:
+def send_alert(text: str, force: bool = False) -> bool:
+    if config.TELEGRAM_ALERT_DRY_RUN and not force:
         logger.info("[TELEGRAM_ALERT_DRY_RUN] 전송 예정 메시지:\n%s", text)
         return True
 
