@@ -12,6 +12,7 @@ from datetime import datetime
 import config
 
 _MASK = "***MASKED***"
+_Y_DRIVE_UNC_ROOT = r"\\EstInternetDisk\6B4-swj"
 
 
 def now_kst() -> datetime:
@@ -24,6 +25,18 @@ def today_kst_str() -> str:
 
 def escape_html(text) -> str:
     return html.escape(text or "", quote=False)
+
+
+def display_y_drive_path(path) -> str:
+    """Y 드라이브 공유 루트의 UNC 경로를 사용자용 드라이브 경로로 표시한다."""
+    value = str(path or "").strip()
+    root = _Y_DRIVE_UNC_ROOT
+    if value.casefold() == root.casefold():
+        return "Y:\\"
+    prefix = root + "\\"
+    if value.casefold().startswith(prefix.casefold()):
+        return "Y:\\" + value[len(prefix):]
+    return value
 
 
 def sha256_of(text: str) -> str:

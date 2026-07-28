@@ -37,7 +37,7 @@ from services import (
 )
 from official_docs import official_docs_bp
 from tips import tips_bp
-from utils import escape_html, setup_logger, today_kst_str
+from utils import display_y_drive_path, escape_html, setup_logger, today_kst_str
 
 logger = setup_logger("dashboard_app")
 
@@ -230,6 +230,7 @@ def inject_globals():
         "csp_nonce": getattr(g, "csp_nonce", ""),
         "global_csrf_token": get_csrf_token(),
         "current_menu_name": current_menu_name,
+        "display_y_drive_path": display_y_drive_path,
     }
 
 
