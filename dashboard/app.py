@@ -36,6 +36,7 @@ from services import (
     unified_search,
 )
 from official_docs import official_docs_bp
+from tips import tips_bp
 from utils import escape_html, setup_logger, today_kst_str
 
 logger = setup_logger("dashboard_app")
@@ -50,6 +51,7 @@ app.config.update(
     MAX_CONTENT_LENGTH=max(
         config.RESEARCH_MAX_FILE_BYTES,
         config.OFFICIAL_DOC_MAX_UPLOAD_MB * 1024 * 1024,
+        config.TIPS_MAX_ATTACHMENT_BYTES,
     ) + (512 * 1024),
 )
 
@@ -58,6 +60,7 @@ if not config.FLASK_SECRET_KEY:
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(official_docs_bp)
+app.register_blueprint(tips_bp)
 
 ENDPOINT_PERMISSIONS = {
     "performance_page": "performance",
@@ -154,6 +157,7 @@ def enforce_menu_permission():
         return None
     permission = (
         "official_docs" if request.blueprint == "official_docs"
+        else "tips" if request.blueprint == "tips"
         else ENDPOINT_PERMISSIONS.get(request.endpoint)
     )
     if permission and not current_menu_permissions().get(permission, False):
@@ -218,6 +222,7 @@ def _site_map_links():
         ("companies", "기업 360°", "회사별 통합 기업분석", "companies_page"),
         ("research_library", "기업분석 자료실", "증권사·산업 리포트", "research_library_page"),
         ("unified_search", "통합검색", "뉴스·공시·법령·자료 검색", "unified_search_page"),
+        ("tips", "팁게시판", "업무 노하우와 자동화 팁", "tips.list_page"),
         ("bug_reports", "버그 제보", "오류 등록 및 처리현황", "action_items_page"),
     )
     links.extend(

@@ -38,6 +38,7 @@ MENU_PERMISSIONS = {
     "research_library": "자료실",
     "official_docs": "공문·자료관리",
     "unified_search": "통합검색",
+    "tips": "팁게시판",
 }
 LANDING_ENDPOINTS = {
     "dashboard": "dashboard_home",
@@ -49,6 +50,7 @@ LANDING_ENDPOINTS = {
     "research_library": "research_library_page",
     "official_docs": "official_docs.dashboard",
     "unified_search": "unified_search_page",
+    "tips": "tips.list_page",
 }
 
 

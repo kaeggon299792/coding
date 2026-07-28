@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ tip.title }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260729">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container tips-shell">
+  <a class="tips-back" href="{{ url_for('tips.list_page') }}">← 목록으로 돌아가기</a>
+  <article class="tip-detail">
+    <header>
+      <div class="tip-card-meta"><span>{{ tip.category }}</span>{% if tip.featured %}<span class="tip-pin">중요</span>{% endif %}{% if tip.draft %}<span class="tip-draft">비공개</span>{% endif %}</div>
+      <h1>{{ tip.title }}</h1>
+      {% if tip.summary %}<p class="tip-summary">{{ tip.summary }}</p>{% endif %}
+      <div class="tip-detail-meta"><span>작성 {{ tip.published_date }}</span><span>수정 {{ tip.updated_date }}</span><span>조회 {{ tip.view_count }}</span></div>
+      {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn btn-secondary" href="{{ url_for('tips.edit_page', slug=tip.slug) }}">수정</a><form method="post" action="{{ url_for('tips.delete_page', slug=tip.slug) }}" onsubmit="return confirm('휴지통으로 이동할까요?')"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><button class="btn btn-danger" type="submit">삭제</button></form></div>{% endif %}
+    </header>
+    <div class="tip-body" id="tip-body">{{ rendered_body|safe }}</div>
+    {% if attachments %}<section class="tip-attachments"><h2>첨부파일</h2><ul>{% for file in attachments %}<li><a href="{{ url_for('tips.attachment_file', attachment_id=file.id) }}">{{ file.original_filename }}</a><span>{{ (file.file_size / 1024)|round|int }} KB</span></li>{% endfor %}</ul></section>{% endif %}
+  </article>
+  <nav class="tip-adjacent" aria-label="이전 및 다음 팁">
+    {% if previous_tip %}<a href="{{ url_for('tips.detail_page', slug=previous_tip.slug) }}"><small>이전 글</small><strong>{{ previous_tip.title }}</strong></a>{% else %}<span></span>{% endif %}
+    {% if next_tip %}<a href="{{ url_for('tips.detail_page', slug=next_tip.slug) }}"><small>다음 글</small><strong>{{ next_tip.title }}</strong></a>{% endif %}
+  </nav>
+</main>
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/tips-article.js') }}?v=20260729" defer></script>{% endblock %}

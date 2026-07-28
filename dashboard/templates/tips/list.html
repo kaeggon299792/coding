@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}팁게시판{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260729">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container tips-shell">
+  <header class="tips-header">
+    <div><p class="eyebrow">KNOWLEDGE / TIPS</p><h1>팁게시판</h1><p>업무 노하우와 자동화 팁을 검색하고 확인합니다.</p></div>
+    {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn" href="{{ url_for('tips.new_page') }}">새 팁 작성</a><a class="btn btn-secondary" href="{{ url_for('tips.trash_page') }}">휴지통</a></div>{% endif %}
+  </header>
+  <form class="tips-search" method="get" action="{{ url_for('tips.list_page') }}">
+    <label><span>제목·본문 검색</span><input type="search" name="q" value="{{ query }}" placeholder="검색어를 입력하세요"></label>
+    <label><span>카테고리</span><select name="category"><option value="">전체 카테고리</option>{% for category in categories %}<option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
+    <button class="btn" type="submit">검색</button>
+    {% if query or selected_category %}<a class="btn btn-secondary" href="{{ url_for('tips.list_page') }}">초기화</a>{% endif %}
+  </form>
+  {% if tips %}
+  <section class="tips-list" aria-label="팁 목록">
+    {% for tip in tips %}
+    <article class="tip-card{% if tip.featured %} is-pinned{% endif %}">
+      <div class="tip-card-meta"><span>{{ tip.category }}</span>{% if tip.featured %}<span class="tip-pin">중요</span>{% endif %}{% if tip.draft %}<span class="tip-draft">비공개</span>{% endif %}</div>
+      <h2><a href="{{ url_for('tips.detail_page', slug=tip.slug) }}">{{ tip.title }}</a></h2>
+      <p>{{ tip.summary or tip.body|striptags|truncate(180) }}</p>
+      <footer><time>{{ tip.published_date }}</time><span>조회 {{ tip.view_count }}</span>{% if tip.updated_date and tip.updated_date != tip.published_date %}<span>수정 {{ tip.updated_date }}</span>{% endif %}</footer>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="tips-empty"><h2>{% if query or selected_category %}검색 결과가 없습니다{% else %}등록된 팁이 없습니다{% endif %}</h2><p>검색 조건을 바꾸거나 나중에 다시 확인해 주세요.</p></section>
+  {% endif %}
+</main>
+{% endblock %}

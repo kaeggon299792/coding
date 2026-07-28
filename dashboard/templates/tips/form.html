@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'new' %}새 팁 작성{% else %}팁 수정{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260729">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container tips-shell">
+  <header class="tips-header"><div><p class="eyebrow">ADMIN / TIPS</p><h1>{% if mode == 'new' %}새 팁 작성{% else %}팁 수정{% endif %}</h1><p>별표 항목은 반드시 입력해야 합니다.</p></div></header>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
+  <form class="tip-form" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+    <label><span>제목 <b>*</b></span><input name="title" value="{{ tip.title or '' }}" required maxlength="200"></label>
+    <label><span>URL 슬러그</span><input name="slug" value="{{ tip.slug or '' }}" maxlength="120" placeholder="비우면 제목으로 자동 생성"></label>
+    <label class="wide"><span>요약</span><textarea name="summary" rows="3" maxlength="1000">{{ tip.summary or '' }}</textarea></label>
+    <label><span>카테고리</span><select name="category">{% for category in categories %}<option value="{{ category }}" {% if (tip.category or '기타') == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
+    <label><span>태그</span><input name="tags" value="{{ (tip.tags or [])|join(', ') }}" placeholder="쉼표로 구분"></label>
+    <label><span>작성일</span><input type="date" name="published_date" value="{{ tip.published_date or '' }}"></label>
+    <label><span>읽기 시간</span><input name="reading_time" value="{{ tip.reading_time or '' }}" placeholder="예: 5분"></label>
+    <label class="wide"><span>본문 (Markdown) <b>*</b></span><textarea name="body" rows="24" required>{{ tip.body or '' }}</textarea></label>
+    <label class="wide"><span>첨부파일</span><input type="file" name="attachments" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.xlsx,.xlsm,.docx,.pptx,.txt,.csv,.zip"><small>파일당 10MB 이하. 이미지, PDF, Office 문서, 텍스트, ZIP을 허용합니다.</small></label>
+    <label class="check"><input type="checkbox" name="featured" value="1" {% if tip.featured %}checked{% endif %}><span>중요 게시물로 상단 고정</span></label>
+    <label class="check"><input type="checkbox" name="draft" value="1" {% if tip.draft %}checked{% endif %}><span>비공개(관리자만 열람)</span></label>
+    <div class="wide tips-actions"><button class="btn" type="submit">저장</button><a class="btn btn-secondary" href="{{ url_for('tips.list_page') }}">취소</a></div>
+  </form>
+</main>
+{% endblock %}

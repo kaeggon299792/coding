@@ -725,6 +725,62 @@ def migrate(connection):
         """
     )
 
+    # ---- tips board (migrated from the portfolio JSON board) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tips_articles (
+            id TEXT PRIMARY KEY,
+            slug TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            summary TEXT NOT NULL DEFAULT '',
+            body TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL DEFAULT '기타',
+            tags_json TEXT NOT NULL DEFAULT '[]',
+            published_date TEXT NOT NULL,
+            updated_date TEXT NOT NULL,
+            reading_time TEXT,
+            featured INTEGER NOT NULL DEFAULT 0,
+            draft INTEGER NOT NULL DEFAULT 0,
+            cover_image TEXT,
+            author_id INTEGER REFERENCES dashboard_users(id),
+            view_count INTEGER NOT NULL DEFAULT 0,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            deleted_at TEXT,
+            deleted_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tips_public_order "
+        "ON tips_articles(is_deleted, draft, featured DESC, published_date DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tips_category "
+        "ON tips_articles(category, is_deleted, draft)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tips_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tip_id TEXT NOT NULL REFERENCES tips_articles(id) ON DELETE CASCADE,
+            original_filename TEXT NOT NULL,
+            stored_filename TEXT NOT NULL UNIQUE,
+            mime_type TEXT,
+            file_size INTEGER NOT NULL,
+            sha256 TEXT NOT NULL,
+            uploaded_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tips_attachments_tip "
+        "ON tips_attachments(tip_id, is_deleted, created_at)"
+    )
+
     defaults = {
         "category": [
             ("01-1", "01-1. 공문접수"), ("01-2", "01-2. 공문발송"),
