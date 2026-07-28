@@ -188,6 +188,32 @@ def inject_globals():
             session["role"] = role
         finally:
             connection.close()
+    endpoint_menu_names = {
+        "public_home": "시작 화면",
+        "dashboard_home": "홈",
+        "action_items_page": "버그 제보",
+        "performance_page": "실적",
+        "disclosures_page": "공시·재무",
+        "laws_page": "법률·규제",
+        "companies_page": "기업 360°",
+        "research_library_page": "리서치",
+        "download_research_document": "리서치",
+        "reanalyze_research_document": "리서치",
+        "delete_research_document": "리서치",
+        "unified_search_page": "통합검색",
+        "sitemap_page": "사이트맵",
+        "auth.login": "로그인",
+        "auth.register": "가입 신청",
+        "auth.user_management": "계정관리",
+    }
+    if request.blueprint == "official_docs":
+        current_menu_name = "공문·자료관리"
+    elif request.blueprint == "tips":
+        current_menu_name = "자료실"
+    else:
+        current_menu_name = endpoint_menu_names.get(
+            request.endpoint, "Management Dashboard"
+        )
     return {
         "current_username": session.get("username"),
         "now_str": today_kst_str(),
@@ -195,6 +221,7 @@ def inject_globals():
         "menu_permissions": current_menu_permissions(),
         "csp_nonce": getattr(g, "csp_nonce", ""),
         "global_csrf_token": get_csrf_token(),
+        "current_menu_name": current_menu_name,
     }
 
 

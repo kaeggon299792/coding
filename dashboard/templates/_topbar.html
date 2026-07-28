@@ -1,7 +1,7 @@
 <div class="topbar">
   <div class="topbar-brand">
     <span class="topbar-wordmark">PARADISE</span>
-    <span class="topbar-context">Dashboard</span>
+    <span class="topbar-context">{{ current_menu_name }}</span>
   </div>
   <nav class="topbar-nav">
     <a href="{{ url_for('dashboard_home') }}" {% if request.endpoint == 'dashboard_home' %}class="active"{% endif %}>홈</a>
