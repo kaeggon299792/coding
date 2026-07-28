@@ -20,9 +20,10 @@ import config
 from dashboard_db import queries
 from services import performance_parser
 
-logger = logging.getLogger("dashboard")
+logger = logging.getLogger("telegram_ingest")
 
 _API_BASE = "https://api.telegram.org"
+_webhook_verified = False
 
 
 class TelegramIngestError(Exception):
@@ -58,7 +59,7 @@ def check_no_webhook_conflict():
 def _get_updates(offset):
     params = {
         "timeout": 25,
-        "allowed_updates": '["message"]',
+        "allowed_updates": '["message","channel_post"]',
     }
     if offset:
         params["offset"] = offset
@@ -89,11 +90,19 @@ def _extract_text_and_kind(message):
 def poll_once(dashboard_connection):
     """한 번의 폴링 주기를 실행한다. 새로 저장한 실적 리포트 수를 반환한다."""
 
-    ok, reason = check_no_webhook_conflict()
-    if not ok:
-        logger.error("텔레그램 폴링을 건너뜁니다: %s", reason)
-        queries.log_error(dashboard_connection, "telegram_ingest", "webhook_conflict", reason or "")
-        return 0
+    global _webhook_verified
+    if not _webhook_verified:
+        ok, reason = check_no_webhook_conflict()
+        if not ok:
+            logger.error("텔레그램 폴링을 건너뜁니다: %s", reason)
+            queries.log_error(
+                dashboard_connection,
+                "telegram_ingest",
+                "webhook_conflict",
+                reason or "",
+            )
+            return 0
+        _webhook_verified = True
 
     last_update_id = queries.get_last_update_id(dashboard_connection)
     offset = last_update_id + 1 if last_update_id else None
@@ -113,7 +122,7 @@ def poll_once(dashboard_connection):
         if update_id is not None:
             max_update_id = max(max_update_id, update_id)
 
-        message = update.get("message")
+        message = update.get("message") or update.get("channel_post")
         if not message:
             continue
 

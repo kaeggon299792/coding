@@ -5,8 +5,11 @@
 뉴스 DB는 읽기 전용으로만 연결하고 대시보드 자체 데이터만 dashboard.db에 쓴다.
 """
 
+import hashlib
+import hmac
 import secrets
-from datetime import timedelta
+import time
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 from flask import (
@@ -31,6 +34,7 @@ from services import (
     document_library,
     news_reader,
     official_document_manager,
+    performance_parser,
     security_audit,
     telegram_alert,
     unified_search,
@@ -660,6 +664,66 @@ def delete_action_item_route(item_id):
 # ============================================================
 # 실적
 # ============================================================
+
+def valid_performance_ingest_signature(raw_body, timestamp, signature):
+    """Brity 자동화가 공유 봇 토큰으로 서명한 요청인지 검증한다."""
+    if not config.TELEGRAM_BOT_TOKEN or not timestamp or not signature:
+        return False
+    try:
+        request_time = int(timestamp)
+    except (TypeError, ValueError):
+        return False
+    if abs(int(time.time()) - request_time) > 300:
+        return False
+    message = timestamp.encode("ascii") + b"." + raw_body
+    expected = hmac.new(
+        config.TELEGRAM_BOT_TOKEN.encode("utf-8"),
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+@app.post("/api/performance-ingest")
+def performance_ingest_api():
+    raw_body = request.get_data(cache=True)
+    if not valid_performance_ingest_signature(
+        raw_body,
+        request.headers.get("X-Performance-Timestamp", ""),
+        request.headers.get("X-Performance-Signature", ""),
+    ):
+        return jsonify({"success": False, "message": "인증에 실패했습니다."}), 401
+    data = request.get_json(silent=True) or {}
+    raw_text = str(data.get("raw_text") or "").strip()
+    header_type = performance_parser.detect_header_type(raw_text)
+    if not raw_text or len(raw_text) > 10000 or header_type is None:
+        return jsonify({"success": False, "message": "실적 메시지 형식이 아닙니다."}), 400
+    received_at = str(data.get("received_at") or "").strip()
+    try:
+        received = datetime.fromisoformat(received_at)
+    except ValueError:
+        return jsonify({"success": False, "message": "수집 시간이 올바르지 않습니다."}), 400
+    parsed, parse_error = performance_parser.parse(raw_text)
+    connection = dashboard_db()
+    try:
+        queries.save_performance_report(
+            connection,
+            report_date=received.strftime("%Y-%m-%d"),
+            telegram_update_id=None,
+            telegram_message_id=str(data.get("event_id") or "")[:120],
+            telegram_chat_id="direct:BrityBoardWatch",
+            message_kind=str(data.get("message_kind") or "text")[:20],
+            header_type=header_type,
+            raw_text=raw_text,
+            parsed_data=(parsed.fields if parsed else None),
+            parsing_status=("ok" if parsed else "failed"),
+            parsing_error=parse_error,
+            received_at=received.isoformat(),
+        )
+    finally:
+        connection.close()
+    return jsonify({"success": True, "parsing_status": "ok" if parsed else "failed"})
+
 
 @app.route("/performance")
 @login_required

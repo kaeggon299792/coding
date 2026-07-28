@@ -1,5 +1,7 @@
 from dashboard_db import queries
 from services import telegram_ingest
+import hashlib
+import hmac
 
 
 class FakeResponse:
@@ -115,3 +117,25 @@ def test_duplicate_message_id_is_not_stored_twice(db_connection):
     )
     reports = db_connection.execute("SELECT * FROM performance_reports").fetchall()
     assert len(reports) == 1
+
+
+def test_direct_performance_signature(monkeypatch):
+    import app as app_module
+
+    body = b'{"raw_text":"test"}'
+    timestamp = "1785280000"
+    token = "shared-bot-token"
+    signature = hmac.new(
+        token.encode(),
+        timestamp.encode() + b"." + body,
+        hashlib.sha256,
+    ).hexdigest()
+    monkeypatch.setattr("config.TELEGRAM_BOT_TOKEN", token)
+    monkeypatch.setattr("app.time.time", lambda: 1785280000)
+
+    assert app_module.valid_performance_ingest_signature(
+        body, timestamp, signature
+    )
+    assert not app_module.valid_performance_ingest_signature(
+        body + b"x", timestamp, signature
+    )
