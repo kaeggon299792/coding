@@ -12,7 +12,11 @@
       <h1>{{ tip.title }}</h1>
       {% if tip.summary %}<p class="tip-summary">{{ tip.summary }}</p>{% endif %}
       <div class="tip-detail-meta"><span>작성 {{ tip.published_date }}</span><span>수정 {{ tip.updated_date }}</span><span>조회 {{ tip.view_count }}</span></div>
-      {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn btn-secondary" href="{{ url_for('tips.edit_page', slug=tip.slug) }}">수정</a><form method="post" action="{{ url_for('tips.delete_page', slug=tip.slug) }}" onsubmit="return confirm('휴지통으로 이동할까요?')"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><button class="btn btn-danger" type="submit">삭제</button></form></div>{% endif %}
+      <div class="tips-actions">
+        {% if current_user_role == 'admin' %}<a class="btn btn-secondary" href="{{ url_for('tips.edit_page', slug=tip.slug) }}">수정</a>{% endif %}
+        <button class="btn btn-secondary" id="share-tip-link" type="button" data-label="공유" aria-label="게시글 링크 복사">공유</button>
+        {% if current_user_role == 'admin' %}<form method="post" action="{{ url_for('tips.delete_page', slug=tip.slug) }}" onsubmit="return confirm('휴지통으로 이동할까요?')"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><button class="btn btn-danger" type="submit">삭제</button></form>{% endif %}
+      </div>
     </header>
     <div class="tip-body" id="tip-body">{{ rendered_body|safe }}</div>
     {% if attachments %}<section class="tip-attachments"><h2>첨부파일</h2><ul>{% for file in attachments %}<li><a href="{{ url_for('tips.attachment_file', attachment_id=file.id) }}">{{ file.original_filename }}</a><span>{{ (file.file_size / 1024)|round|int }} KB</span></li>{% endfor %}</ul></section>{% endif %}
@@ -60,4 +64,4 @@
   </nav>
 </main>
 {% endblock %}
-{% block extra_scripts %}<script src="{{ url_for('static', filename='js/tips-article.js') }}?v=20260729" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/tips-article.js') }}?v=20260729-share" defer></script>{% endblock %}

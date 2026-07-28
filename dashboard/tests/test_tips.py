@@ -116,6 +116,7 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
     assert comment_response.status_code == 302
     assert detail.status_code == 200
     assert "<strong>본문</strong>" in detail.get_data(as_text=True)
+    assert 'id="share-tip-link"' in detail.get_data(as_text=True)
     assert "&lt;script&gt;의견&lt;/script&gt;" in detail.get_data(as_text=True)
     assert "<script>의견</script>" not in detail.get_data(as_text=True)
 
