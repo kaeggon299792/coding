@@ -161,7 +161,83 @@ def approve_action_item(connection, item_id):
 
 
 def delete_action_item(connection, item_id):
+    connection.execute("DELETE FROM action_item_comments WHERE action_item_id = ?", (item_id,))
     connection.execute("DELETE FROM action_items WHERE id = ?", (item_id,))
+    connection.commit()
+
+
+def list_action_item_comments(connection, item_id):
+    rows = connection.execute(
+        """
+        SELECT c.*, u.username AS author_name
+        FROM action_item_comments c
+        JOIN dashboard_users u ON u.id = c.author_id
+        WHERE c.action_item_id = ? AND c.is_deleted = 0
+        ORDER BY c.created_at ASC, c.id ASC
+        """,
+        (item_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_action_item_comment(connection, comment_id):
+    row = connection.execute(
+        """
+        SELECT c.*, u.username AS author_name
+        FROM action_item_comments c
+        JOIN dashboard_users u ON u.id = c.author_id
+        WHERE c.id = ?
+        """,
+        (comment_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_action_item_comment(connection, item_id, author_id, content):
+    content = (content or "").strip()
+    if not content:
+        raise ValueError("댓글 내용을 입력해주세요.")
+    if len(content) > 1000:
+        raise ValueError("댓글은 1,000자 이하로 입력해주세요.")
+    now_iso = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        INSERT INTO action_item_comments
+            (action_item_id, author_id, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (item_id, author_id, content, now_iso, now_iso),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def update_action_item_comment(connection, comment_id, content):
+    content = (content or "").strip()
+    if not content:
+        raise ValueError("댓글 내용을 입력해주세요.")
+    if len(content) > 1000:
+        raise ValueError("댓글은 1,000자 이하로 입력해주세요.")
+    connection.execute(
+        """
+        UPDATE action_item_comments SET content = ?, updated_at = ?
+        WHERE id = ? AND is_deleted = 0
+        """,
+        (content, now_kst().isoformat(timespec="seconds"), comment_id),
+    )
+    connection.commit()
+
+
+def delete_action_item_comment(connection, comment_id, user_id):
+    now_iso = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """
+        UPDATE action_item_comments
+        SET is_deleted = 1, deleted_at = ?, deleted_by = ?, updated_at = ?
+        WHERE id = ? AND is_deleted = 0
+        """,
+        (now_iso, user_id, now_iso, comment_id),
+    )
     connection.commit()
 
 

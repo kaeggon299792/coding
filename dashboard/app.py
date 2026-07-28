@@ -10,7 +10,7 @@ from datetime import timedelta
 from urllib.parse import quote
 
 from flask import (
-    Flask, abort, g, jsonify, redirect, render_template, request, send_file,
+    Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file,
     session, url_for,
 )
 
@@ -63,6 +63,13 @@ app.register_blueprint(official_docs_bp)
 app.register_blueprint(tips_bp)
 
 ENDPOINT_PERMISSIONS = {
+    "action_items_page": "bug_reports",
+    "action_item_detail": "bug_reports",
+    "add_action_item_comment": "bug_reports",
+    "edit_action_item_comment": "bug_reports",
+    "delete_action_item_comment": "bug_reports",
+    "update_action_item_route": "bug_reports",
+    "delete_action_item_route": "bug_reports",
     "performance_page": "performance",
     "disclosures_page": "disclosures",
     "laws_page": "laws",
@@ -191,7 +198,8 @@ def inject_globals():
     endpoint_menu_names = {
         "public_home": "시작 화면",
         "dashboard_home": "홈",
-        "action_items_page": "버그 제보",
+        "action_items_page": "버그 및 Q&A",
+        "action_item_detail": "버그 및 Q&A",
         "performance_page": "실적",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
@@ -250,7 +258,7 @@ def _site_map_links():
         ("research_library", "리서치", "기업·산업 리포트 분석", "research_library_page"),
         ("unified_search", "통합검색", "뉴스·공시·법령·자료 검색", "unified_search_page"),
         ("tips", "자료실", "업무 노하우와 자동화 자료", "tips.list_page"),
-        ("bug_reports", "버그 제보", "오류 등록 및 처리현황", "action_items_page"),
+        ("bug_reports", "버그 및 Q&A", "오류·문의 등록 및 답변", "action_items_page"),
     )
     links.extend(
         {
@@ -403,6 +411,19 @@ def dashboard_home():
 # Action Items
 # ============================================================
 
+def can_access_action_item(item):
+    return bool(
+        item
+        and (
+            session.get("role") == "admin"
+            or (
+                session.get("username")
+                and item.get("reported_by") == session.get("username")
+            )
+        )
+    )
+
+
 @app.route("/action-items", methods=["GET", "POST"])
 @app.route("/bug-reports", methods=["GET", "POST"])
 @login_required
@@ -427,7 +448,7 @@ def action_items_page():
 
             title = (request.form.get("title") or "").strip()
             if not title:
-                return render_template("action_items.html", error="버그 제목을 입력해주세요.",
+                return render_template("action_items.html", error="제목을 입력해주세요.",
                                         items=visible_items(), csrf_token=get_csrf_token(),
                                         is_admin=is_admin), 400
 
@@ -448,9 +469,11 @@ def action_items_page():
                 bug_page=bug_page,
                 environment=environment,
             )
-            bug_url = request.url_root.rstrip("/") + url_for("action_items_page")
+            bug_url = request.url_root.rstrip("/") + url_for(
+                "action_item_detail", item_id=item_id
+            )
             alert_lines = [
-                "🐞 <b>새 버그 제보</b>",
+                "🐞 <b>새 버그 및 Q&A</b>",
                 "",
                 f"<b>제목:</b> {escape_html(title)}",
                 f"<b>심각도:</b> {escape_html(priority)}",
@@ -460,7 +483,7 @@ def action_items_page():
                 "",
                 escape_html(description[:800] or "상세 내용 없음"),
                 "",
-                f'<a href="{bug_url}">버그 제보 페이지 열기</a> · #{item_id}',
+                f'<a href="{bug_url}">게시글 열기</a> · #{item_id}',
             ]
             if not telegram_alert.send_alert("\n".join(alert_lines), force=True):
                 queries.log_error(
@@ -477,6 +500,104 @@ def action_items_page():
         connection.close()
 
 
+@app.get("/bug-reports/<int:item_id>")
+@login_required
+def action_item_detail(item_id):
+    connection = dashboard_db()
+    try:
+        item = queries.get_action_item(connection, item_id)
+        if not item:
+            abort(404)
+        if not can_access_action_item(item):
+            abort(403)
+        comments = queries.list_action_item_comments(connection, item_id)
+        return render_template(
+            "action_item_detail.html",
+            item=item,
+            comments=comments,
+            csrf_token=get_csrf_token(),
+            is_admin=session.get("role") == "admin",
+        )
+    finally:
+        connection.close()
+
+
+@app.post("/bug-reports/<int:item_id>/comments")
+@login_required
+def add_action_item_comment(item_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = queries.get_action_item(connection, item_id)
+        if not item:
+            abort(404)
+        if not can_access_action_item(item):
+            abort(403)
+        try:
+            queries.create_action_item_comment(
+                connection,
+                item_id,
+                session["user_id"],
+                request.form.get("content", ""),
+            )
+            flash("댓글을 등록했습니다.", "success")
+        except ValueError as error:
+            flash(str(error), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
+
+
+@app.post("/bug-reports/<int:item_id>/comments/<int:comment_id>/edit")
+@login_required
+def edit_action_item_comment(item_id, comment_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = queries.get_action_item(connection, item_id)
+        comment = queries.get_action_item_comment(connection, comment_id)
+        if not item or not comment or comment["action_item_id"] != item_id or comment["is_deleted"]:
+            abort(404)
+        if not can_access_action_item(item):
+            abort(403)
+        if comment["author_id"] != session.get("user_id") and session.get("role") != "admin":
+            abort(403)
+        try:
+            queries.update_action_item_comment(
+                connection, comment_id, request.form.get("content", "")
+            )
+            flash("댓글을 수정했습니다.", "success")
+        except ValueError as error:
+            flash(str(error), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
+
+
+@app.post("/bug-reports/<int:item_id>/comments/<int:comment_id>/delete")
+@login_required
+def delete_action_item_comment(item_id, comment_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = queries.get_action_item(connection, item_id)
+        comment = queries.get_action_item_comment(connection, comment_id)
+        if not item or not comment or comment["action_item_id"] != item_id or comment["is_deleted"]:
+            abort(404)
+        if not can_access_action_item(item):
+            abort(403)
+        if comment["author_id"] != session.get("user_id") and session.get("role") != "admin":
+            abort(403)
+        queries.delete_action_item_comment(connection, comment_id, session["user_id"])
+        flash("댓글을 삭제했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
+
+
 @app.route("/action-items/<int:item_id>/update", methods=["POST"])
 @login_required
 def update_action_item_route(item_id):
@@ -489,11 +610,7 @@ def update_action_item_route(item_id):
         if not item:
             abort(404)
         is_admin = session.get("role") == "admin"
-        is_reporter = (
-            bool(session.get("username"))
-            and item.get("reported_by") == session.get("username")
-        )
-        if not is_admin and not is_reporter:
+        if not can_access_action_item(item):
             abort(403)
 
         fields = {}
@@ -514,7 +631,11 @@ def update_action_item_route(item_id):
             queries.approve_action_item(connection, item_id)
     finally:
         connection.close()
-    return redirect(url_for("action_items_page"))
+    return redirect(
+        request.form.get("next")
+        if request.form.get("next", "").startswith("/bug-reports/")
+        else url_for("action_items_page")
+    )
 
 
 @app.route("/action-items/<int:item_id>/delete", methods=["POST"])

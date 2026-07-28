@@ -176,14 +176,14 @@
   </div>
 
   <div class="panel">
-    <h2>최근 버그 제보</h2>
+    <h2>최근 버그 및 Q&amp;A</h2>
     {% if action_items %}
       <table class="data-table">
         <thead><tr><th>버그</th><th>심각도</th><th>발생 화면</th><th>상태</th><th>담당</th></tr></thead>
         <tbody>
         {% for item in action_items %}
           <tr>
-            <td>{{ item.title }}</td>
+            <td><a href="{{ url_for('action_item_detail', item_id=item.id) }}">{{ item.title }}</a></td>
             <td>{{ item.priority }}</td>
             <td>{{ item.bug_page or '-' }}</td>
             <td>{{ item.status }} {% if item.ai_suggested and not item.approved_by_user %}<span class="badge">AI 제안(미승인)</span>{% endif %}</td>
@@ -193,9 +193,9 @@
         </tbody>
       </table>
     {% else %}
-      <p class="empty-state">등록된 버그 제보가 없습니다.</p>
+      <p class="empty-state">등록된 버그 및 Q&amp;A가 없습니다.</p>
     {% endif %}
-    <p class="footer-links"><a href="{{ url_for('action_items_page') }}">버그 제보 페이지로 이동 →</a></p>
+    <p class="footer-links"><a href="{{ url_for('action_items_page') }}">버그 및 Q&amp;A로 이동 →</a></p>
   </div>
 
 </div>

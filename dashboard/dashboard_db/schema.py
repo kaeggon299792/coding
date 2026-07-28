@@ -176,6 +176,25 @@ def migrate(connection):
     _ensure_column(connection, "action_items", "reported_by", "TEXT")
     _ensure_column(connection, "action_items", "bug_page", "TEXT")
     _ensure_column(connection, "action_items", "environment", "TEXT")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS action_item_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action_item_id INTEGER NOT NULL REFERENCES action_items(id) ON DELETE CASCADE,
+            author_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+            content TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            deleted_by INTEGER REFERENCES dashboard_users(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_action_item_comments_item "
+        "ON action_item_comments(action_item_id, is_deleted, created_at)"
+    )
 
     # ---- executive_insights ----
     connection.execute(
