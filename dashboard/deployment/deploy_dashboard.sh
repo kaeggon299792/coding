@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
-PYTHON="${PYTHON:-python3}"
+PYTHON="${PYTHON:-/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python}"
 TARGET_REF="${1:-origin/feature/dashboard-tips-integration}"
 
 cd "${APP_DIR}"
