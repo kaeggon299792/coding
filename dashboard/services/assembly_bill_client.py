@@ -1,8 +1,12 @@
 """열린국회정보 의안정보 통합 API(ALLBILLV2) 클라이언트."""
 
 import logging
+from io import BytesIO
+from zipfile import BadZipFile, ZipFile
 
 import requests
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 import config
 from services.http_utils import HardTimeoutError, get_with_hard_timeout
@@ -10,6 +14,8 @@ from services.http_utils import HardTimeoutError, get_with_hard_timeout
 logger = logging.getLogger("dashboard")
 
 API_URL = "https://open.assembly.go.kr/portal/openapi/ALLBILLV2"
+DETAIL_PAGE_URL = "https://likms.assembly.go.kr/bill/bi/billDetailPage.do"
+DETAIL_ZIP_URL = "https://likms.assembly.go.kr/bill/bi/bill/detail/downloadDtlZip.do"
 
 
 def _rows_from_response(data):
@@ -77,3 +83,44 @@ def normalize_bill(row, matched_keyword):
         "pdf_url": row.get("PDF_URL1") or row.get("PDF_URL2"),
         "matched_keyword": matched_keyword,
     }
+
+
+def fetch_bill_source_text(bill_id, bill_kind="법률안"):
+    """국회 의안 원문 ZIP의 PDF에서 AI 분석용 텍스트를 추출한다."""
+    try:
+        session = requests.Session()
+        session.get(
+            DETAIL_PAGE_URL,
+            params={"billId": bill_id},
+            timeout=config.ASSEMBLY_REQUEST_TIMEOUT_SECONDS,
+        )
+        response = session.post(
+            DETAIL_ZIP_URL,
+            data={"billId": bill_id, "billCd": bill_kind or "법률안"},
+            timeout=config.ASSEMBLY_REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        with ZipFile(BytesIO(response.content)) as archive:
+            pdf_names = [name for name in archive.namelist() if name.lower().endswith(".pdf")]
+            if not pdf_names:
+                return {"ok": False, "error": "의안 원문 PDF를 찾지 못했습니다."}
+            pdf_bytes = archive.read(pdf_names[0])
+        reader = PdfReader(BytesIO(pdf_bytes))
+        chunks = []
+        char_count = 0
+        for page in reader.pages[:30]:
+            text = (page.extract_text() or "").strip()
+            if not text:
+                continue
+            remaining = config.ASSEMBLY_BILL_TEXT_MAX_CHARS - char_count
+            if remaining <= 0:
+                break
+            chunks.append(text[:remaining])
+            char_count += len(chunks[-1])
+        extracted = "\n\n".join(chunks).strip()
+        if not extracted:
+            return {"ok": False, "error": "의안 원문에서 텍스트를 추출하지 못했습니다."}
+        return {"ok": True, "text": extracted, "source": "국회 의안 원문 PDF"}
+    except (requests.RequestException, BadZipFile, PdfReadError, KeyError, ValueError) as error:
+        logger.error("의안 원문 수집 실패(%s): %s", bill_id, type(error).__name__)
+        return {"ok": False, "error": f"의안 원문 수집 실패: {type(error).__name__}"}

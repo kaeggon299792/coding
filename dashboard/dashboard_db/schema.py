@@ -526,6 +526,14 @@ def migrate(connection):
             link_url TEXT,
             pdf_url TEXT,
             matched_keyword TEXT,
+            ai_summary TEXT,
+            impact_direction TEXT,
+            impact_level TEXT,
+            impact_reason TEXT,
+            action_needed TEXT,
+            analysis_source TEXT,
+            analyzed_at TEXT,
+            analysis_error TEXT,
             first_seen_at TEXT NOT NULL,
             last_checked_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -536,6 +544,14 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_legislative_bills_proposed "
         "ON legislative_bills(proposed_date DESC)"
     )
+    _ensure_column(connection, "legislative_bills", "ai_summary", "TEXT")
+    _ensure_column(connection, "legislative_bills", "impact_direction", "TEXT")
+    _ensure_column(connection, "legislative_bills", "impact_level", "TEXT")
+    _ensure_column(connection, "legislative_bills", "impact_reason", "TEXT")
+    _ensure_column(connection, "legislative_bills", "action_needed", "TEXT")
+    _ensure_column(connection, "legislative_bills", "analysis_source", "TEXT")
+    _ensure_column(connection, "legislative_bills", "analyzed_at", "TEXT")
+    _ensure_column(connection, "legislative_bills", "analysis_error", "TEXT")
 
     connection.execute(
         """

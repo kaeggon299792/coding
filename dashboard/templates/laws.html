@@ -62,6 +62,27 @@
           <div><dt>소관위원회</dt><dd>{{ bill.committee_name or '-' }}</dd></div>
           <div><dt>검색 기준</dt><dd>{{ bill.matched_keyword or '-' }}</dd></div>
         </dl>
+        {% if bill.ai_summary %}
+        {% set direction_labels = {'positive': '긍정', 'neutral': '중립', 'negative': '부정', 'mixed': '혼합'} %}
+        {% set level_labels = {'high': '상', 'medium': '중', 'low': '하'} %}
+        <div class="bill-ai-analysis">
+          <div class="bill-ai-head">
+            <strong>AI 법안 분석</strong>
+            <span class="bill-impact is-{{ bill.impact_direction }}">{{ direction_labels.get(bill.impact_direction, '확인') }}</span>
+            <span class="bill-level is-{{ bill.impact_level }}">영향도 {{ level_labels.get(bill.impact_level, '-') }}</span>
+          </div>
+          <p>{{ bill.ai_summary }}</p>
+          <div class="bill-ai-detail">
+            <span>사업 영향</span><p>{{ bill.impact_reason or '-' }}</p>
+            <span>확인 사항</span><p>{{ bill.action_needed or '-' }}</p>
+          </div>
+          <small>{{ bill.analysis_source or 'AI 분석' }} 기준 · 최종 판단 전 원문 확인 필요</small>
+        </div>
+        {% elif bill.analysis_error %}
+        <div class="bill-analysis-state is-error">AI 분석 불가 · {{ bill.analysis_error }}</div>
+        {% else %}
+        <div class="bill-analysis-state">AI 원문 분석 대기</div>
+        {% endif %}
       </article>
       {% endfor %}
     </div>

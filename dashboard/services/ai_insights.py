@@ -312,6 +312,67 @@ def summarize_law_change(connection, law_info):
     return data
 
 
+_BILL_ANALYSIS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "ai_summary": {
+            "type": "string",
+            "description": "제안이유와 주요 개정 내용을 일반인이 이해하기 쉬운 2~4문장으로 요약",
+        },
+        "impact_direction": {
+            "type": "string",
+            "enum": ["positive", "neutral", "negative", "mixed"],
+        },
+        "impact_level": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+        },
+        "impact_reason": {
+            "type": "string",
+            "description": "파라다이스 카지노·복합리조트 사업에 대한 영향 방향과 강도의 근거",
+        },
+        "action_needed": {
+            "type": "string",
+            "description": "경영기획 또는 관련 부서가 확인할 실무 조치",
+        },
+    },
+    "required": [
+        "ai_summary", "impact_direction", "impact_level", "impact_reason", "action_needed",
+    ],
+    "additionalProperties": False,
+}
+
+
+def analyze_legislative_bill(connection, bill, source_text):
+    system_prompt = (
+        "당신은 국내 카지노·복합리조트 사업자의 경영기획 및 규제 대응을 지원하는 입법 분석가입니다. "
+        "제공된 국회 의안 원문에 명시된 내용만 사용하고, 아직 확정되지 않은 법률안임을 전제로 분석하세요. "
+        "파라다이스에 대한 직접 영향이 원문에서 확인되지 않으면 간접 영향 또는 중립으로 판단하고 추측을 사실처럼 쓰지 마세요. "
+        "impact_direction은 positive(긍정), neutral(중립), negative(부정), mixed(혼합) 중 하나, "
+        "impact_level은 high(상), medium(중), low(하) 중 하나로 답하세요."
+    )
+    user_prompt = (
+        f"의안명: {bill.get('bill_name')}\n"
+        f"의안번호: {bill.get('bill_no')}\n"
+        f"제안자: {bill.get('proposer_name')}\n"
+        f"제안일: {bill.get('proposed_date')}\n"
+        f"소관위원회: {bill.get('committee_name')}\n"
+        f"진행상태: {bill.get('process_stage') or bill.get('pass_status')}\n\n"
+        f"[국회 의안 원문 발췌]\n{source_text}"
+    )
+    data, error = _call(
+        connection,
+        "legislative_bill_analysis",
+        system_prompt,
+        user_prompt,
+        "legislative_bill_analysis",
+        _BILL_ANALYSIS_SCHEMA,
+    )
+    if error or not data:
+        return {"analysis": None, "error": error}
+    return {"analysis": data, "error": None}
+
+
 # ============================================================
 # 경영진 관점 종합 시사점 (일 1회 배치)
 # ============================================================

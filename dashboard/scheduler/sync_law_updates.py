@@ -100,6 +100,41 @@ def _sync_assembly_bills(connection):
     return new_count, error_count
 
 
+def _analyze_pending_bills(connection):
+    analyzed_count = 0
+    error_count = 0
+    pending = queries.list_pending_legislative_bill_analysis(
+        connection, limit=config.ASSEMBLY_AI_MAX_PER_RUN
+    )
+    for bill in pending:
+        source = assembly_bill_client.fetch_bill_source_text(
+            bill["bill_id"], bill.get("bill_kind")
+        )
+        if not source.get("ok"):
+            queries.save_legislative_bill_analysis(
+                connection, bill["id"], error=source.get("error")
+            )
+            error_count += 1
+            continue
+        result = ai_insights.analyze_legislative_bill(
+            connection, bill, source["text"]
+        )
+        if result.get("error") or not result.get("analysis"):
+            queries.save_legislative_bill_analysis(
+                connection, bill["id"], error=result.get("error") or "AI 분석 결과 없음"
+            )
+            error_count += 1
+            continue
+        queries.save_legislative_bill_analysis(
+            connection,
+            bill["id"],
+            analysis=result["analysis"],
+            source=source.get("source"),
+        )
+        analyzed_count += 1
+    return analyzed_count, error_count
+
+
 def run():
     connection = dashboard_db()
     run_id = queries.start_analysis_run(connection, "law_sync")
@@ -176,9 +211,12 @@ def run():
 
         new_bill_count, bill_error_count = _sync_assembly_bills(connection)
         error_count += bill_error_count
+        analyzed_bill_count, analysis_error_count = _analyze_pending_bills(connection)
         logger.info(
-            "법률정보 동기화 완료: 법령 변경 %d건, 신규 관련 의안 %d건, 오류 %d건",
-            changed_count, new_bill_count, error_count,
+            "법률정보 동기화 완료: 법령 변경 %d건, 신규 관련 의안 %d건, "
+            "의안 AI 분석 %d건, 오류 %d건",
+            changed_count, new_bill_count, analyzed_bill_count,
+            error_count + analysis_error_count,
         )
         queries.finish_analysis_run(connection, run_id, "success" if error_count == 0 else "partial_failure")
 

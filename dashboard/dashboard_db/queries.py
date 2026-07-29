@@ -1225,6 +1225,49 @@ def list_legislative_bills(connection, limit=50):
     return [dict(row) for row in rows]
 
 
+def list_pending_legislative_bill_analysis(connection, limit=10):
+    rows = connection.execute(
+        """
+        SELECT * FROM legislative_bills
+        WHERE analyzed_at IS NULL AND analysis_error IS NULL
+        ORDER BY COALESCE(proposed_date, '') DESC, id DESC
+        LIMIT ?
+        """,
+        (max(1, int(limit)),),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_legislative_bill_analysis(connection, bill_id, analysis=None, error=None, source=None):
+    analysis = analysis or {}
+    connection.execute(
+        """
+        UPDATE legislative_bills SET
+            ai_summary = ?,
+            impact_direction = ?,
+            impact_level = ?,
+            impact_reason = ?,
+            action_needed = ?,
+            analysis_source = ?,
+            analyzed_at = ?,
+            analysis_error = ?
+        WHERE id = ?
+        """,
+        (
+            analysis.get("ai_summary"),
+            analysis.get("impact_direction"),
+            analysis.get("impact_level"),
+            analysis.get("impact_reason"),
+            analysis.get("action_needed"),
+            source,
+            now_kst().isoformat() if analysis else None,
+            error,
+            bill_id,
+        ),
+    )
+    connection.commit()
+
+
 def search_performance_reports(connection, term, days=365, limit=100):
     like = f"%{term}%"
     rows = connection.execute(

@@ -1,5 +1,5 @@
 from dashboard_db import queries
-from services import assembly_bill_client
+from services import ai_insights, assembly_bill_client
 
 
 class FakeResponse:
@@ -56,3 +56,41 @@ def test_bill_upsert_preserves_single_row(db_connection):
     rows = queries.list_legislative_bills(db_connection)
     assert len(rows) == 1
     assert rows[0]["process_stage"] == "위원회 심사"
+
+    queries.save_legislative_bill_analysis(
+        db_connection,
+        rows[0]["id"],
+        analysis={
+            "ai_summary": "카지노업 관련 조항의 변경 여부를 확인해야 합니다.",
+            "impact_direction": "neutral",
+            "impact_level": "medium",
+            "impact_reason": "직접 영향은 원문 검토가 필요합니다.",
+            "action_needed": "소관위 심사자료를 확인합니다.",
+        },
+        source="국회 의안 원문 PDF",
+    )
+    analyzed = queries.list_legislative_bills(db_connection)[0]
+    assert analyzed["impact_direction"] == "neutral"
+    assert analyzed["impact_level"] == "medium"
+    assert queries.list_pending_legislative_bill_analysis(db_connection) == []
+
+
+def test_ai_bill_analysis_uses_structured_result(monkeypatch, db_connection):
+    monkeypatch.setattr(
+        "services.ai_insights._call",
+        lambda *args, **kwargs: ({
+            "ai_summary": "규제 절차를 정비하는 개정안입니다.",
+            "impact_direction": "mixed",
+            "impact_level": "high",
+            "impact_reason": "준수 부담과 제도 명확성이 함께 예상됩니다.",
+            "action_needed": "카지노 관련 조항 적용 여부를 검토합니다.",
+        }, None),
+    )
+    result = ai_insights.analyze_legislative_bill(
+        db_connection,
+        {"bill_name": "관광진흥법 일부개정법률안", "bill_no": "2200001"},
+        "제안이유와 주요내용 원문",
+    )
+    assert result["error"] is None
+    assert result["analysis"]["impact_direction"] == "mixed"
+    assert result["analysis"]["impact_level"] == "high"
