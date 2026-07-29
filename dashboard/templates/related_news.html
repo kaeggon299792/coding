@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}관련 뉴스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container related-news-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Intelligence / Related News</p>
+    <h1 class="page-title">관련 뉴스</h1>
+    <p class="page-description">카지노·관광산업 관련 누적 뉴스와 AI 관점 분석을 한곳에서 확인합니다.</p>
+    <div class="data-freshness-row">
+      <span class="data-freshness"><b>뉴스 최종 확인</b>{{ news_updated_at[:16]|replace('T', ' ') if news_updated_at else '확인 기록 없음' }}</span>
+    </div>
+  </header>
+
+  <section class="news-stat-grid" aria-label="{{ selected_days }}일 뉴스 현황">
+    <article><span>수집 뉴스</span><strong>{{ news_stats.total_count or 0 }}</strong></article>
+    <article><span>AI 분석 완료</span><strong>{{ news_stats.analyzed_count or 0 }}</strong></article>
+    <article><span>중요 뉴스</span><strong>{{ news_stats.important_count or 0 }}</strong></article>
+    <article class="is-alert"><span>부정 영향</span><strong>{{ news_stats.negative_count or 0 }}</strong></article>
+  </section>
+
+  <form class="news-filter-form" method="get" action="{{ url_for('related_news_page') }}">
+    <label><span>검색</span><input type="search" name="q" value="{{ selected_term }}" placeholder="제목·언론사·AI 요약 검색"></label>
+    <label><span>기간</span><select name="days">{% for value, label in [(7, '최근 7일'), (30, '최근 30일'), (90, '최근 90일'), (365, '최근 1년')] %}<option value="{{ value }}" {% if selected_days == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>분류</span><select name="category"><option value="">전체 분류</option>{% for item in categories %}<option value="{{ item.category }}" {% if selected_category == item.category %}selected{% endif %}>{{ item.category }} ({{ item.article_count }})</option>{% endfor %}</select></label>
+    <label><span>영향 방향</span><select name="impact"><option value="">전체 영향</option>{% for value, label in [('positive', '긍정'), ('negative', '부정'), ('neutral', '중립'), ('mixed', '혼합')] %}<option value="{{ value }}" {% if selected_impact == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="news-check"><input type="checkbox" name="importance" value="important" {% if important_only %}checked{% endif %}><span>중요 뉴스만</span></label>
+    <button class="btn" type="submit">조회</button>
+  </form>
+
+  <div class="news-layout">
+    <section class="news-feed">
+      <div class="section-heading"><div><p class="page-eyebrow">News Archive</p><h2>뉴스 목록</h2></div><span>{{ articles|length }}건 표시</span></div>
+      {% if articles %}
+        {% for item in articles %}
+        <article class="news-card">
+          <div class="news-card-meta">
+            <span>{{ item.category or '미분류' }}</span>
+            {% if item.impact_direction %}<span class="impact-badge is-{{ item.impact_direction|lower }}">{{ {'positive':'긍정', 'negative':'부정', 'neutral':'중립', 'mixed':'혼합'}.get(item.impact_direction|lower, item.impact_direction) }}</span>{% endif %}
+            <time>{{ (item.published_at or item.collected_at or '')[:16]|replace('T', ' ') }}</time>
+          </div>
+          <h3><a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a></h3>
+          <p class="news-source">{{ item.publisher or '출처 미상' }} · 중요도 {{ item.importance_score if item.importance_score is not none else '-' }}</p>
+          {% if item.latest_summary %}<div class="news-ai-summary"><b>AI 관점</b><p>{{ item.latest_summary }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
+        </article>
+        {% endfor %}
+      {% else %}
+        <div class="news-empty"><h3>조건에 맞는 뉴스가 없습니다.</h3><p>검색어나 기간, 분류 필터를 변경해보세요.</p></div>
+      {% endif %}
+    </section>
+
+    <aside class="insight-feed">
+      <div class="section-heading"><div><p class="page-eyebrow">AI Perspective</p><h2>경영진 관점 분석</h2></div></div>
+      {% if executive_insights %}
+        {% for insight in executive_insights %}
+        <article class="insight-card">
+          <div class="news-card-meta"><span>{{ insight.category or '종합' }}</span><time>{{ insight.insight_date or insight.created_at[:10] }}</time></div>
+          <h3>{{ insight.title }}</h3>
+          {% if insight.ai_interpretation %}<p>{{ insight.ai_interpretation }}</p>{% endif %}
+          {% if insight.expected_impact %}<dl><dt>예상 영향</dt><dd>{{ insight.expected_impact }}</dd></dl>{% endif %}
+          {% if insight.recommended_action %}<dl><dt>권고 행동</dt><dd>{{ insight.recommended_action }}</dd></dl>{% endif %}
+        </article>
+        {% endfor %}
+      {% else %}
+        <div class="news-empty compact"><p>선택한 기간의 AI 관점 분석이 없습니다.</p></div>
+      {% endif %}
+    </aside>
+  </div>
+</main>
+{% endblock %}

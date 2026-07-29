@@ -206,6 +206,7 @@ def inject_globals():
         "action_items_page": "버그 및 Q&A",
         "action_item_detail": "버그 및 Q&A",
         "performance_page": "데이터",
+        "related_news_page": "관련 뉴스",
         "market_trend_page": "주가 정보",
         "tourism_trend_page": "관광객 추이",
         "economic_trend_page": "유가정보·환율",
@@ -260,7 +261,7 @@ def _site_map_links():
         {"label": "홈", "description": "업무 현황 종합 대시보드", "endpoint": "dashboard_home"}
     )
     links.append(
-        {"label": "데이터", "description": "주가·관광객·유가·환율·나라별 연휴", "endpoint": "market_trend_page"}
+        {"label": "데이터", "description": "관련 뉴스·주가·관광객·유가·환율·나라별 연휴", "endpoint": "market_trend_page"}
     )
     menu_links = (
         ("official_docs", "공문·자료관리", "접수·처리·Y디스크 보관", "official_docs.dashboard"),
@@ -803,6 +804,50 @@ def market_trend_page():
         )
     finally:
         connection.close()
+
+
+@app.route("/performance/news")
+@login_required
+def related_news_page():
+    allowed_days = {7, 30, 90, 365}
+    try:
+        days = int(request.args.get("days", 30))
+    except (TypeError, ValueError):
+        days = 30
+    if days not in allowed_days:
+        days = 30
+
+    term = request.args.get("q", "").strip()
+    category = request.args.get("category", "").strip()
+    impact = request.args.get("impact", "").strip()
+    important_only = request.args.get("importance") == "important"
+    articles = news_reader.list_articles(
+        days=days,
+        term=term,
+        category=category,
+        impact_direction=impact,
+        important_only=important_only,
+    )
+    connection = dashboard_db()
+    try:
+        executive_insights = queries.list_recent_executive_insights(
+            connection, days=days, limit=50
+        )
+    finally:
+        connection.close()
+    return render_template(
+        "related_news.html",
+        articles=articles,
+        categories=news_reader.list_categories(),
+        news_stats=news_reader.article_stats(days),
+        executive_insights=executive_insights,
+        news_updated_at=news_reader.last_updated_at(),
+        selected_days=days,
+        selected_term=term,
+        selected_category=category,
+        selected_impact=impact,
+        important_only=important_only,
+    )
 
 
 @app.route("/performance/economy")

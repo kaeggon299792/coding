@@ -155,7 +155,7 @@
 
   <div class="section-grid single-feature">
     <div class="panel">
-      <h2>오늘의 중요 업계 뉴스</h2>
+      <div class="panel-title-row"><h2>오늘의 중요 업계 뉴스</h2><a href="{{ url_for('related_news_page') }}">전체 관련 뉴스 보기</a></div>
       {% if important_news %}
         <ul class="item-list">
           {% for item in important_news %}

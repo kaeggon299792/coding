@@ -160,6 +160,103 @@ def search_articles(term, days=365, limit=100):
     )
 
 
+def list_articles(
+    days=30,
+    term=None,
+    category=None,
+    impact_direction=None,
+    important_only=False,
+    limit=200,
+):
+    """누적 뉴스와 연결된 AI 이슈 분석을 필터 조건에 맞춰 반환한다."""
+    clauses = ["articles.collected_at >= datetime('now', ?)"]
+    params = [f"-{max(1, int(days))} days"]
+    term = (term or "").strip()
+    category = (category or "").strip()
+    impact_direction = (impact_direction or "").strip()
+
+    if term:
+        like = f"%{term}%"
+        clauses.append(
+            "(articles.title LIKE ? OR articles.publisher LIKE ? "
+            "OR issues.issue_title LIKE ? OR issues.category LIKE ? "
+            "OR issues.latest_summary LIKE ?)"
+        )
+        params.extend([like] * 5)
+    if category:
+        clauses.append("issues.category = ?")
+        params.append(category)
+    if impact_direction:
+        clauses.append("issues.impact_direction = ?")
+        params.append(impact_direction)
+    if important_only:
+        clauses.append(
+            "(COALESCE(articles.importance_score, 0) >= 60 "
+            "OR LOWER(COALESCE(issues.importance, '')) IN ('high', '높음'))"
+        )
+
+    params.append(max(1, min(int(limit), 500)))
+    return _safe_query(
+        f"""
+        SELECT
+            articles.article_id, articles.title, articles.publisher,
+            articles.original_url, articles.published_at, articles.collected_at,
+            articles.importance_score, articles.relevance_score,
+            issues.issue_id, issues.issue_key, issues.issue_title, issues.category,
+            issues.importance, issues.impact_direction, issues.latest_summary,
+            issues.first_seen_at, issues.last_seen_at
+        FROM articles
+        LEFT JOIN issues ON issues.issue_id = articles.issue_id
+        WHERE {" AND ".join(clauses)}
+        ORDER BY COALESCE(articles.published_at, articles.collected_at) DESC
+        LIMIT ?
+        """,
+        params,
+    )
+
+
+def list_categories(days=365):
+    return _safe_query(
+        """
+        SELECT issues.category, COUNT(*) AS article_count
+        FROM articles
+        JOIN issues ON issues.issue_id = articles.issue_id
+        WHERE articles.collected_at >= datetime('now', ?)
+          AND TRIM(COALESCE(issues.category, '')) != ''
+        GROUP BY issues.category
+        ORDER BY article_count DESC, issues.category
+        LIMIT 50
+        """,
+        (f"-{max(1, int(days))} days",),
+    )
+
+
+def article_stats(days=30):
+    rows = _safe_query(
+        """
+        SELECT
+            COUNT(*) AS total_count,
+            SUM(CASE WHEN TRIM(COALESCE(issues.latest_summary, '')) != '' THEN 1 ELSE 0 END)
+                AS analyzed_count,
+            SUM(CASE WHEN COALESCE(articles.importance_score, 0) >= 60
+                       OR LOWER(COALESCE(issues.importance, '')) IN ('high', '높음')
+                     THEN 1 ELSE 0 END) AS important_count,
+            SUM(CASE WHEN LOWER(COALESCE(issues.impact_direction, ''))
+                       IN ('negative', '부정') THEN 1 ELSE 0 END) AS negative_count
+        FROM articles
+        LEFT JOIN issues ON issues.issue_id = articles.issue_id
+        WHERE articles.collected_at >= datetime('now', ?)
+        """,
+        (f"-{max(1, int(days))} days",),
+    )
+    return rows[0] if rows else {
+        "total_count": 0,
+        "analyzed_count": 0,
+        "important_count": 0,
+        "negative_count": 0,
+    }
+
+
 def articles_for_aliases(aliases, days=90, limit=100):
     """회사명과 별칭 가운데 하나라도 포함된 최근 기사를 반환한다."""
     aliases = [str(alias).strip() for alias in aliases if str(alias).strip()]

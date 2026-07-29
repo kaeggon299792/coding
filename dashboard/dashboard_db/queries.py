@@ -1479,6 +1479,18 @@ def search_executive_insights(connection, term, days=365, limit=100):
     return [dict(row) for row in rows]
 
 
+def list_recent_executive_insights(connection, days=365, limit=50):
+    rows = connection.execute(
+        """
+        SELECT * FROM executive_insights
+        WHERE created_at >= datetime('now', ?)
+        ORDER BY created_at DESC LIMIT ?
+        """,
+        (f"-{max(1, int(days))} days", max(1, min(int(limit), 200))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def save_law_analysis(connection, law_update_id, ai_summary, affected_scope,
                        company_impact, action_needed, prompt_version, error_message=None):
     connection.execute(
