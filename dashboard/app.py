@@ -76,6 +76,7 @@ ENDPOINT_PERMISSIONS = {
     "delete_action_item_route": "bug_reports",
     "performance_page": "performance",
     "tourism_trend_page": "performance",
+    "economic_trend_page": "performance",
     "disclosures_page": "disclosures",
     "laws_page": "laws",
     "companies_page": "companies",
@@ -207,6 +208,7 @@ def inject_globals():
         "action_item_detail": "버그 및 Q&A",
         "performance_page": "데이터",
         "tourism_trend_page": "관광객 추이",
+        "economic_trend_page": "유가정보·환율",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -389,6 +391,7 @@ def dashboard_home():
             (quote.get("fetched_at") or "" for quote in market_quotes),
             default=None,
         )
+        economic_series = queries.list_economic_series(connection)
 
         return render_template(
             "dashboard.html",
@@ -398,6 +401,7 @@ def dashboard_home():
             official_overdue=official_overdue[:10],
             official_recent=official_documents[:6],
             market_quotes=market_quotes,
+            economic_series=economic_series,
             market_updated_at=(
                 official_document_manager.datetime_minute(market_updated_at)
                 if market_updated_at else None
@@ -770,6 +774,23 @@ def tourism_trend_page():
                 if latest_run and latest_run.get("finished_at")
                 else (comparison.get("latest_fetched_at") if comparison else None)
             ),
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/performance/economy")
+@login_required
+def economic_trend_page():
+    connection = dashboard_db()
+    try:
+        series = queries.list_economic_series(connection)
+        latest_run = queries.get_last_successful_run(connection, "economic_data_sync")
+        return render_template(
+            "economic_trend.html",
+            oil_series=[item for item in series if item["category"] == "oil"],
+            exchange_series=[item for item in series if item["category"] == "exchange"],
+            economic_updated_at=latest_run.get("finished_at") if latest_run else None,
         )
     finally:
         connection.close()

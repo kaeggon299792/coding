@@ -585,6 +585,21 @@ def migrate(connection):
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS economic_series (
+            series_code TEXT NOT NULL,
+            observation_date TEXT NOT NULL,
+            label TEXT NOT NULL,
+            category TEXT NOT NULL,
+            value REAL NOT NULL,
+            unit TEXT NOT NULL,
+            source TEXT NOT NULL,
+            fetched_at TEXT NOT NULL,
+            PRIMARY KEY (series_code, observation_date)
+        )
+        """
+    )
 
     connection.execute(
         """

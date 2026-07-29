@@ -1,4 +1,5 @@
 <nav class="data-subnav" aria-label="데이터 메뉴">
   <a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}>경영 실적</a>
   <a href="{{ url_for('tourism_trend_page') }}" {% if request.endpoint == 'tourism_trend_page' %}class="active"{% endif %}>관광객 추이</a>
+  <a href="{{ url_for('economic_trend_page') }}" {% if request.endpoint == 'economic_trend_page' %}class="active"{% endif %}>유가정보·환율</a>
 </nav>

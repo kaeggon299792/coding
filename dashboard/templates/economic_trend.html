@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}유가정보·환율{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container economic-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Market / Oil & Exchange</p>
+    <h1 class="page-title">유가정보·환율</h1>
+    <p class="page-description">전국 평균 유가와 주요 통화의 원화 기준 환율 흐름을 확인합니다.</p>
+    {% if economic_updated_at %}<div class="data-freshness-row"><span class="data-freshness"><b>최종 업데이트</b> {{ economic_updated_at[:16]|replace('T',' ') }}</span></div>{% endif %}
+  </header>
+  {% for title, description, items in [('전국 평균 유가','한국석유공사 오피넷 기준 원/L',oil_series),('주요 환율','한국수출입은행 매매기준율',exchange_series)] %}
+  <section class="panel economic-section">
+    <header><div><p class="page-eyebrow">{{ 'OIL PRICE' if loop.first else 'EXCHANGE RATE' }}</p><h2>{{ title }}</h2><p>{{ description }}</p></div></header>
+    {% if items %}<div class="economic-grid">
+      {% for item in items %}<article class="economic-card">
+        <div class="economic-label"><span>{{ item.label }}</span><time>{{ item.end_date }}</time></div>
+        <strong>{{ "{:,.2f}".format(item.latest) }}</strong><small>{{ item.unit }}</small>
+        <div class="economic-change {% if item.change > 0 %}is-up{% elif item.change < 0 %}is-down{% endif %}">{{ "{:+,.2f}".format(item.change) }}</div>
+        <svg class="economic-chart {% if item.change > 0 %}is-up{% elif item.change < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ item.label }} 최근 추이">
+          <defs><linearGradient id="eco-{{ item.series_code }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".28"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <polygon points="{{ item.area_points }}" fill="url(#eco-{{ item.series_code }})"/><polyline points="{{ item.points }}"/>
+        </svg>
+        <footer><span>{{ item.start_date }}</span><span>{{ item.end_date }}</span></footer>
+      </article>{% endfor %}
+    </div>{% else %}<div class="economic-empty">API 데이터 수집 대기 중입니다.</div>{% endif %}
+  </section>
+  {% endfor %}
+  <p class="tourism-source">출처: 한국석유공사 오피넷 · 한국수출입은행 Open API</p>
+</main>
+{% include "_legal_footer.html" %}
+{% endblock %}

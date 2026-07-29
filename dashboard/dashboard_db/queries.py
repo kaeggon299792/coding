@@ -1368,6 +1368,58 @@ def list_market_quotes(connection):
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 
+def upsert_economic_observation(connection, item):
+    connection.execute(
+        """
+        INSERT INTO economic_series (
+            series_code, observation_date, label, category, value, unit, source, fetched_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(series_code, observation_date) DO UPDATE SET
+            value=excluded.value, fetched_at=excluded.fetched_at
+        """,
+        (
+            item["series_code"], item["observation_date"], item["label"],
+            item["category"], item["value"], item["unit"], item["source"],
+            now_kst().isoformat(),
+        ),
+    )
+    connection.commit()
+
+
+def list_economic_series(connection, days=45):
+    rows = connection.execute(
+        "SELECT * FROM economic_series WHERE observation_date >= strftime('%Y%m%d','now',?) "
+        "ORDER BY series_code, observation_date",
+        (f"-{max(1, int(days))} days",),
+    ).fetchall()
+    grouped = {}
+    for raw in rows:
+        row = dict(raw)
+        grouped.setdefault(row["series_code"], []).append(row)
+    order = ("OIL_B027", "OIL_D047", "OIL_K015", "FX_USD", "FX_JPY100", "FX_CNH", "FX_EUR")
+    result = []
+    for code in order:
+        items = grouped.get(code, [])[-30:]
+        if not items:
+            continue
+        values = [float(item["value"]) for item in items]
+        low, high = min(values), max(values)
+        spread = high - low or 1
+        points = [
+            f"{i / max(1, len(values)-1) * 100:.1f},{34 - (value-low)/spread*28:.1f}"
+            for i, value in enumerate(values)
+        ]
+        point_string = " ".join(points)
+        result.append({
+            **items[-1], "points": point_string,
+            "area_points": f"0,40 {point_string} 100,40",
+            "count": len(items), "start_date": items[0]["observation_date"],
+            "end_date": items[-1]["observation_date"], "latest": values[-1],
+            "change": values[-1] - values[-2] if len(values) > 1 else 0,
+        })
+    return result
+
+
 def search_performance_reports(connection, term, days=365, limit=100):
     like = f"%{term}%"
     rows = connection.execute(

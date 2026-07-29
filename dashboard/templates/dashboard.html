@@ -101,6 +101,24 @@
     {% endif %}
   </section>
 
+  <section class="market-overview economic-overview">
+    <div class="market-overview-head">
+      <div><p class="page-eyebrow">Market / Oil & Exchange</p><h2>유가정보·환율</h2><p>전국 평균 유가와 주요 환율의 최근 흐름입니다.</p></div>
+      <a class="btn btn-small" href="{{ url_for('economic_trend_page') }}">상세 추이</a>
+    </div>
+    {% if economic_series %}<div class="economic-grid">
+      {% for item in economic_series %}<article class="economic-card">
+        <div class="economic-label"><span>{{ item.label }}</span><time>{{ item.end_date }}</time></div>
+        <strong>{{ "{:,.2f}".format(item.latest) }}</strong><small>{{ item.unit }}</small>
+        <div class="economic-change {% if item.change > 0 %}is-up{% elif item.change < 0 %}is-down{% endif %}">{{ "{:+,.2f}".format(item.change) }}</div>
+        <svg class="economic-chart {% if item.change > 0 %}is-up{% elif item.change < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ item.label }} 최근 추이">
+          <defs><linearGradient id="home-eco-{{ item.series_code }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".28"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <polygon points="{{ item.area_points }}" fill="url(#home-eco-{{ item.series_code }})"/><polyline points="{{ item.points }}"/>
+        </svg>
+      </article>{% endfor %}
+    </div>{% else %}<div class="economic-empty">유가·환율 데이터 수집 대기 중입니다.</div>{% endif %}
+  </section>
+
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="label">오늘 수집 뉴스</div>
