@@ -31,7 +31,6 @@ SESSION_ABSOLUTE_TIMEOUT = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 
 MENU_PERMISSIONS = {
     "bug_reports": "버그 및 Q&A",
-    "performance": "실적",
     "disclosures": "공시·재무",
     "laws": "법률·규제",
     "companies": "기업 360°",
@@ -43,7 +42,7 @@ MENU_PERMISSIONS = {
 LANDING_ENDPOINTS = {
     "dashboard": "dashboard_home",
     "bug_reports": "action_items_page",
-    "performance": "performance_page",
+    "performance": "tourism_trend_page",
     "disclosures": "disclosures_page",
     "laws": "laws_page",
     "companies": "companies_page",

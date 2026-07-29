@@ -74,10 +74,6 @@ ENDPOINT_PERMISSIONS = {
     "delete_action_item_comment": "bug_reports",
     "update_action_item_route": "bug_reports",
     "delete_action_item_route": "bug_reports",
-    "performance_page": "performance",
-    "tourism_trend_page": "performance",
-    "economic_trend_page": "performance",
-    "holiday_calendar_page": "performance",
     "disclosures_page": "disclosures",
     "laws_page": "laws",
     "companies_page": "companies",
@@ -262,9 +258,11 @@ def _site_map_links():
     links.append(
         {"label": "홈", "description": "업무 현황 종합 대시보드", "endpoint": "dashboard_home"}
     )
+    links.append(
+        {"label": "데이터", "description": "관광객·유가·환율·나라별 연휴", "endpoint": "tourism_trend_page"}
+    )
     menu_links = (
         ("official_docs", "공문·자료관리", "접수·처리·Y디스크 보관", "official_docs.dashboard"),
-        ("performance", "실적", "실적 자료와 지표 확인", "performance_page"),
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
         ("laws", "법률·규제", "카지노 관련 법령 모니터링", "laws_page"),
         ("companies", "기업 360°", "회사별 통합 기업분석", "companies_page"),
