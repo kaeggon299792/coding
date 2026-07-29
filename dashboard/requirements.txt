@@ -5,6 +5,7 @@ requests==2.32.3
 # openai==1.51.0(당시 최신 안정판)에는 없고 이후 SDK에 추가됐다 - 반드시 이 API를
 # 지원하는 버전이어야 한다(casino_news_watch가 실제 운영에서 쓰는 버전과 동일하게 맞춤).
 openai==2.48.0
+holidays==0.101
 # httpx 0.28+에서는 옛 openai 버전이 넘기던 Client(proxies=...) 인자가 사라져 오류가
 # 났었다. openai==2.48.0은 자체적으로 호환되지만, 재현성을 위해 명시적으로 고정한다.
 httpx==0.27.2

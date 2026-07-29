@@ -77,6 +77,7 @@ ENDPOINT_PERMISSIONS = {
     "performance_page": "performance",
     "tourism_trend_page": "performance",
     "economic_trend_page": "performance",
+    "holiday_calendar_page": "performance",
     "disclosures_page": "disclosures",
     "laws_page": "laws",
     "companies_page": "companies",
@@ -209,6 +210,7 @@ def inject_globals():
         "performance_page": "데이터",
         "tourism_trend_page": "관광객 추이",
         "economic_trend_page": "유가정보·환율",
+        "holiday_calendar_page": "나라별 연휴",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -794,6 +796,16 @@ def economic_trend_page():
         )
     finally:
         connection.close()
+
+
+@app.route("/performance/holidays")
+@login_required
+def holiday_calendar_page():
+    from services import holiday_calendar
+    return render_template(
+        "holiday_calendar.html",
+        holiday_calendar=holiday_calendar.build_calendar(request.args.get("year", 2026, type=int)),
+    )
 
 
 # ============================================================
