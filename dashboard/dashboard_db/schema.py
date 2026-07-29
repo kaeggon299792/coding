@@ -572,6 +572,17 @@ def migrate(connection):
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS market_quote_history (
+            symbol TEXT NOT NULL,
+            base_date TEXT NOT NULL,
+            close_price REAL NOT NULL,
+            fetched_at TEXT NOT NULL,
+            PRIMARY KEY (symbol, base_date)
+        )
+        """
+    )
 
     connection.execute(
         """

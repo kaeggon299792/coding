@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 from dashboard_db import queries  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import ai_insights, assembly_bill_client, law_client, telegram_alert  # noqa: E402
+from services import ai_insights, assembly_bill_client, law_client, market_data, telegram_alert  # noqa: E402
 from utils import setup_logger  # noqa: E402
 
 logger = setup_logger("law_sync")
@@ -135,6 +135,18 @@ def _analyze_pending_bills(connection):
     return analyzed_count, error_count
 
 
+def _sync_market_quotes(connection):
+    result = market_data.fetch_dashboard_quotes()
+    for quote in result["quotes"]:
+        queries.upsert_market_quote(connection, quote)
+        queries.upsert_market_quote_history(
+            connection, quote["symbol"], quote.get("history") or []
+        )
+    for error in result["errors"]:
+        queries.log_error(connection, "market_quote_sync", "market_api", error)
+    return len(result["quotes"]), len(result["errors"])
+
+
 def run():
     connection = dashboard_db()
     run_id = queries.start_analysis_run(connection, "law_sync")
@@ -212,11 +224,12 @@ def run():
         new_bill_count, bill_error_count = _sync_assembly_bills(connection)
         error_count += bill_error_count
         analyzed_bill_count, analysis_error_count = _analyze_pending_bills(connection)
+        market_count, market_error_count = _sync_market_quotes(connection)
         logger.info(
             "법률정보 동기화 완료: 법령 변경 %d건, 신규 관련 의안 %d건, "
-            "의안 AI 분석 %d건, 오류 %d건",
+            "의안 AI 분석 %d건, 시장 시세 %d건, 오류 %d건",
             changed_count, new_bill_count, analyzed_bill_count,
-            error_count + analysis_error_count,
+            market_count, error_count + analysis_error_count + market_error_count,
         )
         queries.finish_analysis_run(connection, run_id, "success" if error_count == 0 else "partial_failure")
 

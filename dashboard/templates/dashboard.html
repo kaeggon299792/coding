@@ -65,6 +65,20 @@
         <strong class="market-price">
           {% if quote.asset_type == 'stock' %}₩{% endif %}{{ '{:,.2f}'.format(quote.close_price)|replace('.00', '') if quote.close_price is not none else '-' }}
         </strong>
+        {% if quote.trend_points %}
+        <svg class="market-sparkline {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ quote.name }} 최근 {{ quote.trend_count }}거래일 종가 추이">
+          <defs>
+            <linearGradient id="market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="currentColor" stop-opacity=".26"/>
+              <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon points="{{ quote.trend_area_points }}" fill="url(#market-gradient-{{ loop.index }})"/>
+          <polyline points="{{ quote.trend_points }}"/>
+          {% set final_point = quote.trend_points.split(' ')[-1].split(',') %}
+          <circle cx="{{ final_point[0] }}" cy="{{ final_point[1] }}" r="1.6"/>
+        </svg>
+        {% endif %}
         <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">
           <span>{{ '{:+,.2f}'.format(quote.change_value)|replace('.00', '') if quote.change_value is not none else '-' }}</span>
           <b>{{ '{:+.2f}%'.format(quote.change_rate) if quote.change_rate is not none else '-' }}</b>

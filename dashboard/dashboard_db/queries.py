@@ -1301,9 +1301,58 @@ def upsert_market_quote(connection, quote):
     connection.commit()
 
 
+def upsert_market_quote_history(connection, symbol, points):
+    now = now_kst().isoformat()
+    connection.executemany(
+        """
+        INSERT INTO market_quote_history (symbol, base_date, close_price, fetched_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(symbol, base_date) DO UPDATE SET
+            close_price = excluded.close_price,
+            fetched_at = excluded.fetched_at
+        """,
+        [
+            (symbol, point["base_date"], point["close_price"], now)
+            for point in points
+            if point.get("base_date") and point.get("close_price") is not None
+        ],
+    )
+    connection.commit()
+
+
+def _market_sparkline(connection, symbol):
+    rows = connection.execute(
+        """
+        SELECT base_date, close_price FROM market_quote_history
+        WHERE symbol = ?
+        ORDER BY base_date DESC LIMIT 30
+        """,
+        (symbol,),
+    ).fetchall()
+    values = [dict(row) for row in reversed(rows)]
+    if len(values) < 2:
+        return {"trend_points": "", "trend_area_points": "", "trend_count": len(values)}
+    prices = [float(row["close_price"]) for row in values]
+    low, high = min(prices), max(prices)
+    spread = high - low or 1.0
+    points = []
+    for index, price in enumerate(prices):
+        x = index / (len(prices) - 1) * 100
+        y = 34 - ((price - low) / spread) * 28
+        points.append(f"{x:.1f},{y:.1f}")
+    point_string = " ".join(points)
+    return {
+        "trend_points": point_string,
+        "trend_area_points": f"0,40 {point_string} 100,40",
+        "trend_count": len(values),
+    }
+
+
 def list_market_quotes(connection):
     order = {"KOSPI": 0, "034230": 1, "114090": 2, "035250": 3, "032350": 4}
     rows = [dict(row) for row in connection.execute("SELECT * FROM market_quotes").fetchall()]
+    for row in rows:
+        row.update(_market_sparkline(connection, row["symbol"]))
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 

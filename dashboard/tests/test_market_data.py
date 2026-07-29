@@ -13,6 +13,15 @@ class FakeResponse:
                     "items": {
                         "item": [
                             {
+                                "basDt": "20260727",
+                                "srtnCd": "034230",
+                                "itmsNm": "파라다이스",
+                                "mrktCtg": "KOSDAQ",
+                                "clpr": "15100",
+                                "vs": "-100",
+                                "fltRt": "-0.66",
+                            },
+                            {
                                 "basDt": "20260728",
                                 "srtnCd": "034230",
                                 "itmsNm": "파라다이스",
@@ -24,7 +33,7 @@ class FakeResponse:
                                 "hipr": "15550",
                                 "lopr": "15020",
                                 "trqu": "123456",
-                            }
+                            },
                         ]
                     }
                 },
@@ -43,19 +52,38 @@ def test_fetch_stock_normalizes_market_fields(monkeypatch):
     assert quote["symbol"] == "034230"
     assert quote["close_price"] == 15420
     assert quote["change_rate"] == 2.12
+    assert quote["history"] == [
+        {"base_date": "20260727", "close_price": 15100},
+        {"base_date": "20260728", "close_price": 15420},
+    ]
 
 
 def test_market_quote_upsert_and_order(db_connection):
     for symbol, name in (("034230", "파라다이스"), ("KOSPI", "KOSPI")):
-        queries.upsert_market_quote(db_connection, {
-            "symbol": symbol,
-            "name": name,
-            "asset_type": "index" if symbol == "KOSPI" else "stock",
-            "market": "KOSPI",
-            "base_date": "20260728",
-            "close_price": 100,
-            "change_value": 1,
-            "change_rate": 1.0,
-        })
+        queries.upsert_market_quote(
+            db_connection,
+            {
+                "symbol": symbol,
+                "name": name,
+                "asset_type": "index" if symbol == "KOSPI" else "stock",
+                "market": "KOSPI",
+                "base_date": "20260728",
+                "close_price": 100,
+                "change_value": 1,
+                "change_rate": 1.0,
+            },
+        )
+        queries.upsert_market_quote_history(
+            db_connection,
+            symbol,
+            [
+                {"base_date": "20260726", "close_price": 98},
+                {"base_date": "20260727", "close_price": 99},
+                {"base_date": "20260728", "close_price": 100},
+            ],
+        )
     rows = queries.list_market_quotes(db_connection)
     assert [row["symbol"] for row in rows] == ["KOSPI", "034230"]
+    assert all(row["trend_count"] == 3 for row in rows)
+    assert all(row["trend_points"].startswith("0.0,34.0") for row in rows)
+    assert all(row["trend_area_points"].endswith("100,40") for row in rows)

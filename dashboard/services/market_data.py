@@ -41,7 +41,7 @@ def _get(url, params):
         return {"ok": False, "error": "MARKET_DATA_API_KEY가 설정되지 않았습니다."}
     request_params = {
         "serviceKey": config.MARKET_DATA_API_KEY,
-        "numOfRows": 10,
+        "numOfRows": 40,
         "pageNo": 1,
         "resultType": "json",
         **params,
@@ -85,8 +85,19 @@ def _latest(rows):
     return max(rows, key=lambda row: str(row.get("basDt") or ""))
 
 
+def _history(rows):
+    return [
+        {
+            "base_date": row.get("basDt"),
+            "close_price": _number(row.get("clpr")),
+        }
+        for row in sorted(rows, key=lambda item: str(item.get("basDt") or ""))
+        if row.get("basDt") and _number(row.get("clpr")) is not None
+    ]
+
+
 def fetch_stock(stock):
-    begin_date = (datetime.now(config.KST) - timedelta(days=14)).strftime("%Y%m%d")
+    begin_date = (datetime.now(config.KST) - timedelta(days=50)).strftime("%Y%m%d")
     result = _get(
         STOCK_URL,
         {"likeSrtnCd": stock["symbol"], "beginBasDt": begin_date},
@@ -109,12 +120,13 @@ def fetch_stock(stock):
             "high_price": _number(row.get("hipr"), integer=True),
             "low_price": _number(row.get("lopr"), integer=True),
             "volume": _number(row.get("trqu"), integer=True),
+            "history": _history(result["rows"]),
         },
     }
 
 
 def fetch_kospi():
-    begin_date = (datetime.now(config.KST) - timedelta(days=14)).strftime("%Y%m%d")
+    begin_date = (datetime.now(config.KST) - timedelta(days=50)).strftime("%Y%m%d")
     result = _get(
         INDEX_URL,
         {"likeIdxNm": "코스피", "beginBasDt": begin_date},
@@ -138,6 +150,7 @@ def fetch_kospi():
             "high_price": _number(row.get("hipr")),
             "low_price": _number(row.get("lopr")),
             "volume": _number(row.get("trqu"), integer=True),
+            "history": _history(rows or result["rows"]),
         },
     }
 

@@ -20,6 +20,9 @@ def run():
         result = market_data.fetch_dashboard_quotes()
         for quote in result["quotes"]:
             queries.upsert_market_quote(connection, quote)
+            queries.upsert_market_quote_history(
+                connection, quote["symbol"], quote.get("history") or []
+            )
         errors = [error for error in result["errors"] if error]
         for error in errors:
             queries.log_error(connection, "market_quote_sync", "market_api", error)
