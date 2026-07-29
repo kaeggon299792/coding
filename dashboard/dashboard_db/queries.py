@@ -7,6 +7,7 @@ AI가 생성한 내용(ai_suggested=1 등)과 사용자가 직접 입력/승인�
 """
 
 import json
+import re
 
 from utils import now_kst
 
@@ -334,6 +335,38 @@ def count_insights_for_date(connection, insight_date):
 # performance_reports
 # ============================================================
 
+def _performance_number(value):
+    if value is None:
+        return None
+    match = re.search(r"-?[\d,]+(?:\.\d+)?", str(value))
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _with_performance_visual(item):
+    parsed = item.get("parsed") or {}
+    group = _performance_number(parsed.get("group_sales_today"))
+    casino = _performance_number(parsed.get("casino_sales"))
+    hotel = _performance_number(parsed.get("hotel_resort_sales"))
+    change = _performance_number(parsed.get("change_percent"))
+    values = [abs(value) for value in (group, casino, hotel) if value is not None]
+    scale = max(values, default=1) or 1
+    item["visual"] = {
+        "group": group,
+        "casino": casino,
+        "hotel": hotel,
+        "change": change,
+        "group_width": min(abs(group or 0) / scale * 100, 100),
+        "casino_width": min(abs(casino or 0) / scale * 100, 100),
+        "hotel_width": min(abs(hotel or 0) / scale * 100, 100),
+    }
+    return item
+
+
 def save_performance_report(
     connection,
     report_date,
@@ -380,7 +413,7 @@ def list_performance_reports(connection, report_date, only_parsed=False):
             item["parsed"] = json.loads(item["parsed_json"]) if item["parsed_json"] else None
         except (ValueError, TypeError):
             item["parsed"] = None
-        results.append(item)
+        results.append(_with_performance_visual(item))
     return results
 
 
@@ -403,7 +436,7 @@ def get_latest_performance_report(connection, report_date=None):
         item["parsed"] = json.loads(item["parsed_json"]) if item["parsed_json"] else None
     except (ValueError, TypeError):
         item["parsed"] = None
-    return item
+    return _with_performance_visual(item)
 
 
 # ============================================================

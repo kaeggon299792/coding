@@ -1,0 +1,42 @@
+{% set data = report.parsed %}
+{% set visual = report.visual %}
+<section class="performance-visual" aria-label="실적 요약 차트">
+  <header class="performance-visual-head">
+    <div>
+      <span class="performance-kicker">TOTAL REVENUE</span>
+      <strong>{{ data.group_sales_today or '-' }}</strong>
+      <small>그룹 매출</small>
+    </div>
+    {% if visual.change is not none %}
+    <div class="performance-change {% if visual.change < 0 %}is-negative{% else %}is-positive{% endif %}">
+      <span>전일 대비</span>
+      <strong>{{ '+' if visual.change > 0 else '' }}{{ data.change_percent }}</strong>
+      <i aria-hidden="true">{{ '↓' if visual.change < 0 else '↑' }}</i>
+    </div>
+    {% endif %}
+  </header>
+  <div class="performance-bars">
+    <div class="performance-bar-row">
+      <div class="performance-bar-label">
+        <span><i class="performance-dot casino"></i>카지노</span>
+        <strong class="{% if visual.casino is not none and visual.casino < 0 %}is-negative{% endif %}">{{ data.casino_sales or '-' }}</strong>
+      </div>
+      <div class="performance-track" role="img" aria-label="카지노 매출 {{ data.casino_sales or '자료 없음' }}">
+        <span class="performance-fill casino {% if visual.casino is not none and visual.casino < 0 %}is-negative{% endif %}" style="--bar-width: {{ visual.casino_width }}%"></span>
+      </div>
+    </div>
+    <div class="performance-bar-row">
+      <div class="performance-bar-label">
+        <span><i class="performance-dot hotel"></i>호텔 &amp; 리조트</span>
+        <strong>{{ data.hotel_resort_sales or '-' }}</strong>
+      </div>
+      <div class="performance-track" role="img" aria-label="호텔 및 리조트 매출 {{ data.hotel_resort_sales or '자료 없음' }}">
+        <span class="performance-fill hotel" style="--bar-width: {{ visual.hotel_width }}%"></span>
+      </div>
+    </div>
+  </div>
+  <footer class="performance-visual-foot">
+    <span>{{ report.received_at[:16]|replace('T', ' ') }} 기준</span>
+    <span>단위: 백만원</span>
+  </footer>
+</section>

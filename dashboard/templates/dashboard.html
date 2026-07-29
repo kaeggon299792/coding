@@ -109,14 +109,9 @@
     <div class="panel">
       <h2>실적 요약</h2>
       {% if latest_performance and latest_performance.parsed %}
-        <table class="data-table">
-          <tbody>
-          {% for key, value in latest_performance.parsed.items() %}
-            <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        <p class="item-meta">수신 {{ latest_performance.received_at }} ({{ latest_performance.header_type }})</p>
+        {% with report=latest_performance %}
+          {% include "_performance_chart.html" %}
+        {% endwith %}
       {% else %}
         <p class="empty-state">비교 데이터 없음 — 아직 오늘 수신된 실적 알림이 없습니다.</p>
       {% endif %}
