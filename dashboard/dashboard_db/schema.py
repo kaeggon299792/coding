@@ -555,6 +555,26 @@ def migrate(connection):
 
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS market_quotes (
+            symbol TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            market TEXT,
+            base_date TEXT,
+            close_price REAL,
+            change_value REAL,
+            change_rate REAL,
+            open_price REAL,
+            high_price REAL,
+            low_price REAL,
+            volume INTEGER,
+            fetched_at TEXT NOT NULL
+        )
+        """
+    )
+
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS api_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             called_at TEXT NOT NULL,

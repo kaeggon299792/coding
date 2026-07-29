@@ -44,6 +44,46 @@
     {% else %}<p class="official-clear">7일을 초과한 미처리 공문이 없습니다.</p>{% endif %}
   </section>
 
+  <section class="market-overview">
+    <div class="market-overview-head">
+      <div>
+        <p class="page-eyebrow">Market / Casino Companies</p>
+        <h2>카지노 4개사 주가 및 KOSPI</h2>
+        <p>금융위원회 시세정보 기준 최근 영업일 종가입니다.</p>
+      </div>
+      <span>{{ market_updated_at or '업데이트 대기' }}</span>
+    </div>
+    {% if market_quotes %}
+    <div class="market-quote-grid">
+      {% for quote in market_quotes %}
+      <article class="market-quote-card {% if quote.symbol == '034230' %}is-primary{% endif %}">
+        <div class="market-quote-label">
+          <span>{{ quote.market or quote.asset_type }}</span>
+          <time>{{ quote.base_date or '-' }}</time>
+        </div>
+        <h3>{{ quote.name }}</h3>
+        <strong class="market-price">
+          {% if quote.asset_type == 'stock' %}₩{% endif %}{{ '{:,.2f}'.format(quote.close_price)|replace('.00', '') if quote.close_price is not none else '-' }}
+        </strong>
+        <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">
+          <span>{{ '{:+,.2f}'.format(quote.change_value)|replace('.00', '') if quote.change_value is not none else '-' }}</span>
+          <b>{{ '{:+.2f}%'.format(quote.change_rate) if quote.change_rate is not none else '-' }}</b>
+        </div>
+        <div class="market-range">
+          <span>고가 <b>{{ '{:,.2f}'.format(quote.high_price)|replace('.00', '') if quote.high_price is not none else '-' }}</b></span>
+          <span>저가 <b>{{ '{:,.2f}'.format(quote.low_price)|replace('.00', '') if quote.low_price is not none else '-' }}</b></span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="market-empty">
+      <strong>시장 시세 업데이트 대기</strong>
+      <p>공공데이터포털에서 ‘금융위원회_주식시세정보’와 ‘금융위원회_지수시세정보’ 활용 승인이 완료되면 자동 표시됩니다.</p>
+    </div>
+    {% endif %}
+  </section>
+
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="label">오늘 수집 뉴스</div>

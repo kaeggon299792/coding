@@ -1268,6 +1268,45 @@ def save_legislative_bill_analysis(connection, bill_id, analysis=None, error=Non
     connection.commit()
 
 
+def upsert_market_quote(connection, quote):
+    connection.execute(
+        """
+        INSERT INTO market_quotes (
+            symbol, name, asset_type, market, base_date, close_price,
+            change_value, change_rate, open_price, high_price, low_price,
+            volume, fetched_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(symbol) DO UPDATE SET
+            name = excluded.name,
+            asset_type = excluded.asset_type,
+            market = excluded.market,
+            base_date = excluded.base_date,
+            close_price = excluded.close_price,
+            change_value = excluded.change_value,
+            change_rate = excluded.change_rate,
+            open_price = excluded.open_price,
+            high_price = excluded.high_price,
+            low_price = excluded.low_price,
+            volume = excluded.volume,
+            fetched_at = excluded.fetched_at
+        """,
+        (
+            quote["symbol"], quote["name"], quote["asset_type"],
+            quote.get("market"), quote.get("base_date"), quote.get("close_price"),
+            quote.get("change_value"), quote.get("change_rate"),
+            quote.get("open_price"), quote.get("high_price"), quote.get("low_price"),
+            quote.get("volume"), now_kst().isoformat(),
+        ),
+    )
+    connection.commit()
+
+
+def list_market_quotes(connection):
+    order = {"KOSPI": 0, "034230": 1, "114090": 2, "035250": 3, "032350": 4}
+    rows = [dict(row) for row in connection.execute("SELECT * FROM market_quotes").fetchall()]
+    return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
+
+
 def search_performance_reports(connection, term, days=365, limit=100):
     like = f"%{term}%"
     rows = connection.execute(

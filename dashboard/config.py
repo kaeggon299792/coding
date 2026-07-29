@@ -170,6 +170,9 @@ ASSEMBLY_BILL_KEYWORDS = _get_list(
     ["카지노", "관광진흥법", "복합리조트", "사행산업", "외국인전용카지노"],
 )
 
+MARKET_DATA_API_KEY = _get_str("MARKET_DATA_API_KEY")
+MARKET_DATA_REQUEST_TIMEOUT_SECONDS = _get_int("MARKET_DATA_REQUEST_TIMEOUT_SECONDS", 30)
+
 # ============================================================
 # 한국문화관광연구원 출입국관광통계 Open API
 # ============================================================

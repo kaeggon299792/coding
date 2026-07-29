@@ -384,6 +384,11 @@ def dashboard_home():
         recent_law_updates = queries.list_recent_law_updates(connection, days=30)[:10]
         news_updated_raw = news_reader.last_updated_at()
         official_update_status = official_document_manager.data_update_status(connection)
+        market_quotes = queries.list_market_quotes(connection)
+        market_updated_at = max(
+            (quote.get("fetched_at") or "" for quote in market_quotes),
+            default=None,
+        )
 
         return render_template(
             "dashboard.html",
@@ -392,6 +397,11 @@ def dashboard_home():
             official_metrics=official_document_manager.dashboard_metrics(connection),
             official_overdue=official_overdue[:10],
             official_recent=official_documents[:6],
+            market_quotes=market_quotes,
+            market_updated_at=(
+                official_document_manager.datetime_minute(market_updated_at)
+                if market_updated_at else None
+            ),
             insights=insights,
             action_items=action_items,
             latest_performance=latest_performance,
