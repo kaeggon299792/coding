@@ -182,42 +182,6 @@
 
   <div class="section-grid">
     <div class="panel">
-      <h2>실적 요약</h2>
-      {% if latest_performance and latest_performance.parsed %}
-        {% with report=latest_performance %}
-          {% include "_performance_chart.html" %}
-        {% endwith %}
-      {% else %}
-        <p class="empty-state">비교 데이터 없음 — 아직 오늘 수신된 실적 알림이 없습니다.</p>
-      {% endif %}
-      <p class="footer-links"><a href="{{ url_for('performance_page') }}">전체 실적 이력 보기 →</a></p>
-    </div>
-
-    <div class="panel">
-      <h2>AI 경영진 관점 시사점</h2>
-      {% if insights %}
-        <ul class="item-list">
-          {% for insight in insights %}
-          <li>
-            <div class="item-title">
-              <span class="badge {% if insight.importance in ('high', '높음') %}urgent{% endif %}">{{ insight.importance }}</span>
-              {{ insight.title }}
-            </div>
-            <div class="item-meta">구분: {{ insight.category }} {% if insight.needs_executive_review %}· 경영진 확인 필요{% endif %}</div>
-            <div class="item-summary"><strong>사실</strong> {{ insight.facts }}</div>
-            <div class="item-summary"><strong>해석</strong> {{ insight.ai_interpretation }}</div>
-            <div class="item-summary"><strong>권고</strong> {{ insight.recommended_action }}</div>
-          </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">오늘 생성된 AI 시사점이 아직 없습니다(1일 1회 배치 작업 실행 대기 중이거나 근거 데이터 부족).</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="section-grid">
-    <div class="panel">
       <h2>최근 공시 (7일)</h2>
       {% if recent_disclosures %}
         <table class="data-table">
