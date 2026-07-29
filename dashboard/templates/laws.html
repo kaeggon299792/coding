@@ -34,9 +34,45 @@
     </div>
   </section>
 
+  <section class="panel legislative-bill-panel">
+    <div class="section-heading">
+      <div>
+        <p class="page-eyebrow">NATIONAL ASSEMBLY / LEGISLATION</p>
+        <h2>카지노 관련 입법 동향</h2>
+        <p>열린국회정보 의안정보를 매일 확인합니다. 의안명을 누르면 국회 원문으로 이동합니다.</p>
+      </div>
+      <span>{{ legislative_bills|length }}건</span>
+    </div>
+    {% if legislative_bills %}
+    <div class="bill-list">
+      {% for bill in legislative_bills %}
+      <article class="bill-card">
+        <div class="bill-card-head">
+          <span class="bill-stage">{{ bill.process_stage or bill.pass_status or '심사정보 확인 중' }}</span>
+          <time>{{ bill.proposed_date or '-' }}</time>
+        </div>
+        <h3>
+          {% if bill.link_url %}
+          <a href="{{ bill.link_url }}" target="_blank" rel="noopener noreferrer">{{ bill.bill_name }}</a>
+          {% else %}{{ bill.bill_name }}{% endif %}
+        </h3>
+        <dl>
+          <div><dt>의안번호</dt><dd>{{ bill.bill_no or '-' }}</dd></div>
+          <div><dt>제안자</dt><dd>{{ bill.proposer_name or '-' }}</dd></div>
+          <div><dt>소관위원회</dt><dd>{{ bill.committee_name or '-' }}</dd></div>
+          <div><dt>검색 기준</dt><dd>{{ bill.matched_keyword or '-' }}</dd></div>
+        </dl>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">확인된 카지노 관련 입법 의안이 없습니다.</p>
+    {% endif %}
+  </section>
+
   <section class="panel">
     <h2>최근 법령 변경 (90일)</h2>
-    <p class="item-meta">공포된 법령 원문의 변경만 감지합니다. 발의·상임위 심사 등 입법 진행 단계는 포함하지 않습니다.</p>
+    <p class="item-meta">아래 표는 공포된 법령 원문의 변경 이력이며, 발의·심사 중 의안은 위 입법 동향에서 확인합니다.</p>
     {% if updates %}
     <div class="table-scroll"><table class="data-table">
       <thead><tr><th>법령명</th><th>상태</th><th>시행일자</th><th>공포일자</th><th>확인일시</th><th>원문</th></tr></thead>

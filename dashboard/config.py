@@ -160,6 +160,14 @@ LAW_API_OC = _get_str("LAW_API_OC")  # 발급받은 기관코드(이메일 아�
 LAW_API_KEY = _get_str("LAW_API_KEY")
 LAW_REQUEST_TIMEOUT_SECONDS = _get_int("LAW_REQUEST_TIMEOUT_SECONDS", 20)
 
+ASSEMBLY_API_KEY = _get_str("ASSEMBLY_API_KEY")
+ASSEMBLY_ERA = _get_str("ASSEMBLY_ERA", "제22대")
+ASSEMBLY_REQUEST_TIMEOUT_SECONDS = _get_int("ASSEMBLY_REQUEST_TIMEOUT_SECONDS", 20)
+ASSEMBLY_BILL_KEYWORDS = _get_list(
+    "ASSEMBLY_BILL_KEYWORDS",
+    ["카지노", "관광진흥법", "복합리조트", "사행산업", "외국인전용카지노"],
+)
+
 # ============================================================
 # 한국문화관광연구원 출입국관광통계 Open API
 # ============================================================

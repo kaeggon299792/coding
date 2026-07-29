@@ -815,6 +815,7 @@ def laws_page():
             else (latest_law_row["updated_at"] if latest_law_row else None)
         )
         monitored_laws = queries.list_monitored_laws(connection)
+        legislative_bills = queries.list_legislative_bills(connection, limit=50)
         for law in monitored_laws:
             law["source_url"] = f"https://www.law.go.kr/법령/{quote(law['law_name'])}"
         for update in updates:
@@ -823,6 +824,7 @@ def laws_page():
             "laws.html",
             updates=updates,
             monitored_laws=monitored_laws,
+            legislative_bills=legislative_bills,
             casino_rules_url="https://www.law.go.kr/행정규칙/카지노업영업준칙",
             casino_rules_annex_url="https://www.law.go.kr/법령/관광진흥법시행규칙/제36조",
             law_updated_at=(

@@ -508,6 +508,37 @@ def migrate(connection):
     # ---- api_usage (대시보드 자체 OpenAI 호출 비용/호출량 보호용) ----
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS legislative_bills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bill_id TEXT NOT NULL UNIQUE,
+            bill_no TEXT,
+            era TEXT,
+            bill_kind TEXT,
+            bill_name TEXT NOT NULL,
+            proposer_kind TEXT,
+            proposer_name TEXT,
+            proposed_date TEXT,
+            committee_name TEXT,
+            committee_result TEXT,
+            plenary_result TEXT,
+            process_stage TEXT,
+            pass_status TEXT,
+            link_url TEXT,
+            pdf_url TEXT,
+            matched_keyword TEXT,
+            first_seen_at TEXT NOT NULL,
+            last_checked_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_legislative_bills_proposed "
+        "ON legislative_bills(proposed_date DESC)"
+    )
+
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS api_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             called_at TEXT NOT NULL,

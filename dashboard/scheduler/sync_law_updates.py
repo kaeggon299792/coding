@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 from dashboard_db import queries  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import ai_insights, law_client, telegram_alert  # noqa: E402
+from services import ai_insights, assembly_bill_client, law_client, telegram_alert  # noqa: E402
 from utils import setup_logger  # noqa: E402
 
 logger = setup_logger("law_sync")
@@ -51,6 +51,53 @@ def _ensure_mst(connection, law_row):
         connection, law_row["law_name"], law_id=best.get("law_id"), mst=best.get("mst")
     )
     return best.get("mst")
+
+
+def _build_bill_alert(bill):
+    return "\n".join([
+        "🏛️ 카지노 관련 신규 입법 의안",
+        "",
+        f"의안명: {bill['bill_name']}",
+        f"제안자: {bill.get('proposer_name') or '-'}",
+        f"제안일: {bill.get('proposed_date') or '-'}",
+        f"진행상태: {bill.get('process_stage') or bill.get('pass_status') or '확인 필요'}",
+        f"바로가기: {bill.get('link_url') or '-'}",
+    ])
+
+
+def _sync_assembly_bills(connection):
+    if not config.ASSEMBLY_API_KEY:
+        logger.warning("ASSEMBLY_API_KEY가 없어 국회 의안정보 확인을 건너뜁니다.")
+        return 0, 0
+
+    new_count = 0
+    error_count = 0
+    seen_ids = set()
+    has_baseline = bool(queries.list_legislative_bills(connection, limit=1))
+    for keyword in config.ASSEMBLY_BILL_KEYWORDS:
+        result = assembly_bill_client.search_bills(keyword)
+        if not result.get("ok"):
+            logger.error("의안정보 검색 실패(%s): %s", keyword, result.get("error"))
+            queries.log_error(
+                connection, "law_sync", "assembly_bill_search",
+                f"{keyword}: {result.get('error', '')}",
+            )
+            error_count += 1
+            continue
+
+        for row in result.get("bills", []):
+            bill = assembly_bill_client.normalize_bill(row, keyword)
+            if not bill.get("bill_id") or not bill.get("bill_name"):
+                continue
+            if bill["bill_id"] in seen_ids:
+                continue
+            seen_ids.add(bill["bill_id"])
+            if queries.upsert_legislative_bill(connection, bill):
+                new_count += 1
+                if has_baseline:
+                    telegram_alert.send_alert(_build_bill_alert(bill))
+
+    return new_count, error_count
 
 
 def run():
@@ -127,7 +174,12 @@ def run():
                     )
                 )
 
-        logger.info("법률정보 동기화 완료: 변경 감지 %d건, 오류 %d건", changed_count, error_count)
+        new_bill_count, bill_error_count = _sync_assembly_bills(connection)
+        error_count += bill_error_count
+        logger.info(
+            "법률정보 동기화 완료: 법령 변경 %d건, 신규 관련 의안 %d건, 오류 %d건",
+            changed_count, new_bill_count, error_count,
+        )
         queries.finish_analysis_run(connection, run_id, "success" if error_count == 0 else "partial_failure")
 
     except Exception as error:

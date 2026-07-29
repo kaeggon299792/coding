@@ -1166,6 +1166,65 @@ def search_law_updates(connection, term, days=365, limit=100):
     return [dict(row) for row in rows]
 
 
+def upsert_legislative_bill(connection, bill):
+    existing = connection.execute(
+        "SELECT id FROM legislative_bills WHERE bill_id = ?",
+        (bill["bill_id"],),
+    ).fetchone()
+    now = now_kst().isoformat()
+    connection.execute(
+        """
+        INSERT INTO legislative_bills (
+            bill_id, bill_no, era, bill_kind, bill_name, proposer_kind,
+            proposer_name, proposed_date, committee_name, committee_result,
+            plenary_result, process_stage, pass_status, link_url, pdf_url,
+            matched_keyword, first_seen_at, last_checked_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(bill_id) DO UPDATE SET
+            bill_no = excluded.bill_no,
+            era = excluded.era,
+            bill_kind = excluded.bill_kind,
+            bill_name = excluded.bill_name,
+            proposer_kind = excluded.proposer_kind,
+            proposer_name = excluded.proposer_name,
+            proposed_date = excluded.proposed_date,
+            committee_name = excluded.committee_name,
+            committee_result = excluded.committee_result,
+            plenary_result = excluded.plenary_result,
+            process_stage = excluded.process_stage,
+            pass_status = excluded.pass_status,
+            link_url = excluded.link_url,
+            pdf_url = excluded.pdf_url,
+            matched_keyword = excluded.matched_keyword,
+            last_checked_at = excluded.last_checked_at,
+            updated_at = excluded.updated_at
+        """,
+        (
+            bill["bill_id"], bill.get("bill_no"), bill.get("era"),
+            bill.get("bill_kind"), bill["bill_name"], bill.get("proposer_kind"),
+            bill.get("proposer_name"), bill.get("proposed_date"),
+            bill.get("committee_name"), bill.get("committee_result"),
+            bill.get("plenary_result"), bill.get("process_stage"),
+            bill.get("pass_status"), bill.get("link_url"), bill.get("pdf_url"),
+            bill.get("matched_keyword"), now, now, now,
+        ),
+    )
+    connection.commit()
+    return existing is None
+
+
+def list_legislative_bills(connection, limit=50):
+    rows = connection.execute(
+        """
+        SELECT * FROM legislative_bills
+        ORDER BY COALESCE(proposed_date, '') DESC, id DESC
+        LIMIT ?
+        """,
+        (max(1, int(limit)),),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def search_performance_reports(connection, term, days=365, limit=100):
     like = f"%{term}%"
     rows = connection.execute(
