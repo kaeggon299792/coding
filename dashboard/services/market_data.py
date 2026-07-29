@@ -120,6 +120,7 @@ def fetch_stock(stock):
             "high_price": _number(row.get("hipr"), integer=True),
             "low_price": _number(row.get("lopr"), integer=True),
             "volume": _number(row.get("trqu"), integer=True),
+            "market_cap": _number(row.get("mrktTotAmt"), integer=True),
             "history": _history(result["rows"]),
         },
     }
@@ -150,6 +151,7 @@ def fetch_kospi():
             "high_price": _number(row.get("hipr")),
             "low_price": _number(row.get("lopr")),
             "volume": _number(row.get("trqu"), integer=True),
+            "market_cap": None,
             "history": _history(rows or result["rows"]),
         },
     }

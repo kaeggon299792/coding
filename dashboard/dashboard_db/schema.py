@@ -568,10 +568,12 @@ def migrate(connection):
             high_price REAL,
             low_price REAL,
             volume INTEGER,
+            market_cap INTEGER,
             fetched_at TEXT NOT NULL
         )
         """
     )
+    _ensure_column(connection, "market_quotes", "market_cap", "INTEGER")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS market_quote_history (

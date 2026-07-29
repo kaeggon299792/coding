@@ -87,6 +87,9 @@
           <span>고가 <b>{{ '{:,.2f}'.format(quote.high_price)|replace('.00', '') if quote.high_price is not none else '-' }}</b></span>
           <span>저가 <b>{{ '{:,.2f}'.format(quote.low_price)|replace('.00', '') if quote.low_price is not none else '-' }}</b></span>
         </div>
+        {% if quote.market_cap_label %}
+        <div class="market-cap"><span>시가총액</span><b>{{ quote.market_cap_label }}</b></div>
+        {% endif %}
       </article>
       {% endfor %}
     </div>

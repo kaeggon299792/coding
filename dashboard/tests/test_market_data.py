@@ -33,6 +33,7 @@ class FakeResponse:
                                 "hipr": "15550",
                                 "lopr": "15020",
                                 "trqu": "123456",
+                                "mrktTotAmt": "901234567890",
                             },
                         ]
                     }
@@ -52,6 +53,7 @@ def test_fetch_stock_normalizes_market_fields(monkeypatch):
     assert quote["symbol"] == "034230"
     assert quote["close_price"] == 15420
     assert quote["change_rate"] == 2.12
+    assert quote["market_cap"] == 901234567890
     assert quote["history"] == [
         {"base_date": "20260727", "close_price": 15100},
         {"base_date": "20260728", "close_price": 15420},
@@ -71,6 +73,7 @@ def test_market_quote_upsert_and_order(db_connection):
                 "close_price": 100,
                 "change_value": 1,
                 "change_rate": 1.0,
+                "market_cap": 1901234567890 if symbol == "034230" else None,
             },
         )
         queries.upsert_market_quote_history(
@@ -87,3 +90,4 @@ def test_market_quote_upsert_and_order(db_connection):
     assert all(row["trend_count"] == 3 for row in rows)
     assert all(row["trend_points"].startswith("0.0,34.0") for row in rows)
     assert all(row["trend_area_points"].endswith("100,40") for row in rows)
+    assert rows[1]["market_cap_label"] == "1조 9,012억원"

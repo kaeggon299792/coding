@@ -1274,8 +1274,8 @@ def upsert_market_quote(connection, quote):
         INSERT INTO market_quotes (
             symbol, name, asset_type, market, base_date, close_price,
             change_value, change_rate, open_price, high_price, low_price,
-            volume, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            volume, market_cap, fetched_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(symbol) DO UPDATE SET
             name = excluded.name,
             asset_type = excluded.asset_type,
@@ -1288,6 +1288,7 @@ def upsert_market_quote(connection, quote):
             high_price = excluded.high_price,
             low_price = excluded.low_price,
             volume = excluded.volume,
+            market_cap = excluded.market_cap,
             fetched_at = excluded.fetched_at
         """,
         (
@@ -1295,7 +1296,7 @@ def upsert_market_quote(connection, quote):
             quote.get("market"), quote.get("base_date"), quote.get("close_price"),
             quote.get("change_value"), quote.get("change_rate"),
             quote.get("open_price"), quote.get("high_price"), quote.get("low_price"),
-            quote.get("volume"), now_kst().isoformat(),
+            quote.get("volume"), quote.get("market_cap"), now_kst().isoformat(),
         ),
     )
     connection.commit()
@@ -1353,6 +1354,17 @@ def list_market_quotes(connection):
     rows = [dict(row) for row in connection.execute("SELECT * FROM market_quotes").fetchall()]
     for row in rows:
         row.update(_market_sparkline(connection, row["symbol"]))
+        market_cap = row.get("market_cap")
+        if market_cap:
+            trillion, remainder = divmod(int(market_cap), 1_000_000_000_000)
+            hundred_million = remainder // 100_000_000
+            row["market_cap_label"] = (
+                f"{trillion}조 {hundred_million:,}억원"
+                if trillion
+                else f"{hundred_million:,}억원"
+            )
+        else:
+            row["market_cap_label"] = None
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 
