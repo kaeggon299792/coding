@@ -11,7 +11,7 @@ import config
 logger = logging.getLogger("tourism_stats")
 
 API_URL = (
-    "https://openapi.tour.go.kr/openapi/service/EdrcntTourismStatsService/"
+    "http://openapi.tour.go.kr/openapi/service/EdrcntTourismStatsService/"
     "getForeignTuristStatsList"
 )
 NATIONALITY_CODES = {
