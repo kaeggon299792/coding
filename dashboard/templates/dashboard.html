@@ -51,7 +51,7 @@
         <h2>카지노 4개사 주가 및 KOSPI</h2>
         <p>금융위원회 시세정보 기준 최근 영업일 종가입니다.</p>
       </div>
-      <span>{{ market_updated_at or '업데이트 대기' }}</span>
+      <div class="market-overview-actions"><span>{{ market_updated_at or '업데이트 대기' }}</span><a class="btn btn-small" href="{{ url_for('market_trend_page') }}">주가 정보 전체보기</a></div>
     </div>
     {% if market_quotes %}
     <div class="market-quote-grid">

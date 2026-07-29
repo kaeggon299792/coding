@@ -70,3 +70,18 @@ def test_full_login_then_access_dashboard(client):
     )
     response = client.get("/")
     assert response.status_code == 200
+
+
+def test_logged_in_user_can_access_market_data_page(client):
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    response = client.get("/performance/markets")
+    assert response.status_code == 200
+    assert "주가 정보" in response.get_data(as_text=True)

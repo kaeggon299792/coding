@@ -42,7 +42,7 @@ MENU_PERMISSIONS = {
 LANDING_ENDPOINTS = {
     "dashboard": "dashboard_home",
     "bug_reports": "action_items_page",
-    "performance": "tourism_trend_page",
+    "performance": "market_trend_page",
     "disclosures": "disclosures_page",
     "laws": "laws_page",
     "companies": "companies_page",

@@ -206,6 +206,7 @@ def inject_globals():
         "action_items_page": "버그 및 Q&A",
         "action_item_detail": "버그 및 Q&A",
         "performance_page": "데이터",
+        "market_trend_page": "주가 정보",
         "tourism_trend_page": "관광객 추이",
         "economic_trend_page": "유가정보·환율",
         "holiday_calendar_page": "나라별 연휴",
@@ -259,7 +260,7 @@ def _site_map_links():
         {"label": "홈", "description": "업무 현황 종합 대시보드", "endpoint": "dashboard_home"}
     )
     links.append(
-        {"label": "데이터", "description": "관광객·유가·환율·나라별 연휴", "endpoint": "tourism_trend_page"}
+        {"label": "데이터", "description": "주가·관광객·유가·환율·나라별 연휴", "endpoint": "market_trend_page"}
     )
     menu_links = (
         ("official_docs", "공문·자료관리", "접수·처리·Y디스크 보관", "official_docs.dashboard"),
@@ -776,6 +777,29 @@ def tourism_trend_page():
             tourism_checked_at=freshness["checked_at"],
             tourism_changed_at=freshness["changed_at"],
             tourism_check_status=freshness["check_status"],
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/performance/markets")
+@login_required
+def market_trend_page():
+    connection = dashboard_db()
+    try:
+        quotes = queries.list_market_quotes(connection)
+        latest_run = queries.get_latest_completed_run(connection, "market_quote_sync")
+        checked_at = latest_run.get("finished_at") if latest_run else None
+        base_date = max(
+            (quote.get("base_date") or "" for quote in quotes),
+            default=None,
+        )
+        return render_template(
+            "market_trend.html",
+            market_quotes=quotes,
+            market_checked_at=checked_at,
+            market_base_date=base_date,
+            market_check_status=latest_run.get("status") if latest_run else None,
         )
     finally:
         connection.close()
