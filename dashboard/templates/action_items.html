@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}버그 및 Q&A{% endblock %}
+{% block title %}의견{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container bug-report-page">
   <header class="page-header">
-    <p class="page-eyebrow">Support / Bug &amp; Q&amp;A</p>
-    <h1 class="page-title">버그 및 Q&amp;A</h1>
-    <p class="page-description">오류나 업무 관련 질문을 비공개로 등록하고 답변과 처리 상태를 확인합니다. 게시글은 작성자와 관리자만 열람할 수 있습니다.</p>
+    <p class="page-eyebrow">Feedback / Community Board</p>
+    <h1 class="page-title">의견</h1>
+    <p class="page-description">질문, 버그 제보, 기능 제안과 일반 의견을 등록하는 종합 게시판입니다. 게시글은 작성자와 관리자만 열람할 수 있습니다.</p>
   </header>
   {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 
@@ -15,6 +15,7 @@
     <div class="section-heading"><div><h2>새 글 작성</h2><p>오류는 재현 방법을, 질문은 확인이 필요한 내용을 구체적으로 작성해주세요.</p></div></div>
     <form method="post" action="{{ url_for('action_items_page') }}" class="bug-report-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>글 유형 <em>필수</em></span><select name="feedback_type" required><option value="질문">질문</option><option value="버그 제보">버그 제보</option><option value="기능 제안">기능 제안</option><option value="일반 의견" selected>일반 의견</option></select></label>
       <label class="wide"><span>제목 <em>필수</em></span><input type="text" name="title" required maxlength="150" placeholder="예: 선택 자료 다운로드 후 로딩 게이지가 멈춤"></label>
       <label><span>관련 화면</span><input type="text" name="bug_page" maxlength="200" placeholder="예: 공문·자료관리 > 자료목록"></label>
       <label><span>사용 환경</span><input type="text" name="environment" maxlength="200" placeholder="예: 회사 VM / Chrome"></label>
@@ -35,9 +36,10 @@
     </div>
     {% if items %}
     <div class="table-scroll"><table class="data-table bug-board-table">
-      <thead><tr><th>번호</th><th>제목</th><th>중요도</th><th>작성자</th><th>담당</th><th>상태</th><th>등록일</th></tr></thead>
+      <thead><tr><th>번호</th><th>유형</th><th>제목</th><th>중요도</th><th>작성자</th><th>담당</th><th>상태</th><th>등록일</th></tr></thead>
       <tbody>{% for item in items %}<tr>
         <td>{{ item.id }}</td>
+        <td><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span></td>
         <td><a class="bug-board-title" href="{{ url_for('action_item_detail', item_id=item.id) }}">{{ item.title }}</a>{% if item.bug_page %}<small>{{ item.bug_page }}</small>{% endif %}</td>
         <td><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span></td>
         <td>{{ item.reported_by or ('AI/기존 기록' if item.ai_suggested else '-') }}</td>

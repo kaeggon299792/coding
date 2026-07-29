@@ -10,7 +10,7 @@ SOURCE_LABELS = {
     "disclosure": "공시",
     "law": "법령",
     "performance": "실적",
-    "action": "버그 및 Q&A",
+    "action": "의견",
     "insight": "AI 분석",
     "research": "리서치",
 }
@@ -101,7 +101,7 @@ def _normalize_dashboard_item(source, row):
     if source == "action":
         return {
             "source": source, "source_label": SOURCE_LABELS[source],
-            "title": row.get("title") or "버그 및 Q&A",
+            "title": row.get("title") or "의견",
             "summary": row.get("description") or row.get("memo") or row.get("ai_recommended_action"),
             "occurred_at": row.get("updated_at") or row.get("created_at"),
             "meta": " · ".join(filter(None, [row.get("owner"), row.get("status"), row.get("due_date")])),

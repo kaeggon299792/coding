@@ -96,6 +96,7 @@ def create_action_item(
     reported_by=None,
     bug_page=None,
     environment=None,
+    feedback_type="일반 의견",
 ):
     now_iso = now_kst().isoformat()
     cursor = connection.execute(
@@ -104,8 +105,8 @@ def create_action_item(
             title, description, source_type, source_ref_id, owner, created_at,
             due_date, due_date_confidence, priority, status, ai_suggested,
             approved_by_user, ai_recommended_action, updated_at, reported_by,
-            bug_page, environment
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            bug_page, environment, feedback_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             title, description, source_type, source_ref_id, owner, now_iso,
@@ -113,6 +114,7 @@ def create_action_item(
             1 if ai_suggested else 0,
             0 if ai_suggested else 1,  # AI 제안은 기본 미승인 상태로 저장
             ai_recommended_action, now_iso, reported_by, bug_page, environment,
+            feedback_type,
         ),
     )
     connection.commit()

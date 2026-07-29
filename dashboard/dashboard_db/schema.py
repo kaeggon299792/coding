@@ -176,6 +176,7 @@ def migrate(connection):
     _ensure_column(connection, "action_items", "reported_by", "TEXT")
     _ensure_column(connection, "action_items", "bug_page", "TEXT")
     _ensure_column(connection, "action_items", "environment", "TEXT")
+    _ensure_column(connection, "action_items", "feedback_type", "TEXT NOT NULL DEFAULT '일반 의견'")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS action_item_comments (

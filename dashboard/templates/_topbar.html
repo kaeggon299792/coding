@@ -12,7 +12,7 @@
     <a href="{{ url_for('research_library_page') }}" {% if request.endpoint in ('research_library_page', 'download_research_document') %}class="active"{% endif %}>리서치</a>
     <a href="{{ url_for('unified_search_page') }}" {% if request.endpoint == 'unified_search_page' %}class="active"{% endif %}>통합검색</a>
     <a href="{{ url_for('tips.list_page') }}" {% if request.blueprint == 'tips' %}class="active"{% endif %}>자료실</a>
-    <a href="{{ url_for('action_items_page') }}" {% if request.endpoint in ['action_items_page', 'action_item_detail'] %}class="active"{% endif %}>버그 및 Q&amp;A</a>
+    <a href="{{ url_for('action_items_page') }}" {% if request.endpoint in ['action_items_page', 'action_item_detail'] %}class="active"{% endif %}>의견</a>
     <details class="topbar-private-menu" {% if request.blueprint == 'official_docs' or request.endpoint in ('paradian_portal_page', 'performance_page') %}open{% endif %}>
       <summary{% if request.blueprint == 'official_docs' or request.endpoint in ('paradian_portal_page', 'performance_page') %} class="active"{% endif %}>파라디안 전용{% if not current_username %}<span aria-hidden="true">⌁</span>{% endif %}</summary>
       <div>

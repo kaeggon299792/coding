@@ -227,8 +227,8 @@ def inject_globals():
     endpoint_menu_names = {
         "public_home": "시작 화면",
         "dashboard_home": "홈",
-        "action_items_page": "버그 및 Q&A",
-        "action_item_detail": "버그 및 Q&A",
+        "action_items_page": "의견",
+        "action_item_detail": "의견",
         "performance_page": "데이터",
         "paradian_portal_page": "파라디안 전용",
         "related_news_page": "관련 뉴스",
@@ -284,7 +284,7 @@ def _site_map_links():
         ("research_library", "리서치", "기업·산업 리포트 분석", "research_library_page"),
         ("unified_search", "통합검색", "뉴스·공시·법령·자료 검색", "unified_search_page"),
         ("tips", "자료실", "업무 노하우와 자동화 자료", "tips.list_page"),
-        ("bug_reports", "버그 및 Q&A", "오류·문의 등록 및 답변", "action_items_page"),
+        ("bug_reports", "의견", "질문·버그·기능 제안·일반 의견", "action_items_page"),
     )
     links.extend(
         {
@@ -521,6 +521,9 @@ def action_items_page():
             priority = request.form.get("priority") or "보통"
             bug_page = (request.form.get("bug_page") or "").strip()
             environment = (request.form.get("environment") or "").strip()
+            feedback_type = request.form.get("feedback_type") or "일반 의견"
+            if feedback_type not in {"질문", "버그 제보", "기능 제안", "일반 의견"}:
+                feedback_type = "일반 의견"
             reporter = username
             item_id = queries.create_action_item(
                 connection,
@@ -533,14 +536,16 @@ def action_items_page():
                 reported_by=reporter,
                 bug_page=bug_page,
                 environment=environment,
+                feedback_type=feedback_type,
             )
             bug_url = request.url_root.rstrip("/") + url_for(
                 "action_item_detail", item_id=item_id
             )
             alert_lines = [
-                "🐞 <b>새 버그 및 Q&A</b>",
+                "💬 <b>새 의견</b>",
                 "",
                 f"<b>제목:</b> {escape_html(title)}",
+                f"<b>유형:</b> {escape_html(feedback_type)}",
                 f"<b>심각도:</b> {escape_html(priority)}",
                 f"<b>제보자:</b> {escape_html(reporter or '-')}",
                 f"<b>발생 화면:</b> {escape_html(bug_page or '-')}",
@@ -681,13 +686,17 @@ def update_action_item_route(item_id):
         fields = {}
         allowed_fields = (
             ("status", "priority", "owner", "memo", "title", "description",
-             "bug_page", "environment")
+             "bug_page", "environment", "feedback_type")
             if is_admin
-            else ("priority", "title", "description", "bug_page", "environment")
+            else ("priority", "title", "description", "bug_page", "environment", "feedback_type")
         )
         for key in allowed_fields:
             if key in request.form:
                 fields[key] = (request.form.get(key) or "").strip()
+        if fields.get("feedback_type") not in {
+            None, "질문", "버그 제보", "기능 제안", "일반 의견"
+        }:
+            fields["feedback_type"] = "일반 의견"
         if "title" in fields and not fields["title"]:
             abort(400)
         if fields:

@@ -30,7 +30,7 @@ SESSION_IDLE_TIMEOUT = timedelta(minutes=config.SESSION_IDLE_MINUTES)
 SESSION_ABSOLUTE_TIMEOUT = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 
 MENU_PERMISSIONS = {
-    "bug_reports": "버그 및 Q&A",
+    "bug_reports": "의견",
     "disclosures": "공시·재무",
     "laws": "법률·규제",
     "companies": "기업 360°",

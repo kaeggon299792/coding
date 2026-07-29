@@ -3,11 +3,14 @@ from flask import session
 
 
 def test_manual_action_item_is_created_approved_by_default(db_connection):
-    item_id = queries.create_action_item(db_connection, title="계약서 검토")
+    item_id = queries.create_action_item(
+        db_connection, title="계약서 검토", feedback_type="질문"
+    )
     item = queries.get_action_item(db_connection, item_id)
     assert item["ai_suggested"] == 0
     assert item["approved_by_user"] == 1
     assert item["status"] == "not_started"
+    assert item["feedback_type"] == "질문"
 
 
 def test_ai_suggested_action_item_starts_unapproved(db_connection):

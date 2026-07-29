@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ item.title }} · 버그 및 Q&A{% endblock %}
+{% block title %}{{ item.title }} · 의견{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container bug-detail-page">
@@ -9,7 +9,7 @@
   <article class="panel bug-detail-card">
     <header class="bug-detail-header">
       <div>
-        <div class="bug-detail-badges"><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span><span class="status-badge">{{ item.status }}</span><span>비공개</span></div>
+        <div class="bug-detail-badges"><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span><span class="status-badge">{{ item.status }}</span><span>비공개</span></div>
         <h1>{{ item.title }}</h1>
         <p>작성자 {{ item.reported_by or '-' }} · 등록 {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · 수정 {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %}</p>
       </div>
@@ -26,6 +26,7 @@
       <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" class="bug-report-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="next" value="{{ url_for('action_item_detail', item_id=item.id) }}">
+        <label><span>글 유형</span><select name="feedback_type">{% for kind in ['질문','버그 제보','기능 제안','일반 의견'] %}<option value="{{ kind }}" {% if (item.feedback_type or '일반 의견') == kind %}selected{% endif %}>{{ kind }}</option>{% endfor %}</select></label>
         <label class="wide"><span>제목</span><input name="title" value="{{ item.title }}" required maxlength="150"></label>
         <label><span>관련 화면</span><input name="bug_page" value="{{ item.bug_page or '' }}" maxlength="200"></label>
         <label><span>사용 환경</span><input name="environment" value="{{ item.environment or '' }}" maxlength="200"></label>
