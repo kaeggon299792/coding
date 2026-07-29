@@ -18,10 +18,20 @@ def run():
     run_id = queries.start_analysis_run(connection, "market_quote_sync")
     try:
         result = market_data.fetch_dashboard_quotes()
+        global_result = market_data.fetch_global_quotes()
+        result["quotes"].extend(global_result["quotes"])
+        result["errors"].extend(
+            f"{item.get('symbol')}: {item.get('error')}"
+            for item in global_result["errors"]
+        )
         for quote in result["quotes"]:
             queries.upsert_market_quote(connection, quote)
             queries.upsert_market_quote_history(
                 connection, quote["symbol"], quote.get("history") or []
+            )
+        for failure in global_result["errors"]:
+            queries.mark_market_quote_failure(
+                connection, failure.get("symbol"), failure.get("error")
             )
         errors = [error for error in result["errors"] if error]
         for error in errors:

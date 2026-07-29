@@ -8,6 +8,7 @@ AI가 생성한 내용(ai_suggested=1 등)과 사용자가 직접 입력/승인�
 
 import json
 import re
+from datetime import datetime, timedelta
 
 from utils import now_kst
 
@@ -1279,8 +1280,9 @@ def upsert_market_quote(connection, quote):
         INSERT INTO market_quotes (
             symbol, name, asset_type, market, base_date, close_price,
             change_value, change_rate, open_price, high_price, low_price,
-            volume, market_cap, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            volume, market_cap, fetched_at, currency, source, fetch_status,
+            fetch_error, last_attempt_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'success', NULL, ?)
         ON CONFLICT(symbol) DO UPDATE SET
             name = excluded.name,
             asset_type = excluded.asset_type,
@@ -1294,7 +1296,12 @@ def upsert_market_quote(connection, quote):
             low_price = excluded.low_price,
             volume = excluded.volume,
             market_cap = excluded.market_cap,
-            fetched_at = excluded.fetched_at
+            fetched_at = excluded.fetched_at,
+            currency = excluded.currency,
+            source = excluded.source,
+            fetch_status = 'success',
+            fetch_error = NULL,
+            last_attempt_at = excluded.last_attempt_at
         """,
         (
             quote["symbol"], quote["name"], quote["asset_type"],
@@ -1302,9 +1309,42 @@ def upsert_market_quote(connection, quote):
             quote.get("change_value"), quote.get("change_rate"),
             quote.get("open_price"), quote.get("high_price"), quote.get("low_price"),
             quote.get("volume"), quote.get("market_cap"), now_kst().isoformat(),
+            quote.get("currency"), quote.get("source"), now_kst().isoformat(),
         ),
     )
     connection.commit()
+
+
+def mark_market_quote_failure(connection, symbol, error):
+    """마지막 정상 시세는 유지하고 조회 상태만 실패로 바꾼다."""
+    connection.execute(
+        """
+        UPDATE market_quotes
+        SET fetch_status='failed', fetch_error=?, last_attempt_at=?
+        WHERE symbol=?
+        """,
+        (str(error)[:500], now_kst().isoformat(), symbol),
+    )
+    connection.commit()
+
+
+def global_market_quotes_need_refresh(connection, max_age_minutes=10):
+    symbols = ("1928.HK", "0027.HK", "0880.HK", "MLCO")
+    placeholders = ",".join("?" for _ in symbols)
+    row = connection.execute(
+        f"""
+        SELECT COUNT(*) AS quote_count, MIN(last_attempt_at) AS oldest_attempt
+        FROM market_quotes WHERE symbol IN ({placeholders})
+        """,
+        symbols,
+    ).fetchone()
+    if not row or row["quote_count"] < len(symbols) or not row["oldest_attempt"]:
+        return True
+    try:
+        attempted = datetime.fromisoformat(row["oldest_attempt"])
+        return now_kst() - attempted >= timedelta(minutes=max_age_minutes)
+    except (TypeError, ValueError):
+        return True
 
 
 def upsert_market_quote_history(connection, symbol, points):
@@ -1355,7 +1395,10 @@ def _market_sparkline(connection, symbol):
 
 
 def list_market_quotes(connection):
-    order = {"KOSPI": 0, "034230": 1, "114090": 2, "035250": 3, "032350": 4}
+    order = {
+        "KOSPI": 0, "034230": 1, "114090": 2, "035250": 3, "032350": 4,
+        "1928.HK": 10, "0027.HK": 11, "0880.HK": 12, "MLCO": 13,
+    }
     rows = [dict(row) for row in connection.execute("SELECT * FROM market_quotes").fetchall()]
     for row in rows:
         row.update(_market_sparkline(connection, row["symbol"]))

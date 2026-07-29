@@ -1,7 +1,7 @@
 """금융위원회 주식·지수 시세 API 클라이언트."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -25,6 +25,14 @@ TRACKED_STOCKS = (
     {"symbol": "035250", "name": "강원랜드", "market": "KOSPI"},
     {"symbol": "032350", "name": "롯데관광개발", "market": "KOSPI"},
 )
+
+GLOBAL_STOCKS = (
+    {"symbol": "1928.HK", "name": "Sands China", "market": "HKEX", "currency": "HKD"},
+    {"symbol": "0027.HK", "name": "Galaxy Entertainment", "market": "HKEX", "currency": "HKD"},
+    {"symbol": "0880.HK", "name": "SJM Holdings", "market": "HKEX", "currency": "HKD"},
+    {"symbol": "MLCO", "name": "Melco Resorts & Entertainment", "market": "NASDAQ", "currency": "USD"},
+)
+YAHOO_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
 
 
 def _items(data):
@@ -154,6 +162,119 @@ def fetch_kospi():
             "market_cap": None,
             "history": _history(rows or result["rows"]),
         },
+    }
+
+
+def fetch_global_stock(stock):
+    """API 키 없이 Yahoo Finance 일별 차트 응답을 정규화한다."""
+    try:
+        response = get_with_hard_timeout(
+            YAHOO_CHART_URL.format(symbol=stock["symbol"]),
+            hard_timeout_seconds=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
+            params={"range": "1mo", "interval": "1d", "events": "div,splits"},
+            headers={"User-Agent": "Mozilla/5.0 (PARADISE market dashboard)"},
+            timeout=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
+        )
+    except HardTimeoutError as error:
+        return {"ok": False, "symbol": stock["symbol"], "error": str(error)}
+    except requests.RequestException as error:
+        return {
+            "ok": False,
+            "symbol": stock["symbol"],
+            "error": f"Yahoo Finance 네트워크 오류: {type(error).__name__}",
+        }
+    if response.status_code != 200:
+        return {
+            "ok": False,
+            "symbol": stock["symbol"],
+            "error": f"Yahoo Finance HTTP {response.status_code}",
+        }
+    try:
+        chart = (response.json().get("chart") or {})
+        result = (chart.get("result") or [None])[0]
+    except (ValueError, AttributeError, IndexError):
+        result = None
+    if not result:
+        return {
+            "ok": False,
+            "symbol": stock["symbol"],
+            "error": "Yahoo Finance 시세 데이터가 없습니다.",
+        }
+
+    meta = result.get("meta") or {}
+    timestamps = result.get("timestamp") or []
+    indicators = result.get("indicators") or {}
+    quote_rows = (indicators.get("quote") or [{}])[0]
+    adjusted = ((indicators.get("adjclose") or [{}])[0].get("adjclose") or [])
+    closes = quote_rows.get("close") or []
+    history = []
+    for index, timestamp in enumerate(timestamps):
+        close = adjusted[index] if index < len(adjusted) else (
+            closes[index] if index < len(closes) else None
+        )
+        if close is None:
+            continue
+        history.append(
+            {
+                "base_date": datetime.fromtimestamp(timestamp, timezone.utc).strftime("%Y%m%d"),
+                "close_price": round(float(close), 4),
+            }
+        )
+    current = _number(meta.get("regularMarketPrice"))
+    previous = _number(meta.get("chartPreviousClose") or meta.get("previousClose"))
+    if current is None and history:
+        current = history[-1]["close_price"]
+    if previous is None and len(history) > 1:
+        previous = history[-2]["close_price"]
+    if current is None:
+        return {
+            "ok": False,
+            "symbol": stock["symbol"],
+            "error": "Yahoo Finance 현재가가 비어 있습니다.",
+        }
+    change_value = current - previous if previous is not None else None
+    change_rate = (
+        change_value / previous * 100
+        if previous not in (None, 0)
+        else None
+    )
+    market_time = meta.get("regularMarketTime")
+    base_date = (
+        datetime.fromtimestamp(market_time, timezone.utc).strftime("%Y%m%d")
+        if market_time
+        else (history[-1]["base_date"] if history else None)
+    )
+    return {
+        "ok": True,
+        "quote": {
+            "symbol": stock["symbol"],
+            "name": stock["name"],
+            "asset_type": "global_stock",
+            "market": stock["market"],
+            "currency": meta.get("currency") or stock["currency"],
+            "source": "Yahoo Finance",
+            "base_date": base_date,
+            "close_price": current,
+            "change_value": change_value,
+            "change_rate": change_rate,
+            "open_price": _number(meta.get("regularMarketOpen")),
+            "high_price": _number(meta.get("regularMarketDayHigh")),
+            "low_price": _number(meta.get("regularMarketDayLow")),
+            "volume": _number(meta.get("regularMarketVolume"), integer=True),
+            "market_cap": None,
+            "history": history,
+        },
+    }
+
+
+def fetch_global_quotes():
+    results = [fetch_global_stock(stock) for stock in GLOBAL_STOCKS]
+    return {
+        "quotes": [result["quote"] for result in results if result.get("ok")],
+        "errors": [
+            {"symbol": result.get("symbol"), "error": result.get("error")}
+            for result in results if not result.get("ok")
+        ],
     }
 
 

@@ -137,6 +137,12 @@ def _analyze_pending_bills(connection):
 
 def _sync_market_quotes(connection):
     result = market_data.fetch_dashboard_quotes()
+    global_result = market_data.fetch_global_quotes()
+    result["quotes"].extend(global_result["quotes"])
+    result["errors"].extend(
+        f"{item.get('symbol')}: {item.get('error')}"
+        for item in global_result["errors"]
+    )
     for quote in result["quotes"]:
         queries.upsert_market_quote(connection, quote)
         queries.upsert_market_quote_history(
@@ -144,6 +150,10 @@ def _sync_market_quotes(connection):
         )
     for error in result["errors"]:
         queries.log_error(connection, "market_quote_sync", "market_api", error)
+    for failure in global_result["errors"]:
+        queries.mark_market_quote_failure(
+            connection, failure.get("symbol"), failure.get("error")
+        )
     return len(result["quotes"]), len(result["errors"])
 
 

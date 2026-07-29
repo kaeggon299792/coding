@@ -32,6 +32,7 @@ from services import (
     ai_insights,
     company_intelligence,
     document_library,
+    market_data,
     news_reader,
     official_document_manager,
     performance_parser,
@@ -788,7 +789,24 @@ def tourism_trend_page():
 def market_trend_page():
     connection = dashboard_db()
     try:
+        if queries.global_market_quotes_need_refresh(connection, max_age_minutes=10):
+            global_result = market_data.fetch_global_quotes()
+            for quote in global_result["quotes"]:
+                queries.upsert_market_quote(connection, quote)
+                queries.upsert_market_quote_history(
+                    connection, quote["symbol"], quote.get("history") or []
+                )
+            for failure in global_result["errors"]:
+                queries.mark_market_quote_failure(
+                    connection, failure.get("symbol"), failure.get("error")
+                )
         quotes = queries.list_market_quotes(connection)
+        domestic_quotes = [
+            quote for quote in quotes if quote.get("asset_type") != "global_stock"
+        ]
+        global_quotes = [
+            quote for quote in quotes if quote.get("asset_type") == "global_stock"
+        ]
         latest_run = queries.get_latest_completed_run(connection, "market_quote_sync")
         checked_at = latest_run.get("finished_at") if latest_run else None
         base_date = max(
@@ -797,7 +815,8 @@ def market_trend_page():
         )
         return render_template(
             "market_trend.html",
-            market_quotes=quotes,
+            market_quotes=domestic_quotes,
+            global_market_quotes=global_quotes,
             market_checked_at=checked_at,
             market_base_date=base_date,
             market_check_status=latest_run.get("status") if latest_run else None,

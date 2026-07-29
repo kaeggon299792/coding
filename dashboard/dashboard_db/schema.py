@@ -578,6 +578,11 @@ def migrate(connection):
         """
     )
     _ensure_column(connection, "market_quotes", "market_cap", "INTEGER")
+    _ensure_column(connection, "market_quotes", "currency", "TEXT")
+    _ensure_column(connection, "market_quotes", "source", "TEXT")
+    _ensure_column(connection, "market_quotes", "fetch_status", "TEXT NOT NULL DEFAULT 'success'")
+    _ensure_column(connection, "market_quotes", "fetch_error", "TEXT")
+    _ensure_column(connection, "market_quotes", "last_attempt_at", "TEXT")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS market_quote_history (

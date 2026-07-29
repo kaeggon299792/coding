@@ -42,6 +42,48 @@ class FakeResponse:
         }
 
 
+class FakeYahooResponse:
+    status_code = 200
+
+    def json(self):
+        return {
+            "chart": {
+                "result": [{
+                    "meta": {
+                        "currency": "HKD",
+                        "regularMarketPrice": 20.5,
+                        "chartPreviousClose": 20.0,
+                        "regularMarketTime": 1785283200,
+                        "regularMarketOpen": 20.1,
+                        "regularMarketDayHigh": 20.8,
+                        "regularMarketDayLow": 19.9,
+                        "regularMarketVolume": 1234567,
+                    },
+                    "timestamp": [1785100000, 1785186400, 1785272800],
+                    "indicators": {
+                        "quote": [{"close": [19.8, 20.0, 20.5]}],
+                        "adjclose": [{"adjclose": [19.8, 20.0, 20.5]}],
+                    },
+                }],
+                "error": None,
+            }
+        }
+
+
+def test_fetch_global_stock_without_api_key(monkeypatch):
+    monkeypatch.setattr(
+        "services.market_data.get_with_hard_timeout",
+        lambda *args, **kwargs: FakeYahooResponse(),
+    )
+    result = market_data.fetch_global_stock(market_data.GLOBAL_STOCKS[0])
+    assert result["ok"] is True
+    assert result["quote"]["symbol"] == "1928.HK"
+    assert result["quote"]["currency"] == "HKD"
+    assert result["quote"]["change_value"] == 0.5
+    assert result["quote"]["change_rate"] == 2.5
+    assert len(result["quote"]["history"]) == 3
+
+
 def test_fetch_stock_normalizes_market_fields(monkeypatch):
     monkeypatch.setattr("config.MARKET_DATA_API_KEY", "test-key")
     monkeypatch.setattr(
@@ -91,3 +133,27 @@ def test_market_quote_upsert_and_order(db_connection):
     assert all(row["trend_points"].startswith("0.0,34.0") for row in rows)
     assert all(row["trend_area_points"].endswith("100,40") for row in rows)
     assert rows[1]["market_cap_label"] == "1조 9,012억원"
+
+
+def test_global_quote_failure_keeps_last_successful_price(db_connection):
+    quote = {
+        "symbol": "MLCO",
+        "name": "Melco Resorts & Entertainment",
+        "asset_type": "global_stock",
+        "market": "NASDAQ",
+        "currency": "USD",
+        "source": "Yahoo Finance",
+        "base_date": "20260728",
+        "close_price": 9.25,
+        "change_value": -0.15,
+        "change_rate": -1.6,
+    }
+    queries.upsert_market_quote(db_connection, quote)
+    queries.mark_market_quote_failure(db_connection, "MLCO", "HTTP 429")
+    row = next(
+        item for item in queries.list_market_quotes(db_connection)
+        if item["symbol"] == "MLCO"
+    )
+    assert row["close_price"] == 9.25
+    assert row["fetch_status"] == "failed"
+    assert row["fetch_error"] == "HTTP 429"
