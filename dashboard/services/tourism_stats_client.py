@@ -61,12 +61,22 @@ def fetch_month(ym, nat_cd=None):
     if total_count > MAX_ROWS:
         return {"ok": False, "error": f"응답 건수 {total_count:,}건이 수집 상한을 초과했습니다."}
     visitor_count = 0
+    by_nationality = {}
     for item in root.findall(".//item"):
         try:
-            visitor_count += int(item.findtext("num") or 0)
+            count = int(item.findtext("num") or 0)
         except ValueError:
             continue
-    return {"ok": True, "visitor_count": visitor_count, "total_count": total_count}
+        visitor_count += count
+        code = (item.findtext("natCd") or "").strip()
+        if code:
+            by_nationality[code] = by_nationality.get(code, 0) + count
+    return {
+        "ok": True,
+        "visitor_count": visitor_count,
+        "total_count": total_count,
+        "by_nationality": by_nationality,
+    }
 
 
 def find_latest_available_ym(max_lookback=6):
@@ -87,11 +97,9 @@ def get_bucket_totals(ym):
     if not grand_total.get("ok"):
         return grand_total
     buckets, named_total = {}, 0
+    totals_by_code = grand_total.get("by_nationality") or {}
     for label, code in NATIONALITY_CODES.items():
-        result = fetch_month(ym, code)
-        if not result.get("ok"):
-            return {"ok": False, "error": f"{label}: {result.get('error')}"}
-        buckets[label] = result["visitor_count"]
-        named_total += result["visitor_count"]
+        buckets[label] = totals_by_code.get(code, 0)
+        named_total += buckets[label]
     buckets["기타"] = max(grand_total["visitor_count"] - named_total, 0)
     return {"ok": True, "buckets": buckets}
