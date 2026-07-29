@@ -59,6 +59,16 @@ def test_login_succeeds_with_correct_credentials(client):
 def test_public_home_is_available_when_not_authenticated(client):
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "업무에 필요한 정보를" in html
+    assert "오늘의 주요 현황" in html
+    assert "공문 DB 최종 업데이트" not in html
+
+
+def test_legacy_dashboard_redirects_to_unified_home(client):
+    response = client.get("/dashboard", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
 
 
 def test_protected_page_redirects_to_login_when_not_authenticated(client):

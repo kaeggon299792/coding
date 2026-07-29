@@ -362,27 +362,40 @@ def _percent_delta(today_value, prev_value):
 
 @app.route("/")
 def public_home():
-    return render_template("public_home.html")
-
-
-@app.route("/dashboard")
-@login_required
-def dashboard_home():
     today = today_kst_str()
+    is_authenticated = bool(session.get("user_id"))
     connection = dashboard_db()
     try:
-        bug_report_owner = (
-            None if session.get("role") == "admin"
-            else (session.get("username") or "")
-        )
         important_news = news_reader.today_important_articles()
-        official_documents, _ = official_document_manager.list_documents(
-            connection, per_page=100000
-        )
-        official_overdue = [
-            item for item in official_documents
-            if "접수 후 7일 경과" in item["review_reasons"]
-        ]
+        official_documents = []
+        official_overdue = []
+        official_metrics = None
+        official_db_updated_at = None
+        action_items = []
+        if is_authenticated:
+            bug_report_owner = (
+                None if session.get("role") == "admin"
+                else (session.get("username") or "")
+            )
+            official_documents, _ = official_document_manager.list_documents(
+                connection, per_page=100000
+            )
+            official_overdue = [
+                item for item in official_documents
+                if "접수 후 7일 경과" in item["review_reasons"]
+            ]
+            official_metrics = official_document_manager.dashboard_metrics(connection)
+            official_update_status = official_document_manager.data_update_status(connection)
+            official_db_updated_at = (
+                official_document_manager.datetime_minute(
+                    official_update_status["latest_updated_at"]
+                )
+                if official_update_status["latest_updated_at"]
+                else None
+            )
+            action_items = queries.list_action_items(
+                connection, reported_by=bug_report_owner
+            )[:10]
 
         kpis = {
             "today_news": news_reader.count_today_articles(),
@@ -391,14 +404,14 @@ def dashboard_home():
                 news_reader.count_today_important_articles(),
                 news_reader.count_yesterday_important_articles(),
             ),
-            "pending_action_items": queries.count_action_items(
-                connection, reported_by=bug_report_owner
+            "pending_action_items": (
+                queries.count_action_items(connection, reported_by=bug_report_owner)
+                if is_authenticated else 0
             ),
-            "urgent_action_items": queries.count_action_items(
-                connection, urgent_only=True, reported_by=bug_report_owner
-            ),
-            "overdue_action_items": queries.count_action_items(
-                connection, overdue_only=True, reported_by=bug_report_owner
+            "urgent_action_items": (
+                queries.count_action_items(
+                    connection, urgent_only=True, reported_by=bug_report_owner
+                ) if is_authenticated else 0
             ),
             "new_competitor_issues": news_reader.count_new_issues_today_by_category(
                 COMPETITOR_CATEGORY_KEYWORDS
@@ -409,15 +422,8 @@ def dashboard_home():
             "ai_insights_count": queries.count_insights_for_date(connection, today),
         }
 
-        insights = queries.list_insights_for_date(connection, today)
-        action_items = queries.list_action_items(
-            connection, reported_by=bug_report_owner
-        )[:10]
-        latest_performance = queries.get_latest_performance_report(connection, today)
         recent_disclosures = queries.list_recent_disclosures(connection, days=7)[:10]
-        recent_law_updates = queries.list_recent_law_updates(connection, days=30)[:10]
         news_updated_raw = news_reader.last_updated_at()
-        official_update_status = official_document_manager.data_update_status(connection)
         market_quotes = queries.list_market_quotes(connection)
         market_updated_at = max(
             (quote.get("fetched_at") or "" for quote in market_quotes),
@@ -429,7 +435,7 @@ def dashboard_home():
             "dashboard.html",
             kpis=kpis,
             important_news=important_news[:12],
-            official_metrics=official_document_manager.dashboard_metrics(connection),
+            official_metrics=official_metrics,
             official_overdue=official_overdue[:10],
             official_recent=official_documents[:6],
             market_quotes=market_quotes,
@@ -438,26 +444,23 @@ def dashboard_home():
                 official_document_manager.datetime_minute(market_updated_at)
                 if market_updated_at else None
             ),
-            insights=insights,
             action_items=action_items,
-            latest_performance=latest_performance,
             recent_disclosures=recent_disclosures,
-            recent_law_updates=recent_law_updates,
             csrf_token=get_csrf_token(),
+            is_authenticated=is_authenticated,
             casino_news_updated_at=(
                 official_document_manager.datetime_minute(news_updated_raw)
                 if news_updated_raw else None
             ),
-            official_db_updated_at=(
-                official_document_manager.datetime_minute(
-                    official_update_status["latest_updated_at"]
-                )
-                if official_update_status["latest_updated_at"]
-                else None
-            ),
+            official_db_updated_at=official_db_updated_at,
         )
     finally:
         connection.close()
+
+
+@app.route("/dashboard")
+def dashboard_home():
+    return redirect(url_for("public_home"), code=302)
 
 
 @app.route("/paradian")

@@ -4,16 +4,37 @@
 {% include "_topbar.html" %}
 <div class="page-container">
 
-  <div class="page-header">
+  <section class="public-hero unified-home-hero">
+    <p class="page-eyebrow">PARADISE / MANAGEMENT DASHBOARD</p>
+    <h1>업무에 필요한 정보를<br>한곳에서 확인합니다.</h1>
+    <p>공시·법률·기업정보와 업무 데이터를 연결한 PARADISE 경영기획 인텔리전스 대시보드입니다.</p>
+  </section>
+
+  <nav class="public-menu unified-home-menu" aria-label="주요 메뉴">
+    <a href="{{ url_for('market_trend_page') }}"><span>01</span><strong>데이터</strong><small>뉴스·주가·관광객·경제지표</small><i>→</i></a>
+    <a href="{{ url_for('disclosures_page') }}"><span>02</span><strong>공시·재무</strong><small>DART 공시와 주요 재무지표</small><i>→</i></a>
+    <a href="{{ url_for('laws_page') }}"><span>03</span><strong>법률·규제</strong><small>카지노 규정과 국회 입법 동향</small><i>→</i></a>
+    <a href="{{ url_for('companies_page') }}"><span>04</span><strong>기업 360°</strong><small>카지노 기업별 통합 분석</small><i>→</i></a>
+    <a href="{{ url_for('research_library_page') }}"><span>05</span><strong>리서치</strong><small>기업·산업 분석자료와 AI 분석</small><i>→</i></a>
+    <a href="{{ url_for('unified_search_page') }}"><span>06</span><strong>통합검색</strong><small>뉴스·공시·법령·리서치 검색</small><i>→</i></a>
+    <a href="{{ url_for('tips.list_page') }}"><span>07</span><strong>자료실</strong><small>업무 팁과 지식 콘텐츠</small><i>→</i></a>
+    <a href="{{ url_for('action_items_page') }}"><span>08</span><strong>버그 및 Q&amp;A</strong><small>오류 제보와 업무 문의</small><i>→</i></a>
+    <a href="{{ url_for('paradian_portal_page') }}"><span>09</span><strong>파라디안 전용</strong><small>공문·자료관리와 경영 실적</small><i>⌁</i></a>
+  </nav>
+
+  <div class="page-header unified-dashboard-heading">
     <p class="page-eyebrow">Operations / Overview</p>
-    <h1 class="page-title">경영기획 인텔리전스 대시보드</h1>
-    <p class="page-description">핵심 업무 현황과 자동화 시스템의 운영 상태를 한 화면에서 확인합니다.</p>
+    <h2 class="page-title">오늘의 주요 현황</h2>
+    <p class="page-description">핵심 산업정보와 자동화 데이터의 최신 현황입니다.</p>
     <div class="data-freshness-row">
       <span class="data-freshness"><b>카지노 뉴스 최종 업데이트</b>{{ casino_news_updated_at or '업데이트 기록 없음' }}</span>
+      {% if is_authenticated %}
       <span class="data-freshness"><b>공문 DB 최종 업데이트</b>{{ official_db_updated_at or '업데이트 기록 없음' }}</span>
+      {% endif %}
     </div>
   </div>
 
+  {% if is_authenticated %}
   <section class="official-priority">
     <div class="official-priority-head">
       <div>
@@ -43,13 +64,14 @@
     </div>
     {% else %}<p class="official-clear">7일을 초과한 미처리 공문이 없습니다.</p>{% endif %}
   </section>
+  {% endif %}
 
   <section class="market-overview">
     <div class="market-overview-head">
       <div>
         <p class="page-eyebrow">Market / Casino Companies</p>
-        <h2>카지노 4개사 주가 및 KOSPI</h2>
-        <p>금융위원회 시세정보 기준 최근 영업일 종가입니다.</p>
+        <h2>카지노 기업 주가 및 KOSPI</h2>
+        <p>국내외 주요 카지노 기업의 최근 영업일 종가입니다.</p>
       </div>
       <div class="market-overview-actions"><span>{{ market_updated_at or '업데이트 대기' }}</span><a class="btn btn-small" href="{{ url_for('market_trend_page') }}">주가 정보 전체보기</a></div>
     </div>
@@ -139,14 +161,14 @@
       <div class="label">신규 정책·규제 이슈</div>
       <div class="value">{{ kpis.new_policy_issues }}</div>
     </div>
-    <div class="kpi-card">
+    {% if is_authenticated %}<div class="kpi-card">
       <div class="label">미해결 버그</div>
       <div class="value">{{ kpis.pending_action_items }}</div>
-    </div>
-    <div class="kpi-card">
+    </div>{% endif %}
+    {% if is_authenticated %}<div class="kpi-card">
       <div class="label">긴급 버그</div>
       <div class="value">{{ kpis.urgent_action_items }}</div>
-    </div>
+    </div>{% endif %}
     <div class="kpi-card">
       <div class="label">AI 신규 시사점</div>
       <div class="value">{{ kpis.ai_insights_count }}</div>
@@ -209,7 +231,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  {% if is_authenticated %}<div class="panel">
     <h2>최근 버그 및 Q&amp;A</h2>
     {% if action_items %}
       <table class="data-table">
@@ -231,6 +253,7 @@
     {% endif %}
     <p class="footer-links"><a href="{{ url_for('action_items_page') }}">버그 및 Q&amp;A로 이동 →</a></p>
   </div>
+  {% endif %}
 
 </div>
 {% include "_footer.html" %}
