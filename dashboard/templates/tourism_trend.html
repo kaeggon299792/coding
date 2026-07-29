@@ -40,8 +40,9 @@
     </aside>
 
     <div class="tourism-comparison-list">
-      {% for category in tourism_comparison.categories %}
-      <article class="tourism-country-card">
+      {% set display_categories = [tourism_comparison.total_category] + tourism_comparison.categories %}
+      {% for category in display_categories %}
+      <article class="tourism-country-card {% if loop.first %}tourism-total-card{% endif %}">
         <header>
           <h3>{{ category.label }}</h3>
           {% if category.change_rate is not none %}

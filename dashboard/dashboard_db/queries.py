@@ -624,7 +624,63 @@ def get_tourism_ytd_comparison(connection):
             "last_points": last_points,
             "actual_points": actual_points,
             "forecast_points": forecast_points,
+            "this_monthly": this_monthly,
+            "last_monthly": last_monthly,
+            "forecast": forecast,
         })
+
+    total_this_monthly = {
+        month: sum(item["this_monthly"].get(month, 0) for item in categories)
+        for month in range(1, latest_month + 1)
+    }
+    total_last_monthly = {
+        month: sum(item["last_monthly"].get(month, 0) for item in categories)
+        for month in range(1, 13)
+    }
+    total_forecast = {
+        month: sum(item["forecast"].get(month, 0) for item in categories)
+        for month in range(latest_month + 1, 13)
+    }
+    total_chart_max = max(
+        [*total_last_monthly.values(), *total_this_monthly.values(), *total_forecast.values(), 1]
+    )
+    total_value_y = lambda value: bottom - (value / total_chart_max) * (bottom - top)
+    total_last_points = " ".join(
+        f"{month_x(month):.1f},{total_value_y(total_last_monthly[month]):.1f}"
+        for month in sorted(total_last_monthly)
+    )
+    total_actual_points = " ".join(
+        f"{month_x(month):.1f},{total_value_y(total_this_monthly[month]):.1f}"
+        for month in sorted(total_this_monthly)
+    )
+    total_forecast_series = {}
+    if total_this_monthly:
+        final_actual_month = max(total_this_monthly)
+        total_forecast_series[final_actual_month] = total_this_monthly[final_actual_month]
+    total_forecast_series.update(total_forecast)
+    total_forecast_points = " ".join(
+        f"{month_x(month):.1f},{total_value_y(total_forecast_series[month]):.1f}"
+        for month in sorted(total_forecast_series)
+    )
+    total_this_value = sum(total_this_monthly.values())
+    total_last_value = sum(
+        total_last_monthly.get(month, 0) for month in range(1, latest_month + 1)
+    )
+    total_category = {
+        "label": "전체 관광객",
+        "this_value": total_this_value,
+        "last_value": total_last_value,
+        "difference": total_this_value - total_last_value,
+        "change_rate": (
+            round((total_this_value - total_last_value) / total_last_value * 100, 1)
+            if total_last_value else None
+        ),
+        "projected_total": total_this_value + sum(total_forecast.values()),
+        "last_annual_total": sum(total_last_monthly.values()),
+        "last_points": total_last_points,
+        "actual_points": total_actual_points,
+        "forecast_points": total_forecast_points,
+    }
 
     actual_total = sum(item["this_value"] for item in categories)
     last_same_period_total = sum(item["last_value"] for item in categories)
@@ -641,6 +697,7 @@ def get_tourism_ytd_comparison(connection):
         "projected_total": sum(item["projected_total"] for item in categories),
         "last_annual_total": sum(item["last_annual_total"] for item in categories),
         "actual_month": latest_month,
+        "total_category": total_category,
     }
 
 

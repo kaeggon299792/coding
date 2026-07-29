@@ -36,6 +36,9 @@ def test_tourism_ytd_comparison_uses_same_month_range_for_both_years():
     assert china["change_rate"] == 133.3
     assert china["projected_total"] == 19450
     assert china["forecast_points"]
+    assert result["total_category"]["label"] == "전체 관광객"
+    assert result["total_category"]["this_value"] == result["this_total"]
+    assert result["total_category"]["forecast_points"]
 
 
 def test_tourism_ytd_comparison_returns_none_without_cache():
