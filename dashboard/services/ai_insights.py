@@ -101,7 +101,7 @@ def _call(connection, request_type, system_prompt, user_prompt, schema_name, sch
         error_message = f"응답 검증 실패: {error}"
         logger.error("AI 응답 검증 실패(%s): %s", request_type, error)
     except Exception as error:
-        error_message = f"API 호출 실패: {type(error).__name__}"
+        error_message = f"API 호출 실패: {type(error).__name__}: {str(error)[:300]}"
         logger.error("AI 호출 실패(%s): %s", request_type, error)
     finally:
         cost = _estimate_cost(input_tokens, output_tokens)

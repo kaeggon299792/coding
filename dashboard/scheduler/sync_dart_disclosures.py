@@ -122,6 +122,24 @@ def run():
                     sent = telegram_alert.send_alert(_build_alert_message(row, summary.get("ai_summary")))
                     if sent:
                         queries.mark_disclosure_alert_sent(connection, disclosure_id)
+                else:
+                    summary = ai_insights.summarize_disclosure(connection, {
+                        "corp_name": item.get("corp_name"),
+                        "report_nm": report_nm,
+                        "rcept_dt": item.get("rcept_dt"),
+                        "flr_nm": item.get("flr_nm"),
+                    })
+                    queries.save_disclosure_analysis(
+                        connection, disclosure_id,
+                        ai_summary=summary.get("ai_summary"),
+                        importance="routine",
+                        financial_impact=summary.get("financial_impact"),
+                        competitive_impact=summary.get("competitive_impact"),
+                        risk_category=summary.get("risk_category"),
+                        needs_executive_review=summary.get("needs_executive_review", False),
+                        prompt_version=config.AI_DISCLOSURE_PROMPT_VERSION,
+                        error_message=summary.get("error"),
+                    )
 
         logger.info("DART 동기화 완료: 신규 공시 %d건, 기업 조회 오류 %d건", new_count, error_count)
         queries.finish_analysis_run(

@@ -789,7 +789,7 @@ def disclosures_page():
         latest_dart_sync = queries.get_last_successful_run(connection, "dart_sync")
         analyses = {
             d["id"]: queries.get_disclosure_analysis(connection, d["id"])
-            for d in disclosures if d["is_important"]
+            for d in disclosures
         }
         return render_template(
             "disclosures.html",
