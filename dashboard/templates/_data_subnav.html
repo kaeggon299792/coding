@@ -1,5 +1,4 @@
 <nav class="data-subnav" aria-label="데이터 메뉴">
-  {% if current_username == 'admin' %}<a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}>경영 실적</a>{% endif %}
   <a href="{{ url_for('related_news_page') }}" {% if request.endpoint == 'related_news_page' %}class="active"{% endif %}>관련 뉴스</a>
   <a href="{{ url_for('market_trend_page') }}" {% if request.endpoint == 'market_trend_page' %}class="active"{% endif %}>주가 정보</a>
   <a href="{{ url_for('tourism_trend_page') }}" {% if request.endpoint == 'tourism_trend_page' %}class="active"{% endif %}>관광객 추이</a>

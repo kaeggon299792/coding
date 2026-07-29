@@ -10,6 +10,7 @@
   </header>
   {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 
+  {% if current_username %}
   <section class="panel bug-report-form-panel">
     <div class="section-heading"><div><h2>새 글 작성</h2><p>오류는 재현 방법을, 질문은 확인이 필요한 내용을 구체적으로 작성해주세요.</p></div></div>
     <form method="post" action="{{ url_for('action_items_page') }}" class="bug-report-form">
@@ -23,6 +24,9 @@
       <div class="bug-form-footer"><span>작성자: {{ current_username }} · 비공개</span><button class="btn btn-primary" type="submit">등록</button></div>
     </form>
   </section>
+  {% else %}
+  <section class="public-action-notice"><p>게시글은 작성자와 관리자만 볼 수 있습니다. 새 글 작성은 로그인 후 이용해주세요.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>
+  {% endif %}
 
   <section class="panel">
     <div class="section-heading">

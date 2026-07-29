@@ -8,6 +8,10 @@ from werkzeug.security import generate_password_hash
 def client(monkeypatch, tmp_path):
     db_path = tmp_path / "auth_test.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    monkeypatch.setattr(
+        "services.market_data.fetch_global_quotes",
+        lambda: {"quotes": [], "errors": []},
+    )
 
     import app as app_module
     from dashboard_db import queries
@@ -15,6 +19,7 @@ def client(monkeypatch, tmp_path):
 
     conn = dashboard_db()
     queries.create_user(conn, "admin", generate_password_hash("correct-horse-battery-staple"))
+    queries.create_user(conn, "employee", generate_password_hash("employee-password-123"))
     conn.close()
 
     app_module.app.config["TESTING"] = True
@@ -60,6 +65,48 @@ def test_protected_page_redirects_to_login_when_not_authenticated(client):
     response = client.get("/official-docs/", follow_redirects=False)
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/performance/markets",
+        "/performance/news",
+        "/performance/tourism",
+        "/performance/economy",
+        "/performance/holidays",
+        "/disclosures",
+        "/laws",
+        "/companies",
+        "/library",
+        "/search",
+        "/tips",
+        "/bug-reports",
+    ),
+)
+def test_public_read_pages_do_not_require_login(client, path):
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 200
+
+
+def test_paradian_portal_requires_login(client):
+    response = client.get("/paradian", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_logged_in_employee_can_access_official_docs_but_not_performance(client):
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "employee",
+            "password": "employee-password-123",
+            "csrf_token": csrf,
+        },
+    )
+    assert client.get("/official-docs/").status_code == 200
+    assert client.get("/performance").status_code == 403
 
 
 def test_full_login_then_access_dashboard(client):

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}파라디안 전용{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container paradian-portal">
+  <header class="page-header">
+    <p class="page-eyebrow">Internal / Paradian Only</p>
+    <h1 class="page-title">파라디안 전용</h1>
+    <p class="page-description">로그인한 파라디안만 이용할 수 있는 내부 업무 메뉴입니다.</p>
+  </header>
+  <section class="paradian-menu-grid">
+    <a href="{{ url_for('official_docs.dashboard') }}">
+      <span>Official Documents</span><h2>공문·자료관리</h2>
+      <p>공문 접수, 자료 처리와 Y디스크 보관 상태를 관리합니다.</p><b>열기 →</b>
+    </a>
+    {% if current_username == 'admin' %}
+    <a href="{{ url_for('performance_page') }}">
+      <span>Management Performance</span><h2>경영 실적</h2>
+      <p>일별 실적과 워커힐 카지노 매출 추이를 확인합니다.</p><b>열기 →</b>
+    </a>
+    {% else %}
+    <article class="is-locked">
+      <span>Management Performance</span><h2>경영 실적</h2>
+      <p>관리자 전용 메뉴입니다.</p><b>관리자 권한 필요</b>
+    </article>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

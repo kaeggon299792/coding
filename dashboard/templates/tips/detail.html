@@ -49,12 +49,16 @@
 
   <section class="tip-comments" id="comments">
     <header><h2>댓글 <span>{{ comments|length }}</span></h2></header>
+    {% if current_username %}
     <form class="comment-form" method="post" action="{{ url_for('tips.add_comment_page', slug=tip.slug) }}">
       <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <label for="comment-content">댓글 작성</label>
       <textarea id="comment-content" name="content" rows="3" maxlength="1000" required placeholder="의견이나 추가 정보를 남겨주세요."></textarea>
       <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
     </form>
+    {% else %}
+    <div class="public-action-notice"><p>댓글 작성은 로그인 후 이용할 수 있습니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></div>
+    {% endif %}
     {% if comments %}<div class="comment-list">{% for comment in comments %}
       <article class="comment-item">
         <header><strong>{{ comment.author_name }}</strong><time>{{ comment.created_at|replace('T', ' ')|truncate(16, true, '') }}</time>{% if comment.updated_at != comment.created_at %}<span>수정됨</span>{% endif %}</header>

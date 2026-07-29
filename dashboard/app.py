@@ -85,6 +85,24 @@ ENDPOINT_PERMISSIONS = {
     "unified_search_page": "unified_search",
 }
 
+PUBLIC_READ_ENDPOINTS = {
+    "market_trend_page",
+    "related_news_page",
+    "tourism_trend_page",
+    "economic_trend_page",
+    "holiday_calendar_page",
+    "disclosures_page",
+    "laws_page",
+    "companies_page",
+    "research_library_page",
+    "download_research_document",
+    "unified_search_page",
+    "tips.list_page",
+    "tips.detail_page",
+    "tips.attachment_file",
+    "action_items_page",
+}
+
 
 @app.before_request
 def establish_request_security():
@@ -168,6 +186,11 @@ def enforce_menu_permission():
         return None
     if request.endpoint == "performance_page" and session.get("username") != "admin":
         abort(403)
+    if request.method in {"GET", "HEAD"} and request.endpoint in PUBLIC_READ_ENDPOINTS:
+        return None
+    # 공문·자료관리는 별도 세부 권한 없이 로그인 사용자에게 허용한다.
+    if request.blueprint == "official_docs":
+        return None
     permission = (
         "official_docs" if request.blueprint == "official_docs"
         else "tips" if request.blueprint == "tips"
@@ -207,6 +230,7 @@ def inject_globals():
         "action_items_page": "버그 및 Q&A",
         "action_item_detail": "버그 및 Q&A",
         "performance_page": "데이터",
+        "paradian_portal_page": "파라디안 전용",
         "related_news_page": "관련 뉴스",
         "market_trend_page": "주가 정보",
         "tourism_trend_page": "관광객 추이",
@@ -250,22 +274,10 @@ def _site_map_links():
     links = [
         {"label": "시작 화면", "description": "공개 메뉴와 로그인 안내", "endpoint": "public_home"},
     ]
-    if not session.get("user_id"):
-        links.extend([
-            {"label": "로그인", "description": "대시보드 계정으로 접속", "endpoint": "auth.login"},
-            {"label": "가입 신청", "description": "새 계정 승인 요청", "endpoint": "auth.register"},
-        ])
-        return links
-
-    permissions = current_menu_permissions()
-    links.append(
-        {"label": "홈", "description": "업무 현황 종합 대시보드", "endpoint": "dashboard_home"}
-    )
     links.append(
         {"label": "데이터", "description": "관련 뉴스·주가·관광객·유가·환율·나라별 연휴", "endpoint": "market_trend_page"}
     )
     menu_links = (
-        ("official_docs", "공문·자료관리", "접수·처리·Y디스크 보관", "official_docs.dashboard"),
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
         ("laws", "법률·규제", "카지노 관련 법령 모니터링", "laws_page"),
         ("companies", "기업 360°", "회사별 통합 기업분석", "companies_page"),
@@ -279,10 +291,25 @@ def _site_map_links():
             "label": label,
             "description": description,
             "endpoint": endpoint,
-            "locked": not permissions.get(permission, False),
+            "locked": False,
         }
         for permission, label, description, endpoint in menu_links
     )
+    if not session.get("user_id"):
+        links.extend([
+            {"label": "파라디안 전용", "description": "로그인 후 공문·자료관리 이용", "endpoint": "auth.login", "locked": True},
+            {"label": "로그인", "description": "대시보드 계정으로 접속", "endpoint": "auth.login"},
+            {"label": "가입 신청", "description": "새 계정 승인 요청", "endpoint": "auth.register"},
+        ])
+        return links
+    links.extend([
+        {"label": "파라디안 전용", "description": "공문·자료관리 및 관리자 경영 실적", "endpoint": "paradian_portal_page"},
+        {"label": "공문·자료관리", "description": "접수·처리·Y디스크 보관", "endpoint": "official_docs.dashboard"},
+    ])
+    if session.get("username") == "admin":
+        links.append(
+            {"label": "경영 실적", "description": "내부 경영 실적 현황", "endpoint": "performance_page"}
+        )
     if session.get("role") == "admin":
         links.append({
             "label": "계정·권한관리",
@@ -433,6 +460,12 @@ def dashboard_home():
         connection.close()
 
 
+@app.route("/paradian")
+@login_required
+def paradian_portal_page():
+    return render_template("paradian_portal.html")
+
+
 # ============================================================
 # Action Items
 # ============================================================
@@ -452,14 +485,17 @@ def can_access_action_item(item):
 
 @app.route("/action-items", methods=["GET", "POST"])
 @app.route("/bug-reports", methods=["GET", "POST"])
-@login_required
 def action_items_page():
+    if request.method == "POST" and not session.get("user_id"):
+        return redirect(url_for("auth.login", next=request.path))
     connection = dashboard_db()
     try:
         is_admin = session.get("role") == "admin"
         username = session.get("username") or ""
 
         def visible_items(status=None):
+            if not username:
+                return []
             return queries.list_action_items(
                 connection,
                 status=status,
@@ -765,7 +801,6 @@ def performance_page():
 
 
 @app.route("/performance/tourism")
-@login_required
 def tourism_trend_page():
     connection = dashboard_db()
     try:
@@ -785,7 +820,6 @@ def tourism_trend_page():
 
 
 @app.route("/performance/markets")
-@login_required
 def market_trend_page():
     connection = dashboard_db()
     try:
@@ -826,7 +860,6 @@ def market_trend_page():
 
 
 @app.route("/performance/news")
-@login_required
 def related_news_page():
     allowed_days = {7, 30, 90, 365}
     try:
@@ -870,7 +903,6 @@ def related_news_page():
 
 
 @app.route("/performance/economy")
-@login_required
 def economic_trend_page():
     connection = dashboard_db()
     try:
@@ -891,7 +923,6 @@ def economic_trend_page():
 
 
 @app.route("/performance/holidays")
-@login_required
 def holiday_calendar_page():
     from services import holiday_calendar
     return render_template(
@@ -905,7 +936,6 @@ def holiday_calendar_page():
 # ============================================================
 
 @app.route("/disclosures")
-@login_required
 def disclosures_page():
     connection = dashboard_db()
     try:
@@ -940,7 +970,6 @@ def disclosures_page():
 # ============================================================
 
 @app.route("/laws")
-@login_required
 def laws_page():
     connection = dashboard_db()
     try:
@@ -985,7 +1014,6 @@ def laws_page():
 # ============================================================
 
 @app.route("/companies")
-@login_required
 def companies_page():
     try:
         days = max(30, min(int(request.args.get("days", 90)), 365))
@@ -1015,8 +1043,9 @@ def _library_context(connection, error=None):
 
 
 @app.route("/library", methods=["GET", "POST"])
-@login_required
 def research_library_page():
+    if request.method == "POST" and not session.get("user_id"):
+        return redirect(url_for("auth.login", next=request.path))
     connection = dashboard_db()
     saved_file = None
     try:
@@ -1137,7 +1166,6 @@ def research_library_page():
 
 
 @app.route("/library/<int:document_id>/download")
-@login_required
 def download_research_document(document_id):
     connection = dashboard_db()
     try:
@@ -1211,7 +1239,6 @@ def delete_research_document(document_id):
 # ============================================================
 
 @app.route("/search")
-@login_required
 def unified_search_page():
     term = (request.args.get("q") or "").strip()[:100]
     try:
@@ -1226,6 +1253,11 @@ def unified_search_page():
 
     connection = dashboard_db()
     try:
+        public_sources = {"news", "disclosure", "law", "insight", "research"}
+        if not session.get("user_id"):
+            selected_sources = [
+                source for source in selected_sources if source in public_sources
+            ]
         results = unified_search.search(
             connection,
             term,

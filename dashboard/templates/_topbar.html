@@ -4,25 +4,39 @@
     <span class="topbar-context">{{ current_menu_name }}</span>
   </div>
   <nav class="topbar-nav">
-    <a href="{{ url_for('dashboard_home') }}" {% if request.endpoint == 'dashboard_home' %}class="active"{% endif %}>홈</a>
-    <a href="{{ url_for('official_docs.dashboard') }}" {% if request.blueprint == 'official_docs' %}class="active"{% endif %}{% if not menu_permissions.official_docs %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공문·자료관리</a>
-    <a href="{{ url_for('market_trend_page') }}" {% if request.endpoint in ('performance_page', 'related_news_page', 'market_trend_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page') %}class="active"{% endif %}>데이터</a>
-    <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}{% if not menu_permissions.disclosures %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공시·재무</a>
-    <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}{% if not menu_permissions.laws %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>법률·규제</a>
-    <a href="{{ url_for('companies_page') }}" {% if request.endpoint == 'companies_page' %}class="active"{% endif %}{% if not menu_permissions.companies %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>기업 360°</a>
-    <a href="{{ url_for('research_library_page') }}" {% if request.endpoint in ('research_library_page', 'download_research_document', 'reanalyze_research_document', 'delete_research_document') %}class="active"{% endif %}{% if not menu_permissions.research_library %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>리서치</a>
-    <a href="{{ url_for('unified_search_page') }}" {% if request.endpoint == 'unified_search_page' %}class="active"{% endif %}{% if not menu_permissions.unified_search %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>통합검색</a>
-    <a href="{{ url_for('tips.list_page') }}" {% if request.blueprint == 'tips' %}class="active"{% endif %}{% if not menu_permissions.tips %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>자료실</a>
+    <a href="{{ url_for('public_home') }}" {% if request.endpoint in ('public_home', 'dashboard_home') %}class="active"{% endif %}>홈</a>
+    <a href="{{ url_for('market_trend_page') }}" {% if request.endpoint in ('related_news_page', 'market_trend_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page') %}class="active"{% endif %}>데이터</a>
+    <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}>공시·재무</a>
+    <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}>법률·규제</a>
+    <a href="{{ url_for('companies_page') }}" {% if request.endpoint == 'companies_page' %}class="active"{% endif %}>기업 360°</a>
+    <a href="{{ url_for('research_library_page') }}" {% if request.endpoint in ('research_library_page', 'download_research_document') %}class="active"{% endif %}>리서치</a>
+    <a href="{{ url_for('unified_search_page') }}" {% if request.endpoint == 'unified_search_page' %}class="active"{% endif %}>통합검색</a>
+    <a href="{{ url_for('tips.list_page') }}" {% if request.blueprint == 'tips' %}class="active"{% endif %}>자료실</a>
     <a href="{{ url_for('action_items_page') }}" {% if request.endpoint in ['action_items_page', 'action_item_detail'] %}class="active"{% endif %}>버그 및 Q&amp;A</a>
+    <details class="topbar-private-menu" {% if request.blueprint == 'official_docs' or request.endpoint in ('paradian_portal_page', 'performance_page') %}open{% endif %}>
+      <summary{% if request.blueprint == 'official_docs' or request.endpoint in ('paradian_portal_page', 'performance_page') %} class="active"{% endif %}>파라디안 전용{% if not current_username %}<span aria-hidden="true">⌁</span>{% endif %}</summary>
+      <div>
+        {% if current_username %}
+        <a href="{{ url_for('official_docs.dashboard') }}">공문·자료관리</a>
+        {% if current_username == 'admin' %}<a href="{{ url_for('performance_page') }}">경영 실적</a>{% endif %}
+        {% else %}
+        <a href="{{ url_for('auth.login', next=url_for('paradian_portal_page')) }}">로그인 후 이용</a>
+        {% endif %}
+      </div>
+    </details>
   </nav>
   <div class="topbar-actions">
     {% if current_user_role == 'admin' %}
     <a class="topbar-account-link" href="{{ url_for('auth.user_management') }}">계정관리</a>
     {% endif %}
-    <span class="topbar-meta">{{ now_str }} · {{ current_username }}</span>
+    <span class="topbar-meta">{{ now_str }}{% if current_username %} · {{ current_username }}{% endif %}</span>
+    {% if current_username %}
     <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
       <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <button class="btn btn-text" type="submit">로그아웃</button>
     </form>
+    {% else %}
+    <a class="topbar-account-link" href="{{ url_for('auth.login') }}">로그인</a>
+    {% endif %}
   </div>
 </div>

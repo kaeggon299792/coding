@@ -78,7 +78,6 @@ def _save_attachments(connection, tip_id):
 
 
 @tips_bp.route("")
-@login_required
 def list_page():
     query = request.args.get("q", "").strip()
     category = request.args.get("category", "").strip()
@@ -148,7 +147,6 @@ def new_page():
 
 
 @tips_bp.route("/<slug>")
-@login_required
 def detail_page(slug):
     connection = dashboard_db()
     try:
@@ -323,7 +321,6 @@ def restore_page(tip_id):
 
 
 @tips_bp.get("/attachment/<int:attachment_id>")
-@login_required
 def attachment_file(attachment_id):
     connection = dashboard_db()
     try:
