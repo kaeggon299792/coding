@@ -32,6 +32,7 @@
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>
 </button>
+<button class="back-to-top" id="back-to-top" type="button" aria-label="맨 위로 이동" hidden>↑</button>
 {% include "_legal_footer.html" %}
 <script nonce="{{ csp_nonce }}">
 (() => {
@@ -55,36 +56,67 @@
 })();
 
 (() => {
+  const button = document.getElementById("back-to-top");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const onScroll = () => {
+    if (window.scrollY > 480) {
+      button.hidden = false;
+      requestAnimationFrame(() => button.classList.add("is-visible"));
+    } else {
+      button.classList.remove("is-visible");
+    }
+  };
+  window.addEventListener("scroll", onScroll, {passive: true});
+  onScroll();
+  button.addEventListener("click", () => {
+    window.scrollTo({top: 0, behavior: reduceMotion ? "auto" : "smooth"});
+  });
+})();
+
+(() => {
   const loader = document.getElementById("page-loader");
   const percent = document.getElementById("page-loader-percent");
   const fill = document.getElementById("page-loader-fill");
   let value = 0;
   let timer;
+  let safetyTimer;
   const paint = (next) => {
     value = Math.max(0, Math.min(100, Math.round(next)));
     percent.textContent = `${value}%`;
     fill.style.width = `${value}%`;
   };
-  const start = (initial = 0) => {
+  const start = (initial = 0, maxWait = 4000) => {
     clearInterval(timer);
+    clearTimeout(safetyTimer);
     paint(initial);
+    loader.removeAttribute("aria-hidden");
     loader.classList.remove("is-hidden");
     timer = setInterval(() => {
       const step = value < 45 ? 7 : value < 75 ? 3 : value < 92 ? 1 : 0;
       if (step) paint(value + step);
     }, 90);
+    // load 이벤트는 느린 이미지·외부 리소스 하나만 있어도 발생하지 않을 수 있다.
+    // 콘텐츠가 준비된 뒤 로더가 92%에서 화면을 계속 막지 않도록 안전 종료한다.
+    safetyTimer = setTimeout(finish, maxWait);
   };
-  const finish = () => {
+  function finish() {
     clearInterval(timer);
+    clearTimeout(safetyTimer);
     paint(100);
-    setTimeout(() => loader.classList.add("is-hidden"), 180);
-  };
+    setTimeout(() => {
+      loader.classList.add("is-hidden");
+      loader.setAttribute("aria-hidden", "true");
+    }, 180);
+  }
   start(0);
-  document.addEventListener("DOMContentLoaded", () => paint(Math.max(value, 82)));
+  document.addEventListener("DOMContentLoaded", () => {
+    paint(Math.max(value, 92));
+    setTimeout(finish, 240);
+  });
   window.addEventListener("load", finish, {once: true});
   window.addEventListener("pageshow", (event) => { if (event.persisted) finish(); });
   document.addEventListener("submit", (event) => {
-    start(5);
+    start(5, 8000);
     if (event.submitter?.classList.contains("file-download-trigger")) {
       setTimeout(finish, 1200);
     }
@@ -94,7 +126,7 @@
     if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const url = new URL(link.href, location.href);
     if (url.origin === location.origin && !link.hasAttribute("download") && link.target !== "_blank" && url.href !== location.href) {
-      start(5);
+      start(5, 8000);
       if (link.classList.contains("file-download-trigger")) setTimeout(finish, 1200);
     }
   });
