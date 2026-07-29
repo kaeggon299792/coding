@@ -732,7 +732,13 @@ def performance_page():
     try:
         report_date = request.args.get("date") or today_kst_str()
         reports = queries.list_performance_reports(connection, report_date)
-        return render_template("performance.html", reports=reports, report_date=report_date)
+        casino_trend = queries.get_casino_sales_trend(connection, report_date, days=30)
+        return render_template(
+            "performance.html",
+            reports=reports,
+            report_date=report_date,
+            casino_trend=casino_trend,
+        )
     finally:
         connection.close()
 

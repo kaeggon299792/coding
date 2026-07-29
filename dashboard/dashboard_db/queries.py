@@ -439,6 +439,67 @@ def get_latest_performance_report(connection, report_date=None):
     return _with_performance_visual(item)
 
 
+def get_casino_sales_trend(connection, end_date, days=30):
+    rows = connection.execute(
+        """
+        SELECT report_date, received_at, parsed_json
+        FROM performance_reports
+        WHERE parsing_status = 'ok'
+          AND report_date BETWEEN date(?, ?) AND date(?)
+        ORDER BY report_date ASC, received_at DESC
+        """,
+        (end_date, f"-{max(days - 1, 0)} days", end_date),
+    ).fetchall()
+
+    # 하루에 여러 차례 수신된 경우 가장 마지막 실적만 사용한다.
+    daily = {}
+    for row in rows:
+        if row["report_date"] in daily:
+            continue
+        try:
+            parsed = json.loads(row["parsed_json"]) if row["parsed_json"] else {}
+        except (ValueError, TypeError):
+            continue
+        value = _performance_number(parsed.get("casino_sales"))
+        if value is not None:
+            daily[row["report_date"]] = value
+
+    entries = [
+        {"date": report_date, "label": report_date[5:].replace("-", "."), "value": value}
+        for report_date, value in daily.items()
+    ]
+    if not entries:
+        return None
+
+    values = [entry["value"] for entry in entries]
+    low = min(values + [0])
+    high = max(values + [0])
+    if high == low:
+        high = low + 1
+    value_range = high - low
+    left, right, top, bottom = 42.0, 958.0, 24.0, 224.0
+    width = right - left
+    height = bottom - top
+    denominator = max(len(entries) - 1, 1)
+    for index, entry in enumerate(entries):
+        entry["x"] = left + (index / denominator) * width
+        entry["y"] = top + ((high - entry["value"]) / value_range) * height
+
+    zero_y = top + ((high - 0) / value_range) * height
+    latest = entries[-1]
+    return {
+        "entries": entries,
+        "points": " ".join(f'{entry["x"]:.1f},{entry["y"]:.1f}' for entry in entries),
+        "zero_y": zero_y,
+        "latest": latest,
+        "highest": max(entries, key=lambda item: item["value"]),
+        "lowest": min(entries, key=lambda item: item["value"]),
+        "start_date": entries[0]["date"],
+        "end_date": latest["date"],
+        "day_count": len(entries),
+    }
+
+
 # ============================================================
 # telegram_ingest_state
 # ============================================================

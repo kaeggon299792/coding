@@ -1,4 +1,6 @@
 from services import performance_parser
+from dashboard_db import queries
+import sqlite3
 
 
 def test_parses_big_change_message():
@@ -73,3 +75,33 @@ def test_header_recognized_but_body_format_changed_is_a_parsing_failure():
     parsed, error = performance_parser.parse(text)
     assert parsed is None
     assert error is not None
+
+
+def test_builds_30_day_casino_sales_trend_from_latest_daily_reports():
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """
+        CREATE TABLE performance_reports (
+            report_date TEXT, received_at TEXT, parsed_json TEXT, parsing_status TEXT
+        )
+        """
+    )
+    connection.executemany(
+        "INSERT INTO performance_reports VALUES (?, ?, ?, 'ok')",
+        [
+            ("2026-07-27", "2026-07-27T09:00:00", '{"casino_sales":"1,851백만원"}'),
+            ("2026-07-28", "2026-07-28T08:00:00", '{"casino_sales":"100백만원"}'),
+            ("2026-07-28", "2026-07-28T09:00:00", '{"casino_sales":"-64백만원"}'),
+            ("2026-07-29", "2026-07-29T08:30:00", '{"casino_sales":"-572백만원"}'),
+            ("2026-06-01", "2026-06-01T09:00:00", '{"casino_sales":"9,999백만원"}'),
+        ],
+    )
+
+    trend = queries.get_casino_sales_trend(connection, "2026-07-29", days=30)
+
+    assert [entry["value"] for entry in trend["entries"]] == [1851, -64, -572]
+    assert trend["latest"]["value"] == -572
+    assert trend["highest"]["value"] == 1851
+    assert trend["lowest"]["value"] == -572
+    assert trend["day_count"] == 3
