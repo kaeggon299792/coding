@@ -501,6 +501,150 @@ def get_casino_sales_trend(connection, end_date, days=30):
 
 
 # ============================================================
+# tourism_visitor_stats
+# ============================================================
+
+TOURISM_CATEGORIES = ["중국", "일본", "대만", "몽골", "기타"]
+
+
+def upsert_tourism_stat(connection, ym, nat_label, visitor_count):
+    connection.execute(
+        """
+        INSERT INTO tourism_visitor_stats (ym, nat_label, visitor_count, fetched_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(ym, nat_label) DO UPDATE SET
+            visitor_count = excluded.visitor_count,
+            fetched_at = excluded.fetched_at
+        """,
+        (ym, nat_label, visitor_count, now_kst().isoformat(timespec="seconds")),
+    )
+    connection.commit()
+
+
+def list_tourism_yms(connection):
+    rows = connection.execute(
+        "SELECT DISTINCT ym FROM tourism_visitor_stats ORDER BY ym DESC"
+    ).fetchall()
+    return [row["ym"] for row in rows]
+
+
+def get_tourism_ytd_comparison(connection):
+    """올해 실제 누계와 작년 동기간을 비교하고 미발표 월을 추정한다."""
+    yms = list_tourism_yms(connection)
+    if not yms:
+        return None
+
+    latest_ym = yms[0]
+    latest_year = int(latest_ym[:4])
+    latest_month = int(latest_ym[4:6])
+    this_year_yms = [f"{latest_year}{month:02d}" for month in range(1, 13)]
+    actual_yms = this_year_yms[:latest_month]
+    last_year_yms = [f"{latest_year - 1}{month:02d}" for month in range(1, 13)]
+    target_yms = this_year_yms + last_year_yms
+    placeholders = ",".join("?" for _ in target_yms)
+    rows = connection.execute(
+        f"""
+        SELECT ym, nat_label, visitor_count, fetched_at
+        FROM tourism_visitor_stats
+        WHERE ym IN ({placeholders})
+        """,
+        target_yms,
+    ).fetchall()
+
+    monthly = {label: {"this": {}, "last": {}} for label in TOURISM_CATEGORIES}
+    this_set, last_set, present = set(actual_yms), set(last_year_yms), set()
+    latest_fetched_at = None
+    for row in rows:
+        present.add(row["ym"])
+        latest_fetched_at = max(latest_fetched_at or "", row["fetched_at"] or "")
+        if row["nat_label"] not in monthly:
+            continue
+        if row["ym"] in this_set:
+            monthly[row["nat_label"]]["this"][int(row["ym"][4:])] = row["visitor_count"]
+        elif row["ym"] in last_set:
+            monthly[row["nat_label"]]["last"][int(row["ym"][4:])] = row["visitor_count"]
+
+    categories = []
+    for label in TOURISM_CATEGORIES:
+        this_monthly = monthly[label]["this"]
+        last_monthly = monthly[label]["last"]
+        this_value = sum(this_monthly.values())
+        last_value = sum(last_monthly.get(month, 0) for month in range(1, latest_month + 1))
+        change_rate = (
+            round((this_value - last_value) / last_value * 100, 1)
+            if last_value else None
+        )
+        yoy_growth = (this_value / last_value) if last_value else 1.0
+        ratios = [
+            this_monthly[month] / last_monthly[month]
+            for month in range(1, latest_month + 1)
+            if month in this_monthly and last_monthly.get(month, 0) > 0
+        ]
+        recent_ratio = sum(ratios[-3:]) / len(ratios[-3:]) if ratios else yoy_growth
+        trend_factor = recent_ratio / yoy_growth if yoy_growth else 1.0
+        trend_factor = min(max(trend_factor, 0.7), 1.3)
+        forecast = {
+            month: round(last_monthly[month] * yoy_growth * trend_factor)
+            for month in range(latest_month + 1, 13)
+            if month in last_monthly
+        }
+        chart_max = max(
+            [*last_monthly.values(), *this_monthly.values(), *forecast.values(), 1]
+        )
+        left, right, top, bottom = 22.0, 578.0, 18.0, 176.0
+        month_x = lambda month: left + ((month - 1) / 11) * (right - left)
+        value_y = lambda value: bottom - (value / chart_max) * (bottom - top)
+        last_points = " ".join(
+            f"{month_x(month):.1f},{value_y(last_monthly[month]):.1f}"
+            for month in sorted(last_monthly)
+        )
+        actual_points = " ".join(
+            f"{month_x(month):.1f},{value_y(this_monthly[month]):.1f}"
+            for month in sorted(this_monthly)
+        )
+        forecast_series = {}
+        if this_monthly:
+            final_actual_month = max(this_monthly)
+            forecast_series[final_actual_month] = this_monthly[final_actual_month]
+        forecast_series.update(forecast)
+        forecast_points = " ".join(
+            f"{month_x(month):.1f},{value_y(forecast_series[month]):.1f}"
+            for month in sorted(forecast_series)
+        )
+        categories.append({
+            "label": label,
+            "this_value": this_value,
+            "last_value": last_value,
+            "difference": this_value - last_value,
+            "change_rate": change_rate,
+            "yoy_growth": yoy_growth,
+            "trend_factor": trend_factor,
+            "projected_total": this_value + sum(forecast.values()),
+            "last_annual_total": sum(last_monthly.values()),
+            "last_points": last_points,
+            "actual_points": actual_points,
+            "forecast_points": forecast_points,
+        })
+
+    actual_total = sum(item["this_value"] for item in categories)
+    last_same_period_total = sum(item["last_value"] for item in categories)
+    return {
+        "categories": categories,
+        "this_year": latest_year,
+        "last_year": latest_year - 1,
+        "period_label": f"1~{latest_month}월",
+        "latest_ym": latest_ym,
+        "complete": all(ym in present for ym in actual_yms + last_year_yms),
+        "latest_fetched_at": latest_fetched_at,
+        "this_total": actual_total,
+        "last_total": last_same_period_total,
+        "projected_total": sum(item["projected_total"] for item in categories),
+        "last_annual_total": sum(item["last_annual_total"] for item in categories),
+        "actual_month": latest_month,
+    }
+
+
+# ============================================================
 # telegram_ingest_state
 # ============================================================
 

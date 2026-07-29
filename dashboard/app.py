@@ -75,6 +75,7 @@ ENDPOINT_PERMISSIONS = {
     "update_action_item_route": "bug_reports",
     "delete_action_item_route": "bug_reports",
     "performance_page": "performance",
+    "tourism_trend_page": "performance",
     "disclosures_page": "disclosures",
     "laws_page": "laws",
     "companies_page": "companies",
@@ -204,7 +205,8 @@ def inject_globals():
         "dashboard_home": "홈",
         "action_items_page": "버그 및 Q&A",
         "action_item_detail": "버그 및 Q&A",
-        "performance_page": "실적",
+        "performance_page": "데이터",
+        "tourism_trend_page": "관광객 추이",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -738,6 +740,26 @@ def performance_page():
             reports=reports,
             report_date=report_date,
             casino_trend=casino_trend,
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/performance/tourism")
+@login_required
+def tourism_trend_page():
+    connection = dashboard_db()
+    try:
+        comparison = queries.get_tourism_ytd_comparison(connection)
+        latest_run = queries.get_last_successful_run(connection, "tourism_stats_sync")
+        return render_template(
+            "tourism_trend.html",
+            tourism_comparison=comparison,
+            tourism_updated_at=(
+                latest_run.get("finished_at")
+                if latest_run and latest_run.get("finished_at")
+                else (comparison.get("latest_fetched_at") if comparison else None)
+            ),
         )
     finally:
         connection.close()

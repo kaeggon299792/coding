@@ -160,6 +160,13 @@ LAW_API_OC = _get_str("LAW_API_OC")  # 발급받은 기관코드(이메일 아�
 LAW_API_KEY = _get_str("LAW_API_KEY")
 LAW_REQUEST_TIMEOUT_SECONDS = _get_int("LAW_REQUEST_TIMEOUT_SECONDS", 20)
 
+# ============================================================
+# 한국문화관광연구원 출입국관광통계 Open API
+# ============================================================
+
+TOURISM_API_KEY = _get_str("TOURISM_API_KEY")
+TOURISM_REQUEST_TIMEOUT_SECONDS = _get_int("TOURISM_REQUEST_TIMEOUT_SECONDS", 45)
+
 DEFAULT_MONITORED_LAWS = [
     "관광진흥법", "관광진흥법 시행령", "관광진흥법 시행규칙",
     "특정 금융거래정보의 보고 및 이용등에 관한 법률", "외국환거래법",

@@ -248,6 +248,24 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_perf_reports_date ON performance_reports(report_date)"
     )
 
+    # ---- tourism_visitor_stats (출입국관광통계 API 캐시) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tourism_visitor_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ym TEXT NOT NULL,
+            nat_label TEXT NOT NULL,
+            visitor_count INTEGER NOT NULL,
+            fetched_at TEXT NOT NULL,
+            UNIQUE(ym, nat_label)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tourism_visitor_stats_ym "
+        "ON tourism_visitor_stats(ym)"
+    )
+
     # ---- dashboard_analysis_runs ----
     connection.execute(
         """

@@ -6,7 +6,7 @@
   <nav class="topbar-nav">
     <a href="{{ url_for('dashboard_home') }}" {% if request.endpoint == 'dashboard_home' %}class="active"{% endif %}>홈</a>
     <a href="{{ url_for('official_docs.dashboard') }}" {% if request.blueprint == 'official_docs' %}class="active"{% endif %}{% if not menu_permissions.official_docs %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공문·자료관리</a>
-    <a href="{{ url_for('performance_page') }}" {% if request.endpoint == 'performance_page' %}class="active"{% endif %}{% if not menu_permissions.performance %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>실적</a>
+    <a href="{{ url_for('performance_page') }}" {% if request.endpoint in ('performance_page', 'tourism_trend_page') %}class="active"{% endif %}{% if not menu_permissions.performance %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>데이터</a>
     <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}{% if not menu_permissions.disclosures %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>공시·재무</a>
     <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}{% if not menu_permissions.laws %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>법률·규제</a>
     <a href="{{ url_for('companies_page') }}" {% if request.endpoint == 'companies_page' %}class="active"{% endif %}{% if not menu_permissions.companies %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>기업 360°</a>
