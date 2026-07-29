@@ -3,15 +3,13 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
 ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
-COMMIT="${1:?복원할 git commit을 입력하세요}"
-BACKUP_DB="${2:?복원할 dashboard.db 백업 경로를 입력하세요}"
+BACKUP_PATH="${1:?backup_dashboard.sh가 만든 백업 디렉터리를 입력하세요}"
+BACKUP_DB="${BACKUP_PATH}/dashboard.db"
+BACKUP_SOURCE="${BACKUP_PATH}/source-before.tar.gz"
 
 cd "${APP_DIR}"
 test -f "${BACKUP_DB}"
-test -z "$(git status --porcelain)" || {
-  echo "중단: 운영 작업 폴더에 커밋되지 않은 변경이 있습니다." >&2
-  exit 1
-}
+test -f "${BACKUP_SOURCE}"
 
 set -a
 source "${ENV_FILE}"
@@ -33,6 +31,5 @@ with sqlite3.connect(source) as src, sqlite3.connect(temporary) as dst:
 os.replace(temporary, target)
 PY
 
-git checkout --detach "${COMMIT}"
+tar -xzf "${BACKUP_SOURCE}" -C "$(dirname "${APP_DIR}")"
 printf '%s\n' "롤백 완료. PythonAnywhere Web 탭에서 Reload 하세요."
-

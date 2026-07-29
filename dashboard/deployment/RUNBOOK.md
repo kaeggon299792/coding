@@ -15,7 +15,8 @@ chmod +x deployment/*.sh
 ./deployment/deploy_dashboard.sh origin/feature/dashboard-tips-integration
 ```
 
-스크립트 출력의 `backup`과 `previous_commit`을 배포 기록에 보관합니다. 검증
+운영 폴더의 DB·업로드·환경설정은 유지하면서 지정한 Git ref의 `dashboard/`
+소스만 반영합니다. 스크립트 출력의 `backup`과 `previous_commit`을 배포 기록에 보관합니다. 검증
 완료 후 PythonAnywhere Web 탭에서 `dashboard.shingoon.me` 앱을 Reload하고
 홈·로그인·유가/환율·연휴 화면을 확인합니다.
 
@@ -32,8 +33,7 @@ DB, Git 커밋, SHA-256 체크섬을 함께 보관합니다.
 
 ```bash
 ./deployment/rollback_dashboard.sh \
-  <previous_commit> \
-  /home/kaekun/backups/management-dashboard/<timestamp>/dashboard.db
+  /home/kaekun/backups/management-dashboard/<timestamp>
 ```
 
 완료 후 PythonAnywhere Web 탭에서 Reload하고 로그인·목록 조회·DB 무결성을

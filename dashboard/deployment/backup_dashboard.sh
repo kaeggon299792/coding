@@ -31,5 +31,11 @@ PY
 
 git rev-parse HEAD > "${TARGET}/git-commit.txt"
 sha256sum "${TARGET}/dashboard.db" > "${TARGET}/SHA256SUMS"
+tar \
+  --exclude='dashboard/.env' \
+  --exclude='dashboard/data' \
+  --exclude='dashboard/dashboard.db*' \
+  --exclude='dashboard/logs' \
+  -czf "${TARGET}/source-before.tar.gz" \
+  -C "$(dirname "${APP_DIR}")" dashboard
 printf '%s\n' "${TARGET}"
-

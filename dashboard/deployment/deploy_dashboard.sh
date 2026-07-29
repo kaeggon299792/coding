@@ -6,17 +6,17 @@ PYTHON="${PYTHON:-python3}"
 TARGET_REF="${1:-origin/feature/dashboard-tips-integration}"
 
 cd "${APP_DIR}"
-test -z "$(git status --porcelain)" || {
-  echo "중단: 운영 작업 폴더에 커밋되지 않은 변경이 있습니다." >&2
-  exit 1
-}
 
 BACKUP_PATH="$("${APP_DIR}/deployment/backup_dashboard.sh")"
 PREVIOUS_COMMIT="$(git rev-parse HEAD)"
 printf 'backup=%s\nprevious_commit=%s\n' "${BACKUP_PATH}" "${PREVIOUS_COMMIT}"
 
-git fetch --prune origin
-git checkout --detach "${TARGET_REF}"
+REPO_DIR="$(git rev-parse --show-toplevel)"
+git -C "${REPO_DIR}" fetch --prune origin
+# PythonAnywhere 운영 폴더에는 DB·업로드·과거 백업 등 Git 비관리 파일이
+# 존재하므로 checkout 대신 검증된 ref의 dashboard 트리만 안전하게 겹쳐 씁니다.
+git -C "${REPO_DIR}" archive "${TARGET_REF}" dashboard |
+  tar -x -C "${REPO_DIR}"
 "${PYTHON}" -m pip install -r requirements.txt
 "${PYTHON}" -m pytest -q tests
 "${PYTHON}" - <<'PY'
@@ -32,5 +32,4 @@ printf '%s\n' \
   "  /login" \
   "  /performance/economy" \
   "  /performance/holidays?year=2026" \
-  "롤백: deployment/rollback_dashboard.sh '${PREVIOUS_COMMIT}' '${BACKUP_PATH}/dashboard.db'"
-
+  "롤백: deployment/rollback_dashboard.sh '${BACKUP_PATH}'"
