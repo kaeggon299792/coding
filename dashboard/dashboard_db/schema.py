@@ -265,6 +265,10 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_tourism_visitor_stats_ym "
         "ON tourism_visitor_stats(ym)"
     )
+    _ensure_column(connection, "tourism_visitor_stats", "changed_at", "TEXT")
+    connection.execute(
+        "UPDATE tourism_visitor_stats SET changed_at=fetched_at WHERE changed_at IS NULL"
+    )
 
     # ---- dashboard_analysis_runs ----
     connection.execute(
@@ -599,6 +603,10 @@ def migrate(connection):
             PRIMARY KEY (series_code, observation_date)
         )
         """
+    )
+    _ensure_column(connection, "economic_series", "changed_at", "TEXT")
+    connection.execute(
+        "UPDATE economic_series SET changed_at=fetched_at WHERE changed_at IS NULL"
     )
 
     connection.execute(

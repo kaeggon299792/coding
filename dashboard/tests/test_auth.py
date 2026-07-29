@@ -51,8 +51,13 @@ def test_login_succeeds_with_correct_credentials(client):
     assert response.status_code == 302
 
 
-def test_protected_page_redirects_to_login_when_not_authenticated(client):
+def test_public_home_is_available_when_not_authenticated(client):
     response = client.get("/", follow_redirects=False)
+    assert response.status_code == 200
+
+
+def test_protected_page_redirects_to_login_when_not_authenticated(client):
+    response = client.get("/official-docs/", follow_redirects=False)
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 

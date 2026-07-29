@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard_db import queries  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import market_data  # noqa: E402
+from services import market_data, sync_alerts  # noqa: E402
 from utils import setup_logger  # noqa: E402
 
 logger = setup_logger("market_quote_sync")
@@ -29,6 +29,7 @@ def run():
         status = "success" if not errors else ("partial_failure" if result["quotes"] else "failed")
         detail = "; ".join(sorted(set(errors))) if errors else None
         queries.finish_analysis_run(connection, run_id, status, detail)
+        sync_alerts.notify_issue("market_quote_sync", status, errors)
         logger.info(
             "시장 시세 동기화 완료: 저장 %d건, 오류 %d건",
             len(result["quotes"]), len(errors),
@@ -37,6 +38,7 @@ def run():
         logger.error("시장 시세 동기화 실패: %s", error)
         queries.log_error(connection, "market_quote_sync", type(error).__name__, str(error))
         queries.finish_analysis_run(connection, run_id, "failed", str(error))
+        sync_alerts.notify_issue("market_quote_sync", "failed", str(error))
     finally:
         connection.close()
 

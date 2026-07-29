@@ -767,15 +767,15 @@ def tourism_trend_page():
     connection = dashboard_db()
     try:
         comparison = queries.get_tourism_ytd_comparison(connection)
-        latest_run = queries.get_last_successful_run(connection, "tourism_stats_sync")
+        freshness = queries.get_data_freshness(
+            connection, "tourism_visitor_stats", "tourism_stats_sync"
+        )
         return render_template(
             "tourism_trend.html",
             tourism_comparison=comparison,
-            tourism_updated_at=(
-                latest_run.get("finished_at")
-                if latest_run and latest_run.get("finished_at")
-                else (comparison.get("latest_fetched_at") if comparison else None)
-            ),
+            tourism_checked_at=freshness["checked_at"],
+            tourism_changed_at=freshness["changed_at"],
+            tourism_check_status=freshness["check_status"],
         )
     finally:
         connection.close()
@@ -787,12 +787,16 @@ def economic_trend_page():
     connection = dashboard_db()
     try:
         series = queries.list_economic_series(connection)
-        latest_run = queries.get_last_successful_run(connection, "economic_data_sync")
+        freshness = queries.get_data_freshness(
+            connection, "economic_series", "economic_data_sync"
+        )
         return render_template(
             "economic_trend.html",
             oil_series=[item for item in series if item["category"] == "oil"],
             exchange_series=[item for item in series if item["category"] == "exchange"],
-            economic_updated_at=latest_run.get("finished_at") if latest_run else None,
+            economic_checked_at=freshness["checked_at"],
+            economic_changed_at=freshness["changed_at"],
+            economic_check_status=freshness["check_status"],
         )
     finally:
         connection.close()
@@ -819,7 +823,9 @@ def disclosures_page():
     try:
         days = int(request.args.get("days", 7))
         disclosures = queries.list_recent_disclosures(connection, days=days)
-        latest_dart_sync = queries.get_last_successful_run(connection, "dart_sync")
+        freshness = queries.get_data_freshness(
+            connection, "dart_disclosures", "dart_sync", "fetched_at"
+        )
         analyses = {
             d["id"]: queries.get_disclosure_analysis(connection, d["id"])
             for d in disclosures
@@ -829,10 +835,13 @@ def disclosures_page():
             disclosures=disclosures,
             analyses=analyses,
             days=days,
-            disclosure_updated_at=(
-                official_document_manager.datetime_minute(latest_dart_sync["finished_at"])
-                if latest_dart_sync and latest_dart_sync.get("finished_at") else None
-            ),
+            disclosure_checked_at=official_document_manager.datetime_minute(
+                freshness["checked_at"]
+            ) if freshness["checked_at"] else None,
+            disclosure_changed_at=official_document_manager.datetime_minute(
+                freshness["changed_at"]
+            ) if freshness["changed_at"] else None,
+            disclosure_check_status=freshness["check_status"],
         )
     finally:
         connection.close()
@@ -848,7 +857,7 @@ def laws_page():
     connection = dashboard_db()
     try:
         updates = queries.list_recent_law_updates(connection, days=90)
-        latest_law_sync = queries.get_last_successful_run(connection, "law_sync")
+        latest_law_sync = queries.get_latest_completed_run(connection, "law_sync")
         latest_law_row = connection.execute(
             "SELECT MAX(fetched_at) AS updated_at FROM law_updates"
         ).fetchone()
@@ -870,10 +879,14 @@ def laws_page():
             legislative_bills=legislative_bills,
             casino_rules_url="https://www.law.go.kr/행정규칙/카지노업영업준칙",
             casino_rules_annex_url="https://www.law.go.kr/법령/관광진흥법시행규칙/제36조",
-            law_updated_at=(
+            law_checked_at=(
                 official_document_manager.datetime_minute(latest_law_checked_at)
                 if latest_law_checked_at else None
             ),
+            law_changed_at=official_document_manager.datetime_minute(
+                latest_law_row["updated_at"]
+            ) if latest_law_row and latest_law_row["updated_at"] else None,
+            law_check_status=latest_law_sync.get("status") if latest_law_sync else None,
         )
     finally:
         connection.close()
@@ -928,8 +941,12 @@ def research_library_page():
             allowed_companies = {
                 item["name"] for item in queries.list_monitored_companies(connection)
             }
+            submitted_company_names = request.form.getlist("company_names")
+            # Older forms and clients used a single company_name field.
+            if not submitted_company_names:
+                submitted_company_names = [request.form.get("company_name", "")]
             company_names = list(dict.fromkeys(
-                name.strip() for name in request.form.getlist("company_names")
+                name.strip() for name in submitted_company_names
                 if name.strip() in allowed_companies
             ))
             if not company_names:

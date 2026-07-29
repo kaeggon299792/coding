@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard_db import queries
 from extensions import dashboard_db
-from services import tourism_stats_client
+from services import sync_alerts, tourism_stats_client
 from utils import setup_logger
 
 logger = setup_logger("tourism_stats_sync")
@@ -42,9 +42,11 @@ def run():
                 queries.upsert_tourism_stat(connection, ym, label, count)
         status = "success" if not failures else "partial_failure"
         queries.finish_analysis_run(connection, run_id, status, "; ".join(failures))
+        sync_alerts.notify_issue("tourism_stats_sync", status, failures)
         logger.info("관광 통계 동기화: 대상 %d개월, 실패 %d개월", len(targets), len(failures))
     except Exception as error:
         queries.finish_analysis_run(connection, run_id, "failed", str(error))
+        sync_alerts.notify_issue("tourism_stats_sync", "failed", str(error))
         logger.error("관광 통계 동기화 실패: %s", error)
         raise
     finally:

@@ -7,7 +7,11 @@
     <p class="page-eyebrow">Intelligence / Legal</p>
     <h1 class="page-title">법률·규제</h1>
     <p class="page-description">카지노 영업 핵심 규정과 모니터링 중인 법령의 현행 원문·변경 이력을 확인합니다.</p>
-    <div class="data-freshness-row"><span class="data-freshness"><b>법률·규제 최종 업데이트</b>{{ law_updated_at or '업데이트 기록 없음' }}</span></div>
+    <div class="data-freshness-row">
+      <span class="data-freshness"><b>최종 확인</b>{{ law_checked_at or '확인 기록 없음' }}</span>
+      <span class="data-freshness"><b>최종 변경</b>{{ law_changed_at or '변경 기록 없음' }}</span>
+      {% if law_check_status and law_check_status != 'success' %}<span class="data-freshness is-warning"><b>확인 상태</b>일부 데이터 확인 필요</span>{% endif %}
+    </div>
   </div>
 
   <section class="panel critical-law-card">

@@ -508,15 +508,20 @@ TOURISM_CATEGORIES = ["중국", "일본", "대만", "몽골", "기타"]
 
 
 def upsert_tourism_stat(connection, ym, nat_label, visitor_count):
+    now = now_kst().isoformat(timespec="seconds")
     connection.execute(
         """
-        INSERT INTO tourism_visitor_stats (ym, nat_label, visitor_count, fetched_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO tourism_visitor_stats
+            (ym, nat_label, visitor_count, fetched_at, changed_at)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(ym, nat_label) DO UPDATE SET
+            changed_at = CASE
+                WHEN tourism_visitor_stats.visitor_count != excluded.visitor_count
+                THEN excluded.changed_at ELSE tourism_visitor_stats.changed_at END,
             visitor_count = excluded.visitor_count,
             fetched_at = excluded.fetched_at
         """,
-        (ym, nat_label, visitor_count, now_kst().isoformat(timespec="seconds")),
+        (ym, nat_label, visitor_count, now, now),
     )
     connection.commit()
 
@@ -1369,18 +1374,23 @@ def list_market_quotes(connection):
 
 
 def upsert_economic_observation(connection, item):
+    now = now_kst().isoformat()
     connection.execute(
         """
         INSERT INTO economic_series (
-            series_code, observation_date, label, category, value, unit, source, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            series_code, observation_date, label, category, value, unit, source,
+            fetched_at, changed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(series_code, observation_date) DO UPDATE SET
+            changed_at=CASE
+                WHEN economic_series.value != excluded.value
+                THEN excluded.changed_at ELSE economic_series.changed_at END,
             value=excluded.value, fetched_at=excluded.fetched_at
         """,
         (
             item["series_code"], item["observation_date"], item["label"],
             item["category"], item["value"], item["unit"], item["source"],
-            now_kst().isoformat(),
+            now, now,
         ),
     )
     connection.commit()
@@ -1517,6 +1527,36 @@ def get_last_successful_run(connection, run_type):
         (run_type,),
     ).fetchone()
     return dict(row) if row else None
+
+
+def get_latest_completed_run(connection, run_type):
+    row = connection.execute(
+        "SELECT * FROM dashboard_analysis_runs "
+        "WHERE run_type = ? AND status != 'running' "
+        "ORDER BY finished_at DESC LIMIT 1",
+        (run_type,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def get_data_freshness(connection, table, checked_run_type, changed_column="changed_at"):
+    allowed = {
+        "tourism_visitor_stats": {"changed_at", "fetched_at"},
+        "economic_series": {"changed_at", "fetched_at"},
+        "dart_disclosures": {"fetched_at"},
+        "law_updates": {"fetched_at"},
+    }
+    if table not in allowed or changed_column not in allowed[table]:
+        raise ValueError("Unsupported freshness source")
+    latest_run = get_latest_completed_run(connection, checked_run_type)
+    row = connection.execute(
+        f"SELECT MAX({changed_column}) AS changed_at FROM {table}"
+    ).fetchone()
+    return {
+        "checked_at": latest_run.get("finished_at") if latest_run else None,
+        "check_status": latest_run.get("status") if latest_run else None,
+        "changed_at": row["changed_at"] if row else None,
+    }
 
 
 # ============================================================

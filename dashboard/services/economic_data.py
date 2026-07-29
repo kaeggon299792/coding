@@ -16,7 +16,12 @@ def _number(value):
 def fetch_oil():
     if not config.OPINET_API_KEY: return {"items": [], "errors": ["OPINET_API_KEY 미설정"]}
     try:
-        response = get_with_hard_timeout(OPINET_URL, hard_timeout_seconds=config.ECONOMIC_DATA_REQUEST_TIMEOUT_SECONDS, params={"out":"json","certkey":config.OPINET_API_KEY}, timeout=config.ECONOMIC_DATA_REQUEST_TIMEOUT_SECONDS)
+        response = get_with_hard_timeout(
+            OPINET_URL,
+            hard_timeout_seconds=config.ECONOMIC_DATA_REQUEST_TIMEOUT_SECONDS,
+            params={"out": "json", "code": config.OPINET_API_KEY},
+            timeout=config.ECONOMIC_DATA_REQUEST_TIMEOUT_SECONDS,
+        )
         response.raise_for_status()
         rows = ((response.json().get("RESULT") or {}).get("OIL") or [])
     except (requests.RequestException, ValueError, HardTimeoutError) as error:
@@ -24,7 +29,7 @@ def fetch_oil():
     items = []
     for row in rows:
         mapping, value = OILS.get(str(row.get("PRODCD") or "")), _number(row.get("PRICE"))
-        date = str(row.get("TRADE_DT") or "").replace("-", "")
+        date = str(row.get("DATE") or row.get("TRADE_DT") or "").replace("-", "")
         if mapping and value is not None and len(date) == 8:
             items.append({"series_code":mapping[0],"observation_date":date,"label":mapping[1],"category":"oil","value":value,"unit":"원/L","source":"한국석유공사 오피넷"})
     return {"items": items, "errors": [] if items else ["오피넷 데이터가 비어 있습니다."]}

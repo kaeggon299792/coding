@@ -7,6 +7,7 @@ from datetime import date
 import requests
 
 import config
+from services.http_utils import HardTimeoutError, get_with_hard_timeout
 
 logger = logging.getLogger("tourism_stats")
 
@@ -35,14 +36,15 @@ def fetch_month(ym, nat_cd=None):
     if nat_cd:
         params["NAT_CD"] = nat_cd
     try:
-        response = requests.get(
+        response = get_with_hard_timeout(
             API_URL,
+            hard_timeout_seconds=config.TOURISM_REQUEST_TIMEOUT_SECONDS + 10,
             params=params,
             timeout=(8, config.TOURISM_REQUEST_TIMEOUT_SECONDS),
             headers={"User-Agent": "ParadiseManagementDashboard/1.0"},
         )
         response.raise_for_status()
-    except requests.RequestException as error:
+    except (requests.RequestException, HardTimeoutError) as error:
         logger.error("관광 통계 API 호출 실패(YM=%s): %s", ym, type(error).__name__)
         return {"ok": False, "error": f"네트워크 오류: {type(error).__name__}"}
 

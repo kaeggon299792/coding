@@ -16,6 +16,7 @@ requests의 timeout= 옵션은 소켓의 각 개별 읽기(recv)에만 적용된
 
 import queue
 import threading
+import time
 
 import requests
 
@@ -24,7 +25,7 @@ class HardTimeoutError(Exception):
     """정해진 시간 안에 응답을 받지 못했을 때 발생한다."""
 
 
-def get_with_hard_timeout(url, hard_timeout_seconds, **kwargs):
+def _get_once(url, hard_timeout_seconds, **kwargs):
     result_queue: "queue.Queue" = queue.Queue(maxsize=1)
 
     def _worker():
@@ -48,3 +49,33 @@ def get_with_hard_timeout(url, hard_timeout_seconds, **kwargs):
     if status == "error":
         raise payload
     return payload
+
+
+def get_with_hard_timeout(
+    url,
+    hard_timeout_seconds,
+    retry_attempts=3,
+    retry_backoff_seconds=0.1,
+    **kwargs,
+):
+    """GET with a wall-clock timeout and bounded transient-error retries.
+
+    Connection errors, hard timeouts, HTTP 429, and HTTP 5xx responses are
+    retried. Other HTTP responses are returned to the caller unchanged.
+    """
+    attempts = max(1, int(retry_attempts))
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            response = _get_once(url, hard_timeout_seconds, **kwargs)
+            if response.status_code != 429 and response.status_code < 500:
+                return response
+            last_error = requests.HTTPError(f"HTTP {response.status_code}")
+            if attempt == attempts - 1:
+                return response
+        except (requests.RequestException, HardTimeoutError) as error:
+            last_error = error
+            if attempt == attempts - 1:
+                raise
+        time.sleep(max(0, retry_backoff_seconds) * (2 ** attempt))
+    raise last_error
