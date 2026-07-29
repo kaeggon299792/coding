@@ -169,6 +169,8 @@ def log_authenticated_activity(response):
 def enforce_menu_permission():
     if not session.get("user_id"):
         return None
+    if request.endpoint == "performance_page" and session.get("username") != "admin":
+        abort(403)
     permission = (
         "official_docs" if request.blueprint == "official_docs"
         else "tips" if request.blueprint == "tips"
