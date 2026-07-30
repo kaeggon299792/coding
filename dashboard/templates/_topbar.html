@@ -7,7 +7,7 @@
   </div>
   <nav class="topbar-nav">
     <a href="{{ url_for('public_home') }}" {% if request.endpoint in ('public_home', 'dashboard_home') %}class="active"{% endif %}>홈</a>
-    <a href="{{ url_for('market_trend_page') }}" {% if request.endpoint in ('related_news_page', 'market_trend_page', 'casino_industry_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page', 'salary_trend_page', 'recruitment_page') %}class="active"{% endif %}>데이터</a>
+    <a href="{{ url_for('casino_industry_page') }}" {% if request.endpoint in ('related_news_page', 'market_trend_page', 'casino_industry_page', 'casino_visitors_page', 'casino_revenue_page', 'casino_fund_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page', 'salary_trend_page', 'recruitment_page') %}class="active"{% endif %}>데이터</a>
     <a href="{{ url_for('disclosures_page') }}" {% if request.endpoint == 'disclosures_page' %}class="active"{% endif %}>공시·재무</a>
     <a href="{{ url_for('laws_page') }}" {% if request.endpoint == 'laws_page' %}class="active"{% endif %}>법률·규제</a>
     <a href="{{ url_for('companies_page') }}" {% if request.endpoint == 'companies_page' %}class="active"{% endif %}>기업 360°</a>

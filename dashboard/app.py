@@ -31,6 +31,7 @@ from extensions import dashboard_db
 from services import (
     ai_insights,
     casino_industry,
+    casino_statistics,
     company_intelligence,
     document_library,
     market_data,
@@ -96,6 +97,9 @@ PUBLIC_READ_ENDPOINTS = {
     "salary_trend_page",
     "recruitment_page",
     "casino_industry_page",
+    "casino_visitors_page",
+    "casino_revenue_page",
+    "casino_fund_page",
     "disclosures_page",
     "laws_page",
     "companies_page",
@@ -247,6 +251,9 @@ def inject_globals():
         "salary_trend_page": "연봉",
         "recruitment_page": "채용",
         "casino_industry_page": "카지노업 현황",
+        "casino_visitors_page": "연도별 카지노 이용객",
+        "casino_revenue_page": "연도별 카지노 매출액 비율",
+        "casino_fund_page": "기금 부과 현황",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -849,6 +856,36 @@ def casino_industry_page():
         casino_industry=casino_industry.build_dashboard(
             request.args.get("region", "").strip()
         ),
+    )
+
+
+@app.route("/performance/casino-industry/visitors")
+def casino_visitors_page():
+    return render_template(
+        "casino_history.html",
+        mode="visitors",
+        page_title="연도별 카지노 이용객",
+        page_description="외래 방한객과 외국인전용 카지노 이용객의 장기 추이·점유율·증감률을 확인합니다.",
+        statistics=casino_statistics.build_visitors(),
+    )
+
+
+@app.route("/performance/casino-industry/revenue")
+def casino_revenue_page():
+    return render_template(
+        "casino_history.html",
+        mode="revenue",
+        page_title="연도별 카지노 매출액 비율",
+        page_description="관광 외화수입 대비 카지노 외화수입의 장기 추이와 점유율을 확인합니다.",
+        statistics=casino_statistics.build_revenue(),
+    )
+
+
+@app.route("/performance/casino-industry/fund")
+def casino_fund_page():
+    return render_template(
+        "casino_fund.html",
+        fund=casino_statistics.build_fund(),
     )
 
 
