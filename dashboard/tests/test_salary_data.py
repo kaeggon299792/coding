@@ -40,6 +40,7 @@ def test_salary_snapshots_keep_monthly_history(tmp_path):
 def test_salary_page_is_public():
     from app import app
 
+    app.testing = True
     response = app.test_client().get("/performance/salaries")
     assert response.status_code == 200
     assert "연봉 정보".encode() in response.data
@@ -51,6 +52,7 @@ def test_recruitment_page_is_public_and_searchable(monkeypatch, tmp_path):
     from extensions import dashboard_db
 
     monkeypatch.setattr(config, "DASHBOARD_DB_FILE", str(tmp_path / "recruitment.db"))
+    app.testing = True
     connection = dashboard_db()
     queries.upsert_recruitment_job(connection, {
         "source_name": "잡코리아", "source_job_id": "job-1",

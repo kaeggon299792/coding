@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard_db import queries  # noqa: E402
+import config  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
 from services import recruitment_data, sync_alerts  # noqa: E402
 from utils import now_kst, setup_logger  # noqa: E402
@@ -18,17 +19,20 @@ def run():
     run_id = queries.start_analysis_run(connection, "recruitment_sync")
     try:
         result = recruitment_data.fetch_all()
+        ai_count = 0
         for item in result["items"]:
             existing = connection.execute(
                 "SELECT id, analyzed_at FROM recruitment_jobs "
                 "WHERE source_name=? AND source_job_id=?",
                 (item["source_name"], item["source_job_id"]),
             ).fetchone()
-            if not existing or not existing["analyzed_at"]:
+            if ((not existing or not existing["analyzed_at"])
+                    and ai_count < config.RECRUITMENT_AI_MAX_PER_RUN):
                 analysis, error = recruitment_data.analyze_with_ai(connection, item)
                 item.update(analysis)
                 item["analysis_error"] = error
                 item["analyzed_at"] = now_kst().isoformat() if not error else None
+                ai_count += 1
             queries.upsert_recruitment_job(connection, item)
         errors = result["errors"]
         status = "success" if not errors else (
