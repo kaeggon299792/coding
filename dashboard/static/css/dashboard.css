@@ -881,8 +881,15 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 @media (max-width: 768px) {
-  .topbar { flex-wrap: wrap; height: auto; padding: var(--space-3) var(--space-4); gap: var(--space-2); }
-  .topbar-nav { order: 3; width: 100%; overflow-x: auto; gap: 0; }
+  .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: auto; padding: var(--space-3) var(--space-4); gap: var(--space-2); }
+  .topbar-brand { min-width: 0; }
+  .brand-logo-link { display: flex; flex: 0 0 auto; }
+  .topbar-logo { width: 104px; min-width: 104px; height: 28px; }
+  .topbar-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-actions { justify-content: flex-end; gap: var(--space-2); }
+  .topbar-meta { display: none; }
+  .topbar-nav { grid-column: 1 / -1; width: 100%; overflow-x: auto; overflow-y: hidden; gap: 0; white-space: nowrap; scrollbar-width: thin; }
+  .topbar-nav > a, .topbar-nav > details { flex: 0 0 auto; }
   .page-container { padding: var(--space-4); }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .company-sections { grid-template-columns: 1fr; }
@@ -892,6 +899,7 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 @media (max-width: 480px) {
+  .topbar-account-link, .topbar-actions .btn { font-size: var(--text-xs); }
   .kpi-row { grid-template-columns: 1fr; }
   .login-card { padding: var(--space-6) var(--space-4); }
   .company-metrics { grid-template-columns: repeat(2, 1fr); }
