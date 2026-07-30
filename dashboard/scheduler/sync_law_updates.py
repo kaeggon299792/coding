@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 from dashboard_db import queries  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import ai_insights, assembly_bill_client, economic_data, law_client, market_data, telegram_alert  # noqa: E402
+from services import ai_insights, assembly_bill_client, economic_data, government_notice_client, law_client, market_data, telegram_alert  # noqa: E402
 from utils import setup_logger  # noqa: E402
 
 logger = setup_logger("law_sync")
@@ -97,6 +97,54 @@ def _sync_assembly_bills(connection):
                 if has_baseline:
                     telegram_alert.send_alert(_build_bill_alert(bill))
 
+    return new_count, error_count
+
+
+def _build_government_notice_alert(notice):
+    return "\n".join([
+        "📢 카지노 관련 정부입법예고",
+        "",
+        f"예고명: {notice['notice_name']}",
+        f"소관부처: {notice.get('ministry_name') or '-'}",
+        f"의견제출기간: {notice.get('start_date') or '-'} ~ {notice.get('end_date') or '-'}",
+        f"바로가기: {notice.get('detail_url') or '-'}",
+    ])
+
+
+def _sync_government_notices(connection):
+    new_count = 0
+    error_count = 0
+    seen_ids = set()
+    has_baseline = bool(
+        queries.list_government_legislative_notices(connection, limit=1)
+    )
+    for keyword in config.LAWMAKING_NOTICE_KEYWORDS:
+        result = government_notice_client.search_notices(keyword)
+        if not result.get("ok"):
+            logger.error(
+                "정부입법예고 검색 실패(%s): %s", keyword, result.get("error")
+            )
+            queries.log_error(
+                connection, "law_sync", "government_notice_search",
+                f"{keyword}: {result.get('error', '')}",
+            )
+            error_count += 1
+            continue
+        for node in result.get("notices", []):
+            notice = government_notice_client.normalize_notice(node, keyword)
+            if (
+                not notice.get("notice_id")
+                or not notice.get("notice_name")
+                or notice["notice_id"] in seen_ids
+            ):
+                continue
+            seen_ids.add(notice["notice_id"])
+            if queries.upsert_government_legislative_notice(connection, notice):
+                new_count += 1
+                if has_baseline:
+                    telegram_alert.send_alert(
+                        _build_government_notice_alert(notice)
+                    )
     return new_count, error_count
 
 
@@ -242,13 +290,16 @@ def run():
 
         new_bill_count, bill_error_count = _sync_assembly_bills(connection)
         error_count += bill_error_count
+        new_notice_count, notice_error_count = _sync_government_notices(connection)
+        error_count += notice_error_count
         analyzed_bill_count, analysis_error_count = _analyze_pending_bills(connection)
         market_count, market_error_count = _sync_market_quotes(connection)
         economic_count, economic_error_count = _sync_economic_series(connection)
         logger.info(
             "법률정보 동기화 완료: 법령 변경 %d건, 신규 관련 의안 %d건, "
+            "신규 정부입법예고 %d건, "
             "의안 AI 분석 %d건, 시장 시세 %d건, 오류 %d건",
-            changed_count, new_bill_count, analyzed_bill_count,
+            changed_count, new_bill_count, new_notice_count, analyzed_bill_count,
             market_count, error_count + analysis_error_count + market_error_count + economic_error_count,
         )
         queries.finish_analysis_run(connection, run_id, "success" if error_count == 0 else "partial_failure")

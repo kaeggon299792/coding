@@ -38,12 +38,52 @@
     </div>
   </section>
 
+  <section class="panel legislative-bill-panel government-notice-panel">
+    <div class="section-heading">
+      <div>
+        <p class="page-eyebrow">GOVERNMENT / PRE-ANNOUNCEMENT</p>
+        <h2>정부입법예고</h2>
+        <p>법제처 국민참여입법센터의 카지노 관련 입법예고와 의견제출 기한을 매일 확인합니다.</p>
+      </div>
+      <span>{{ government_notices|length }}건</span>
+    </div>
+    {% if government_notices %}
+    <div class="bill-list">
+      {% for notice in government_notices %}
+      <article class="bill-card government-notice-card">
+        <div class="bill-card-head">
+          <span class="bill-stage{% if notice.is_open %} is-open{% endif %}">{{ '의견제출 진행' if notice.is_open else '예고 종료' }}</span>
+          <time>{{ notice.announcement_date or '-' }}</time>
+        </div>
+        <h3><a href="{{ notice.detail_url }}" target="_blank" rel="noopener noreferrer">{{ notice.notice_name }}</a></h3>
+        <dl>
+          <div><dt>소관부처</dt><dd>{{ notice.ministry_name or '-' }}</dd></div>
+          <div><dt>법령종류</dt><dd>{{ notice.law_type or '-' }}</dd></div>
+          <div><dt>공고번호</dt><dd>{{ notice.announcement_no or '-' }}</dd></div>
+          <div><dt>검색 기준</dt><dd>{{ notice.matched_keyword or '-' }}</dd></div>
+        </dl>
+        <div class="notice-deadline">
+          <span>의견제출 기간</span>
+          <strong>{{ notice.start_date or '-' }} ~ {{ notice.end_date or '-' }}</strong>
+        </div>
+        <div class="notice-links">
+          <a class="btn btn-small" href="{{ notice.detail_url }}" target="_blank" rel="noopener noreferrer">입법예고 원문 ↗</a>
+          {% if notice.attachment_url %}<a class="btn btn-small btn-secondary" href="{{ notice.attachment_url }}" target="_blank" rel="noopener noreferrer">첨부파일 ↗</a>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">확인된 카지노 관련 정부입법예고가 없습니다.</p>
+    {% endif %}
+  </section>
+
   <section class="panel legislative-bill-panel">
     <div class="section-heading">
       <div>
         <p class="page-eyebrow">NATIONAL ASSEMBLY / LEGISLATION</p>
         <h2>카지노 관련 입법 동향</h2>
-        <p>열린국회정보 의안정보를 매일 확인합니다. 의안명을 누르면 국회 원문으로 이동합니다.</p>
+        <p>열린국회정보의 국회 발의·심사 의안을 매일 확인합니다. 의안명을 누르면 국회 원문으로 이동합니다.</p>
       </div>
       <span>{{ legislative_bills|length }}건</span>
     </div>

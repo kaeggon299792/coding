@@ -6,7 +6,8 @@ EXPECTED_TABLES = {
     "dashboard_analysis_runs", "telegram_ingest_state", "monitored_companies",
     "company_research_profiles", "research_documents",
     "dart_disclosures", "disclosure_analysis", "monitored_laws", "law_updates",
-    "law_analysis", "legislative_bills", "market_quotes", "market_quote_history", "economic_series",
+    "law_analysis", "legislative_bills", "government_legislative_notices",
+    "market_quotes", "market_quote_history", "economic_series",
     "api_usage", "errors",
 }
 

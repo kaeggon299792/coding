@@ -1276,6 +1276,68 @@ def save_legislative_bill_analysis(connection, bill_id, analysis=None, error=Non
     connection.commit()
 
 
+def upsert_government_legislative_notice(connection, notice):
+    existing = connection.execute(
+        "SELECT id FROM government_legislative_notices WHERE notice_id=?",
+        (notice["notice_id"],),
+    ).fetchone()
+    now = now_kst().isoformat()
+    connection.execute(
+        """
+        INSERT INTO government_legislative_notices (
+            notice_id, notice_name, law_type, ministry_name, announcement_no,
+            announcement_date, start_date, end_date, attachment_name,
+            attachment_url, detail_url, view_count, announcement_type,
+            matched_keyword, first_seen_at, last_checked_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(notice_id) DO UPDATE SET
+            notice_name=excluded.notice_name,
+            law_type=excluded.law_type,
+            ministry_name=excluded.ministry_name,
+            announcement_no=excluded.announcement_no,
+            announcement_date=excluded.announcement_date,
+            start_date=excluded.start_date,
+            end_date=excluded.end_date,
+            attachment_name=excluded.attachment_name,
+            attachment_url=excluded.attachment_url,
+            detail_url=excluded.detail_url,
+            view_count=excluded.view_count,
+            announcement_type=excluded.announcement_type,
+            matched_keyword=excluded.matched_keyword,
+            last_checked_at=excluded.last_checked_at,
+            updated_at=excluded.updated_at
+        """,
+        (
+            notice["notice_id"], notice["notice_name"], notice.get("law_type"),
+            notice.get("ministry_name"), notice.get("announcement_no"),
+            notice.get("announcement_date"), notice.get("start_date"),
+            notice.get("end_date"), notice.get("attachment_name"),
+            notice.get("attachment_url"), notice.get("detail_url"),
+            notice.get("view_count"), notice.get("announcement_type"),
+            notice.get("matched_keyword"), now, now, now,
+        ),
+    )
+    connection.commit()
+    return existing is None
+
+
+def list_government_legislative_notices(connection, limit=50):
+    rows = connection.execute(
+        """
+        SELECT *,
+               CASE
+                 WHEN end_date IS NOT NULL AND replace(end_date, '.', '-') >= date('now')
+                 THEN 1 ELSE 0
+               END AS is_open
+        FROM government_legislative_notices
+        ORDER BY is_open DESC, COALESCE(announcement_date, '') DESC, id DESC
+        LIMIT ?
+        """,
+        (max(1, int(limit)),),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def upsert_market_quote(connection, quote):
     connection.execute(
         """

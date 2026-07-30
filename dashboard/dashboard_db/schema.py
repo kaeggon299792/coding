@@ -560,6 +560,35 @@ def migrate(connection):
 
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS government_legislative_notices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            notice_id TEXT NOT NULL UNIQUE,
+            notice_name TEXT NOT NULL,
+            law_type TEXT,
+            ministry_name TEXT,
+            announcement_no TEXT,
+            announcement_date TEXT,
+            start_date TEXT,
+            end_date TEXT,
+            attachment_name TEXT,
+            attachment_url TEXT,
+            detail_url TEXT,
+            view_count INTEGER,
+            announcement_type TEXT,
+            matched_keyword TEXT,
+            first_seen_at TEXT NOT NULL,
+            last_checked_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_government_notices_date "
+        "ON government_legislative_notices(announcement_date DESC, end_date DESC)"
+    )
+
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS market_quotes (
             symbol TEXT PRIMARY KEY,
             name TEXT NOT NULL,
