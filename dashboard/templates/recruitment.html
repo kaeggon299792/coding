@@ -23,12 +23,18 @@
   <section class="recruitment-list">
     {% for job in jobs %}
     <article class="recruitment-card">
-      <header><span>{{ job.source_name }}</span><time>{{ (job.posted_at or job.first_seen_at)[:10] }}</time></header>
+      <header>
+        <span class="employment-badge employment-{{ job.employment_type or '미표시' }}">{{ job.employment_type or '고용형태 미표시' }}</span>
+        <div><span>{{ job.source_name }}</span><time>{{ (job.posted_at or job.first_seen_at)[:10] }}</time></div>
+      </header>
       <h2><a href="{{ job.source_url }}" target="_blank" rel="noopener noreferrer">{{ job.title }}</a></h2>
       {% if job.company_name %}<p class="recruitment-company">{{ job.company_name }}</p>{% endif %}
-      <div class="recruitment-badges"><span>{{ job.employment_type or '고용형태 미표시' }}</span>{% if job.location %}<span>{{ job.location }}</span>{% endif %}{% if job.deadline %}<span>마감 {{ job.deadline }}</span>{% endif %}</div>
-      <dl><div><dt>급여·처우</dt><dd>{{ job.compensation_summary or '공고 내 명시 없음' }}</dd></div><div><dt>복리후생</dt><dd>{{ job.benefits_summary or '공고 내 명시 없음' }}</dd></div><div><dt>처우 평가</dt><dd>{{ job.treatment_level or '판단불가' }}</dd></div></dl>
-      <p class="recruitment-summary">{{ job.ai_summary or '공고 원문을 확인해주세요.' }}</p>
+      <div class="recruitment-badges">{% if job.location %}<span>근무지 · {{ job.location }}</span>{% endif %}{% if job.deadline %}<span>마감 · {{ job.deadline }}</span>{% endif %}</div>
+      <dl>
+        <div class="is-primary"><dt>연봉·급여</dt><dd>{{ job.compensation_summary or '공고 내 명시 없음' }}</dd></div>
+        <div><dt>복리후생</dt><dd>{{ job.benefits_summary or '공고 내 명시 없음' }}</dd></div>
+        <div><dt>처우 수준</dt><dd>{{ job.treatment_level or '판단불가' }}</dd></div>
+      </dl>
       {% if job.analysis_error %}<small>AI 분석 대기 · 규칙 기반 요약 표시 중</small>{% endif %}
       <footer><a href="{{ job.source_url }}" target="_blank" rel="noopener noreferrer">공고 원문 보기 ↗</a></footer>
     </article>
