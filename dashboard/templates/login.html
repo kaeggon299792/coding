@@ -23,6 +23,8 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button class="test-login-button" type="submit"><strong>테스트 계정으로 로그인</strong><span>아이디·비밀번호 입력 없이 둘러보기</span></button>
   </form>
-  <a class="test-login-button guest-access-button" href="{{ url_for('public_home') }}"><strong>로그인하지 않고 이용하기</strong><span>공개 메뉴와 대시보드 보기</span></a>
+  <div class="test-login-form">
+    <a class="test-login-button guest-access-button" href="{{ url_for('public_home') }}"><strong>로그인하지 않고 이용하기</strong><span>공개 메뉴와 대시보드 보기</span></a>
+  </div>
 </div>
 {% endblock %}
