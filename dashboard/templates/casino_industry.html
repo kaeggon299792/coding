@@ -21,7 +21,7 @@
         <small>지역을 선택하면 사업장 목록이 필터링됩니다.</small>
       </header>
       <div class="casino-korea-map" role="img" aria-label="서울, 인천, 강원 평창, 대구, 부산, 제주에 있는 17개 카지노 사업장">
-        <img src="{{ url_for('static', filename='img/kr.svg') }}" alt="" aria-hidden="true">
+        <img src="{{ url_for('static', filename='img/kr.svg') }}?v=20260730-2" alt="" aria-hidden="true">
         {% for marker in casino_industry.markers %}
         <a class="casino-map-marker{% if marker.selected %} is-selected{% endif %}" style="left:{{ marker.x }}%;top:{{ marker.y }}%" href="{{ url_for('casino_industry_page', region=marker.region) }}" aria-label="{{ marker.region }} {{ marker.count }}개 사업장">
           <i></i><span><b>{{ marker.region }}</b><small>{{ marker.count }}개 · {{ "{:,.0f}".format(marker.revenue) }}백만</small></span>
