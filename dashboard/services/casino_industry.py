@@ -149,7 +149,7 @@ def build_dashboard(selected_region: str = "") -> dict:
         "markers": markers,
         "summary": {
             "venue_count": len(CASINOS),
-            "area_sqm": sum(item["area_sqm"] for item in CASINOS),
+            "area_sqm": round(sum(item["area_sqm"] for item in CASINOS), 2),
             "revenue_2024": sum(item["revenue_2024"] for item in CASINOS),
             "visitors_2024": sum(item["visitors_2024"] for item in CASINOS),
             "direct_count": operation_counts["직영"],
