@@ -79,6 +79,37 @@ def _polyline(values, width=920, height=260, pad=24, maximum=None):
     )
 
 
+def _chart_points(values, years, width=920, height=260, pad=24, maximum=None):
+    maximum = maximum or max(value for value in values if value is not None)
+    usable_width = width - pad * 2
+    usable_height = height - pad * 2
+    count = max(len(values) - 1, 1)
+    return [
+        {
+            "year": year,
+            "value": value,
+            "x": round(pad + index * usable_width / count, 1),
+            "y": round(height - pad - (value or 0) / maximum * usable_height, 1),
+        }
+        for index, (year, value) in enumerate(zip(years, values))
+        if value is not None
+    ]
+
+
+def _year_ticks(years, width=920, pad=24):
+    interval = 5 if len(years) >= 20 else 2
+    count = max(len(years) - 1, 1)
+    usable_width = width - pad * 2
+    return [
+        {
+            "year": year,
+            "x": round(pad + index * usable_width / count, 1),
+        }
+        for index, year in enumerate(years)
+        if year % interval == 0 or year == years[-1]
+    ]
+
+
 def build_visitors() -> dict:
     rows = [
         {"year": year, "foreign_visitors": foreign, "casino_visitors": casino,
@@ -86,12 +117,21 @@ def build_visitors() -> dict:
         for year, foreign, casino, share, growth in VISITOR_HISTORY
     ]
     maximum = max(row["foreign_visitors"] for row in rows)
+    years = [row["year"] for row in rows]
+    foreign_values = [row["foreign_visitors"] for row in rows]
+    casino_values = [row["casino_visitors"] for row in rows]
+    share_values = [row["share"] for row in rows]
     return {
         "rows": rows,
         "latest": rows[-1],
-        "foreign_points": _polyline([row["foreign_visitors"] for row in rows], maximum=maximum),
-        "casino_points": _polyline([row["casino_visitors"] for row in rows], maximum=maximum),
-        "share_points": _polyline([row["share"] for row in rows], height=150),
+        "foreign_points": _polyline(foreign_values, maximum=maximum),
+        "casino_points": _polyline(casino_values, maximum=maximum),
+        "share_points": _polyline(share_values, height=150),
+        "foreign_chart_points": _chart_points(foreign_values, years, maximum=maximum),
+        "casino_chart_points": _chart_points(casino_values, years, maximum=maximum),
+        "share_chart_points": _chart_points(share_values, years, height=150),
+        "year_ticks": _year_ticks(years),
+        "share_year_ticks": _year_ticks(years),
     }
 
 
@@ -102,12 +142,21 @@ def build_revenue() -> dict:
         for year, tourism, tourism_growth, casino, casino_growth, share in REVENUE_HISTORY
     ]
     maximum = max(row["tourism_income"] for row in rows)
+    years = [row["year"] for row in rows]
+    tourism_values = [row["tourism_income"] for row in rows]
+    casino_values = [row["casino_income"] for row in rows]
+    share_values = [row["share"] for row in rows]
     return {
         "rows": rows,
         "latest": rows[-1],
-        "tourism_points": _polyline([row["tourism_income"] for row in rows], maximum=maximum),
-        "casino_points": _polyline([row["casino_income"] for row in rows], maximum=maximum),
-        "share_points": _polyline([row["share"] for row in rows], height=150),
+        "tourism_points": _polyline(tourism_values, maximum=maximum),
+        "casino_points": _polyline(casino_values, maximum=maximum),
+        "share_points": _polyline(share_values, height=150),
+        "tourism_chart_points": _chart_points(tourism_values, years, maximum=maximum),
+        "casino_chart_points": _chart_points(casino_values, years, maximum=maximum),
+        "share_chart_points": _chart_points(share_values, years, height=150),
+        "year_ticks": _year_ticks(years),
+        "share_year_ticks": _year_ticks(years),
     }
 
 
@@ -118,6 +167,7 @@ def build_fund() -> dict:
     ]
     lookup = {row["name"]: row["values"] for row in rows}
     maximum = max(lookup["총계"])
+    years = list(FUND_YEARS)
     return {
         "years": FUND_YEARS,
         "rows": rows,
@@ -129,4 +179,14 @@ def build_fund() -> dict:
         "foreign_points": _polyline(lookup["외국인전용 합계"], maximum=maximum),
         "kangwon_points": _polyline(lookup["강원랜드"], maximum=maximum),
         "total_points": _polyline(lookup["총계"], maximum=maximum),
+        "foreign_chart_points": _chart_points(
+            lookup["외국인전용 합계"], years, maximum=maximum
+        ),
+        "kangwon_chart_points": _chart_points(
+            lookup["강원랜드"], years, maximum=maximum
+        ),
+        "total_chart_points": _chart_points(
+            lookup["총계"], years, maximum=maximum
+        ),
+        "year_ticks": _year_ticks(years),
     }

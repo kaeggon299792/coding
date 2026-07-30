@@ -52,6 +52,14 @@ def test_casino_history_latest_values_match_report():
         "kangwon": 142626,
         "total": 362096,
     }
+    assert [tick["year"] for tick in visitors["year_ticks"]] == [
+        1995, 2000, 2005, 2010, 2015, 2020, 2025
+    ]
+    assert visitors["casino_chart_points"][-1]["value"] == 3494051
+    assert revenue["share_chart_points"][-1]["value"] == 7.3
+    assert [tick["year"] for tick in fund["year_ticks"]] == [
+        2016, 2018, 2020, 2022, 2024, 2025
+    ]
 
 
 @pytest.mark.parametrize(
@@ -66,3 +74,7 @@ def test_casino_statistics_pages_are_public(client, path, title):
     response = client.get(path)
     assert response.status_code == 200
     assert title.encode() in response.data
+    assert b"casino-interactive-chart" in response.data
+    assert b"casino-chart-hitpoint" in response.data
+    assert b"casino-chart-tooltip" in response.data
+    assert b"js/casino-charts.js" in response.data
