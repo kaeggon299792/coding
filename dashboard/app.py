@@ -122,12 +122,14 @@ def apply_security_headers(response):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "; ".join((
         "default-src 'self'",
-        f"script-src 'self' 'nonce-{nonce}'",
+        f"script-src 'self' 'nonce-{nonce}' https://www.googletagmanager.com",
         "script-src-attr 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
         "font-src 'self' https://cdn.jsdelivr.net data:",
-        "img-src 'self' data:",
-        "connect-src 'self'",
+        "img-src 'self' data: https://www.google-analytics.com https://www.googletagmanager.com",
+        "connect-src 'self' https://www.google-analytics.com https://analytics.google.com "
+        "https://region1.google-analytics.com https://www.googletagmanager.com",
+        "frame-src https://www.googletagmanager.com",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",

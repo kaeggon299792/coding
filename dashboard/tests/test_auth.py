@@ -67,6 +67,13 @@ def test_public_home_is_available_when_not_authenticated(client):
     assert "CASINO IN / MANAGEMENT DASHBOARD" in html
     assert 'img/casino-in-logo.png' in html
     assert "파라디안 전용" in html
+    assert "GTM-MVWKPPRP" in html
+    assert "https://www.googletagmanager.com/gtm.js" in html
+    policy = response.headers["Content-Security-Policy"]
+    assert "script-src 'self' 'nonce-" in policy
+    assert "https://www.googletagmanager.com" in policy
+    assert "https://www.google-analytics.com" in policy
+    assert "frame-src https://www.googletagmanager.com" in policy
 
 
 def test_login_page_has_guest_access_button(client):

@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#09090b">
 <title>{% block title %}Dashboard{% endblock %} | CASINO IN / MANAGEMENT DASHBOARD</title>
 <meta name="description" content="CASINO IN 경영기획 인텔리전스 대시보드 — 뉴스·공시·법률·기업정보를 한 화면에서.">
+<!-- Google Tag Manager -->
+<script nonce="{{ csp_nonce }}">
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MVWKPPRP');
+</script>
+<!-- End Google Tag Manager -->
 <script nonce="{{ csp_nonce }}">
 (() => {
   const saved = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
@@ -21,6 +30,10 @@
 {% block extra_head %}{% endblock %}
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MVWKPPRP"
+height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 <div class="page-loader" id="page-loader" role="status" aria-live="polite" aria-label="페이지 로딩 중">
   <div class="page-loader-card">
     <div class="page-loader-head"><span class="page-loader-label">CASINO IN · Loading</span><span class="page-loader-percent" id="page-loader-percent">0%</span></div>
