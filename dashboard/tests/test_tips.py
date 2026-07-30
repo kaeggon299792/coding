@@ -156,6 +156,13 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
             browser_session["username"] = "admin"
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "d" * 64
+        category_created = client.post(
+            "/tips/sites/categories",
+            data={
+                "csrf_token": "d" * 64,
+                "name": "통계·공공데이터",
+            },
+        )
         created = client.post(
             "/tips/sites",
             data={
@@ -174,6 +181,7 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
     assert public_page.status_code == 200
     assert "자료 게시판" in public_page.get_data(as_text=True)
     assert anonymous_create.status_code == 403
+    assert category_created.status_code == 302
     assert created.status_code == 302
     page = listing.get_data(as_text=True)
     assert listing.status_code == 200
@@ -186,6 +194,12 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
         "SELECT * FROM related_sites WHERE title='국가법령정보센터'"
     ).fetchone()
     assert site["is_pinned"] == 1
+    category = connection.execute(
+        "SELECT * FROM related_site_categories WHERE name=?",
+        ("통계·공공데이터",),
+    ).fetchone()
+    assert category is not None
+    assert category["is_active"] == 1
     connection.close()
 
 

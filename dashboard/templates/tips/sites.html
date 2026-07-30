@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}관련 사이트 · 자료실{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260730-related-sites">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260730-site-categories">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container tips-shell">
@@ -13,13 +13,22 @@
   </header>
 
   {% if current_user_role == 'admin' %}
+  <details class="site-admin-panel category-admin-panel">
+    <summary>관련 사이트 카테고리 추가</summary>
+    <form class="site-category-form" method="post" action="{{ url_for('tips.add_site_category_page') }}">
+      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+      <label><span>새 카테고리명 <b>*</b></span><input name="name" maxlength="50" required placeholder="예: 통계·공공데이터"></label>
+      <button class="btn" type="submit">카테고리 추가</button>
+    </form>
+    {% if categories %}<div class="site-category-list" aria-label="등록된 카테고리">{% for category in categories %}<span>{{ category }}</span>{% endfor %}</div>{% endif %}
+  </details>
   <details class="site-admin-panel">
     <summary>새 관련 사이트 등록</summary>
     <form class="site-form" method="post" action="{{ url_for('tips.sites_page') }}">
       <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <label><span>사이트명 <b>*</b></span><input name="title" maxlength="150" required placeholder="예: 국가법령정보센터"></label>
       <label><span>URL <b>*</b></span><input type="url" name="url" maxlength="1000" required placeholder="https://"></label>
-      <label><span>카테고리</span><input name="category" maxlength="50" value="기타" placeholder="예: 법률·규제"></label>
+      <label><span>카테고리</span><select name="category">{% for category in categories %}<option value="{{ category }}"{% if category == '기타' %} selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
       <label><span>태그</span><input name="tags" maxlength="300" placeholder="쉼표로 구분"></label>
       <label class="wide"><span>설명</span><textarea name="description" rows="3" maxlength="1000" placeholder="사이트의 용도와 참고사항"></textarea></label>
       <label class="site-check"><input type="checkbox" name="is_pinned" value="1"> 상단 고정</label>
@@ -57,7 +66,7 @@
             <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
             <label><span>사이트명</span><input name="title" value="{{ site.title }}" maxlength="150" required></label>
             <label><span>URL</span><input type="url" name="url" value="{{ site.url }}" maxlength="1000" required></label>
-            <label><span>카테고리</span><input name="category" value="{{ site.category }}" maxlength="50"></label>
+            <label><span>카테고리</span><select name="category">{% for category in categories %}<option value="{{ category }}"{% if category == site.category %} selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
             <label><span>태그</span><input name="tags" value="{{ site.tags or '' }}" maxlength="300"></label>
             <label class="wide"><span>설명</span><textarea name="description" rows="3" maxlength="1000">{{ site.description or '' }}</textarea></label>
             <label class="site-check"><input type="checkbox" name="is_pinned" value="1" {% if site.is_pinned %}checked{% endif %}> 상단 고정</label>

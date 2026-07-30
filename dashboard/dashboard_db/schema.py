@@ -1049,6 +1049,30 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_related_sites_order "
         "ON related_sites(is_deleted, is_public, is_pinned DESC, updated_at DESC)"
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS related_site_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            created_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO related_site_categories
+            (name, created_by, created_at, is_active)
+        SELECT category, MIN(created_by), MIN(created_at), 1
+        FROM related_sites
+        WHERE category<>''
+        GROUP BY category
+        """
+    )
+    connection.execute(
+        "INSERT OR IGNORE INTO related_site_categories (name) VALUES ('기타')"
+    )
 
     defaults = {
         "category": [

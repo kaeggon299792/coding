@@ -50,6 +50,30 @@ def _site_form_values():
     }
 
 
+def _site_categories(connection):
+    names = [
+        row["name"] for row in connection.execute(
+            "SELECT name FROM related_site_categories "
+            "WHERE is_active=1 ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    ]
+    return tuple(dict.fromkeys(names))
+
+
+def _ensure_site_category(connection, category):
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO related_site_categories
+            (name, created_by, created_at, is_active)
+        VALUES (?, ?, ?, 1)
+        """,
+        (
+            category, session.get("user_id"),
+            now_kst().isoformat(timespec="seconds"),
+        ),
+    )
+
+
 def _form_values():
     return {
         "title": request.form.get("title", ""),
@@ -138,6 +162,7 @@ def sites_page():
                 flash(str(exc), "error")
                 return redirect(url_for("tips.sites_page"))
             timestamp = now_kst().isoformat(timespec="seconds")
+            _ensure_site_category(connection, values["category"])
             connection.execute(
                 """
                 INSERT INTO related_sites (
@@ -179,12 +204,7 @@ def sites_page():
                 params,
             ).fetchall()
         ]
-        categories = [
-            row["category"] for row in connection.execute(
-                "SELECT DISTINCT category FROM related_sites "
-                "WHERE is_deleted=0 AND category<>'' ORDER BY category"
-            ).fetchall()
-        ]
+        categories = _site_categories(connection)
         return render_template(
             "tips/sites.html", sites=sites, query=query,
             selected_category=category, categories=categories,
@@ -205,6 +225,7 @@ def edit_site_page(site_id):
         return redirect(url_for("tips.sites_page"))
     connection = dashboard_db()
     try:
+        _ensure_site_category(connection, values["category"])
         cursor = connection.execute(
             """
             UPDATE related_sites SET
@@ -226,6 +247,33 @@ def edit_site_page(site_id):
     finally:
         connection.close()
     flash("관련 사이트를 수정했습니다.", "success")
+    return redirect(url_for("tips.sites_page"))
+
+
+@tips_bp.post("/sites/categories")
+@admin_required
+def add_site_category_page():
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    name = " ".join(request.form.get("name", "").split()).strip()
+    if not name:
+        flash("카테고리명을 입력해주세요.", "error")
+        return redirect(url_for("tips.sites_page"))
+    if len(name) > 50:
+        flash("카테고리명은 50자 이하로 입력해주세요.", "error")
+        return redirect(url_for("tips.sites_page"))
+    connection = dashboard_db()
+    try:
+        before = connection.total_changes
+        _ensure_site_category(connection, name)
+        connection.commit()
+        created = connection.total_changes > before
+    finally:
+        connection.close()
+    flash(
+        "카테고리를 추가했습니다." if created else "이미 등록된 카테고리입니다.",
+        "success" if created else "info",
+    )
     return redirect(url_for("tips.sites_page"))
 
 
