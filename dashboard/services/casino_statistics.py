@@ -79,6 +79,13 @@ def _polyline(values, width=920, height=260, pad=24, maximum=None):
     )
 
 
+def _area_points(values, width=920, height=260, pad=24, maximum=None):
+    line = _polyline(
+        values, width=width, height=height, pad=pad, maximum=maximum
+    )
+    return f"{pad},{height - pad} {line} {width - pad},{height - pad}"
+
+
 def _chart_points(values, years, width=920, height=260, pad=24, maximum=None):
     maximum = maximum or max(value for value in values if value is not None)
     usable_width = width - pad * 2
@@ -127,6 +134,9 @@ def build_visitors() -> dict:
         "foreign_points": _polyline(foreign_values, maximum=maximum),
         "casino_points": _polyline(casino_values, maximum=maximum),
         "share_points": _polyline(share_values, height=150),
+        "foreign_area_points": _area_points(foreign_values, maximum=maximum),
+        "casino_area_points": _area_points(casino_values, maximum=maximum),
+        "share_area_points": _area_points(share_values, height=150),
         "foreign_chart_points": _chart_points(foreign_values, years, maximum=maximum),
         "casino_chart_points": _chart_points(casino_values, years, maximum=maximum),
         "share_chart_points": _chart_points(share_values, years, height=150),
@@ -152,6 +162,9 @@ def build_revenue() -> dict:
         "tourism_points": _polyline(tourism_values, maximum=maximum),
         "casino_points": _polyline(casino_values, maximum=maximum),
         "share_points": _polyline(share_values, height=150),
+        "tourism_area_points": _area_points(tourism_values, maximum=maximum),
+        "casino_area_points": _area_points(casino_values, maximum=maximum),
+        "share_area_points": _area_points(share_values, height=150),
         "tourism_chart_points": _chart_points(tourism_values, years, maximum=maximum),
         "casino_chart_points": _chart_points(casino_values, years, maximum=maximum),
         "share_chart_points": _chart_points(share_values, years, height=150),
@@ -179,6 +192,13 @@ def build_fund() -> dict:
         "foreign_points": _polyline(lookup["외국인전용 합계"], maximum=maximum),
         "kangwon_points": _polyline(lookup["강원랜드"], maximum=maximum),
         "total_points": _polyline(lookup["총계"], maximum=maximum),
+        "foreign_area_points": _area_points(
+            lookup["외국인전용 합계"], maximum=maximum
+        ),
+        "kangwon_area_points": _area_points(
+            lookup["강원랜드"], maximum=maximum
+        ),
+        "total_area_points": _area_points(lookup["총계"], maximum=maximum),
         "foreign_chart_points": _chart_points(
             lookup["외국인전용 합계"], years, maximum=maximum
         ),

@@ -22,7 +22,13 @@
     <header><div><p class="page-eyebrow">1994—2025</p><h2>외래 방한객과 카지노 이용객 추이</h2></div>
       <div class="casino-chart-legend"><span class="foreign">외래 방한객</span><span class="casino">카지노 이용객</span></div></header>
     <svg class="casino-interactive-chart" viewBox="0 0 920 280" role="img" aria-label="1994년부터 2025년까지 외래 방한객과 카지노 이용객 추이">
+      <defs>
+        <linearGradient id="visitor-foreign-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c8797" stop-opacity=".24"/><stop offset="100%" stop-color="#7c8797" stop-opacity="0"/></linearGradient>
+        <linearGradient id="visitor-casino-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4da8ff" stop-opacity=".34"/><stop offset="100%" stop-color="#4da8ff" stop-opacity="0"/></linearGradient>
+      </defs>
       {% for y in (40, 90, 140, 190, 236) %}<line class="casino-chart-grid" x1="24" y1="{{ y }}" x2="896" y2="{{ y }}"/>{% endfor %}
+      <polygon class="casino-chart-area foreign" points="{{ statistics.foreign_area_points }}" fill="url(#visitor-foreign-area)"/>
+      <polygon class="casino-chart-area casino" points="{{ statistics.casino_area_points }}" fill="url(#visitor-casino-area)"/>
       <polyline class="casino-chart-line foreign" points="{{ statistics.foreign_points }}"/>
       <polyline class="casino-chart-line casino" points="{{ statistics.casino_points }}"/>
       {% for tick in statistics.year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="266">{{ tick.year }}</text>{% endfor %}
@@ -34,6 +40,8 @@
   <section class="panel casino-share-chart">
     <header><p class="page-eyebrow">CASINO VISITOR SHARE</p><h2>외래 방한객 대비 카지노 이용객 비율</h2></header>
     <svg class="casino-interactive-chart" viewBox="0 0 920 175" role="img" aria-label="카지노 이용객 점유율 추이">
+      <defs><linearGradient id="visitor-share-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d9b85f" stop-opacity=".34"/><stop offset="100%" stop-color="#d9b85f" stop-opacity="0"/></linearGradient></defs>
+      <polygon class="casino-chart-area share" points="{{ statistics.share_area_points }}" fill="url(#visitor-share-area)"/>
       <polyline class="casino-chart-line share" points="{{ statistics.share_points }}"/>
       {% for tick in statistics.share_year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="166">{{ tick.year }}</text>{% endfor %}
       {% for point in statistics.share_chart_points %}<circle class="casino-chart-hitpoint share" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="카지노 이용객 비율" data-value="{{ point.value }}" data-unit="%"/>{% endfor %}
@@ -59,7 +67,13 @@
     <header><div><p class="page-eyebrow">1994—2025</p><h2>관광·카지노 외화수입 추이</h2></div>
       <div class="casino-chart-legend"><span class="foreign">관광 외화수입</span><span class="casino">카지노 외화수입</span></div></header>
     <svg class="casino-interactive-chart" viewBox="0 0 920 280" role="img" aria-label="1994년부터 2025년까지 관광 외화수입과 카지노 외화수입 추이">
+      <defs>
+        <linearGradient id="revenue-tourism-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c8797" stop-opacity=".24"/><stop offset="100%" stop-color="#7c8797" stop-opacity="0"/></linearGradient>
+        <linearGradient id="revenue-casino-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4da8ff" stop-opacity=".34"/><stop offset="100%" stop-color="#4da8ff" stop-opacity="0"/></linearGradient>
+      </defs>
       {% for y in (40, 90, 140, 190, 236) %}<line class="casino-chart-grid" x1="24" y1="{{ y }}" x2="896" y2="{{ y }}"/>{% endfor %}
+      <polygon class="casino-chart-area foreign" points="{{ statistics.tourism_area_points }}" fill="url(#revenue-tourism-area)"/>
+      <polygon class="casino-chart-area casino" points="{{ statistics.casino_area_points }}" fill="url(#revenue-casino-area)"/>
       <polyline class="casino-chart-line foreign" points="{{ statistics.tourism_points }}"/>
       <polyline class="casino-chart-line casino" points="{{ statistics.casino_points }}"/>
       {% for tick in statistics.year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="266">{{ tick.year }}</text>{% endfor %}
@@ -71,6 +85,8 @@
   <section class="panel casino-share-chart">
     <header><p class="page-eyebrow">CASINO REVENUE SHARE</p><h2>관광 외화수입 대비 카지노 매출액 비율</h2></header>
     <svg class="casino-interactive-chart" viewBox="0 0 920 175" role="img" aria-label="카지노 매출액 비율 추이">
+      <defs><linearGradient id="revenue-share-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d9b85f" stop-opacity=".34"/><stop offset="100%" stop-color="#d9b85f" stop-opacity="0"/></linearGradient></defs>
+      <polygon class="casino-chart-area share" points="{{ statistics.share_area_points }}" fill="url(#revenue-share-area)"/>
       <polyline class="casino-chart-line share" points="{{ statistics.share_points }}"/>
       {% for tick in statistics.share_year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="166">{{ tick.year }}</text>{% endfor %}
       {% for point in statistics.share_chart_points %}<circle class="casino-chart-hitpoint share" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="카지노 매출액 비율" data-value="{{ point.value }}" data-unit="%"/>{% endfor %}
