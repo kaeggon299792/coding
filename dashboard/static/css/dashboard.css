@@ -1108,4 +1108,6 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 @media(max-width:760px){.casino-subnav{padding:0 16px}.casino-subnav a{padding:9px 12px}.casino-history-kpis,.casino-history-kpis.fund{grid-template-columns:repeat(2,1fr)}.casino-history-kpis article{min-height:125px;padding:16px}.casino-history-chart>header{align-items:flex-start;flex-direction:column}.casino-history-chart,.casino-share-chart,.casino-history-table-panel{padding:18px}.casino-map-marker span{min-width:86px}.casino-map-marker b{font-size:10px}.casino-map-marker small{font-size:7px}}
 .casino-korea-map>img{position:relative;z-index:1;filter:drop-shadow(0 0 18px rgba(44,142,195,.28));opacity:.92}
 .data-subnav,.casino-subnav{justify-content:center}
-@media(max-width:760px){.data-subnav,.casino-subnav{justify-content:flex-start;overflow-x:auto}}
+.data-subnav a,.casino-subnav a{flex:0 0 auto;white-space:nowrap}
+.casino-history-page,.casino-history-page>*{min-width:0}.casino-history-table-panel,.casino-history-table-panel .table-scroll{min-width:0;max-width:100%}
+@media(max-width:760px){.data-subnav,.casino-subnav{justify-content:flex-start;overflow-x:auto}.casino-history-kpis,.casino-history-kpis.fund{grid-template-columns:repeat(2,minmax(0,1fr))}}
