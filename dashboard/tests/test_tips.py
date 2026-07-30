@@ -124,6 +124,111 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
     assert "<script>의견</script>" not in detail.get_data(as_text=True)
 
 
+def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
+    db_path = tmp_path / "related-sites.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+
+    import app as app_module
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    cursor = connection.execute(
+        """INSERT INTO dashboard_users
+           (username, password_hash, role, is_active, created_at)
+           VALUES ('admin', 'unused', 'admin', 1, '2026-07-30T00:00:00')"""
+    )
+    user_id = cursor.lastrowid
+    connection.commit()
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        public_page = client.get("/tips/sites")
+        anonymous_create = client.post(
+            "/tips/sites",
+            data={
+                "title": "허용되지 않는 등록",
+                "url": "https://example.invalid",
+            },
+        )
+        with client.session_transaction() as browser_session:
+            browser_session["user_id"] = user_id
+            browser_session["username"] = "admin"
+            browser_session["role"] = "admin"
+            browser_session["csrf_token"] = "d" * 64
+        created = client.post(
+            "/tips/sites",
+            data={
+                "csrf_token": "d" * 64,
+                "title": "국가법령정보센터",
+                "url": "https://www.law.go.kr/",
+                "description": "현행 법령 원문 검색",
+                "category": "법률·규제",
+                "tags": "법령,규제",
+                "is_pinned": "1",
+                "is_public": "1",
+            },
+        )
+        listing = client.get("/tips/sites?q=법령")
+
+    assert public_page.status_code == 200
+    assert "자료 게시판" in public_page.get_data(as_text=True)
+    assert anonymous_create.status_code == 403
+    assert created.status_code == 302
+    page = listing.get_data(as_text=True)
+    assert listing.status_code == 200
+    assert "국가법령정보센터" in page
+    assert "https://www.law.go.kr/" in page
+    assert "법률·규제" in page
+
+    connection = schema.connect(str(db_path))
+    site = connection.execute(
+        "SELECT * FROM related_sites WHERE title='국가법령정보센터'"
+    ).fetchone()
+    assert site["is_pinned"] == 1
+    connection.close()
+
+
+def test_related_site_rejects_non_http_url(monkeypatch, tmp_path):
+    db_path = tmp_path / "related-sites-invalid.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+
+    import app as app_module
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    cursor = connection.execute(
+        """INSERT INTO dashboard_users
+           (username, password_hash, role, is_active, created_at)
+           VALUES ('admin2', 'unused', 'admin', 1, '2026-07-30T00:00:00')"""
+    )
+    user_id = cursor.lastrowid
+    connection.commit()
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as browser_session:
+            browser_session["user_id"] = user_id
+            browser_session["username"] = "admin2"
+            browser_session["role"] = "admin"
+            browser_session["csrf_token"] = "e" * 64
+        response = client.post(
+            "/tips/sites",
+            data={
+                "csrf_token": "e" * 64,
+                "title": "위험한 주소",
+                "url": "javascript:alert(1)",
+                "is_public": "1",
+            },
+        )
+
+    assert response.status_code == 302
+    connection = schema.connect(str(db_path))
+    assert connection.execute("SELECT COUNT(*) FROM related_sites").fetchone()[0] == 0
+    connection.close()
+
+
 def test_comment_update_and_soft_delete(db_connection):
     cursor = db_connection.execute(
         """INSERT INTO dashboard_users

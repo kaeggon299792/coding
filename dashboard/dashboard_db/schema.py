@@ -997,6 +997,29 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_tips_attachments_tip "
         "ON tips_attachments(tip_id, is_deleted, created_at)"
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS related_sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            description TEXT,
+            category TEXT NOT NULL DEFAULT '기타',
+            tags TEXT,
+            is_pinned INTEGER NOT NULL DEFAULT 0,
+            is_public INTEGER NOT NULL DEFAULT 1,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_related_sites_order "
+        "ON related_sites(is_deleted, is_public, is_pinned DESC, updated_at DESC)"
+    )
 
     defaults = {
         "category": [

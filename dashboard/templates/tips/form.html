@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{% if mode == 'new' %}새 자료 등록{% else %}자료 수정{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260729-portfolio-design">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260730-related-sites">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container tips-shell">
+  {% include "tips/_subnav.html" %}
   <header class="tips-header"><div><p class="eyebrow">ADMIN / LIBRARY</p><h1>{% if mode == 'new' %}새 자료 등록{% else %}자료 수정{% endif %}</h1><p>별표 항목은 반드시 입력해야 합니다.</p></div></header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
   <form class="tip-form" method="post" enctype="multipart/form-data">

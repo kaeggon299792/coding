@@ -1,0 +1,4 @@
+<nav class="tips-subnav" aria-label="자료실 하위 메뉴">
+  <a href="{{ url_for('tips.list_page') }}" {% if request.endpoint != 'tips.sites_page' and request.endpoint not in ('tips.edit_site_page', 'tips.delete_site_page') %}class="is-active" aria-current="page"{% endif %}>자료 게시판</a>
+  <a href="{{ url_for('tips.sites_page') }}" {% if request.endpoint in ('tips.sites_page', 'tips.edit_site_page', 'tips.delete_site_page') %}class="is-active" aria-current="page"{% endif %}>관련 사이트</a>
+</nav>

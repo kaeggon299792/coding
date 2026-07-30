@@ -101,6 +101,7 @@ PUBLIC_READ_ENDPOINTS = {
     "download_research_document",
     "unified_search_page",
     "tips.list_page",
+    "tips.sites_page",
     "tips.detail_page",
     "tips.attachment_file",
     "action_items_page",

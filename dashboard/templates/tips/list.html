@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}자료실{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260729-portfolio-design">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260730-related-sites">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container tips-shell">
+  {% include "tips/_subnav.html" %}
   <header class="tips-library-hero">
     <div class="tips-hero-top"><span class="eyebrow">KNOWLEDGE / LIBRARY</span><span>ARCHIVE / {{ now_str[:4] }}</span></div>
     <h1>자료실</h1>

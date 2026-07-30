@@ -5,6 +5,7 @@ import mimetypes
 import os
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import (
     Blueprint, abort, flash, redirect, render_template, request, send_file,
@@ -28,6 +29,25 @@ ALLOWED_EXTENSIONS = {
 
 def _is_admin():
     return session.get("role") == "admin"
+
+
+def _site_form_values():
+    title = request.form.get("title", "").strip()
+    site_url = request.form.get("url", "").strip()
+    description = request.form.get("description", "").strip()
+    category = request.form.get("category", "기타").strip() or "기타"
+    tags = request.form.get("tags", "").strip()
+    if not title:
+        raise ValueError("사이트명을 입력해주세요.")
+    parsed = urlparse(site_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError("http:// 또는 https://로 시작하는 올바른 주소를 입력해주세요.")
+    return {
+        "title": title[:150], "url": site_url[:1000],
+        "description": description[:1000], "category": category[:50],
+        "tags": tags[:300], "is_pinned": request.form.get("is_pinned") == "1",
+        "is_public": request.form.get("is_public", "1") == "1",
+    }
 
 
 def _form_values():
@@ -101,6 +121,136 @@ def list_page():
         "tips/list.html", tips=items, query=query, selected_category=category,
         categories=categories,
     )
+
+
+@tips_bp.route("/sites", methods=["GET", "POST"])
+def sites_page():
+    connection = dashboard_db()
+    try:
+        if request.method == "POST":
+            if not _is_admin():
+                abort(403)
+            if not validate_csrf(request.form.get("csrf_token")):
+                abort(400)
+            try:
+                values = _site_form_values()
+            except ValueError as exc:
+                flash(str(exc), "error")
+                return redirect(url_for("tips.sites_page"))
+            timestamp = now_kst().isoformat(timespec="seconds")
+            connection.execute(
+                """
+                INSERT INTO related_sites (
+                    title, url, description, category, tags, is_pinned,
+                    is_public, created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    values["title"], values["url"], values["description"],
+                    values["category"], values["tags"],
+                    1 if values["is_pinned"] else 0,
+                    1 if values["is_public"] else 0,
+                    session.get("user_id"), timestamp, timestamp,
+                ),
+            )
+            connection.commit()
+            flash("관련 사이트를 등록했습니다.", "success")
+            return redirect(url_for("tips.sites_page"))
+
+        query = request.args.get("q", "").strip()
+        category = request.args.get("category", "").strip()
+        conditions = ["is_deleted=0"]
+        params = []
+        if not _is_admin():
+            conditions.append("is_public=1")
+        if query:
+            like = f"%{query}%"
+            conditions.append(
+                "(title LIKE ? OR description LIKE ? OR tags LIKE ? OR url LIKE ?)"
+            )
+            params.extend([like] * 4)
+        if category:
+            conditions.append("category=?")
+            params.append(category)
+        sites = [
+            dict(row) for row in connection.execute(
+                f"SELECT * FROM related_sites WHERE {' AND '.join(conditions)} "
+                "ORDER BY is_pinned DESC, updated_at DESC, id DESC",
+                params,
+            ).fetchall()
+        ]
+        categories = [
+            row["category"] for row in connection.execute(
+                "SELECT DISTINCT category FROM related_sites "
+                "WHERE is_deleted=0 AND category<>'' ORDER BY category"
+            ).fetchall()
+        ]
+        return render_template(
+            "tips/sites.html", sites=sites, query=query,
+            selected_category=category, categories=categories,
+        )
+    finally:
+        connection.close()
+
+
+@tips_bp.post("/sites/<int:site_id>/edit")
+@admin_required
+def edit_site_page(site_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    try:
+        values = _site_form_values()
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("tips.sites_page"))
+    connection = dashboard_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE related_sites SET
+                title=?, url=?, description=?, category=?, tags=?,
+                is_pinned=?, is_public=?, updated_at=?
+            WHERE id=? AND is_deleted=0
+            """,
+            (
+                values["title"], values["url"], values["description"],
+                values["category"], values["tags"],
+                1 if values["is_pinned"] else 0,
+                1 if values["is_public"] else 0,
+                now_kst().isoformat(timespec="seconds"), site_id,
+            ),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("관련 사이트를 수정했습니다.", "success")
+    return redirect(url_for("tips.sites_page"))
+
+
+@tips_bp.post("/sites/<int:site_id>/delete")
+@admin_required
+def delete_site_page(site_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        cursor = connection.execute(
+            "UPDATE related_sites SET is_deleted=1, deleted_at=?, updated_at=? "
+            "WHERE id=? AND is_deleted=0",
+            (
+                now_kst().isoformat(timespec="seconds"),
+                now_kst().isoformat(timespec="seconds"), site_id,
+            ),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("관련 사이트를 삭제했습니다.", "success")
+    return redirect(url_for("tips.sites_page"))
 
 
 @tips_bp.route("/trash")
