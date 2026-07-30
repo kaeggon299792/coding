@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}카지노업 현황{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container casino-industry-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Data / Casino Industry</p>
+    <h1 class="page-title">카지노업 현황</h1>
+    <p class="page-description">2024년 국내 외국인전용 카지노 17개 사업장의 허가·영업장·매출·입장객 현황을 확인합니다.</p>
+  </header>
+
+  <section class="casino-industry-hero">
+    <div class="casino-map-panel">
+      <header>
+        <div>
+          <span>LOCATION OVERVIEW</span>
+          <h2>국내 카지노 영업 거점</h2>
+        </div>
+        <small>지역을 선택하면 사업장 목록이 필터링됩니다.</small>
+      </header>
+      <svg class="casino-korea-map" viewBox="0 0 420 560" role="img" aria-labelledby="casino-map-title casino-map-desc">
+        <title id="casino-map-title">국내 외국인전용 카지노 지역별 분포</title>
+        <desc id="casino-map-desc">서울, 인천, 강원 평창, 대구, 부산, 제주에 있는 17개 카지노 사업장</desc>
+        <defs>
+          <linearGradient id="korea-map-fill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#172c42"/>
+            <stop offset="100%" stop-color="#0c1826"/>
+          </linearGradient>
+          <filter id="map-marker-glow" x="-200%" y="-200%" width="500%" height="500%">
+            <feGaussianBlur stdDeviation="6"/>
+          </filter>
+        </defs>
+        <path class="korea-map-grid" d="M20 80H400M20 160H400M20 240H400M20 320H400M20 400H400M20 480H400M70 20V540M150 20V540M230 20V540M310 20V540M390 20V540"/>
+        <path class="korea-land" d="M237 20 286 49 305 95 291 133 320 170 305 210 332 248 318 284 340 330 328 371 287 402 272 441 231 456 197 431 172 397 151 357 143 316 121 281 128 238 106 200 121 161 111 123 143 92 164 52 204 38Z"/>
+        <path class="korea-island" d="M105 486c25-13 72-14 94 2 13 10 6 28-13 37-28 13-75 11-91-3-14-12-7-27 10-36Z"/>
+        {% for marker in casino_industry.markers %}
+        <a href="{{ url_for('casino_industry_page', region=marker.region) }}" aria-label="{{ marker.region }} {{ marker.count }}개 사업장">
+          <g class="casino-map-marker{% if marker.selected %} is-selected{% endif %}" transform="translate({{ marker.x }} {{ marker.y }})">
+            <circle class="marker-glow" r="16"/>
+            <circle class="marker-core" r="6"/>
+            <path d="M0 6 0 18" class="marker-stem"/>
+            <text class="marker-label" x="12" y="-8">{{ marker.region }}</text>
+            <text class="marker-count" x="12" y="8">{{ marker.count }}개 · {{ "{:,.0f}".format(marker.revenue) }}백만</text>
+          </g>
+        </a>
+        {% endfor %}
+      </svg>
+      {% if casino_industry.selected_region %}
+      <a class="casino-map-reset" href="{{ url_for('casino_industry_page') }}">전체 지역 보기</a>
+      {% endif %}
+    </div>
+
+    <div class="casino-industry-summary">
+      <article class="casino-summary-primary">
+        <span>2024 TOTAL REVENUE</span>
+        <strong>{{ "{:,.0f}".format(casino_industry.summary.revenue_2024) }}</strong>
+        <small>백만원</small>
+      </article>
+      <article><span>외국인전용 사업장</span><strong>{{ casino_industry.summary.venue_count }}</strong><small>개 업체</small></article>
+      <article><span>입장객</span><strong>{{ "{:,.0f}".format(casino_industry.summary.visitors_2024) }}</strong><small>명</small></article>
+      <article><span>허가증 면적</span><strong>{{ "{:,.2f}".format(casino_industry.summary.area_sqm) }}</strong><small>㎡</small></article>
+      <article><span>운영 형태</span><strong>{{ casino_industry.summary.direct_count }} / {{ casino_industry.summary.leased_count }}</strong><small>직영 / 임대</small></article>
+    </div>
+  </section>
+
+  <section class="panel casino-industry-list">
+    <header class="casino-list-head">
+      <div>
+        <p class="page-eyebrow">2024 BUSINESS STATUS</p>
+        <h2>{{ casino_industry.selected_region or "전체" }} 사업장</h2>
+        <p>총 {{ casino_industry["items"]|length }}개 사업장이 표시됩니다.</p>
+      </div>
+      <form method="get">
+        <label for="casino-region">지역</label>
+        <select id="casino-region" name="region">
+          <option value="">전체 지역</option>
+          {% for region in casino_industry.regions %}
+          <option value="{{ region }}"{% if casino_industry.selected_region == region %} selected{% endif %}>{{ region }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">적용</button>
+      </form>
+    </header>
+
+    <div class="table-wrap casino-table-desktop">
+      <table class="data-table casino-status-table">
+        <thead><tr>
+          <th>지역</th><th>업체명·법인명</th><th>최초허가일</th><th>영업장소 및 주소</th>
+          <th>면적(㎡)</th><th>운영형태</th><th>2024 매출액<br>(백만원)</th><th>입장객(명)</th>
+        </tr></thead>
+        <tbody>
+          {% for item in casino_industry["items"] %}
+          <tr>
+            <td><span class="casino-region-badge">{{ item.region }}</span></td>
+            <td><strong>{{ item.venue_name }}</strong><small>{{ item.company_name }}</small></td>
+            <td>{{ item.permit_date }}</td>
+            <td><strong>{{ item.place }}</strong><small>{{ item.address }}</small></td>
+            <td class="number">{{ "{:,.2f}".format(item.area_sqm) }}</td>
+            <td><span class="casino-operation {{ 'is-direct' if item.operation == '직영' else '' }}">{{ item.operation }} · {{ item.grade }}</span></td>
+            <td class="number revenue">{{ "{:,.0f}".format(item.revenue_2024) }}</td>
+            <td class="number">{{ "{:,.0f}".format(item.visitors_2024) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="casino-mobile-list">
+      {% for item in casino_industry["items"] %}
+      <article class="casino-venue-card">
+        <header><span>{{ item.region }}</span><b class="{{ 'is-direct' if item.operation == '직영' else '' }}">{{ item.operation }} · {{ item.grade }}</b></header>
+        <h3>{{ item.venue_name }}</h3>
+        <p>{{ item.company_name }}</p>
+        <dl>
+          <div><dt>2024 매출액</dt><dd>{{ "{:,.0f}".format(item.revenue_2024) }}백만원</dd></div>
+          <div><dt>입장객</dt><dd>{{ "{:,.0f}".format(item.visitors_2024) }}명</dd></div>
+          <div><dt>허가증 면적</dt><dd>{{ "{:,.2f}".format(item.area_sqm) }}㎡</dd></div>
+          <div><dt>최초허가일</dt><dd>{{ item.permit_date }}</dd></div>
+        </dl>
+        <footer><strong>{{ item.place }}</strong><span>{{ item.address }}</span></footer>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="casino-industry-source">기준: 2024년 · 사용자 제공 카지노업 현황 자료</p>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

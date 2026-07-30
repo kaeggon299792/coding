@@ -30,6 +30,7 @@ from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
     ai_insights,
+    casino_industry,
     company_intelligence,
     document_library,
     market_data,
@@ -94,6 +95,7 @@ PUBLIC_READ_ENDPOINTS = {
     "holiday_calendar_page",
     "salary_trend_page",
     "recruitment_page",
+    "casino_industry_page",
     "disclosures_page",
     "laws_page",
     "companies_page",
@@ -244,6 +246,7 @@ def inject_globals():
         "holiday_calendar_page": "나라별 연휴",
         "salary_trend_page": "연봉",
         "recruitment_page": "채용",
+        "casino_industry_page": "카지노업 현황",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -283,7 +286,7 @@ def _site_map_links():
         {"label": "시작 화면", "description": "공개 메뉴와 로그인 안내", "endpoint": "public_home"},
     ]
     links.append(
-        {"label": "데이터", "description": "뉴스·주가·관광객·경제지표·연휴·연봉·채용", "endpoint": "market_trend_page"}
+        {"label": "데이터", "description": "뉴스·주가·카지노업·관광객·경제지표·연휴·연봉·채용", "endpoint": "market_trend_page"}
     )
     menu_links = (
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
@@ -837,6 +840,16 @@ def tourism_trend_page():
         )
     finally:
         connection.close()
+
+
+@app.route("/performance/casino-industry")
+def casino_industry_page():
+    return render_template(
+        "casino_industry.html",
+        casino_industry=casino_industry.build_dashboard(
+            request.args.get("region", "").strip()
+        ),
+    )
 
 
 @app.route("/performance/markets")
