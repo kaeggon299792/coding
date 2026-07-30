@@ -35,28 +35,30 @@
         <desc id="walkerhill-chart-desc">{{ casino_trend.start_date }}부터 {{ casino_trend.end_date }}까지 {{ casino_trend.day_count }}일의 매출 변화</desc>
         <defs>
           <linearGradient id="walkerhill-line-gradient" x1="0" x2="1">
-            <stop offset="0%" stop-color="#9b762d"/>
-            <stop offset="100%" stop-color="#e4c36e"/>
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#60a5fa"/>
           </linearGradient>
-          <filter id="walkerhill-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
+          <linearGradient id="walkerhill-area-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#448ff0" stop-opacity=".30"/>
+            <stop offset="72%" stop-color="#448ff0" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#448ff0" stop-opacity="0"/>
+          </linearGradient>
         </defs>
         <line class="walkerhill-grid-line" x1="42" y1="24" x2="958" y2="24"/>
         <line class="walkerhill-grid-line" x1="42" y1="124" x2="958" y2="124"/>
         <line class="walkerhill-grid-line" x1="42" y1="224" x2="958" y2="224"/>
         <line class="walkerhill-zero-line" x1="42" y1="{{ casino_trend.zero_y }}" x2="958" y2="{{ casino_trend.zero_y }}"/>
+        <polygon class="walkerhill-area" points="42,224 {{ casino_trend.points }} 958,224"/>
         <polyline class="walkerhill-line" points="{{ casino_trend.points }}"/>
         {% for point in casino_trend.entries %}
-        <g class="walkerhill-point-group">
-          <circle class="walkerhill-point {% if point.value < 0 %}is-negative{% endif %}" cx="{{ point.x }}" cy="{{ point.y }}" r="{{ 6 if loop.last else 4 }}">
+        {% if loop.last %}
+        <g class="walkerhill-point-group is-latest">
+          <circle class="walkerhill-point {% if point.value < 0 %}is-negative{% endif %}" cx="{{ point.x }}" cy="{{ point.y }}" r="5">
             <title>{{ point.date }} · {{ "{:,.0f}".format(point.value) }}백만원</title>
           </circle>
-          {% if loop.last %}
           <circle class="walkerhill-point-pulse" cx="{{ point.x }}" cy="{{ point.y }}" r="11"/>
-          {% endif %}
         </g>
+        {% endif %}
         {% endfor %}
         <text class="walkerhill-axis-label" x="42" y="258">{{ casino_trend.start_date[5:] }}</text>
         <text class="walkerhill-axis-label is-end" x="958" y="258">{{ casino_trend.end_date[5:] }}</text>
