@@ -4,4 +4,6 @@
   <a href="{{ url_for('tourism_trend_page') }}" {% if request.endpoint == 'tourism_trend_page' %}class="active"{% endif %}>관광객 추이</a>
   <a href="{{ url_for('economic_trend_page') }}" {% if request.endpoint == 'economic_trend_page' %}class="active"{% endif %}>유가정보·환율</a>
   <a href="{{ url_for('holiday_calendar_page') }}" {% if request.endpoint == 'holiday_calendar_page' %}class="active"{% endif %}>나라별 연휴</a>
+  <a href="{{ url_for('salary_trend_page') }}" {% if request.endpoint == 'salary_trend_page' %}class="active"{% endif %}>연봉</a>
+  <a href="{{ url_for('recruitment_page') }}" {% if request.endpoint == 'recruitment_page' %}class="active"{% endif %}>채용</a>
 </nav>

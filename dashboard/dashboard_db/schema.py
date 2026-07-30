@@ -586,6 +586,58 @@ def migrate(connection):
     _ensure_column(connection, "market_quotes", "last_attempt_at", "TEXT")
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS salary_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entity_code TEXT NOT NULL,
+            entity_name TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            average_salary_manwon INTEGER NOT NULL,
+            source_name TEXT NOT NULL,
+            source_url TEXT,
+            source_period TEXT,
+            collected_date TEXT NOT NULL,
+            fetched_at TEXT NOT NULL,
+            UNIQUE(entity_code, collected_date)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_salary_snapshots_entity_date "
+        "ON salary_snapshots(entity_code, collected_date DESC)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recruitment_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_name TEXT NOT NULL,
+            source_job_id TEXT NOT NULL,
+            company_name TEXT,
+            title TEXT NOT NULL,
+            employment_type TEXT,
+            location TEXT,
+            deadline TEXT,
+            compensation_summary TEXT,
+            benefits_summary TEXT,
+            ai_summary TEXT,
+            treatment_level TEXT,
+            source_url TEXT NOT NULL,
+            raw_text TEXT,
+            posted_at TEXT,
+            first_seen_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            analyzed_at TEXT,
+            analysis_error TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            UNIQUE(source_name, source_job_id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_recruitment_jobs_seen "
+        "ON recruitment_jobs(last_seen_at DESC, is_active)"
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS market_quote_history (
             symbol TEXT NOT NULL,
             base_date TEXT NOT NULL,

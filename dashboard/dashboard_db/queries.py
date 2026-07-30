@@ -1418,6 +1418,158 @@ def list_market_quotes(connection):
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 
+def upsert_salary_snapshot(connection, item):
+    connection.execute(
+        """
+        INSERT INTO salary_snapshots (
+            entity_code, entity_name, entity_type, average_salary_manwon,
+            source_name, source_url, source_period, collected_date, fetched_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(entity_code, collected_date) DO UPDATE SET
+            entity_name=excluded.entity_name,
+            entity_type=excluded.entity_type,
+            average_salary_manwon=excluded.average_salary_manwon,
+            source_name=excluded.source_name,
+            source_url=excluded.source_url,
+            source_period=excluded.source_period,
+            fetched_at=excluded.fetched_at
+        """,
+        (
+            item["entity_code"], item["entity_name"], item["entity_type"],
+            item["average_salary_manwon"], item["source_name"],
+            item.get("source_url"), item.get("source_period"),
+            item["collected_date"], item["fetched_at"],
+        ),
+    )
+    connection.commit()
+
+
+def list_salary_dashboard(connection):
+    latest_rows = connection.execute(
+        """
+        SELECT s.* FROM salary_snapshots s
+        JOIN (
+            SELECT entity_code, MAX(collected_date) AS latest_date
+            FROM salary_snapshots GROUP BY entity_code
+        ) latest ON latest.entity_code=s.entity_code
+                AND latest.latest_date=s.collected_date
+        """
+    ).fetchall()
+    order = {
+        "paradise": 0, "gkl": 1, "kangwon_land": 2, "lotte_tour": 3,
+        "casino_average": 10, "hotel_average": 11,
+    }
+    items = sorted((dict(row) for row in latest_rows),
+                   key=lambda row: order.get(row["entity_code"], 99))
+    for item in items:
+        monthly = connection.execute(
+            """
+            SELECT s.collected_date, s.average_salary_manwon
+            FROM salary_snapshots s
+            JOIN (
+                SELECT SUBSTR(collected_date, 1, 7) AS ym, MAX(collected_date) AS max_date
+                FROM salary_snapshots WHERE entity_code=?
+                GROUP BY SUBSTR(collected_date, 1, 7)
+            ) m ON m.max_date=s.collected_date
+            WHERE s.entity_code=? ORDER BY s.collected_date DESC LIMIT 12
+            """,
+            (item["entity_code"], item["entity_code"]),
+        ).fetchall()
+        item["monthly_history"] = list(reversed([dict(row) for row in monthly]))
+        history = item["monthly_history"]
+        if len(history) >= 2:
+            values = [row["average_salary_manwon"] for row in history]
+            low, high = min(values), max(values)
+            spread = high - low or 1
+            points = [
+                f"{index / (len(values) - 1) * 100:.1f},"
+                f"{34 - (value - low) / spread * 27:.1f}"
+                for index, value in enumerate(values)
+            ]
+            item["trend_points"] = " ".join(points)
+            item["trend_area_points"] = f"0,40 {' '.join(points)} 100,40"
+            item["monthly_change"] = values[-1] - values[-2]
+        else:
+            item["trend_points"] = ""
+            item["trend_area_points"] = ""
+            item["monthly_change"] = None
+    return items
+
+
+def upsert_recruitment_job(connection, item):
+    connection.execute(
+        """
+        INSERT INTO recruitment_jobs (
+            source_name, source_job_id, company_name, title, employment_type,
+            location, deadline, compensation_summary, benefits_summary,
+            ai_summary, treatment_level, source_url, raw_text, posted_at,
+            first_seen_at, last_seen_at, analyzed_at, analysis_error, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(source_name, source_job_id) DO UPDATE SET
+            company_name=excluded.company_name, title=excluded.title,
+            employment_type=excluded.employment_type, location=excluded.location,
+            deadline=excluded.deadline,
+            compensation_summary=excluded.compensation_summary,
+            benefits_summary=excluded.benefits_summary,
+            ai_summary=COALESCE(excluded.ai_summary, recruitment_jobs.ai_summary),
+            treatment_level=COALESCE(excluded.treatment_level, recruitment_jobs.treatment_level),
+            source_url=excluded.source_url, raw_text=excluded.raw_text,
+            posted_at=excluded.posted_at, last_seen_at=excluded.last_seen_at,
+            analyzed_at=COALESCE(excluded.analyzed_at, recruitment_jobs.analyzed_at),
+            analysis_error=excluded.analysis_error, is_active=1
+        """,
+        (
+            item["source_name"], item["source_job_id"], item.get("company_name"),
+            item["title"], item.get("employment_type"), item.get("location"),
+            item.get("deadline"), item.get("compensation_summary"),
+            item.get("benefits_summary"), item.get("ai_summary"),
+            item.get("treatment_level"), item["source_url"], item.get("raw_text"),
+            item.get("posted_at"), item["first_seen_at"], item["last_seen_at"],
+            item.get("analyzed_at"), item.get("analysis_error"),
+        ),
+    )
+    connection.commit()
+
+
+def list_recruitment_jobs(connection, term="", source="", employment_type="", limit=200):
+    conditions = ["is_active=1"]
+    params = []
+    if term:
+        like = f"%{term}%"
+        conditions.append(
+            "(title LIKE ? OR company_name LIKE ? OR raw_text LIKE ? OR ai_summary LIKE ?)"
+        )
+        params.extend([like] * 4)
+    if source:
+        conditions.append("source_name=?")
+        params.append(source)
+    if employment_type:
+        conditions.append("employment_type=?")
+        params.append(employment_type)
+    params.append(max(1, int(limit)))
+    rows = connection.execute(
+        f"SELECT * FROM recruitment_jobs WHERE {' AND '.join(conditions)} "
+        "ORDER BY COALESCE(posted_at, first_seen_at) DESC LIMIT ?",
+        params,
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_recruitment_jobs(connection, term, days=365, limit=100):
+    since = (now_kst() - timedelta(days=max(1, int(days)))).isoformat()
+    like = f"%{term}%"
+    rows = connection.execute(
+        """
+        SELECT * FROM recruitment_jobs
+        WHERE is_active=1 AND last_seen_at>=?
+          AND (title LIKE ? OR company_name LIKE ? OR raw_text LIKE ? OR ai_summary LIKE ?)
+        ORDER BY last_seen_at DESC LIMIT ?
+        """,
+        (since, like, like, like, like, max(1, int(limit))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def upsert_economic_observation(connection, item):
     now = now_kst().isoformat()
     connection.execute(

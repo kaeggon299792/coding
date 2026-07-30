@@ -36,6 +36,7 @@ from services import (
     news_reader,
     official_document_manager,
     performance_parser,
+    salary_data,
     security_audit,
     telegram_alert,
     unified_search,
@@ -91,6 +92,8 @@ PUBLIC_READ_ENDPOINTS = {
     "tourism_trend_page",
     "economic_trend_page",
     "holiday_calendar_page",
+    "salary_trend_page",
+    "recruitment_page",
     "disclosures_page",
     "laws_page",
     "companies_page",
@@ -236,6 +239,8 @@ def inject_globals():
         "tourism_trend_page": "관광객 추이",
         "economic_trend_page": "유가정보·환율",
         "holiday_calendar_page": "나라별 연휴",
+        "salary_trend_page": "연봉",
+        "recruitment_page": "채용",
         "disclosures_page": "공시·재무",
         "laws_page": "법률·규제",
         "companies_page": "기업 360°",
@@ -275,7 +280,7 @@ def _site_map_links():
         {"label": "시작 화면", "description": "공개 메뉴와 로그인 안내", "endpoint": "public_home"},
     ]
     links.append(
-        {"label": "데이터", "description": "관련 뉴스·주가·관광객·유가·환율·나라별 연휴", "endpoint": "market_trend_page"}
+        {"label": "데이터", "description": "뉴스·주가·관광객·경제지표·연휴·연봉·채용", "endpoint": "market_trend_page"}
     )
     menu_links = (
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
@@ -941,6 +946,43 @@ def holiday_calendar_page():
         "holiday_calendar.html",
         holiday_calendar=holiday_calendar.build_calendar(request.args.get("year", 2026, type=int)),
     )
+
+
+@app.route("/performance/salaries")
+def salary_trend_page():
+    connection = dashboard_db()
+    try:
+        items = queries.list_salary_dashboard(connection)
+        latest_run = queries.get_latest_completed_run(connection, "salary_sync")
+        return render_template(
+            "salary_trend.html",
+            salary_items=items,
+            salary_checked_at=latest_run.get("finished_at") if latest_run else None,
+            salary_check_status=latest_run.get("status") if latest_run else None,
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/performance/recruitment")
+def recruitment_page():
+    term = request.args.get("q", "").strip()
+    source = request.args.get("source", "").strip()
+    employment_type = request.args.get("employment_type", "").strip()
+    connection = dashboard_db()
+    try:
+        jobs = queries.list_recruitment_jobs(
+            connection, term=term, source=source, employment_type=employment_type
+        )
+        latest_run = queries.get_latest_completed_run(connection, "recruitment_sync")
+        return render_template(
+            "recruitment.html", jobs=jobs, term=term, selected_source=source,
+            selected_employment_type=employment_type,
+            recruitment_checked_at=latest_run.get("finished_at") if latest_run else None,
+            recruitment_check_status=latest_run.get("status") if latest_run else None,
+        )
+    finally:
+        connection.close()
 
 
 # ============================================================

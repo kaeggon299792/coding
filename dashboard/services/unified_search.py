@@ -13,6 +13,7 @@ SOURCE_LABELS = {
     "action": "의견",
     "insight": "AI 분석",
     "research": "리서치",
+    "recruitment": "채용",
 }
 
 
@@ -52,6 +53,7 @@ def search(connection, term, days=365, sources=None, limit=200):
         "action": queries.search_action_items,
         "insight": queries.search_executive_insights,
         "research": queries.search_research_documents,
+        "recruitment": queries.search_recruitment_jobs,
     }
     for source, search_func in dashboard_sources.items():
         if source not in enabled:
@@ -64,6 +66,18 @@ def search(connection, term, days=365, sources=None, limit=200):
 
 
 def _normalize_dashboard_item(source, row):
+    if source == "recruitment":
+        return {
+            "source": source, "source_label": SOURCE_LABELS[source],
+            "title": row.get("title") or "채용공고",
+            "summary": row.get("ai_summary") or row.get("compensation_summary"),
+            "occurred_at": row.get("posted_at") or row.get("first_seen_at"),
+            "meta": " · ".join(filter(None, [
+                row.get("company_name"), row.get("employment_type"),
+                row.get("source_name"), row.get("deadline"),
+            ])),
+            "url": row.get("source_url"), "importance": row.get("treatment_level"),
+        }
     if source == "research":
         return {
             "source": source, "source_label": SOURCE_LABELS[source],
