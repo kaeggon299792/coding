@@ -3,14 +3,14 @@
 {% block body %}
 <main class="public-home">
   <header class="public-header">
-    <a class="public-brand" href="{{ url_for('public_home') }}"><strong>PARADISE</strong><span>/ MANAGEMENT DASHBOARD</span></a>
+    <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN"><span>/ MANAGEMENT DASHBOARD</span></a>
     <a class="public-login-link" href="{{ url_for('auth.login') }}">로그인</a>
   </header>
 
   <section class="public-hero">
-    <p class="page-eyebrow">PARADISE / MANAGEMENT DASHBOARD</p>
+    <p class="page-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
     <h1>업무에 필요한 정보를<br>한곳에서 확인합니다.</h1>
-    <p>공시·법률·기업정보와 내부 업무 데이터를 연결한 PARADISE 업무 대시보드입니다.</p>
+    <p>공시·법률·기업정보와 내부 업무 데이터를 연결한 CASINO IN 업무 대시보드입니다.</p>
   </section>
 
   <nav class="public-menu" aria-label="주요 메뉴">
@@ -25,6 +25,6 @@
     <a href="{{ url_for('paradian_portal_page') }}"><span>09</span><strong>파라디안 전용</strong><small>공문·자료관리와 경영 실적</small><i>⌁</i></a>
   </nav>
 
-  <footer class="public-footer"><span>PARADISE</span><span>Internal business system</span></footer>
+  <footer class="public-footer"><span>CASINO IN</span><span>Casino industry intelligence</span></footer>
 </main>
 {% endblock %}

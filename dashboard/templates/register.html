@@ -4,7 +4,8 @@
 <div class="login-page">
   <a class="login-home-link" href="{{ url_for('auth.login') }}">← 로그인</a>
   <form class="login-card register-card" method="post" action="{{ url_for('auth.register') }}">
-    <p class="login-eyebrow">PARADISE · ACCOUNT</p>
+    <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN">
+    <p class="login-eyebrow">CASINO IN · ACCOUNT</p>
     <h1 class="login-title">가입 신청</h1>
     <p class="login-subtitle">관리자 승인 후 로그인할 수 있습니다.</p>
     {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
