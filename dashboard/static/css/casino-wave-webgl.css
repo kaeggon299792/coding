@@ -36,8 +36,8 @@ body.cinematic-home.webgl-wave-ready .casino-wave-fallback {
 
 html[data-theme="light"] body.cinematic-home .casino-wave-canvas {
   display: block;
-  opacity: .32;
-  filter: invert(1) grayscale(1) contrast(.72);
+  opacity: .5;
+  filter: invert(1) grayscale(1) contrast(.78);
   mix-blend-mode: multiply;
 }
 
@@ -57,7 +57,7 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
   }
 
   html[data-theme="light"] body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
-    opacity: .42;
+    opacity: .6;
   }
 }
 
