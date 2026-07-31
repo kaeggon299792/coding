@@ -24,9 +24,27 @@ body.cinematic-home .breathing-dots-canvas {
   pointer-events: none;
 }
 
+body.cinematic-home .public-menu a {
+  background: rgba(7, 8, 9, .96);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+body.cinematic-home .public-menu a:hover {
+  background: rgba(22, 23, 26, .98);
+}
+
 html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
   opacity: .76 !important;
   mix-blend-mode: multiply;
+}
+
+html[data-theme="light"] body.cinematic-home .public-menu a {
+  background: rgba(248, 248, 246, .97);
+}
+
+html[data-theme="light"] body.cinematic-home .public-menu a:hover {
+  background: rgba(235, 235, 232, .99);
 }
 
 @media (max-width: 700px) {
@@ -37,8 +55,17 @@ html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
     opacity: 1 !important;
   }
 
+  body.cinematic-home .public-menu a {
+    background: rgba(7, 8, 9, .98);
+  }
+
   html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
     opacity: .82 !important;
+  }
+
+
+  html[data-theme="light"] body.cinematic-home .public-menu a {
+    background: rgba(248, 248, 246, .985);
   }
 }
 

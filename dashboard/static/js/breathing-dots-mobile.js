@@ -95,14 +95,16 @@
     function draw(timestamp) {
       rafId = window.requestAnimationFrame(draw);
       if (!isVisible || document.hidden) return;
-      if (timestamp - lastFrame < 30 && !reduceMotion.matches) return;
+      var mobile = window.innerWidth <= 700;
+      var freezeMotion = reduceMotion.matches && !mobile;
+      if (timestamp - lastFrame < (mobile ? 24 : 30) && !freezeMotion) return;
       lastFrame = timestamp;
 
       context.clearRect(0, 0, width, height);
       pointerX += (pointerTargetX - pointerX) * 0.045;
       pointerY += (pointerTargetY - pointerY) * 0.045;
 
-      var time = reduceMotion.matches ? 1.4 : timestamp / 1000;
+      var time = freezeMotion ? 1.4 : timestamp / 1000;
       var centerX = width * 0.5 + pointerX;
       var centerY = height * 0.34 + pointerY;
       var darkTheme = document.documentElement.dataset.theme !== "light";
@@ -116,14 +118,20 @@
         var distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         var angle = Math.atan2(deltaY, deltaX);
         var shapedDistance = distance + Math.cos(angle * 8) * 11;
-        var wave = roundedSquareWave(time - shapedDistance / 245, 0.16 + distance / 2600, 0.18, 0.24);
+        var wave = mobile
+          ? roundedSquareWave(time - shapedDistance / 175, 0.13 + distance / 2800, 0.3, 0.38)
+          : roundedSquareWave(time - shapedDistance / 245, 0.16 + distance / 2600, 0.18, 0.24);
         var falloff = clamp(1 - distance / maxDistance, 0, 1);
         var scale = 1 + wave * falloff;
         var x = centerX + deltaX * scale;
         var y = centerY + deltaY * scale;
-        var pulse = 0.5 + 0.5 * Math.sin(time * 1.18 - shapedDistance * 0.044);
-        var alpha = (0.52 + pulse * 0.4) * (0.62 + falloff * 0.38);
-        var radius = 1.15 + falloff * 1.35 + pulse * 0.55;
+        var pulse = 0.5 + 0.5 * Math.sin(time * (mobile ? 1.7 : 1.18) - shapedDistance * (mobile ? 0.058 : 0.044));
+        var alpha = mobile
+          ? (0.66 + pulse * 0.32) * (0.72 + falloff * 0.28)
+          : (0.52 + pulse * 0.4) * (0.62 + falloff * 0.38);
+        var radius = mobile
+          ? 1.55 + falloff * 1.55 + pulse * 0.7
+          : 1.15 + falloff * 1.35 + pulse * 0.55;
 
         context.beginPath();
         context.arc(x, y, radius, 0, TWO_PI);
@@ -131,7 +139,7 @@
         context.fill();
       }
 
-      if (reduceMotion.matches && rafId) {
+      if (freezeMotion && rafId) {
         window.cancelAnimationFrame(rafId);
         rafId = 0;
       }
