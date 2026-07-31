@@ -124,6 +124,38 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
     assert "<script>의견</script>" not in detail.get_data(as_text=True)
 
 
+def test_new_tip_form_includes_code_block_guide(monkeypatch, tmp_path):
+    db_path = tmp_path / "tips-form-guide.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+
+    import app as app_module
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    cursor = connection.execute(
+        """INSERT INTO dashboard_users
+           (username, password_hash, role, is_active, created_at)
+           VALUES ('admin-form', 'unused', 'admin', 1, '2026-07-31T00:00:00')"""
+    )
+    user_id = cursor.lastrowid
+    connection.commit()
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as browser_session:
+            browser_session["user_id"] = user_id
+            browser_session["username"] = "admin-form"
+            browser_session["role"] = "admin"
+            browser_session["csrf_token"] = "f" * 64
+        response = client.get("/tips/new")
+
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "코드블록 사용 가이드" in html
+    assert "```python" in html
+
+
 def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
     db_path = tmp_path / "related-sites.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))

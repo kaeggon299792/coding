@@ -82,6 +82,7 @@ def test_english_home_uses_same_route_with_localized_seo(client):
         "/en/companies",
         "/en/library",
         "/en/search",
+        "/en/credits",
         "/en/tips",
         "/en/bug-reports",
     ),
@@ -159,6 +160,16 @@ def test_unknown_english_url_uses_localized_error_page(client):
     assert '<html lang="en"' in html
     assert "Page not found" in html
     assert "/en/sitemap" in html
+
+
+def test_english_credits_page_shows_source_table(client):
+    response = client.get("/en/credits")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<html lang="en"' in html
+    assert "Sources & Copyright" in html
+    assert "Dataset Status" in html
 
 
 def test_dynamic_translation_patterns_expand_capture_groups():

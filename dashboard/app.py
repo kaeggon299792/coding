@@ -119,6 +119,7 @@ PUBLIC_READ_ENDPOINTS = {
     "research_library_page",
     "download_research_document",
     "unified_search_page",
+    "credits_page",
     "tips.list_page",
     "tips.sites_page",
     "tips.detail_page",
@@ -306,6 +307,7 @@ def inject_globals():
         "delete_research_document": "리서치",
         "unified_search_page": "통합검색",
         "sitemap_page": "사이트맵",
+        "credits_page": "출처 및 저작권",
         "auth.login": "로그인",
         "auth.register": "가입 신청",
         "auth.user_management": "계정관리",
@@ -357,6 +359,7 @@ def _site_map_links():
     """현재 로그인 상태와 메뉴 권한에 맞는 사이트맵 링크를 반환한다."""
     links = [
         {"label": "시작 화면", "description": "공개 메뉴와 로그인 안내", "endpoint": "public_home"},
+        {"label": "출처 및 저작권", "description": "데이터 출처, 업데이트 주기, 최종 확인 시간", "endpoint": "credits_page"},
     ]
     links.append(
         {"label": "데이터", "description": "뉴스·주가·카지노업·관광객·경제지표·연휴·연봉·채용", "endpoint": "market_trend_page"}
@@ -406,6 +409,239 @@ def _site_map_links():
 @app.route("/sitemap")
 def sitemap_page():
     return render_template("sitemap.html", site_map_links=_site_map_links())
+
+
+def _max_timestamp(connection, table, column, where_clause="", params=()):
+    query = f"SELECT MAX({column}) AS value FROM {table}"
+    if where_clause:
+        query += f" WHERE {where_clause}"
+    row = connection.execute(query, params).fetchone()
+    return row["value"] if row and row["value"] else None
+
+
+def _format_minute(value):
+    if not value:
+        return None
+    return official_document_manager.datetime_minute(value)
+
+
+def _credits_rows(connection):
+    rows = []
+
+    def push(
+        menu,
+        dataset,
+        source_name,
+        source_url,
+        cadence,
+        checked_at=None,
+        changed_at=None,
+        notes="",
+    ):
+        rows.append({
+            "menu": menu,
+            "dataset": dataset,
+            "source_name": source_name,
+            "source_url": source_url,
+            "cadence": cadence,
+            "checked_at": _format_minute(checked_at),
+            "changed_at": _format_minute(changed_at),
+            "notes": notes,
+        })
+
+    news_updated_at = news_reader.last_updated_at()
+    push(
+        "데이터",
+        "카지노 관련 뉴스",
+        "news_history.db / AI 이슈 요약 아카이브",
+        "",
+        "외부 수집 DB 반영 주기에 따름",
+        checked_at=news_updated_at,
+        changed_at=news_updated_at,
+        notes="대시보드는 읽기 전용으로 연동하며, 원본 뉴스 DB의 최종 수집 시각을 표시합니다.",
+    )
+
+    dart_freshness = queries.get_data_freshness(
+        connection, "dart_disclosures", "dart_sync", "fetched_at"
+    )
+    push(
+        "공시·재무",
+        "DART 공시 / AI 요약",
+        "금융감독원 DART",
+        "https://dart.fss.or.kr/",
+        "매일 정기 동기화",
+        checked_at=dart_freshness.get("checked_at"),
+        changed_at=dart_freshness.get("changed_at"),
+        notes="관심 기업 공시 원문과 저장된 AI 분석 결과를 함께 표시합니다.",
+    )
+
+    law_sync = queries.get_latest_completed_run(connection, "law_sync")
+    law_checked_at = (law_sync or {}).get("finished_at")
+    push(
+        "법률·규제",
+        "국가법령정보",
+        "국가법령정보센터",
+        "https://www.law.go.kr/",
+        "매일 정기 동기화",
+        checked_at=law_checked_at,
+        changed_at=_max_timestamp(connection, "law_updates", "fetched_at"),
+        notes="법령 본문, 변경 이력, AI 요약을 모니터링합니다.",
+    )
+    push(
+        "법률·규제",
+        "국회 의안정보",
+        "국회 열린국회정보 Open API",
+        "https://open.assembly.go.kr/portal/openapi/ALLBILLV2",
+        "매일 정기 동기화",
+        checked_at=law_checked_at,
+        changed_at=_max_timestamp(connection, "legislative_bills", "updated_at"),
+        notes="카지노 관련 입법을 필터링하고 산업 영향도를 함께 저장합니다.",
+    )
+    push(
+        "법률·규제",
+        "정부입법예고",
+        "법제처 국민참여입법센터",
+        "https://opinion.lawmaking.go.kr/",
+        "매일 정기 동기화",
+        checked_at=law_checked_at,
+        changed_at=_max_timestamp(connection, "government_legislative_notices", "updated_at"),
+        notes="정부입법예고와 첨부자료 링크를 함께 관리합니다.",
+    )
+
+    market_sync = queries.get_latest_completed_run(connection, "market_quote_sync")
+    push(
+        "데이터",
+        "국내외 주가·지수",
+        "공공데이터포털 API / Yahoo Finance",
+        "https://www.data.go.kr/",
+        "5~15분 캐시 기준 주기적 갱신",
+        checked_at=(market_sync or {}).get("finished_at"),
+        changed_at=_max_timestamp(connection, "market_quotes", "fetched_at"),
+        notes="국내 주가는 금융위원회 API, 해외 종목은 Yahoo Finance 계열 소스를 사용합니다.",
+    )
+
+    tourism_freshness = queries.get_data_freshness(
+        connection, "tourism_visitor_stats", "tourism_stats_sync"
+    )
+    push(
+        "데이터",
+        "관광객 추이",
+        "한국문화관광연구원 출입국관광통계서비스 API",
+        "http://openapi.tour.go.kr/",
+        "매일 정기 동기화",
+        checked_at=tourism_freshness.get("checked_at"),
+        changed_at=tourism_freshness.get("changed_at"),
+        notes="국가별 방한 관광객 수와 예측치를 함께 시각화합니다.",
+    )
+
+    economic_freshness = queries.get_data_freshness(
+        connection, "economic_series", "economic_data_sync"
+    )
+    push(
+        "데이터",
+        "유가정보·환율",
+        "Opinet / 한국수출입은행 Open API",
+        "https://www.opinet.co.kr/",
+        "매일 정기 동기화",
+        checked_at=economic_freshness.get("checked_at"),
+        changed_at=economic_freshness.get("changed_at"),
+        notes="휘발유·경유·부탄과 주요 환율 추이를 함께 제공합니다.",
+    )
+
+    salary_sync = queries.get_latest_completed_run(connection, "salary_sync")
+    push(
+        "데이터",
+        "연봉",
+        "잡코리아 / OpenBizData",
+        "https://www.jobkorea.co.kr/",
+        "매일 정기 동기화",
+        checked_at=(salary_sync or {}).get("finished_at"),
+        changed_at=_max_timestamp(connection, "salary_snapshots", "fetched_at"),
+        notes="카지노 4사와 업계 비교 기준을 월별 스냅샷으로 누적합니다.",
+    )
+
+    recruitment_sync = queries.get_latest_completed_run(connection, "recruitment_sync")
+    push(
+        "데이터",
+        "채용",
+        "잡코리아 / 사람인 / 인크루트",
+        "https://www.jobkorea.co.kr/",
+        "매일 정기 동기화",
+        checked_at=(recruitment_sync or {}).get("finished_at"),
+        changed_at=_max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
+        notes="AI가 고용형태, 처우, 확인 필요 사항을 카드형으로 요약합니다.",
+    )
+
+    push(
+        "리서치",
+        "업로드 PDF 분석 자료",
+        "사용자 업로드 원문 + AI 추출",
+        "",
+        "등록/재분석 시 즉시 반영",
+        checked_at=_max_timestamp(connection, "research_documents", "analyzed_at"),
+        changed_at=_max_timestamp(connection, "research_documents", "updated_at"),
+        notes="제목은 직접 입력값 우선, 비우면 GPT 제안 제목을 우선 적용합니다.",
+    )
+
+    push(
+        "자료실",
+        "업무 자료 게시판",
+        "관리자/사용자 직접 작성",
+        "",
+        "저장 즉시 반영",
+        checked_at=_max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0"),
+        changed_at=_max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0"),
+        notes="Markdown, 코드블록, 목차, 첨부파일, 댓글 기능을 지원합니다.",
+    )
+
+    push(
+        "자료실",
+        "관련 사이트 링크",
+        "관리자 등록 링크 아카이브",
+        "",
+        "저장 즉시 반영",
+        checked_at=_max_timestamp(connection, "related_sites", "updated_at", "is_deleted=0"),
+        changed_at=_max_timestamp(connection, "related_sites", "updated_at", "is_deleted=0"),
+        notes="카테고리별 외부 사이트와 설명을 함께 정리합니다.",
+    )
+
+    push(
+        "파라디안 전용",
+        "공문·자료관리",
+        "내부 접수 자료 / Y드라이브 연계",
+        "",
+        "등록 즉시 반영",
+        checked_at=_max_timestamp(connection, "official_documents", "updated_at", "is_active=1"),
+        changed_at=_max_timestamp(connection, "official_documents", "updated_at", "is_active=1"),
+        notes="삭제 자료는 즉시 물리 삭제하지 않고 보존 정책에 따라 관리합니다.",
+    )
+
+    push(
+        "파라디안 전용",
+        "경영 실적",
+        "텔레그램 성과 메시지 수집",
+        "",
+        "메시지 수신 / 수집 작업 기준",
+        checked_at=_max_timestamp(connection, "performance_reports", "created_at"),
+        changed_at=_max_timestamp(connection, "performance_reports", "report_date"),
+        notes="성공적으로 수집된 최신 보고 메시지 기준 시각을 표시합니다.",
+    )
+
+    return rows
+
+
+@app.route("/credits")
+def credits_page():
+    connection = dashboard_db()
+    try:
+        credits_rows = _credits_rows(connection)
+    finally:
+        connection.close()
+    return render_template(
+        "credits.html",
+        credits_rows=credits_rows,
+        site_map_links=_site_map_links(),
+    )
 
 
 ERROR_PAGE_CONTENT = {
