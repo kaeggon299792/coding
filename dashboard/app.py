@@ -37,6 +37,7 @@ from services import (
     casino_statistics,
     company_intelligence,
     document_library,
+    economic_data,
     market_data,
     news_reader,
     official_document_manager,
@@ -753,31 +754,22 @@ def _build_sitemap_entries(connection):
                 None,
                 (
                     news_reader.last_updated_at(),
-                    _max_timestamp(connection, "law_watch_items", "updated_at"),
-                    _max_timestamp(connection, "disclosures", "updated_at"),
+                    _max_timestamp(connection, "law_updates", "fetched_at"),
+                    _max_timestamp(connection, "dart_disclosures", "fetched_at"),
                 ),
             ),
             default=today_kst_str(),
         ),
         "casino_industry_page": today_kst_str(),
         "related_news_page": news_reader.last_updated_at() or today_kst_str(),
-        "market_trend_page": _max_timestamp(connection, "market_quotes", "updated_at"),
-        "tourism_trend_page": _max_timestamp(connection, "tourism_monthly_stats", "fetched_at"),
-        "economic_trend_page": max(
-            filter(
-                None,
-                (
-                    _max_timestamp(connection, "economic_indicators", "collected_at"),
-                    _max_timestamp(connection, "exchange_rates", "collected_at"),
-                ),
-            ),
-            default=today_kst_str(),
-        ),
+        "market_trend_page": _max_timestamp(connection, "market_quotes", "fetched_at"),
+        "tourism_trend_page": _max_timestamp(connection, "tourism_visitor_stats", "fetched_at"),
+        "economic_trend_page": _max_timestamp(connection, "economic_series", "fetched_at"),
         "holiday_calendar_page": today_kst_str(),
         "salary_trend_page": _max_timestamp(connection, "salary_snapshots", "fetched_at"),
         "recruitment_page": _max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
-        "disclosures_page": _max_timestamp(connection, "disclosures", "updated_at"),
-        "laws_page": _max_timestamp(connection, "law_watch_items", "updated_at"),
+        "disclosures_page": _max_timestamp(connection, "dart_disclosures", "fetched_at"),
+        "laws_page": _max_timestamp(connection, "law_updates", "fetched_at"),
         "companies_page": max(
             filter(
                 None,
@@ -795,7 +787,7 @@ def _build_sitemap_entries(connection):
             filter(
                 None,
                 (
-                    _max_timestamp(connection, "analysis_runs", "finished_at"),
+                    _max_timestamp(connection, "dashboard_analysis_runs", "finished_at"),
                     _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
                 ),
             ),
@@ -897,6 +889,15 @@ def _format_minute(value):
     return official_document_manager.datetime_minute(value)
 
 
+def _parse_iso_timestamp(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _latest_timestamp_from_rows(rows, key, predicate=None):
     values = []
     for row in rows:
@@ -931,6 +932,75 @@ def _economic_freshness(series):
         "checked_at": _latest_timestamp_from_rows(series, "fetched_at"),
         "changed_at": _latest_timestamp_from_rows(series, "changed_at"),
     }
+
+
+def _timestamp_is_stale(value, *, max_age_hours=None, max_age_minutes=None):
+    timestamp = _parse_iso_timestamp(value)
+    if timestamp is None:
+        return True
+    if max_age_minutes is not None:
+        threshold = timedelta(minutes=max_age_minutes)
+    else:
+        threshold = timedelta(hours=max_age_hours or 0)
+    return datetime.now(config.KST) - timestamp >= threshold
+
+
+def _refresh_market_quotes_if_needed(connection):
+    quotes = queries.list_market_quotes(connection)
+    freshness = _market_freshness(quotes)
+    domestic_stale = _timestamp_is_stale(
+        freshness.get("domestic_checked_at"), max_age_hours=6
+    )
+    global_stale = queries.global_market_quotes_need_refresh(
+        connection, max_age_minutes=10
+    )
+
+    if domestic_stale:
+        result = market_data.fetch_dashboard_quotes()
+        for quote in result["quotes"]:
+            queries.upsert_market_quote(connection, quote)
+            queries.upsert_market_quote_history(
+                connection, quote["symbol"], quote.get("history") or []
+            )
+        if result["errors"]:
+            logger.warning("국내 주가 수동 보정 갱신 중 오류: %s", result["errors"])
+
+    if global_stale:
+        global_result = market_data.fetch_global_quotes()
+        for quote in global_result["quotes"]:
+            queries.upsert_market_quote(connection, quote)
+            queries.upsert_market_quote_history(
+                connection, quote["symbol"], quote.get("history") or []
+            )
+        for failure in global_result["errors"]:
+            queries.mark_market_quote_failure(
+                connection, failure.get("symbol"), failure.get("error")
+            )
+        if global_result["errors"]:
+            logger.warning(
+                "해외 주가 수동 보정 갱신 중 오류: %s",
+                [item.get("error") for item in global_result["errors"]],
+            )
+
+    if domestic_stale or global_stale:
+        quotes = queries.list_market_quotes(connection)
+    return quotes
+
+
+def _refresh_economic_series_if_needed(connection):
+    series = queries.list_economic_series(connection)
+    freshness = _economic_freshness(series)
+    if not _timestamp_is_stale(freshness.get("checked_at"), max_age_hours=12):
+        return series
+
+    results = (economic_data.fetch_oil(), economic_data.fetch_exchange())
+    items = [item for result in results for item in result["items"]]
+    errors = [error for result in results for error in result["errors"]]
+    for item in items:
+        queries.upsert_economic_observation(connection, item)
+    if errors:
+        logger.warning("유가·환율 수동 보정 갱신 중 오류: %s", errors[:10])
+    return queries.list_economic_series(connection)
 
 
 def _credits_rows(connection):
@@ -1256,12 +1326,12 @@ def public_home():
 
         recent_disclosures = queries.list_recent_disclosures(connection, days=7)[:10]
         news_updated_raw = news_reader.last_updated_at()
-        market_quotes = queries.list_market_quotes(connection)
+        market_quotes = _refresh_market_quotes_if_needed(connection)
         market_updated_at = max(
             (quote.get("fetched_at") or "" for quote in market_quotes),
             default=None,
         )
-        economic_series = queries.list_economic_series(connection)
+        economic_series = _refresh_economic_series_if_needed(connection)
 
         return render_template(
             "dashboard.html",
@@ -1709,18 +1779,7 @@ def casino_fund_page():
 def market_trend_page():
     connection = dashboard_db()
     try:
-        if queries.global_market_quotes_need_refresh(connection, max_age_minutes=10):
-            global_result = market_data.fetch_global_quotes()
-            for quote in global_result["quotes"]:
-                queries.upsert_market_quote(connection, quote)
-                queries.upsert_market_quote_history(
-                    connection, quote["symbol"], quote.get("history") or []
-                )
-            for failure in global_result["errors"]:
-                queries.mark_market_quote_failure(
-                    connection, failure.get("symbol"), failure.get("error")
-                )
-        quotes = queries.list_market_quotes(connection)
+        quotes = _refresh_market_quotes_if_needed(connection)
         domestic_quotes = [
             quote for quote in quotes if quote.get("asset_type") != "global_stock"
         ]
@@ -1790,7 +1849,7 @@ def related_news_page():
 def economic_trend_page():
     connection = dashboard_db()
     try:
-        series = queries.list_economic_series(connection)
+        series = _refresh_economic_series_if_needed(connection)
         oil_series = [item for item in series if item["category"] == "oil"]
         exchange_series = [item for item in series if item["category"] == "exchange"]
         freshness = _economic_freshness(series)
