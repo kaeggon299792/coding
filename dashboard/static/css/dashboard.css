@@ -1256,7 +1256,7 @@ body.cinematic-home .public-hero-lights{
 }
 .breathing-dots-canvas{
   position:absolute;
-  z-index:0;
+  z-index:1;
   top:-70px;
   left:50%;
   width:100vw;
@@ -1268,6 +1268,9 @@ body.cinematic-home .public-hero-lights{
   mask-image:radial-gradient(ellipse 76% 64% at 50% 38%,#000 0%,rgba(0,0,0,.9) 42%,rgba(0,0,0,.34) 68%,transparent 88%);
   -webkit-mask-image:radial-gradient(ellipse 76% 64% at 50% 38%,#000 0%,rgba(0,0,0,.9) 42%,rgba(0,0,0,.34) 68%,transparent 88%);
   will-change:opacity;
+}
+body.cinematic-home .public-hero-light{
+  z-index:0;
 }
 html[data-theme="light"] .breathing-dots-canvas{
   opacity:.1;
