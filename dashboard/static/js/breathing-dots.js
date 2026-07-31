@@ -122,8 +122,8 @@
         var x = centerX + deltaX * scale;
         var y = centerY + deltaY * scale;
         var pulse = 0.5 + 0.5 * Math.sin(time * 0.82 - shapedDistance * 0.032);
-        var alpha = (0.13 + pulse * 0.22) * (0.28 + falloff * 0.72);
-        var radius = 0.55 + falloff * 0.75 + pulse * 0.22;
+        var alpha = (0.24 + pulse * 0.34) * (0.42 + falloff * 0.58);
+        var radius = 0.85 + falloff * 0.95 + pulse * 0.3;
 
         context.beginPath();
         context.arc(x, y, radius, 0, TWO_PI);

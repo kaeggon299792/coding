@@ -1262,7 +1262,7 @@ body.cinematic-home .public-hero-lights{
   width:100vw;
   height:calc(100% + 540px);
   transform:translateX(-50%);
-  opacity:.17;
+  opacity:.72;
   mix-blend-mode:screen;
   pointer-events:none;
   mask-image:radial-gradient(ellipse 76% 64% at 50% 38%,#000 0%,rgba(0,0,0,.9) 42%,rgba(0,0,0,.34) 68%,transparent 88%);
@@ -1282,7 +1282,7 @@ body.cinematic-home .public-hero-art-image::before{
   display:none;
 }
 html[data-theme="light"] .breathing-dots-canvas{
-  opacity:.1;
+  opacity:.48;
   mix-blend-mode:multiply;
 }
 body.cinematic-home .public-hero-light-main{
@@ -1542,7 +1542,7 @@ html[data-theme="light"] body.cinematic-home .public-hero-haze{
   .breathing-dots-canvas{
     top:-30px;
     height:calc(100% + 360px);
-    opacity:.1;
+    opacity:.68;
     mask-image:radial-gradient(ellipse 92% 68% at 50% 34%,#000 0%,rgba(0,0,0,.78) 48%,transparent 86%);
     -webkit-mask-image:radial-gradient(ellipse 92% 68% at 50% 34%,#000 0%,rgba(0,0,0,.78) 48%,transparent 86%);
   }
@@ -1554,7 +1554,7 @@ html[data-theme="light"] body.cinematic-home .public-hero-haze{
     will-change:auto;
   }
   .breathing-dots-canvas{
-    opacity:.065;
+    opacity:.42;
     will-change:auto;
   }
 }
