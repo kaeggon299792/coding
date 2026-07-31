@@ -215,6 +215,9 @@ TRUSTED_HOSTS = tuple(
     ).split(",")
     if host.strip()
 )
+DASHBOARD_PUBLIC_URL = _get_str(
+    "DASHBOARD_PUBLIC_URL", "https://dashboard.shingoon.me"
+).rstrip("/")
 
 
 # ============================================================

@@ -1,0 +1,175 @@
+import re
+
+import pytest
+from werkzeug.security import generate_password_hash
+
+
+@pytest.fixture
+def client(monkeypatch, tmp_path):
+    db_path = tmp_path / "i18n_dashboard.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    monkeypatch.setattr(
+        "services.market_data.fetch_global_quotes",
+        lambda: {"quotes": [], "errors": []},
+    )
+
+    import app as app_module
+    from dashboard_db import queries
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    queries.create_user(
+        connection,
+        "admin",
+        generate_password_hash("correct-horse-battery-staple"),
+    )
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as test_client:
+        yield test_client
+
+
+def _csrf(response):
+    match = re.search(
+        r'name="csrf_token" value="([a-f0-9]+)"',
+        response.get_data(as_text=True),
+    )
+    return match.group(1)
+
+
+def test_korean_home_remains_default(client):
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert response.headers["Content-Language"] == "ko"
+    assert '<html lang="ko"' in html
+    assert "카지노 업계의 정보와 인사이트를" in html
+    assert 'href="/en/" data-locale-link="en"' in html
+
+
+def test_english_home_uses_same_route_with_localized_seo(client):
+    response = client.get("/en/")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert response.headers["Content-Language"] == "en"
+    assert '<html lang="en"' in html
+    assert "Casino Industry Information and Insights" in html
+    assert ">Data<" in html
+    assert 'rel="canonical" href="https://dashboard.shingoon.me/en/"' in html
+    assert 'hreflang="ko" href="https://dashboard.shingoon.me/"' in html
+    assert 'hreflang="en" href="https://dashboard.shingoon.me/en/"' in html
+    assert 'hreflang="x-default"' in html
+    assert "G-PTRL0XC53Z" in html
+    assert 'lang="ko" data-i18n-ignore' in html
+    assert "신우진 제작" in html
+    assert "Created by 신우진" not in html
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/en/performance/casino-industry",
+        "/en/performance/news",
+        "/en/performance/markets",
+        "/en/performance/tourism",
+        "/en/performance/economy",
+        "/en/performance/holidays",
+        "/en/performance/salaries",
+        "/en/performance/recruitment",
+        "/en/disclosures",
+        "/en/laws",
+        "/en/companies",
+        "/en/library",
+        "/en/search",
+        "/en/tips",
+        "/en/bug-reports",
+    ),
+)
+def test_public_english_routes_keep_endpoint_parity(client, path):
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 200
+    assert response.headers["Content-Language"] == "en"
+    assert '<html lang="en"' in response.get_data(as_text=True)
+
+
+def test_language_switch_preserves_path_and_query(client):
+    response = client.get("/en/performance/holidays?year=2027")
+    html = response.get_data(as_text=True)
+    assert 'href="/performance/holidays?year=2027" data-locale-link="ko"' in html
+    assert (
+        'href="/en/performance/holidays?year=2027" data-locale-link="en"'
+        in html
+    )
+
+
+def test_english_static_assets_are_served_through_prefix(client):
+    response = client.get("/en/static/js/dashboard-i18n.js")
+    assert response.status_code == 200
+    assert b"DashboardI18n" in response.data
+
+
+def test_english_library_explains_upload_title_priority(client):
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["username"] = "admin"
+        session["role"] = "admin"
+
+    response = client.get("/en/library")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'placeholder="Leave blank to let GPT generate the title."' in html
+    assert "A title you enter takes highest priority." in html
+    assert "if GPT provides no title or AI analysis fails" in html
+
+
+def test_protected_english_page_redirects_to_english_login(client):
+    response = client.get("/en/official-docs/", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/en/login?next=/en/official-docs/" in response.headers["Location"]
+
+
+def test_english_login_post_keeps_prefix_and_rejects_external_next(client):
+    login_page = client.get("/en/login?next=/en/official-docs/")
+    html = login_page.get_data(as_text=True)
+    assert 'action="/en/login?next=/en/official-docs/"' in html
+    assert (
+        'href="/login?next=%2Fofficial-docs%2F" data-locale-link="ko"'
+        in html
+    )
+    token = _csrf(login_page)
+    response = client.post(
+        "/en/login?next=https://example.com/phishing",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": token,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/en/dashboard")
+
+
+def test_unknown_english_url_uses_localized_error_page(client):
+    response = client.get("/en/not-a-real-page")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 404
+    assert '<html lang="en"' in html
+    assert "Page not found" in html
+    assert "/en/sitemap" in html
+
+
+def test_dynamic_translation_patterns_expand_capture_groups():
+    from localization import translate_text
+
+    translated = translate_text(
+        "아이디 또는 비밀번호가 올바르지 않습니다. 차단까지 9회 남았습니다.",
+        "en",
+    )
+    assert (
+        translated
+        == "Incorrect username or password. "
+        "9 attempts remain before this IP address is blocked."
+    )

@@ -7,6 +7,7 @@
 
 import hashlib
 import hmac
+import json
 import secrets
 import time
 from datetime import datetime, timedelta
@@ -45,6 +46,16 @@ from services import (
 )
 from official_docs import official_docs_bp
 from tips import tips_bp
+from localization import (
+    LocalePrefixMiddleware,
+    alternate_paths,
+    load_catalog,
+    locale_from_environ,
+    meta_for,
+    translate_html,
+    translate_structure,
+    translate_text,
+)
 from utils import display_y_drive_path, escape_html, setup_logger, today_kst_str
 
 logger = setup_logger("dashboard_app")
@@ -62,6 +73,7 @@ app.config.update(
         config.TIPS_MAX_ATTACHMENT_BYTES,
     ) + (512 * 1024),
 )
+app.wsgi_app = LocalePrefixMiddleware(app.wsgi_app)
 
 if not config.FLASK_SECRET_KEY:
     logger.warning("FLASK_SECRET_KEY가 설정되지 않아 임시 키를 사용합니다. 재시작 시 세션이 모두 만료됩니다.")
@@ -117,6 +129,7 @@ PUBLIC_READ_ENDPOINTS = {
 
 @app.before_request
 def establish_request_security():
+    g.locale = locale_from_environ(request.environ)
     host = request.host.split(":", 1)[0].lower()
     if not app.testing and host not in config.TRUSTED_HOSTS:
         abort(400)
@@ -157,6 +170,32 @@ def apply_security_headers(response):
 
 
 @app.after_request
+def localize_response(response):
+    """Translate rendered UI while leaving stored Korean source data untouched."""
+
+    locale = getattr(g, "locale", "ko")
+    response.headers["Content-Language"] = locale
+    if locale != "en" or response.direct_passthrough:
+        return response
+
+    content_type = response.headers.get("Content-Type", "")
+    if content_type.startswith("text/html"):
+        response.set_data(translate_html(response.get_data(as_text=True), locale))
+    elif content_type.startswith("application/json"):
+        payload = response.get_json(silent=True)
+        if payload is not None:
+            response.set_data(
+                json.dumps(
+                    translate_structure(payload, locale),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
+            response.mimetype = "application/json"
+    return response
+
+
+@app.after_request
 def log_authenticated_activity(response):
     """로그인 사용자의 화면 조회와 작업 실행을 관리자 감사 로그에 남긴다."""
     if (
@@ -176,7 +215,8 @@ def log_authenticated_activity(response):
                 request.endpoint,
                 {
                     "method": request.method,
-                    "path": request.path[:500],
+                    "path": f"{request.script_root}{request.path}"[:500],
+                    "locale": getattr(g, "locale", "ko"),
                     "status_code": response.status_code,
                 },
                 success=response.status_code < 400,
@@ -226,6 +266,7 @@ POLICY_CATEGORY_KEYWORDS = [
 
 @app.context_processor
 def inject_globals():
+    locale = getattr(g, "locale", "ko")
     role = session.get("role")
     if not role and session.get("user_id"):
         connection = dashboard_db()
@@ -277,6 +318,15 @@ def inject_globals():
         current_menu_name = endpoint_menu_names.get(
             request.endpoint, "Management Dashboard"
         )
+    current_menu_name = translate_text(current_menu_name, locale)
+    public_base_url = config.DASHBOARD_PUBLIC_URL.rstrip("/")
+    seo_paths = alternate_paths(request.path)
+    switch_paths = alternate_paths(
+        request.path, request.query_string.decode("utf-8", errors="ignore")
+    )
+    canonical_path = seo_paths[locale]
+    target_locale = "ko" if locale == "en" else "en"
+    catalog = load_catalog()
     return {
         "current_username": session.get("username"),
         "now_str": today_kst_str(),
@@ -286,6 +336,20 @@ def inject_globals():
         "global_csrf_token": get_csrf_token(),
         "current_menu_name": current_menu_name,
         "display_y_drive_path": display_y_drive_path,
+        "current_locale": locale,
+        "locale_prefix": "/en" if locale == "en" else "",
+        "locale_switch_url": switch_paths[target_locale],
+        "locale_switch_label": target_locale.upper(),
+        "locale_urls": switch_paths,
+        "canonical_url": f"{public_base_url}{canonical_path}",
+        "hreflang_urls": {
+            "ko": f"{public_base_url}{seo_paths['ko']}",
+            "en": f"{public_base_url}{seo_paths['en']}",
+            "x-default": f"{public_base_url}{seo_paths['ko']}",
+        },
+        "localized_meta": meta_for(locale),
+        "i18n_catalog": catalog,
+        "t": lambda value: translate_text(value, locale),
     }
 
 
@@ -510,7 +574,9 @@ def can_access_action_item(item):
 @app.route("/bug-reports", methods=["GET", "POST"])
 def action_items_page():
     if request.method == "POST" and not session.get("user_id"):
-        return redirect(url_for("auth.login", next=request.path))
+        return redirect(
+            url_for("auth.login", next=f"{request.script_root}{request.path}")
+        )
     connection = dashboard_db()
     try:
         is_admin = session.get("role") == "admin"
@@ -558,8 +624,8 @@ def action_items_page():
                 environment=environment,
                 feedback_type=feedback_type,
             )
-            bug_url = request.url_root.rstrip("/") + url_for(
-                "action_item_detail", item_id=item_id
+            bug_url = url_for(
+                "action_item_detail", item_id=item_id, _external=True
             )
             alert_lines = [
                 "💬 <b>새 의견</b>",
@@ -1158,7 +1224,9 @@ def _library_context(connection, error=None):
 @app.route("/library", methods=["GET", "POST"])
 def research_library_page():
     if request.method == "POST" and not session.get("user_id"):
-        return redirect(url_for("auth.login", next=request.path))
+        return redirect(
+            url_for("auth.login", next=f"{request.script_root}{request.path}")
+        )
     connection = dashboard_db()
     saved_file = None
     try:
@@ -1208,10 +1276,8 @@ def research_library_page():
                 ), 409
 
             submitted_title = (request.form.get("title") or "").strip()[:200]
-            use_ai_title = not submitted_title
-            title = submitted_title
-            if not title:
-                title = extracted["original_filename"].rsplit(".", 1)[0]
+            filename_title = extracted["original_filename"].rsplit(".", 1)[0]
+            title = submitted_title or filename_title
 
             document_id = queries.create_research_document(
                 connection,
@@ -1250,11 +1316,14 @@ def research_library_page():
             queries.update_research_document_analysis(
                 connection, document_id, analysis=analysis, error_message=analysis_error
             )
-            if use_ai_title and analysis and analysis.get("suggested_title"):
+            suggested_title = (
+                str((analysis or {}).get("suggested_title") or "").strip()[:200]
+            )
+            if not submitted_title and suggested_title:
                 queries.update_research_document_title(
                     connection,
                     document_id,
-                    analysis["suggested_title"].strip()[:200],
+                    suggested_title,
                 )
             notice = "업로드 및 AI 분석이 완료되었습니다." if analysis else (
                 "자료는 저장했지만 AI 분석은 완료되지 않았습니다."

@@ -1,11 +1,27 @@
 <!doctype html>
-<html lang="ko">
+<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#09090b">
 <title>{% block title %}Dashboard{% endblock %} | CASINO IN / MANAGEMENT DASHBOARD</title>
-<meta name="description" content="CASINO IN 경영기획 인텔리전스 대시보드 — 뉴스·공시·법률·기업정보를 한 화면에서.">
+<meta name="description" content="{{ localized_meta.description }}">
+<link rel="canonical" href="{{ canonical_url }}">
+<link rel="alternate" hreflang="ko" href="{{ hreflang_urls.ko }}">
+<link rel="alternate" hreflang="en" href="{{ hreflang_urls.en }}">
+<link rel="alternate" hreflang="x-default" href="{{ hreflang_urls['x-default'] }}">
+<meta property="og:type" content="{% block og_type %}website{% endblock %}">
+<meta property="og:site_name" content="CASINO IN / MANAGEMENT DASHBOARD">
+<meta property="og:title" content="{{ current_menu_name }} | CASINO IN / MANAGEMENT DASHBOARD">
+<meta property="og:description" content="{{ localized_meta.description }}">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:locale" content="{{ 'en_US' if current_locale == 'en' else 'ko_KR' }}">
+<meta property="og:locale:alternate" content="{{ 'ko_KR' if current_locale == 'en' else 'en_US' }}">
+{% if request.blueprint == 'official_docs' or request.endpoint in ('auth.login', 'auth.register', 'auth.user_management', 'performance_page', 'paradian_portal_page') %}
+<meta name="robots" content="noindex,nofollow">
+{% else %}
+<meta name="robots" content="index,follow">
+{% endif %}
 <!-- Google Tag Manager -->
 <script nonce="{{ csp_nonce }}">
 (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -15,6 +31,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-MVWKPPRP');
 </script>
 <!-- End Google Tag Manager -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PTRL0XC53Z"></script>
+<script nonce="{{ csp_nonce }}">
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-PTRL0XC53Z');
+</script>
 <script nonce="{{ csp_nonce }}">
 (() => {
   const saved = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
@@ -41,13 +65,41 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
   </div>
 </div>
 {% block body %}{% endblock %}
+<nav class="global-language-switch" aria-label="{{ t('언어 선택') }}">
+  <a href="{{ locale_urls.ko }}" data-locale-link="ko"{% if current_locale == 'ko' %} class="active" aria-current="page"{% endif %}>KR</a>
+  <span aria-hidden="true">/</span>
+  <a href="{{ locale_urls.en }}" data-locale-link="en"{% if current_locale == 'en' %} class="active" aria-current="page"{% endif %}>EN</a>
+</nav>
 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="화이트 테마로 변경" aria-pressed="false">
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>
 </button>
 <button class="back-to-top" id="back-to-top" type="button" aria-label="맨 위로 이동" hidden>↑</button>
 {% include "_legal_footer.html" %}
+<script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
+<script src="{{ url_for('static', filename='js/dashboard-i18n.js') }}" defer></script>
 <script nonce="{{ csp_nonce }}">
+const languageSwitch = document.querySelector(".global-language-switch");
+const languageSwitchHost = document.querySelector(".topbar-actions, .public-header");
+if (languageSwitch && languageSwitchHost) {
+  languageSwitch.classList.add("is-embedded");
+  if (languageSwitchHost.classList.contains("public-header")) {
+    languageSwitchHost.insertBefore(
+      languageSwitch,
+      languageSwitchHost.querySelector(".public-login-link")
+    );
+  } else {
+    languageSwitchHost.prepend(languageSwitch);
+  }
+}
+document.querySelectorAll("[data-locale-link]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    if (!window.location.hash) return;
+    event.preventDefault();
+    window.location.assign(link.href + window.location.hash);
+  });
+});
+
 (() => {
   const button = document.getElementById("theme-toggle");
   const label = button.querySelector(".theme-toggle-label");

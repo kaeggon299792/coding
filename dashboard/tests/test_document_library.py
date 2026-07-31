@@ -1,5 +1,6 @@
 from io import BytesIO
 
+import pytest
 from pypdf import PdfWriter
 from werkzeug.datastructures import FileStorage
 
@@ -103,6 +104,7 @@ def test_library_upload_route_saves_and_analyzes(monkeypatch, tmp_path):
         "services.ai_insights.analyze_research_document",
         lambda connection, document: (
             {
+                "suggested_title": "GPT 추천 제목",
                 "ai_summary": "외래객 회복이 핵심이다.",
                 "investment_stance": "매수",
                 "target_price": "20,000원",
@@ -136,3 +138,84 @@ def test_library_upload_route_saves_and_analyzes(monkeypatch, tmp_path):
     connection.close()
     assert document["title"] == "GKL 전망"
     assert document["ai_summary"] == "외래객 회복이 핵심이다."
+
+
+@pytest.mark.parametrize(
+    ("analysis", "analysis_error", "expected_title", "expected_ai_title"),
+    (
+        (
+            {"suggested_title": "  GPT 생성 제목  ", "ai_summary": "요약"},
+            None,
+            "GPT 생성 제목",
+            "GPT 생성 제목",
+        ),
+        (
+            {"suggested_title": "   ", "ai_summary": "요약"},
+            None,
+            "gkl-report",
+            None,
+        ),
+        (None, "AI 분석 실패", "gkl-report", None),
+    ),
+    ids=("gpt-title", "blank-gpt-title", "ai-failure"),
+)
+def test_library_upload_blank_title_uses_gpt_then_filename_fallback(
+    monkeypatch,
+    tmp_path,
+    analysis,
+    analysis_error,
+    expected_title,
+    expected_ai_title,
+):
+    db_path = tmp_path / "library_title_priority.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+
+    import app as app_module
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    queries.upsert_monitored_company(connection, "GKL", "00557508")
+    connection.close()
+
+    monkeypatch.setattr(
+        "services.document_library.save_and_extract",
+        lambda uploaded: {
+            "original_filename": "gkl-report.pdf",
+            "stored_filename": "stored.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 100,
+            "sha256": "d" * 64,
+            "page_count": 5,
+            "extracted_text": "GKL 외래객 회복",
+            "extraction_status": "complete",
+            "path": tmp_path / "stored.pdf",
+        },
+    )
+    monkeypatch.setattr(
+        "services.ai_insights.analyze_research_document",
+        lambda connection, document: (analysis, analysis_error),
+    )
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 1
+            session["username"] = "admin"
+            session["csrf_token"] = "b" * 64
+        response = client.post(
+            "/library",
+            data={
+                "csrf_token": "b" * 64,
+                "company_name": "GKL",
+                "title": "   ",
+                "document": (BytesIO(b"fake"), "gkl-report.pdf"),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 302
+    connection = dashboard_db()
+    document = queries.list_research_documents(connection)[0]
+    connection.close()
+    assert document["title"] == expected_title
+    assert document["ai_suggested_title"] == expected_ai_title

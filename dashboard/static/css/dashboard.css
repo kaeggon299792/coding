@@ -1114,3 +1114,58 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .casino-history-chart,.casino-share-chart{position:relative}.casino-chart-year{fill:var(--brand-text-muted);font-family:var(--font-mono);font-size:11px;text-anchor:middle}.casino-chart-hitpoint{fill:transparent;stroke:transparent;stroke-width:2;cursor:crosshair;outline:none;transition:fill .15s,stroke .15s}.casino-chart-hitpoint:hover,.casino-chart-hitpoint:focus{fill:var(--brand-surface);stroke:#7c8797}.casino-chart-hitpoint.casino:hover,.casino-chart-hitpoint.casino:focus{stroke:#4da8ff}.casino-chart-hitpoint.share:hover,.casino-chart-hitpoint.share:focus,.casino-chart-hitpoint.total:hover,.casino-chart-hitpoint.total:focus{stroke:#d9b85f}.casino-chart-tooltip{position:absolute;z-index:5;display:none;min-width:145px;padding:11px 13px;border:1px solid var(--brand-border-strong);background:var(--brand-surface);box-shadow:0 10px 30px rgba(0,0,0,.22);pointer-events:none}.casino-chart-tooltip.is-visible{display:grid;gap:3px}.casino-chart-tooltip b{color:var(--brand-text-muted);font-family:var(--font-mono);font-size:10px}.casino-chart-tooltip span{color:var(--brand-text-secondary);font-size:11px}.casino-chart-tooltip strong{font-size:15px;font-variant-numeric:tabular-nums}
 .casino-chart-area{pointer-events:none}.casino-interactive-chart .casino-chart-line{filter:drop-shadow(0 3px 5px rgba(0,0,0,.14))}
 @media(max-width:760px){.data-subnav,.casino-subnav{justify-content:flex-start;overflow-x:auto}.casino-history-kpis,.casino-history-kpis.fund{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- Korean / English language switch ---------- */
+.global-language-switch{
+  position:fixed;
+  z-index:1250;
+  top:16px;
+  right:18px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--brand-border-strong);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--brand-surface) 94%,transparent);
+  color:var(--brand-text-muted);
+  font:700 10px/1 var(--font-mono);
+  letter-spacing:.08em;
+  white-space:nowrap;
+  backdrop-filter:blur(8px);
+}
+.global-language-switch.is-embedded{
+  position:static;
+  flex:0 0 auto;
+  margin:0;
+}
+.global-language-switch a{color:var(--brand-text-muted);text-decoration:none}
+.global-language-switch a:hover,
+.global-language-switch a.active{color:var(--brand-text-primary);text-decoration:none}
+.global-language-switch a.active{cursor:default}
+html[lang="en"] body,
+html[lang="en"] button,
+html[lang="en"] input,
+html[lang="en"] select,
+html[lang="en"] textarea{word-break:normal;overflow-wrap:anywhere}
+html[lang="en"] .topbar-nav{gap:2px}
+html[lang="en"] .topbar-nav>a,
+html[lang="en"] .topbar-nav>details>summary{font-size:11px;margin-right:4px;margin-left:4px}
+html[lang="en"] .topbar-context{max-width:190px}
+html[lang="en"] .official-form label:has(input:required,select:required,textarea:required)>span::after{content:" Required"}
+html[lang="en"] .table-scroll:before{content:"Swipe horizontally to view all columns"}
+@media(max-width:1100px){
+  html[lang="en"] .topbar{flex-wrap:wrap;height:auto;padding-top:10px;padding-bottom:10px}
+  html[lang="en"] .topbar-brand,
+  html[lang="en"] .topbar-actions{flex:1 1 auto}
+  html[lang="en"] .topbar-nav{order:3;width:100%;justify-content:flex-start;overflow-x:auto;white-space:nowrap}
+  html[lang="en"] .data-subnav,
+  html[lang="en"] .casino-subnav{justify-content:flex-start;overflow-x:auto}
+}
+@media(max-width:768px){
+  .global-language-switch{top:12px;right:12px}
+  .global-language-switch.is-embedded{padding:5px 8px}
+  html[lang="en"] .topbar{display:grid}
+  html[lang="en"] .topbar-nav{order:initial}
+}

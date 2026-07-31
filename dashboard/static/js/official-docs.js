@@ -1,4 +1,6 @@
 (() => {
+  const localePrefix = document.documentElement.dataset.localePrefix || "";
+  const appUrl = (path) => `${localePrefix}${path}`;
   const category = document.querySelector("#official-category");
   const folder = document.querySelector("#official-folder-category");
   const video = document.querySelector("#video-exported");
@@ -62,7 +64,7 @@
         controller = new AbortController();
         try {
           const response = await fetch(
-            `/official-docs/field-suggestions?field=${fieldName}&q=${encodeURIComponent(term)}`,
+            appUrl(`/official-docs/field-suggestions?field=${fieldName}&q=${encodeURIComponent(term)}`),
             {signal: controller.signal}
           );
           if (!response.ok) throw new Error("suggestion request failed");
@@ -169,7 +171,7 @@
     aiWarnings.hidden = true;
     aiWarnings.replaceChildren();
     try {
-      const response = await fetch("/official-docs/analyze-upload", {
+      const response = await fetch(appUrl("/official-docs/analyze-upload"), {
         method: "POST",
         body,
         credentials: "same-origin",
@@ -228,7 +230,7 @@
         csrf_token: csrfToken,
         document_id: button.dataset.documentId,
       });
-      fetch("/official-docs/audit/path-copy", {
+      fetch(appUrl("/official-docs/audit/path-copy"), {
         method: "POST",
         body,
         credentials: "same-origin",
@@ -249,7 +251,7 @@
     folderSearchButton.disabled = true;
     folderSearchResults.textContent = "검색 중…";
     try {
-      const response = await fetch(`/official-docs/folder-index?q=${encodeURIComponent(folderSearchQuery.value)}`);
+      const response = await fetch(appUrl(`/official-docs/folder-index?q=${encodeURIComponent(folderSearchQuery.value)}`));
       const data = await response.json();
       folderSearchResults.replaceChildren();
       if (!data.folders?.length) {
@@ -281,7 +283,7 @@
     if (!folderBrowserList) return;
     folderBrowserList.textContent = "폴더 목록을 불러오는 중…";
     try {
-      const response = await fetch(`/official-docs/folder-tree?parent=${encodeURIComponent(path)}`);
+      const response = await fetch(appUrl(`/official-docs/folder-tree?parent=${encodeURIComponent(path)}`));
       if (!response.ok) throw new Error("folder browser request failed");
       const data = await response.json();
       browserPath = path;

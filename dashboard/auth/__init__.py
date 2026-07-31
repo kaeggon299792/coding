@@ -13,6 +13,7 @@ import sqlite3
 import hashlib
 from datetime import datetime, timedelta
 from functools import wraps
+from urllib.parse import urlsplit
 
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -220,7 +221,9 @@ def login_required(view):
         if not session.get("user_id"):
             if request.path.startswith("/api/"):
                 return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
-            return redirect(url_for("auth.login", next=request.path))
+            return redirect(
+                url_for("auth.login", next=f"{request.script_root}{request.path}")
+            )
         connection = dashboard_db()
         try:
             user = connection.execute(
@@ -298,6 +301,29 @@ def _valid_password(password):
         and re.search(r"\d", password)
         and re.search(r"[^A-Za-z0-9]", password)
     )
+
+
+def _safe_local_next(value):
+    """Return a same-origin path and preserve the active locale prefix."""
+
+    if not value:
+        return None
+    parsed = urlsplit(str(value))
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or not parsed.path.startswith("/")
+        or parsed.path.startswith("//")
+    ):
+        return None
+    path = parsed.path
+    if request.script_root == "/en" and path != "/en" and not path.startswith("/en/"):
+        path = f"/en{path}"
+    if request.script_root != "/en" and (path == "/en" or path.startswith("/en/")):
+        # An explicit English destination remains valid when submitted from Korean.
+        pass
+    query = f"?{parsed.query}" if parsed.query else ""
+    return f"{path}{query}"
 
 
 def _landing_page_for_user(connection, user):
@@ -509,7 +535,7 @@ def login():
     finally:
         connection.close()
 
-    next_path = request.args.get("next") or url_for(
+    next_path = _safe_local_next(request.args.get("next")) or url_for(
         LANDING_ENDPOINTS.get(landing_page, "dashboard_home")
     )
     return redirect(next_path)
