@@ -62,6 +62,16 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert 'hreflang="en" href="https://casino.shingoon.me/en/"' in html
     assert 'hreflang="x-default"' in html
     assert "G-PTRL0XC53Z" in html
+    taglines = {
+        "Everything casino professionals need.",
+        "One space for the casino industry.",
+        "The casino industry at a glance.",
+        "The right information, right when you need it.",
+        "Stay ahead of the industry.",
+        "Scattered information. Connected insight.",
+        "Bringing the casino industry closer.",
+    }
+    assert any(tagline in html for tagline in taglines)
     assert 'Created by Woojin Shin' in html
     assert '신우진 제작' not in html
     assert "Created by 신우진" not in html

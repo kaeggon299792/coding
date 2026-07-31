@@ -47,7 +47,8 @@ gtag('config', 'G-PTRL0XC53Z');
 </script>
 <script nonce="{{ csp_nonce }}">
 (() => {
-  const saved = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
+  const isManual = localStorage.getItem("casino-in-theme-manual") === "1";
+  const saved = isManual ? localStorage.getItem("casino-in-theme") : null;
   const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
   const theme = saved === "light" || saved === "dark" ? saved : (systemDark ? "dark" : "light");
   document.documentElement.dataset.theme = theme;
@@ -117,13 +118,15 @@ document.querySelectorAll("[data-locale-link]").forEach((link) => {
   const label = button.querySelector(".theme-toggle-label");
   const icon = button.querySelector(".theme-toggle-icon");
   const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-  const savedTheme = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
-  let hasManualPreference = savedTheme === "light" || savedTheme === "dark";
+  const savedTheme = localStorage.getItem("casino-in-theme");
+  let hasManualPreference = localStorage.getItem("casino-in-theme-manual") === "1" &&
+    (savedTheme === "light" || savedTheme === "dark");
   const apply = (theme, persist = false) => {
     const isLight = theme === "light";
     document.documentElement.dataset.theme = theme;
     if (persist) {
       localStorage.setItem("casino-in-theme", theme);
+      localStorage.setItem("casino-in-theme-manual", "1");
       localStorage.removeItem("paradise-theme");
       hasManualPreference = true;
     }

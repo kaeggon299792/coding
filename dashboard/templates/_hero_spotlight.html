@@ -15,12 +15,16 @@
     </div>
 
     {% if current_locale == 'en' %}
-    <h1 class="public-hero-title">
-      Casino Industry Intelligence Dashboard
-    </h1>
-    <p class="public-hero-description">
-      A restrained view of industry information and insight.
-    </p>
+    {% set hero_taglines = [
+      'Everything casino professionals need.',
+      'One space for the casino industry.',
+      'The casino industry at a glance.',
+      'The right information, right when you need it.',
+      'Stay ahead of the industry.',
+      'Scattered information. Connected insight.',
+      'Bringing the casino industry closer.'
+    ] %}
+    <h1 class="public-hero-title">{{ hero_taglines | random }}</h1>
     {% else %}
     {% set hero_taglines = [
       '카지노인을 위한 모든 정보.',
