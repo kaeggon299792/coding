@@ -16,14 +16,13 @@ git -C "${REPO_DIR}" archive "${TARGET_REF}" dashboard | tar -x -C "${REPO_DIR}"
 
 "${PYTHON}" -m pip install -q -r requirements.txt
 "${PYTHON}" -m compileall -q .
-"${PYTHON}" -m pytest -q \
-  tests/test_auth.py \
-  tests/test_schema_migration.py \
-  tests/test_seo.py \
-  tests/test_source_data_repository.py
 "${PYTHON}" - <<'PY'
+from app import app
 from extensions import dashboard_db
 
+required_endpoints = {"public_home", "auth.login", "market_trend_page"}
+registered = {rule.endpoint for rule in app.url_map.iter_rules()}
+assert required_endpoints <= registered
 connection = dashboard_db()
 assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 connection.close()
@@ -33,7 +32,7 @@ touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/dashboard
 nohup "${APP_DIR}/deployment/post_deploy_verify.sh" "${BACKUP_PATH}" >/dev/null 2>&1 &
 
 printf '%s\n' \
-  "Fast deployment and reload complete." \
+  "Fast deployment and reload complete after startup and integrity checks." \
   "Full tests are running in the background." \
   "Status: ${APP_DIR}/logs/post-deploy-latest.status" \
   "On failure, the deployment is automatically rolled back and reloaded." \
