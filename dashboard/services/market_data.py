@@ -20,10 +20,10 @@ INDEX_URL = (
 )
 
 TRACKED_STOCKS = (
-    {"symbol": "034230", "name": "파라다이스", "market": "KOSDAQ"},
-    {"symbol": "114090", "name": "GKL", "market": "KOSPI"},
-    {"symbol": "035250", "name": "강원랜드", "market": "KOSPI"},
-    {"symbol": "032350", "name": "롯데관광개발", "market": "KOSPI"},
+    {"symbol": "034230", "name": "파라다이스", "market": "KOSPI", "yahoo_symbol": "034230.KS"},
+    {"symbol": "114090", "name": "GKL", "market": "KOSPI", "yahoo_symbol": "114090.KS"},
+    {"symbol": "035250", "name": "강원랜드", "market": "KOSPI", "yahoo_symbol": "035250.KS"},
+    {"symbol": "032350", "name": "롯데관광개발", "market": "KOSPI", "yahoo_symbol": "032350.KS"},
 )
 
 GLOBAL_STOCKS = (
@@ -312,7 +312,7 @@ def fetch_global_stock(stock):
     """API 키 없이 Yahoo Finance 일별 차트 응답을 정규화한다."""
     try:
         response = get_with_hard_timeout(
-            YAHOO_CHART_URL.format(symbol=stock["symbol"]),
+            YAHOO_CHART_URL.format(symbol=stock.get("yahoo_symbol") or stock["symbol"]),
             hard_timeout_seconds=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
             params={"range": "1mo", "interval": "1d", "events": "div,splits"},
             headers={"User-Agent": "Mozilla/5.0 (PARADISE market dashboard)"},
@@ -421,15 +421,37 @@ def fetch_global_quotes():
     }
 
 
+def fetch_yahoo_domestic_quotes():
+    """PythonAnywhere에서 토스 인증이 차단될 때 사용하는 국내 시세 보조원."""
+    stocks = [
+        {"symbol": "KOSPI", "yahoo_symbol": "^KS11", "name": "KOSPI", "market": "KOSPI", "currency": "KRW"},
+        *({**stock, "currency": "KRW"} for stock in TRACKED_STOCKS),
+    ]
+    results = [fetch_global_stock(stock) for stock in stocks]
+    quotes = []
+    for result in results:
+        if not result.get("ok"):
+            continue
+        quote = result["quote"]
+        quote["asset_type"] = "index" if quote["symbol"] == "KOSPI" else "stock"
+        quotes.append(quote)
+    return {
+        "quotes": quotes,
+        "errors": [result.get("error") for result in results if not result.get("ok")],
+    }
+
+
 def fetch_dashboard_quotes():
     results = [fetch_kospi(), *(fetch_stock(stock) for stock in TRACKED_STOCKS)]
     public_quotes = [result["quote"] for result in results if result.get("ok")]
     public_errors = [result.get("error") for result in results if not result.get("ok")]
-    if not _toss_credentials_ready():
-        return {"quotes": public_quotes, "errors": public_errors}
-    toss = fetch_toss_domestic_quotes()
-    quotes = _merge_domestic_quotes(toss["quotes"], public_quotes)
+    yahoo = fetch_yahoo_domestic_quotes()
+    quotes = _merge_domestic_quotes(yahoo["quotes"], public_quotes)
+    toss = {"quotes": [], "errors": []}
+    if _toss_credentials_ready():
+        toss = fetch_toss_domestic_quotes()
+        quotes = _merge_domestic_quotes(toss["quotes"], quotes)
     available = {quote["symbol"] for quote in quotes}
     expected = {"KOSPI", *(stock["symbol"] for stock in TRACKED_STOCKS)}
-    errors = [] if expected.issubset(available) else [*public_errors, *toss["errors"]]
+    errors = [] if expected.issubset(available) else [*public_errors, *yahoo["errors"], *toss["errors"]]
     return {"quotes": quotes, "errors": [error for error in errors if error]}
