@@ -61,8 +61,8 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert 'hreflang="en" href="https://casino.shingoon.me/en/"' in html
     assert 'hreflang="x-default"' in html
     assert "G-PTRL0XC53Z" in html
-    assert 'lang="ko" data-i18n-ignore' in html
-    assert "신우진 제작" in html
+    assert 'Created by Woojin Shin' in html
+    assert '신우진 제작' not in html
     assert "Created by 신우진" not in html
 
 
