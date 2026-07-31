@@ -148,6 +148,8 @@ def test_data_and_feedback_pages_render_one_centralized_footer(client, path):
     html = response.get_data(as_text=True)
     assert html.count('class="legal-footer"') == 1
     assert 'class="site-footer"' not in html
+    assert 'href="https://shingoon.me/"' in html
+    assert 'rel="noopener noreferrer"' in html
 
 
 def test_sitemap_renders_data_and_library_submenus(client):
