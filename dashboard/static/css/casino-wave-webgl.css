@@ -35,7 +35,10 @@ body.cinematic-home.webgl-wave-ready .casino-wave-fallback {
 }
 
 html[data-theme="light"] body.cinematic-home .casino-wave-canvas {
-  display: none;
+  display: block;
+  opacity: .32;
+  filter: invert(1) grayscale(1) contrast(.72);
+  mix-blend-mode: multiply;
 }
 
 html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
@@ -51,6 +54,10 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
   body.cinematic-home .casino-wave-canvas {
     mask-image: radial-gradient(ellipse 105% 92% at 50% 43%, #000 0%, rgba(0, 0, 0, .98) 65%, rgba(0, 0, 0, .45) 84%, transparent 100%);
     -webkit-mask-image: radial-gradient(ellipse 105% 92% at 50% 43%, #000 0%, rgba(0, 0, 0, .98) 65%, rgba(0, 0, 0, .45) 84%, transparent 100%);
+  }
+
+  html[data-theme="light"] body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
+    opacity: .42;
   }
 }
 
