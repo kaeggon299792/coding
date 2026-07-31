@@ -77,7 +77,7 @@ def test_public_home_is_available_when_not_authenticated(client):
     assert "frame-src https://www.googletagmanager.com" in policy
     assert 'data-casino-wave' in html
     assert re.search(r'<script nonce="[^"]+" src="/static/vendor/three/three\.r149\.min\.js">', html)
-    assert re.search(r'<script nonce="[^"]+" src="/static/js/casino-wave-webgl-classic\.js">', html)
+    assert re.search(r'<script nonce="[^"]+" src="/static/js/casino-wave-webgl-v2\.js">', html)
 
 
 def test_login_page_has_guest_access_button(client):

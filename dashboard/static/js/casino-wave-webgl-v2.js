@@ -19,8 +19,6 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
   let lastTime = 0;
   let currentTime = 0;
   let themeIsLight = document.documentElement.dataset.theme === "light";
-  const mouseTarget = new THREE.Vector2(8, 8);
-  const mouseCurrent = new THREE.Vector2(8, 8);
 
   const vertexShader = `
     uniform float uTime;
@@ -28,9 +26,6 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     uniform float uPointSize;
     uniform float uDpr;
     uniform float uMobile;
-    uniform vec2 uMouse;
-    uniform vec2 uRipple;
-    uniform float uRippleTime;
     varying float vHeight;
     varying float vFade;
     varying float vCenter;
@@ -65,25 +60,14 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     void main() {
       vec2 base = position.xy;
       vec2 field = vec2(base.x * uAspect, base.y);
-      float n1 = snoise(field * 1.15 + vec2(uTime * 0.055, -uTime * 0.034));
-      float n2 = snoise(field * 2.35 + vec2(-uTime * 0.031, uTime * 0.047));
-      float n3 = snoise(field * 4.6 + vec2(uTime * 0.018, uTime * 0.026));
+      float n1 = snoise(field * 1.15 + vec2(uTime * 0.115, -uTime * 0.072));
+      float n2 = snoise(field * 2.35 + vec2(-uTime * 0.067, uTime * 0.104));
+      float n3 = snoise(field * 4.6 + vec2(uTime * 0.041, uTime * 0.058));
       float wave = n1 * 0.56 + n2 * 0.30 + n3 * 0.14;
 
-      vec2 mouseDelta = base - uMouse;
-      float mouseDistance = length(mouseDelta * vec2(uAspect, 1.0));
-      float mouseGlow = smoothstep(0.62, 0.0, mouseDistance);
-      vec2 safeDirection = mouseDistance > 0.001 ? normalize(mouseDelta) : vec2(0.0);
-
-      float rippleAge = uTime - uRippleTime;
-      float rippleDistance = distance(base * vec2(uAspect, 1.0), uRipple * vec2(uAspect, 1.0));
-      float rippleLife = step(0.0, rippleAge) * (1.0 - smoothstep(0.0, 1.45, rippleAge));
-      float ripple = sin(rippleDistance * 32.0 - rippleAge * 7.0) * exp(-rippleAge * 2.15) * rippleLife;
-
       vec2 displaced = base;
-      displaced += safeDirection * mouseGlow * 0.018;
-      displaced.y += wave * mix(0.024, 0.036, uMobile);
-      displaced += normalize(base - uRipple + vec2(0.0001)) * ripple * 0.012;
+      displaced.x += (n2 * 0.010 + n3 * 0.004) * mix(1.0, 0.82, uMobile);
+      displaced.y += wave * mix(0.036, 0.045, uMobile);
 
       float edgeX = 1.0 - smoothstep(0.74, 1.17, abs(base.x));
       float edgeY = 1.0 - smoothstep(0.72, 1.12, abs(base.y));
@@ -92,7 +76,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
 
       vHeight = wave * 0.5 + 0.5;
       vFade = edgeX * edgeY * headerFade;
-      vCenter = clamp(center + mouseGlow * 0.22 + ripple * 0.14, 0.0, 1.0);
+      vCenter = clamp(center + (n1 * 0.5 + 0.5) * 0.08, 0.0, 1.0);
       gl_Position = vec4(displaced, 0.0, 1.0);
       gl_PointSize = uPointSize * uDpr * (0.72 + vHeight * 0.82 + vCenter * 0.36);
     }
@@ -100,6 +84,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
 
   const fragmentShader = `
     precision highp float;
+    uniform float uMobile;
     varying float vHeight;
     varying float vFade;
     varying float vCenter;
@@ -114,6 +99,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
       vec3 color = mix(outer, middle, lightness);
       color = mix(color, white, vCenter * vHeight * 0.46);
       float alpha = particle * vFade * (0.20 + vHeight * 0.36 + vCenter * 0.32);
+      alpha *= mix(1.0, 1.5, uMobile);
       if (alpha < 0.008) discard;
       gl_FragColor = vec4(color, alpha);
     }
@@ -149,7 +135,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     material.uniforms.uAspect.value = window.innerWidth / Math.max(window.innerHeight, 1);
     material.uniforms.uDpr.value = dpr;
     material.uniforms.uMobile.value = mobile ? 1 : 0;
-    material.uniforms.uPointSize.value = mobile ? 2.55 : 2.05;
+    material.uniforms.uPointSize.value = mobile ? 3.15 : 2.05;
   }
 
   function scheduleResize() {
@@ -168,34 +154,13 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     });
   }
 
-  function pointerToUniform(event, target) {
-    target.set((event.clientX / Math.max(window.innerWidth, 1)) * 2 - 1, 1 - (event.clientY / Math.max(window.innerHeight, 1)) * 2);
-  }
-
-  function handlePointerMove(event) {
-    if (mobileQuery.matches || reduceMotion.matches) return;
-    pointerToUniform(event, mouseTarget);
-  }
-
-  function handlePointerLeave() {
-    mouseTarget.set(8, 8);
-  }
-
-  function handlePointerDown(event) {
-    if (themeIsLight || reduceMotion.matches) return;
-    pointerToUniform(event, material.uniforms.uRipple.value);
-    material.uniforms.uRippleTime.value = currentTime;
-  }
-
   function render(timestamp) {
     animationFrame = 0;
     if (disposed || document.hidden || themeIsLight) return;
     const elapsed = Math.min((timestamp - lastTime) / 1000 || 0, 0.05);
     lastTime = timestamp;
     if (!reduceMotion.matches) currentTime += elapsed;
-    mouseCurrent.lerp(mouseTarget, 0.035);
     material.uniforms.uTime.value = reduceMotion.matches ? 0.8 : currentTime;
-    material.uniforms.uMouse.value.copy(mouseCurrent);
     renderer.render(scene, camera);
     if (!reduceMotion.matches) animationFrame = requestAnimationFrame(render);
   }
@@ -233,9 +198,6 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     if (animationFrame) cancelAnimationFrame(animationFrame);
     if (resizeFrame) cancelAnimationFrame(resizeFrame);
     window.removeEventListener("resize", scheduleResize);
-    window.removeEventListener("pointermove", handlePointerMove);
-    window.removeEventListener("pointerleave", handlePointerLeave);
-    window.removeEventListener("pointerdown", handlePointerDown);
     document.removeEventListener("visibilitychange", handleVisibility);
     if (themeObserver) themeObserver.disconnect();
     geometry.dispose();
@@ -256,10 +218,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
         uAspect: { value: 1 },
         uPointSize: { value: 2.05 },
         uDpr: { value: 1 },
-        uMobile: { value: mobileQuery.matches ? 1 : 0 },
-        uMouse: { value: mouseCurrent },
-        uRipple: { value: new THREE.Vector2(8, 8) },
-        uRippleTime: { value: -10 }
+        uMobile: { value: mobileQuery.matches ? 1 : 0 }
       },
       vertexShader,
       fragmentShader,
@@ -274,9 +233,6 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
     resize();
 
     window.addEventListener("resize", scheduleResize, { passive: true });
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("pointerleave", handlePointerLeave, { passive: true });
-    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
     document.addEventListener("visibilitychange", handleVisibility);
     themeObserver = new MutationObserver(handleThemeChange);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
