@@ -540,7 +540,7 @@ def log_authenticated_activity(response):
         and request.endpoint
         and request.endpoint not in {"static", "healthz"}
         and request.endpoint not in {
-            "auth.login", "auth.test_login", "auth.logout", "auth.register"
+            "auth.login", "auth.logout", "auth.register"
         }
     ):
         connection = dashboard_db()

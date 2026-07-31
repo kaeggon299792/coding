@@ -34,12 +34,12 @@ def _get_csrf(client, path):
     return match.group(1)
 
 
-def test_login_requires_csrf_token(client):
+def test_password_auth_requires_csrf_token(client):
     response = client.post("/login", data={"username": "admin", "password": "correct-horse-battery-staple"})
     assert response.status_code == 400
 
 
-def test_login_rejects_wrong_password(client):
+def test_password_auth_rejects_wrong_password(client):
     csrf = _get_csrf(client, "/login")
     response = client.post(
         "/login", data={"username": "admin", "password": "wrong-password", "csrf_token": csrf}
@@ -47,7 +47,7 @@ def test_login_rejects_wrong_password(client):
     assert response.status_code == 401
 
 
-def test_login_succeeds_with_correct_credentials(client):
+def test_password_auth_succeeds_with_correct_credentials(client):
     csrf = _get_csrf(client, "/login")
     response = client.post(
         "/login",
@@ -81,7 +81,7 @@ def test_public_home_is_available_when_not_authenticated(client):
     assert re.search(r'<script nonce="[^"]+" src="/static/js/casino-wave-webgl-v2\.js\?v=20260731-lightmotion1">', html)
 
 
-def test_login_page_has_guest_access_button(client):
+def test_sign_in_page_has_guest_access_button(client):
     response = client.get("/login")
     html = response.get_data(as_text=True)
     assert "로그인하지 않고 이용하기" in html
@@ -89,6 +89,15 @@ def test_login_page_has_guest_access_button(client):
     assert "CASINO IN / MANAGEMENT DASHBOARD" in html
     assert 'alt="CASINO IN"' in html
     assert "내부 업무용 시스템입니다" not in html
+
+
+def test_removed_test_access_endpoint_returns_not_found(client):
+    removed_path = "/login/" + "test"
+    assert client.get(removed_path).status_code == 404
+    assert client.post(removed_path).status_code == 404
+    html = client.get("/login").get_data(as_text=True)
+    assert removed_path not in html
+    assert ("테스트 " + "계정으로 로그인") not in html
 
 
 def test_legacy_dashboard_redirects_to_unified_home(client):

@@ -131,7 +131,7 @@ def _user_ip_history(connection, user_ids):
             SELECT user_id, ip_address, created_at AS seen_at
             FROM security_audit_log
             WHERE user_id IN ({placeholders})
-              AND action IN ('LOGIN_SUCCESS', 'GOOGLE_LOGIN_SUCCESS', 'TEST_LOGIN_SUCCESS')
+              AND action IN ('LOGIN_SUCCESS', 'GOOGLE_LOGIN_SUCCESS')
             UNION ALL
             SELECT CAST(resource_id AS INTEGER), ip_address, created_at
             FROM security_audit_log
@@ -841,36 +841,10 @@ def login():
     return redirect(next_path)
 
 
-@auth_bp.route("/login/test", methods=["POST"])
-def test_login():
-    if not validate_csrf(request.form.get("csrf_token", "")):
-        abort(400)
-    connection = dashboard_db()
-    try:
-        ip_status = _ip_security_row(connection, _client_ip())
-        if ip_status and ip_status.get("blocked_at"):
-            return render_template(
-                "login.html", csrf_token=get_csrf_token(),
-                error="이 IP는 차단되어 테스트 계정도 사용할 수 없습니다.",
-            ), 403
-        user = queries.get_user_by_username(connection, "test")
-        if not user or not user.get("is_active", 1) or (user.get("role") or "user") != "user":
-            return render_template(
-                "login.html",
-                csrf_token=get_csrf_token(),
-                error="테스트 계정을 사용할 수 없습니다. 관리자에게 문의해주세요.",
-            ), 403
-        _start_user_session(connection, user)
-        landing_page = _landing_page_for_user(connection, user)
-        queries.touch_last_login(connection, user["id"])
-        security_audit.log_event(
-            connection, "TEST_LOGIN_SUCCESS", "dashboard_user", user["id"],
-            {"landing_page": landing_page},
-        )
-        connection.commit()
-    finally:
-        connection.close()
-    return redirect(url_for(LANDING_ENDPOINTS.get(landing_page, "dashboard_home")))
+@auth_bp.route("/login/<path:unsupported_variant>", methods=["GET", "POST"])
+def reject_unsupported_login_variant(unsupported_variant):
+    """Do not expose fallback authentication flows under the login namespace."""
+    abort(404)
 
 
 @auth_bp.route("/logout", methods=["POST"])

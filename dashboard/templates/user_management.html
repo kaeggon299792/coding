@@ -170,7 +170,7 @@
   <section class="panel">
     <div class="section-heading"><div><h2>로그인·활동 로그</h2><p>로그인 성공·실패·차단·로그아웃과 화면 조회, 자료 등록·수정·다운로드 등 최근 200건입니다.</p></div></div>
     <div class="table-scroll"><table class="data-table"><thead><tr><th>일시</th><th>사용자</th><th>IP</th><th>작업</th><th>대상</th><th>상세</th></tr></thead><tbody>
-      {% for item in security_events %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.username }}</td><td><code>{{ item.ip_address or '-' }}</code></td><td>{{ {'LOGIN_SUCCESS':'로그인 성공','TEST_LOGIN_SUCCESS':'테스트 로그인','LOGIN_FAILED':'로그인 실패','LOGIN_BLOCKED':'차단 IP 로그인 시도','LOGOUT':'로그아웃','PAGE_VIEW':'화면 조회','USER_ACTION':'사용자 작업'}.get(item.action, item.action) }}</td><td>{{ item.resource_type or '-' }} · {{ item.resource_id or '-' }}</td><td class="change-detail"><code>{{ item.detail_json or '{}' }}</code></td></tr>
+      {% for item in security_events %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.username }}</td><td><code>{{ item.ip_address or '-' }}</code></td><td>{{ {'LOGIN_SUCCESS':'로그인 성공','LOGIN_FAILED':'로그인 실패','LOGIN_BLOCKED':'차단 IP 로그인 시도','LOGOUT':'로그아웃','PAGE_VIEW':'화면 조회','USER_ACTION':'사용자 작업'}.get(item.action, item.action) }}</td><td>{{ item.resource_type or '-' }} · {{ item.resource_id or '-' }}</td><td class="change-detail"><code>{{ item.detail_json or '{}' }}</code></td></tr>
       {% else %}<tr><td colspan="6" class="empty-state">보안 감사 기록이 없습니다.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
