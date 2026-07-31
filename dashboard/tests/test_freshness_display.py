@@ -52,6 +52,11 @@ def test_market_page_shows_separate_domestic_and_global_freshness(monkeypatch, t
     connection.close()
 
     monkeypatch.setattr(app_module, "dashboard_db", lambda: schema.connect(db_path))
+    monkeypatch.setattr(
+        app_module,
+        "_refresh_market_quotes_if_needed",
+        lambda connection: app_module.queries.list_market_quotes(connection),
+    )
     monkeypatch.setattr(app_module.queries, "global_market_quotes_need_refresh", lambda *_args, **_kwargs: False)
 
     app_module.app.testing = True
@@ -102,6 +107,11 @@ def test_economy_page_shows_oil_and_exchange_freshness_separately(monkeypatch, t
     connection.close()
 
     monkeypatch.setattr(app_module, "dashboard_db", lambda: schema.connect(db_path))
+    monkeypatch.setattr(
+        app_module,
+        "_refresh_economic_series_if_needed",
+        lambda connection: app_module.queries.list_economic_series(connection),
+    )
 
     app_module.app.testing = True
     response = app_module.app.test_client().get("/performance/economy")
