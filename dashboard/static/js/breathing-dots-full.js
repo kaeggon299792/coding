@@ -1,5 +1,5 @@
 /*
- * Breathing dots background adapted for CASINO IN from:
+ * Full-screen breathing dots background adapted for CASINO IN from:
  * https://github.com/mattrossman/breathing-dots-tutorial
  *
  * Original concept and rounded square wave equation integration:

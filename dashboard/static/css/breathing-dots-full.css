@@ -1,0 +1,49 @@
+/* Cache-independent full-screen breathing dots layer. */
+body.cinematic-home .public-hero-lights {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  transform: none !important;
+  overflow: hidden !important;
+  z-index: 0 !important;
+  pointer-events: none;
+}
+
+body.cinematic-home .breathing-dots-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  opacity: 1 !important;
+  display: block !important;
+  mix-blend-mode: screen;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  pointer-events: none;
+}
+
+html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
+  opacity: .76 !important;
+  mix-blend-mode: multiply;
+}
+
+@media (max-width: 700px) {
+  body.cinematic-home .breathing-dots-canvas {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 1 !important;
+  }
+
+  html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
+    opacity: .82 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.cinematic-home .breathing-dots-canvas {
+    opacity: .82 !important;
+  }
+}
