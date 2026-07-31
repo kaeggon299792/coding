@@ -156,7 +156,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
 
   function render(timestamp) {
     animationFrame = 0;
-    if (disposed || document.hidden || themeIsLight) return;
+    if (disposed || document.hidden) return;
     const elapsed = Math.min((timestamp - lastTime) / 1000 || 0, 0.05);
     lastTime = timestamp;
     if (!reduceMotion.matches) currentTime += elapsed;
@@ -166,7 +166,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
   }
 
   function start() {
-    if (!animationFrame && !disposed && !document.hidden && !themeIsLight) {
+    if (!animationFrame && !disposed && !document.hidden) {
       lastTime = 0;
       animationFrame = requestAnimationFrame(render);
     }
@@ -183,13 +183,7 @@ if (canvas && page.classList.contains("cinematic-home") && THREE) {
 
   function handleThemeChange() {
     themeIsLight = document.documentElement.dataset.theme === "light";
-    if (themeIsLight && animationFrame) {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-      renderer.clear();
-    } else {
-      start();
-    }
+    start();
   }
 
   function cleanup() {
