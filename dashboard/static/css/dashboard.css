@@ -137,6 +137,31 @@ html[data-theme="light"] .page-loader{background:rgba(255,255,255,.97)}
   border-color: var(--brand-text-primary);
 }
 .theme-toggle-icon { font: 14px/1 var(--font-body); }
+.back-to-top {
+  position: fixed;
+  right: 18px;
+  bottom: 64px;
+  z-index: 1200;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-surface) 94%, transparent);
+  color: var(--brand-text-secondary);
+  font: 700 15px/1 var(--font-body);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  backdrop-filter: blur(8px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.back-to-top[hidden] { display: none; }
+.back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.back-to-top:hover { color: var(--brand-text-primary); border-color: var(--brand-text-primary); }
 html[data-theme="light"] .item-list li:hover,
 html[data-theme="light"] table.data-table tbody tr:hover { background: rgba(24,24,27,.035); }
 
@@ -884,13 +909,13 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 768px) {
   .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: auto; padding: var(--space-3) var(--space-4); gap: var(--space-2); }
-  .topbar-brand { min-width: 0; }
+  .topbar-brand { grid-column: 1; grid-row: 1; min-width: 0; }
   .brand-logo-link { display: flex; flex: 0 0 auto; }
   .topbar-logo { width: 104px; min-width: 104px; height: 28px; }
   .topbar-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .topbar-actions { justify-content: flex-end; gap: var(--space-2); }
+  .topbar-actions { grid-column: 2; grid-row: 1; min-width: 0; justify-content: flex-end; gap: var(--space-2); white-space: nowrap; }
   .topbar-meta { display: none; }
-  .topbar-nav { grid-column: 1 / -1; width: 100%; overflow-x: auto; overflow-y: hidden; gap: 0; white-space: nowrap; scrollbar-width: thin; }
+  .topbar-nav { grid-column: 1 / -1; grid-row: 2; width: 100%; overflow-x: auto; overflow-y: hidden; gap: 0; white-space: nowrap; scrollbar-width: thin; }
   .topbar-nav > a, .topbar-nav > details { flex: 0 0 auto; }
   .page-container { padding: var(--space-4); }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
