@@ -13,19 +13,24 @@
       </div>
     </div>
 
+    {% if current_locale == 'en' %}
     <h1 class="public-hero-title">
-      {% if current_locale == 'en' %}
       Casino Industry Intelligence Dashboard
-      {% else %}
-      카지노 업계 인텔리전스 대시보드
-      {% endif %}
     </h1>
     <p class="public-hero-description">
-      {% if current_locale == 'en' %}
       A restrained view of industry information and insight.
-      {% else %}
-      업계 정보와 인사이트를 절제된 화면 안에서 확인합니다.
-      {% endif %}
     </p>
+    {% else %}
+    {% set hero_taglines = [
+      '카지노인을 위한 모든 정보.',
+      '카지노인을 위한 하나의 공간.',
+      '카지노 업계를 한눈에.',
+      '필요한 정보를, 필요한 순간에.',
+      '업계의 흐름을 가장 빠르게.',
+      '정보는 흩어져 있어도, 인사이트는 하나로.',
+      '카지노 산업을 더 가까이.'
+    ] %}
+    <h1 class="public-hero-title">{{ hero_taglines | random }}</h1>
+    {% endif %}
   </div>
 </section>
