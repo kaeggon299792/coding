@@ -166,7 +166,9 @@ def list_articles(
     category=None,
     impact_direction=None,
     important_only=False,
-    limit=200,
+    include_entertainment=False,
+    limit=10,
+    offset=0,
 ):
     """누적 뉴스와 연결된 AI 이슈 분석을 필터 조건에 맞춰 반환한다."""
     clauses = ["articles.collected_at >= datetime('now', ?)"]
@@ -194,8 +196,17 @@ def list_articles(
             "(COALESCE(articles.importance_score, 0) >= 60 "
             "OR LOWER(COALESCE(issues.importance, '')) IN ('high', '높음'))"
         )
+    if not include_entertainment:
+        entertainment = ["%연예%", "%배우%", "%가수%", "%아이돌%", "%예능%", "%드라마%", "%영화%", "%열애%", "%결혼%", "%이혼%"]
+        business = ["%카지노%", "%관광%", "%리조트%", "%호텔%", "%공시%", "%실적%", "%매출%", "%투자%", "%규제%", "%법안%", "%채용%"]
+        clauses.append(
+            "((COALESCE(issues.category, '') NOT LIKE '%연예%') AND "
+            "(NOT (" + " OR ".join("articles.title LIKE ?" for _ in entertainment) + ") "
+            "OR (" + " OR ".join("articles.title LIKE ?" for _ in business) + ")))"
+        )
+        params.extend(entertainment + business)
 
-    params.append(max(1, min(int(limit), 500)))
+    params.extend([max(1, min(int(limit), 100)), max(0, int(offset))])
     return _safe_query(
         f"""
         SELECT
@@ -209,10 +220,49 @@ def list_articles(
         LEFT JOIN issues ON issues.issue_id = articles.issue_id
         WHERE {" AND ".join(clauses)}
         ORDER BY COALESCE(articles.published_at, articles.collected_at) DESC
-        LIMIT ?
+        LIMIT ? OFFSET ?
         """,
         params,
     )
+
+
+def count_filtered_articles(
+    days=30, term=None, category=None, impact_direction=None,
+    important_only=False, include_entertainment=False,
+):
+    """목록과 같은 필터로 페이지 계산용 전체 건수를 반환한다."""
+    clauses = ["articles.collected_at >= datetime('now', ?)"]
+    params = [f"-{max(1, int(days))} days"]
+    term = (term or "").strip()
+    if term:
+        like = f"%{term}%"
+        clauses.append(
+            "(articles.title LIKE ? OR articles.publisher LIKE ? OR issues.issue_title LIKE ? "
+            "OR issues.category LIKE ? OR issues.latest_summary LIKE ?)"
+        )
+        params.extend([like] * 5)
+    if category:
+        clauses.append("issues.category = ?")
+        params.append(category)
+    if impact_direction:
+        clauses.append("issues.impact_direction = ?")
+        params.append(impact_direction)
+    if important_only:
+        clauses.append("(COALESCE(articles.importance_score, 0) >= 60 OR LOWER(COALESCE(issues.importance, '')) IN ('high', '높음'))")
+    if not include_entertainment:
+        entertainment = ["%연예%", "%배우%", "%가수%", "%아이돌%", "%예능%", "%드라마%", "%영화%", "%열애%", "%결혼%", "%이혼%"]
+        business = ["%카지노%", "%관광%", "%리조트%", "%호텔%", "%공시%", "%실적%", "%매출%", "%투자%", "%규제%", "%법안%", "%채용%"]
+        clauses.append(
+            "((COALESCE(issues.category, '') NOT LIKE '%연예%') AND "
+            "(NOT (" + " OR ".join("articles.title LIKE ?" for _ in entertainment) + ") "
+            "OR (" + " OR ".join("articles.title LIKE ?" for _ in business) + ")))"
+        )
+        params.extend(entertainment + business)
+    rows = _safe_query(
+        f"SELECT COUNT(*) AS c FROM articles LEFT JOIN issues ON issues.issue_id=articles.issue_id WHERE {' AND '.join(clauses)}",
+        params,
+    )
+    return int(rows[0]["c"] or 0) if rows else 0
 
 
 def list_categories(days=365):

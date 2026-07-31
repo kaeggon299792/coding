@@ -7,4 +7,5 @@
   <a href="{{ url_for('holiday_calendar_page') }}" {% if request.endpoint == 'holiday_calendar_page' %}class="active"{% endif %}>나라별 연휴</a>
   <a href="{{ url_for('salary_trend_page') }}" {% if request.endpoint == 'salary_trend_page' %}class="active"{% endif %}>연봉</a>
   <a href="{{ url_for('recruitment_page') }}" {% if request.endpoint == 'recruitment_page' %}class="active"{% endif %}>채용</a>
+  <a href="{{ url_for('source_download_page') }}" {% if request.endpoint == 'source_download_page' %}class="active"{% endif %}>소스 다운{% if not current_username %} <span aria-label="로그인 필요">⌁</span>{% endif %}</a>
 </nav>

@@ -698,6 +698,58 @@ def migrate(connection):
         "UPDATE economic_series SET changed_at=fetched_at WHERE changed_at IS NULL"
     )
 
+    # ---- source_data_repository (통합 숫자 데이터 누적 저장소) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_data_series (
+            series_key TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            label TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            frequency TEXT NOT NULL,
+            aggregation TEXT NOT NULL DEFAULT 'sum',
+            source_name TEXT NOT NULL,
+            source_url TEXT,
+            is_internal INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_data_points (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            series_key TEXT NOT NULL,
+            observation_date TEXT NOT NULL,
+            value REAL NOT NULL,
+            source_record_key TEXT,
+            recorded_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (series_key) REFERENCES source_data_series(series_key),
+            UNIQUE(series_key, observation_date)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_data_points_date "
+        "ON source_data_points(observation_date)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_data_points_series_date "
+        "ON source_data_points(series_key, observation_date)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_data_repository_state (
+            state_key TEXT PRIMARY KEY,
+            state_value TEXT,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS api_usage (

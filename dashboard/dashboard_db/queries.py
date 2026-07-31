@@ -400,6 +400,28 @@ def save_performance_report(
             parsing_status, parsing_error, received_at, now_kst().isoformat(),
         ),
     )
+    if parsed_data and parsing_status == "ok" and report_date:
+        performance_fields = {
+            "group_sales_today": ("그룹 매출", "백만원"),
+            "group_sales_yesterday": ("그룹 전일 매출", "백만원"),
+            "casino_sales": ("워커힐 카지노 매출", "백만원"),
+            "hotel_resort_sales": ("호텔·리조트 매출", "백만원"),
+            "change_percent": ("그룹 매출 증감률", "%"),
+        }
+        for field, (label, unit) in performance_fields.items():
+            value = _performance_number(parsed_data.get(field))
+            if value is None:
+                continue
+            key = f"performance.{field}"
+            upsert_source_data_series(
+                connection, series_key=key, category="경영실적", label=label,
+                unit=unit, frequency="daily", aggregation="sum",
+                source_name="PARADIAN 경영실적 봇", is_internal=True,
+            )
+            upsert_source_data_point(
+                connection, series_key=key, observation_date=str(report_date)[:10],
+                value=value, source_record_key=str(telegram_message_id),
+            )
     connection.commit()
 
 
@@ -525,6 +547,36 @@ def upsert_tourism_stat(connection, ym, nat_label, visitor_count):
             fetched_at = excluded.fetched_at
         """,
         (ym, nat_label, visitor_count, now, now),
+    )
+    tourism_keys = {
+        "중국": "china", "일본": "japan", "대만": "taiwan",
+        "몽골": "mongolia", "기타": "other",
+    }
+    slug = tourism_keys.get(nat_label, re.sub(r"[^0-9A-Za-z가-힣]+", "_", str(nat_label)).strip("_").lower())
+    key = f"tourism.visitors.{slug}"
+    observation_date = f"{str(ym)[:4]}-{str(ym)[4:6]}-01"
+    upsert_source_data_series(
+        connection, series_key=key, category="관광객", label=f"{nat_label} 관광객",
+        unit="명", frequency="monthly", aggregation="sum",
+        source_name="한국문화관광연구원",
+    )
+    upsert_source_data_point(
+        connection, series_key=key, observation_date=observation_date,
+        value=visitor_count, source_record_key=f"{ym}:{nat_label}",
+    )
+    total = connection.execute(
+        "SELECT SUM(visitor_count) AS total FROM tourism_visitor_stats WHERE ym=?",
+        (ym,),
+    ).fetchone()["total"]
+    upsert_source_data_series(
+        connection, series_key="tourism.visitors.total", category="관광객",
+        label="전체 관광객", unit="명", frequency="monthly", aggregation="sum",
+        source_name="한국문화관광연구원",
+    )
+    upsert_source_data_point(
+        connection, series_key="tourism.visitors.total",
+        observation_date=observation_date, value=total,
+        source_record_key=f"{ym}:total",
     )
     connection.commit()
 
@@ -1393,6 +1445,34 @@ def upsert_market_quote(connection, quote):
             quote.get("currency"), quote.get("source"), now_kst().isoformat(),
         ),
     )
+    date_text = str(quote.get("base_date") or now_kst().date().isoformat()).replace(".", "-")
+    if len(date_text) == 8 and date_text.isdigit():
+        date_text = f"{date_text[:4]}-{date_text[4:6]}-{date_text[6:8]}"
+    symbol = str(quote["symbol"])
+    market_fields = {
+        "close_price": ("종가", quote.get("currency") or "KRW", "last"),
+        "change_value": ("전일 대비", quote.get("currency") or "KRW", "last"),
+        "change_rate": ("등락률", "%", "last"),
+        "open_price": ("시가", quote.get("currency") or "KRW", "last"),
+        "high_price": ("고가", quote.get("currency") or "KRW", "last"),
+        "low_price": ("저가", quote.get("currency") or "KRW", "last"),
+        "volume": ("거래량", "주", "sum"),
+        "market_cap": ("시가총액", quote.get("currency") or "KRW", "last"),
+    }
+    for field, (metric_label, unit, aggregation) in market_fields.items():
+        value = quote.get(field)
+        if value is None:
+            continue
+        key = f"market.{symbol}.{field}"
+        upsert_source_data_series(
+            connection, series_key=key, category="주가", label=f"{quote['name']} {metric_label}",
+            unit=unit, frequency="daily", aggregation=aggregation,
+            source_name=quote.get("source") or "공공데이터·글로벌 시세",
+        )
+        upsert_source_data_point(
+            connection, series_key=key, observation_date=date_text[:10], value=value,
+            source_record_key=f"{symbol}:{date_text[:10]}",
+        )
     connection.commit()
 
 
@@ -1444,6 +1524,26 @@ def upsert_market_quote_history(connection, symbol, points):
             if point.get("base_date") and point.get("close_price") is not None
         ],
     )
+    row = connection.execute(
+        "SELECT name, currency, source FROM market_quotes WHERE symbol=?", (symbol,)
+    ).fetchone()
+    name = row["name"] if row else symbol
+    unit = (row["currency"] if row else None) or "KRW"
+    source = (row["source"] if row else None) or "공공데이터·글로벌 시세"
+    key = f"market.{symbol}.close_price"
+    upsert_source_data_series(
+        connection, series_key=key, category="주가", label=f"{name} 종가",
+        unit=unit, frequency="daily", aggregation="last", source_name=source,
+    )
+    for point in points:
+        if point.get("base_date") and point.get("close_price") is not None:
+            date_text = str(point["base_date"])
+            if len(date_text) == 8 and date_text.isdigit():
+                date_text = f"{date_text[:4]}-{date_text[4:6]}-{date_text[6:8]}"
+            upsert_source_data_point(
+                connection, series_key=key, observation_date=date_text[:10],
+                value=point["close_price"], source_record_key=f"{symbol}:{date_text[:10]}",
+            )
     connection.commit()
 
 
@@ -1519,6 +1619,17 @@ def upsert_salary_snapshot(connection, item):
             item.get("source_url"), item.get("source_period"),
             item["collected_date"], item["fetched_at"],
         ),
+    )
+    key = f"salary.{item['entity_code']}.average"
+    upsert_source_data_series(
+        connection, series_key=key, category="연봉", label=f"{item['entity_name']} 평균 연봉",
+        unit="만원", frequency="monthly", aggregation="last",
+        source_name=item["source_name"], source_url=item.get("source_url"),
+    )
+    upsert_source_data_point(
+        connection, series_key=key, observation_date=item["collected_date"][:10],
+        value=item["average_salary_manwon"],
+        source_record_key=f"{item['entity_code']}:{item['collected_date']}",
     )
     connection.commit()
 
@@ -1607,6 +1718,20 @@ def upsert_recruitment_job(connection, item):
             item.get("analyzed_at"), item.get("analysis_error"),
         ),
     )
+    observation_date = str(item["last_seen_at"])[:10]
+    active_count = connection.execute(
+        "SELECT COUNT(*) AS c FROM recruitment_jobs WHERE is_active=1"
+    ).fetchone()["c"]
+    upsert_source_data_series(
+        connection, series_key="recruitment.active_jobs", category="채용",
+        label="활성 채용공고", unit="건", frequency="daily", aggregation="last",
+        source_name="채용 사이트 수집",
+    )
+    upsert_source_data_point(
+        connection, series_key="recruitment.active_jobs",
+        observation_date=observation_date, value=active_count,
+        source_record_key=f"active:{observation_date}",
+    )
     connection.commit()
 
 
@@ -1669,7 +1794,148 @@ def upsert_economic_observation(connection, item):
             now, now,
         ),
     )
+    date_text = str(item["observation_date"])
+    if len(date_text) == 8 and date_text.isdigit():
+        date_text = f"{date_text[:4]}-{date_text[4:6]}-{date_text[6:8]}"
+    key = f"economy.{item['series_code']}"
+    upsert_source_data_series(
+        connection, series_key=key, category="유가·환율", label=item["label"],
+        unit=item["unit"], frequency="daily", aggregation="last",
+        source_name=item["source"],
+    )
+    upsert_source_data_point(
+        connection, series_key=key, observation_date=date_text[:10],
+        value=item["value"], source_record_key=f"{item['series_code']}:{date_text[:10]}",
+    )
     connection.commit()
+
+
+# ============================================================
+# source_data_repository
+# ============================================================
+
+def upsert_source_data_series(
+    connection, *, series_key, category, label, unit, frequency,
+    aggregation="sum", source_name="CASINO IN", source_url=None,
+    is_internal=False, commit=False,
+):
+    """통합 숫자 저장소의 데이터 종류를 멱등 등록한다."""
+    now = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """
+        INSERT INTO source_data_series (
+            series_key, category, label, unit, frequency, aggregation,
+            source_name, source_url, is_internal, is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        ON CONFLICT(series_key) DO UPDATE SET
+            category=excluded.category, label=excluded.label, unit=excluded.unit,
+            frequency=excluded.frequency, aggregation=excluded.aggregation,
+            source_name=excluded.source_name, source_url=excluded.source_url,
+            is_internal=excluded.is_internal, is_active=1, updated_at=excluded.updated_at
+        """,
+        (
+            series_key, category, label, unit, frequency, aggregation,
+            source_name, source_url, 1 if is_internal else 0, now, now,
+        ),
+    )
+    if commit:
+        connection.commit()
+
+
+def upsert_source_data_point(
+    connection, *, series_key, observation_date, value,
+    source_record_key=None, commit=False,
+):
+    """같은 데이터 종류·관측일은 갱신하고 새로운 날짜는 계속 누적한다."""
+    if value is None:
+        return
+    now = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """
+        INSERT INTO source_data_points (
+            series_key, observation_date, value, source_record_key,
+            recorded_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(series_key, observation_date) DO UPDATE SET
+            value=excluded.value,
+            source_record_key=COALESCE(excluded.source_record_key, source_data_points.source_record_key),
+            updated_at=excluded.updated_at
+        """,
+        (series_key, observation_date, float(value), source_record_key, now, now),
+    )
+    if commit:
+        connection.commit()
+
+
+def list_source_data_series(connection, include_internal=False):
+    conditions = ["is_active=1"]
+    if not include_internal:
+        conditions.append("is_internal=0")
+    rows = connection.execute(
+        f"SELECT * FROM source_data_series WHERE {' AND '.join(conditions)} "
+        "ORDER BY category, label, series_key"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_source_data_points(connection, series_keys, start_date, end_date, include_internal=False):
+    if not series_keys:
+        return []
+    placeholders = ",".join("?" for _ in series_keys)
+    internal_clause = "" if include_internal else " AND s.is_internal=0"
+    rows = connection.execute(
+        f"""
+        SELECT p.series_key, p.observation_date, p.value, p.updated_at
+        FROM source_data_points p
+        JOIN source_data_series s ON s.series_key=p.series_key
+        WHERE p.series_key IN ({placeholders})
+          AND p.observation_date BETWEEN ? AND ?
+          AND s.is_active=1{internal_clause}
+        ORDER BY p.series_key, p.observation_date
+        """,
+        [*series_keys, start_date, end_date],
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_source_data_repository_state(connection, state_key):
+    row = connection.execute(
+        "SELECT state_value, updated_at FROM source_data_repository_state WHERE state_key=?",
+        (state_key,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def set_source_data_repository_state(connection, state_key, state_value, commit=False):
+    now = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """
+        INSERT INTO source_data_repository_state (state_key, state_value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(state_key) DO UPDATE SET
+            state_value=excluded.state_value, updated_at=excluded.updated_at
+        """,
+        (state_key, str(state_value), now),
+    )
+    if commit:
+        connection.commit()
+
+
+def source_data_repository_stats(connection, include_internal=False):
+    internal_clause = "" if include_internal else "WHERE s.is_internal=0"
+    row = connection.execute(
+        f"""
+        SELECT COUNT(DISTINCT s.series_key) AS series_count,
+               COUNT(p.id) AS point_count,
+               MIN(p.observation_date) AS first_date,
+               MAX(p.observation_date) AS last_date,
+               MAX(p.updated_at) AS updated_at
+        FROM source_data_series s
+        LEFT JOIN source_data_points p ON p.series_key=s.series_key
+        {internal_clause}
+        """
+    ).fetchone()
+    return dict(row) if row else {}
 
 
 def list_economic_series(connection, days=45):

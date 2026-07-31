@@ -70,6 +70,16 @@ class FakeYahooResponse:
         }
 
 
+class FakeTossCandleResponse:
+    status_code = 200
+
+    def json(self):
+        return {"result": {"candles": [
+            {"timestamp": "2026-07-30T00:00:00+09:00", "openPrice": "15000", "highPrice": "15300", "lowPrice": "14900", "closePrice": "15200", "volume": "1000", "currency": "KRW"},
+            {"timestamp": "2026-07-31T00:00:00+09:00", "openPrice": "15200", "highPrice": "15700", "lowPrice": "15100", "closePrice": "15600", "volume": "2000", "currency": "KRW"},
+        ]}}
+
+
 def test_fetch_global_stock_without_api_key(monkeypatch):
     monkeypatch.setattr(
         "services.market_data.get_with_hard_timeout",
@@ -100,6 +110,30 @@ def test_fetch_stock_normalizes_market_fields(monkeypatch):
         {"base_date": "20260727", "close_price": 15100},
         {"base_date": "20260728", "close_price": 15420},
     ]
+
+
+def test_toss_quote_normalizes_latest_daily_candle(monkeypatch):
+    monkeypatch.setattr(
+        "services.market_data.get_with_hard_timeout",
+        lambda *args, **kwargs: FakeTossCandleResponse(),
+    )
+    result = market_data._toss_quote(
+        market_data.TRACKED_STOCKS[0], "token"
+    )
+    assert result["ok"] is True
+    assert result["quote"]["base_date"] == "20260731"
+    assert result["quote"]["close_price"] == 15600
+    assert result["quote"]["change_value"] == 400
+    assert result["quote"]["source"] == "토스증권 Open API"
+
+
+def test_market_merge_prefers_newer_toss_but_keeps_market_cap():
+    public = [{"symbol": "034230", "base_date": "20260730", "close_price": 15200, "market_cap": 900000, "source": "공공데이터"}]
+    toss = [{"symbol": "034230", "base_date": "20260731", "close_price": 15600, "market_cap": None, "source": "토스증권 Open API"}]
+    merged = market_data._merge_domestic_quotes(toss, public)[0]
+    assert merged["base_date"] == "20260731"
+    assert merged["close_price"] == 15600
+    assert merged["market_cap"] == 900000
 
 
 def test_market_quote_upsert_and_order(db_connection):

@@ -8,6 +8,7 @@ EXPECTED_TABLES = {
     "dart_disclosures", "disclosure_analysis", "monitored_laws", "law_updates",
     "law_analysis", "legislative_bills", "government_legislative_notices",
     "market_quotes", "market_quote_history", "economic_series",
+    "source_data_series", "source_data_points", "source_data_repository_state",
     "api_usage", "errors",
 }
 

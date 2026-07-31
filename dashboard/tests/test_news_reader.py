@@ -55,3 +55,28 @@ def test_list_articles_includes_stored_ai_analysis(monkeypatch, tmp_path):
     assert rows[0]["latest_summary"].startswith("영업 규제")
     assert news_reader.article_stats(30)["analyzed_count"] == 1
     assert news_reader.list_categories(30)[0]["category"] == "법률·규제"
+
+
+def test_entertainment_news_is_hidden_by_default_but_can_be_included(monkeypatch, tmp_path):
+    database = tmp_path / "entertainment.db"
+    connection = _news_connection(database)
+    connection.executescript(
+        """
+        CREATE TABLE issues (issue_id INTEGER PRIMARY KEY, issue_key TEXT, issue_title TEXT,
+          category TEXT, first_seen_at TEXT, last_seen_at TEXT, importance TEXT,
+          impact_direction TEXT, latest_summary TEXT, sent_at TEXT, updated_at TEXT,
+          representative_normalized_title TEXT);
+        CREATE TABLE articles (article_id INTEGER PRIMARY KEY, normalized_url TEXT,
+          original_url TEXT, normalized_title TEXT, title TEXT, publisher TEXT,
+          published_at TEXT, collected_at TEXT, content_hash TEXT, status TEXT,
+          relevance_score INTEGER, importance_score INTEGER, issue_id INTEGER, sent_at TEXT);
+        INSERT INTO issues (issue_id, category) VALUES (1, '연예');
+        INSERT INTO articles (article_id, original_url, title, collected_at, issue_id)
+        VALUES (1, 'https://example.com/celebrity', '인기 배우 열애 소식', datetime('now'), 1);
+        """
+    )
+    connection.commit(); connection.close()
+    monkeypatch.setattr(news_reader, "news_db_readonly", lambda: _news_connection(database))
+    assert news_reader.list_articles(days=30) == []
+    assert len(news_reader.list_articles(days=30, include_entertainment=True)) == 1
+    assert news_reader.count_filtered_articles(days=30) == 0

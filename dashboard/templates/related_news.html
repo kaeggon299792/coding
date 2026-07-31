@@ -26,12 +26,13 @@
     <label><span>분류</span><select name="category"><option value="">전체 분류</option>{% for item in categories %}<option value="{{ item.category }}" {% if selected_category == item.category %}selected{% endif %}>{{ item.category }} ({{ item.article_count }})</option>{% endfor %}</select></label>
     <label><span>영향 방향</span><select name="impact"><option value="">전체 영향</option>{% for value, label in [('positive', '긍정'), ('negative', '부정'), ('neutral', '중립'), ('mixed', '혼합')] %}<option value="{{ value }}" {% if selected_impact == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     <label class="news-check"><input type="checkbox" name="importance" value="important" {% if important_only %}checked{% endif %}><span>중요 뉴스만</span></label>
+    <label class="news-check"><input type="checkbox" name="include_entertainment" value="1" {% if include_entertainment %}checked{% endif %}><span>연예성 기사 포함</span></label>
     <button class="btn" type="submit">조회</button>
   </form>
 
   <div class="news-layout">
     <section class="news-feed">
-      <div class="section-heading"><div><p class="page-eyebrow">News Archive</p><h2>뉴스 목록</h2></div><span>{{ articles|length }}건 표시</span></div>
+      <div class="section-heading"><div><p class="page-eyebrow">News Archive</p><h2>뉴스 목록</h2></div><span>총 {{ news_total_count }}건 · {{ news_page }}/{{ news_page_count }}페이지</span></div>
       {% if articles %}
         {% for item in articles %}
         <article class="news-card">
@@ -45,6 +46,13 @@
           {% if item.latest_summary %}<div class="news-ai-summary"><b>AI 관점</b><p>{{ item.latest_summary }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
         </article>
         {% endfor %}
+        {% if news_page_count > 1 %}
+        <nav class="news-pagination" aria-label="뉴스 페이지 이동">
+          {% if news_page > 1 %}<a class="btn" href="{{ url_for('related_news_page', page=news_page-1, days=selected_days, q=selected_term, category=selected_category, impact=selected_impact, importance='important' if important_only else '', include_entertainment='1' if include_entertainment else '') }}">이전</a>{% endif %}
+          <span>{{ news_page }} / {{ news_page_count }}</span>
+          {% if news_page < news_page_count %}<a class="btn" href="{{ url_for('related_news_page', page=news_page+1, days=selected_days, q=selected_term, category=selected_category, impact=selected_impact, importance='important' if important_only else '', include_entertainment='1' if include_entertainment else '') }}">다음</a>{% endif %}
+        </nav>
+        {% endif %}
       {% else %}
         <div class="news-empty"><h3>조건에 맞는 뉴스가 없습니다.</h3><p>검색어나 기간, 분류 필터를 변경해보세요.</p></div>
       {% endif %}

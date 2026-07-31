@@ -44,6 +44,7 @@ from services import (
     performance_parser,
     salary_data,
     security_audit,
+    source_data_repository,
     telegram_alert,
     unified_search,
 )
@@ -97,6 +98,7 @@ NOINDEX_ENDPOINTS = {
     "dashboard_home",
     "paradian_portal_page",
     "performance_page",
+    "source_download_page",
     "sitemap_page",
     "unified_search_page",
     "action_items_page",
@@ -619,6 +621,7 @@ def inject_globals():
         "holiday_calendar_page": "나라별 연휴",
         "salary_trend_page": "연봉",
         "recruitment_page": "채용",
+        "source_download_page": "소스 다운",
         "casino_industry_page": "카지노업 현황",
         "casino_visitors_page": "연도별 카지노 이용객",
         "casino_revenue_page": "연도별 카지노 매출액 비율",
@@ -696,6 +699,11 @@ def _site_map_links():
         {"label": "나라별 연휴", "endpoint": "holiday_calendar_page"},
         {"label": "연봉", "endpoint": "salary_trend_page"},
         {"label": "채용", "endpoint": "recruitment_page"},
+        {
+            "label": "소스 다운",
+            "endpoint": "source_download_page" if session.get("user_id") else "auth.login",
+            "locked": not bool(session.get("user_id")),
+        },
     ]
     section_children = {
         "tips.list_page": [
@@ -1780,6 +1788,31 @@ def performance_page():
         connection.close()
 
 
+@app.route("/performance/source-download")
+@login_required
+def source_download_page():
+    """로그인 사용자용 통합 숫자 데이터 조회·복사 화면."""
+    connection = dashboard_db()
+    try:
+        source_data_repository.synchronize_existing_data(connection)
+        include_internal = session.get("username") == "admin"
+        view = source_data_repository.build_view(
+            connection,
+            grain=request.args.get("grain", "monthly"),
+            start_date=request.args.get("start_date"),
+            end_date=request.args.get("end_date"),
+            selected_keys=request.args.getlist("series"),
+            include_internal=include_internal,
+        )
+        return render_template(
+            "source_download.html",
+            source_view=view,
+            include_internal=include_internal,
+        )
+    finally:
+        connection.close()
+
+
 @app.route("/performance/tourism")
 def tourism_trend_page():
     connection = dashboard_db()
@@ -1880,17 +1913,29 @@ def related_news_page():
     category = request.args.get("category", "").strip()
     impact = request.args.get("impact", "").strip()
     important_only = request.args.get("importance") == "important"
+    include_entertainment = request.args.get("include_entertainment") == "1"
+    page = max(1, request.args.get("page", 1, type=int))
+    page_size = 10
+    total_articles = news_reader.count_filtered_articles(
+        days=days, term=term, category=category, impact_direction=impact,
+        important_only=important_only, include_entertainment=include_entertainment,
+    )
+    page_count = max(1, (total_articles + page_size - 1) // page_size)
+    page = min(page, page_count)
     articles = news_reader.list_articles(
         days=days,
         term=term,
         category=category,
         impact_direction=impact,
         important_only=important_only,
+        include_entertainment=include_entertainment,
+        limit=page_size,
+        offset=(page - 1) * page_size,
     )
     connection = dashboard_db()
     try:
         executive_insights = queries.list_recent_executive_insights(
-            connection, days=days, limit=50
+            connection, days=days, limit=10
         )
     finally:
         connection.close()
@@ -1906,6 +1951,10 @@ def related_news_page():
         selected_category=category,
         selected_impact=impact,
         important_only=important_only,
+        include_entertainment=include_entertainment,
+        news_page=page,
+        news_page_count=page_count,
+        news_total_count=total_articles,
     )
 
 

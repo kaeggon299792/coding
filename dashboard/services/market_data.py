@@ -33,6 +33,7 @@ GLOBAL_STOCKS = (
     {"symbol": "MLCO", "name": "Melco Resorts & Entertainment", "market": "NASDAQ", "currency": "USD"},
 )
 YAHOO_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
+TOSS_BASE_URL = "https://openapi.tossinvest.com"
 
 
 def _items(data):
@@ -102,6 +103,148 @@ def _history(rows):
         for row in sorted(rows, key=lambda item: str(item.get("basDt") or ""))
         if row.get("basDt") and _number(row.get("clpr")) is not None
     ]
+
+
+def _toss_credentials_ready():
+    return bool(config.TOSS_INVEST_CLIENT_ID and config.TOSS_INVEST_CLIENT_SECRET)
+
+
+def _toss_access_token():
+    if not _toss_credentials_ready():
+        return {"ok": False, "error": "토스증권 API 인증정보가 설정되지 않았습니다."}
+    try:
+        response = requests.post(
+            f"{TOSS_BASE_URL}/oauth2/token",
+            data={
+                "grant_type": "client_credentials",
+                "client_id": config.TOSS_INVEST_CLIENT_ID,
+                "client_secret": config.TOSS_INVEST_CLIENT_SECRET,
+            },
+            timeout=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as error:
+        return {"ok": False, "error": f"토스증권 인증 네트워크 오류: {type(error).__name__}"}
+    if response.status_code != 200:
+        return {"ok": False, "error": f"토스증권 인증 HTTP {response.status_code}"}
+    try:
+        payload = response.json()
+    except ValueError:
+        return {"ok": False, "error": "토스증권 인증 응답이 JSON 형식이 아닙니다."}
+    result = payload.get("result") or {}
+    token = payload.get("access_token") or result.get("accessToken") or result.get("access_token")
+    if not token:
+        return {"ok": False, "error": "토스증권 액세스 토큰이 비어 있습니다."}
+    return {"ok": True, "token": token}
+
+
+def _toss_candles(symbol, token, indicator=False):
+    path = (
+        f"/api/v1/market-indicators/{symbol}/candles"
+        if indicator else "/api/v1/candles"
+    )
+    params = {"interval": "1d", "count": 50}
+    if not indicator:
+        params["symbol"] = symbol
+        params["adjusted"] = "true"
+    try:
+        response = get_with_hard_timeout(
+            f"{TOSS_BASE_URL}{path}",
+            hard_timeout_seconds=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
+            params=params,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS,
+        )
+    except (HardTimeoutError, requests.RequestException) as error:
+        return {"ok": False, "error": f"토스증권 시세 오류: {type(error).__name__}"}
+    if response.status_code != 200:
+        return {"ok": False, "error": f"토스증권 시세 HTTP {response.status_code}"}
+    try:
+        result = response.json().get("result") or {}
+    except (ValueError, AttributeError):
+        return {"ok": False, "error": "토스증권 시세 응답이 JSON 형식이 아닙니다."}
+    candles = result.get("candles") if isinstance(result, dict) else None
+    if not isinstance(candles, list) or not candles:
+        return {"ok": False, "error": "토스증권 일봉 데이터가 없습니다."}
+    return {"ok": True, "candles": candles}
+
+
+def _toss_quote(stock, token, indicator=False):
+    result = _toss_candles(stock["symbol"], token, indicator=indicator)
+    if not result.get("ok"):
+        return {**result, "symbol": stock["symbol"]}
+    candles = sorted(result["candles"], key=lambda item: str(item.get("timestamp") or ""))
+    latest = candles[-1]
+    previous = candles[-2] if len(candles) > 1 else None
+    close = _number(latest.get("closePrice"))
+    previous_close = _number(previous.get("closePrice")) if previous else None
+    if close is None:
+        return {"ok": False, "symbol": stock["symbol"], "error": "토스증권 종가가 비어 있습니다."}
+    change = close - previous_close if previous_close is not None else None
+    history = [
+        {
+            "base_date": str(item.get("timestamp") or "")[:10].replace("-", ""),
+            "close_price": _number(item.get("closePrice")),
+        }
+        for item in candles
+        if item.get("timestamp") and _number(item.get("closePrice")) is not None
+    ]
+    return {
+        "ok": True,
+        "quote": {
+            "symbol": stock["symbol"], "name": stock["name"],
+            "asset_type": "index" if indicator else "stock",
+            "market": stock["market"],
+            "base_date": str(latest.get("timestamp") or "")[:10].replace("-", ""),
+            "close_price": close, "change_value": change,
+            "change_rate": change / previous_close * 100 if previous_close not in (None, 0) else None,
+            "open_price": _number(latest.get("openPrice")),
+            "high_price": _number(latest.get("highPrice")),
+            "low_price": _number(latest.get("lowPrice")),
+            "volume": _number(latest.get("volume"), integer=True),
+            "market_cap": None, "currency": latest.get("currency") or "KRW",
+            "source": "토스증권 Open API", "history": history,
+        },
+    }
+
+
+def fetch_toss_domestic_quotes():
+    """토스증권 일봉을 보조 수집원으로 조회한다."""
+    auth = _toss_access_token()
+    if not auth.get("ok"):
+        return {"quotes": [], "errors": [auth.get("error")]}
+    kospi = {"symbol": "KOSPI", "name": "KOSPI", "market": "KOSPI"}
+    results = [
+        _toss_quote(kospi, auth["token"], indicator=True),
+        *(_toss_quote(stock, auth["token"]) for stock in TRACKED_STOCKS),
+    ]
+    return {
+        "quotes": [item["quote"] for item in results if item.get("ok")],
+        "errors": [item.get("error") for item in results if not item.get("ok")],
+    }
+
+
+def _merge_domestic_quotes(primary, fallback):
+    """기준일이 더 최신인 시세를 채택하고 비어 있는 필드는 다른 출처로 보완한다."""
+    merged = {}
+    for quote in [*fallback, *primary]:
+        symbol = quote["symbol"]
+        current = merged.get(symbol)
+        if current is None:
+            merged[symbol] = dict(quote)
+            continue
+        preferred, secondary = (
+            (quote, current)
+            if str(quote.get("base_date") or "") >= str(current.get("base_date") or "")
+            else (current, quote)
+        )
+        combined = dict(secondary)
+        combined.update({key: value for key, value in preferred.items() if value is not None})
+        if preferred.get("history") and secondary.get("history"):
+            history = {item["base_date"]: item for item in secondary["history"]}
+            history.update({item["base_date"]: item for item in preferred["history"]})
+            combined["history"] = [history[key] for key in sorted(history)]
+        merged[symbol] = combined
+    return list(merged.values())
 
 
 def fetch_stock(stock):
@@ -280,7 +423,13 @@ def fetch_global_quotes():
 
 def fetch_dashboard_quotes():
     results = [fetch_kospi(), *(fetch_stock(stock) for stock in TRACKED_STOCKS)]
-    return {
-        "quotes": [result["quote"] for result in results if result.get("ok")],
-        "errors": [result.get("error") for result in results if not result.get("ok")],
-    }
+    public_quotes = [result["quote"] for result in results if result.get("ok")]
+    public_errors = [result.get("error") for result in results if not result.get("ok")]
+    if not _toss_credentials_ready():
+        return {"quotes": public_quotes, "errors": public_errors}
+    toss = fetch_toss_domestic_quotes()
+    quotes = _merge_domestic_quotes(toss["quotes"], public_quotes)
+    available = {quote["symbol"] for quote in quotes}
+    expected = {"KOSPI", *(stock["symbol"] for stock in TRACKED_STOCKS)}
+    errors = [] if expected.issubset(available) else [*public_errors, *toss["errors"]]
+    return {"quotes": quotes, "errors": [error for error in errors if error]}
