@@ -51,15 +51,15 @@
       var idleX = reduced ? 0 : Math.sin(timestamp / 7000) * 10 + Math.cos(timestamp / 11000) * 6;
       var idleY = reduced ? 0 : Math.cos(timestamp / 9000) * 8 + Math.sin(timestamp / 13000) * 4;
 
-      var targetLightX = idleX + (desktopInteractive && pointerActive ? pointerX * 22 : 0);
-      var targetLightY = idleY + (desktopInteractive && pointerActive ? pointerY * 14 : 0);
-      var targetLogoX = desktopInteractive && pointerActive ? pointerX * 3.5 : idleX * 0.12;
-      var targetLogoY = desktopInteractive && pointerActive ? pointerY * 2.8 : idleY * 0.08;
+      var targetLightX = idleX + (desktopInteractive && pointerActive ? pointerX * 34 : 0);
+      var targetLightY = idleY + (desktopInteractive && pointerActive ? pointerY * 20 : 0);
+      var targetLogoX = desktopInteractive && pointerActive ? pointerX * 3.25 : idleX * 0.1;
+      var targetLogoY = desktopInteractive && pointerActive ? pointerY * 2.5 : idleY * 0.07;
 
-      currentLightX += (targetLightX - currentLightX) * 0.08;
-      currentLightY += (targetLightY - currentLightY) * 0.08;
-      currentLogoX += (targetLogoX - currentLogoX) * 0.09;
-      currentLogoY += (targetLogoY - currentLogoY) * 0.09;
+      currentLightX += (targetLightX - currentLightX) * 0.065;
+      currentLightY += (targetLightY - currentLightY) * 0.065;
+      currentLogoX += (targetLogoX - currentLogoX) * 0.075;
+      currentLogoY += (targetLogoY - currentLogoY) * 0.075;
 
       hero.style.setProperty("--hero-light-x", currentLightX.toFixed(2) + "px");
       hero.style.setProperty("--hero-light-y", currentLightY.toFixed(2) + "px");
