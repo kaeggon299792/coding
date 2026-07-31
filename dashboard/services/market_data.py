@@ -446,22 +446,25 @@ def _fetch_yahoo_market_caps(symbols):
         return {}
 
     market_caps = {}
-    for symbol in symbols:
-        try:
-            response = session.get(
-                YAHOO_QUOTE_SUMMARY_URL.format(symbol=symbol),
-                params={"modules": "price", "crumb": crumb},
-                timeout=timeout,
-            )
-            if response.status_code != 200:
+    for _attempt in range(2):
+        for symbol in symbols:
+            if symbol in market_caps:
                 continue
-            price = (((response.json().get("quoteSummary") or {}).get("result") or [{}])[0].get("price") or {})
-            raw = (price.get("marketCap") or {}).get("raw")
-            value = _number(raw, integer=True)
-            if value is not None:
-                market_caps[symbol] = value
-        except (requests.RequestException, ValueError, AttributeError, IndexError, TypeError):
-            continue
+            try:
+                response = session.get(
+                    YAHOO_QUOTE_SUMMARY_URL.format(symbol=symbol),
+                    params={"modules": "price", "crumb": crumb},
+                    timeout=timeout,
+                )
+                if response.status_code != 200:
+                    continue
+                price = (((response.json().get("quoteSummary") or {}).get("result") or [{}])[0].get("price") or {})
+                raw = (price.get("marketCap") or {}).get("raw")
+                value = _number(raw, integer=True)
+                if value is not None:
+                    market_caps[symbol] = value
+            except (requests.RequestException, ValueError, AttributeError, IndexError, TypeError):
+                continue
     return market_caps
 
 
