@@ -44,7 +44,8 @@ def test_korean_home_remains_default(client):
     assert response.status_code == 200
     assert response.headers["Content-Language"] == "ko"
     assert '<html lang="ko"' in html
-    assert "카지노 업계의 정보와 인사이트를" in html
+    assert "casino-in-hero-spotlight.png" in html
+    assert "DATA" in html
     assert 'href="/en/" data-locale-link="en"' in html
 
 
