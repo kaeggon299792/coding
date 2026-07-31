@@ -1272,6 +1272,15 @@ body.cinematic-home .public-hero-lights{
 body.cinematic-home .public-hero-light{
   z-index:0;
 }
+
+/* Breathing dots are the only animated hero background. */
+body.cinematic-home::before,
+body.cinematic-home::after,
+body.cinematic-home .public-hero-light,
+body.cinematic-home .public-hero-art-image::before{
+  content:none;
+  display:none;
+}
 html[data-theme="light"] .breathing-dots-canvas{
   opacity:.1;
   mix-blend-mode:multiply;
