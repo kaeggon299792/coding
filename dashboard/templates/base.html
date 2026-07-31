@@ -87,23 +87,8 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 <script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
 <script src="{{ url_for('static', filename='js/dashboard-i18n.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260731-spotlight7" defer></script>
-<script nonce="{{ csp_nonce }}">
-(() => {
-  const root = document.documentElement;
-  root.dataset.webglWave = "loading";
-  import("{{ url_for('static', filename='js/casino-wave-webgl.js') }}")
-    .then(() => {
-      root.dataset.webglWave = document.body.classList.contains("webgl-wave-ready")
-        ? "ready"
-        : "fallback";
-    })
-    .catch((error) => {
-      document.body.classList.add("webgl-wave-fallback");
-      root.dataset.webglWave = "fallback";
-      console.warn("CASINO IN WebGL module fallback enabled.", error);
-    });
-})();
-</script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/casino-wave-webgl-classic.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");
 const languageSwitchHost = document.querySelector(".topbar-actions, .public-header");

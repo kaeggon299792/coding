@@ -1,9 +1,9 @@
-import * as THREE from "/static/vendor/three/three.module.min.js";
+const THREE = window.THREE;
 
 const canvas = document.querySelector("[data-casino-wave]");
 const page = document.body;
 
-if (canvas && page.classList.contains("cinematic-home")) {
+if (canvas && page.classList.contains("cinematic-home") && THREE) {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const mobileQuery = window.matchMedia("(max-width: 700px)");
   let renderer;
@@ -282,9 +282,14 @@ if (canvas && page.classList.contains("cinematic-home")) {
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     window.addEventListener("pagehide", cleanup, { once: true });
     page.classList.add("webgl-wave-ready");
+    document.documentElement.dataset.webglWave = "ready";
     start();
   } catch (error) {
     page.classList.add("webgl-wave-fallback");
+    document.documentElement.dataset.webglWave = "fallback";
     console.warn("CASINO IN WebGL background fallback enabled.", error);
   }
+} else if (canvas && page.classList.contains("cinematic-home")) {
+  page.classList.add("webgl-wave-fallback");
+  document.documentElement.dataset.webglWave = "fallback";
 }
