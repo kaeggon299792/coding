@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#09090b">
+<meta name="theme-color" content="#ffffff">
 <title>{{ seo_title }}</title>
 <meta name="description" content="{{ seo_description }}">
 <meta name="robots" content="{{ seo_robots }}">
@@ -48,7 +48,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <script nonce="{{ csp_nonce }}">
 (() => {
   const saved = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
-  const theme = saved === "light" || saved === "dark" ? saved : "dark";
+  const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
+  const theme = saved === "light" || saved === "dark" ? saved : (systemDark ? "dark" : "light");
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]').content = theme === "light" ? "#ffffff" : "#09090b";
 })();
@@ -115,20 +116,29 @@ document.querySelectorAll("[data-locale-link]").forEach((link) => {
   const button = document.getElementById("theme-toggle");
   const label = button.querySelector(".theme-toggle-label");
   const icon = button.querySelector(".theme-toggle-icon");
-  const apply = (theme) => {
+  const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+  const savedTheme = localStorage.getItem("casino-in-theme") || localStorage.getItem("paradise-theme");
+  let hasManualPreference = savedTheme === "light" || savedTheme === "dark";
+  const apply = (theme, persist = false) => {
     const isLight = theme === "light";
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("casino-in-theme", theme);
-    localStorage.removeItem("paradise-theme");
+    if (persist) {
+      localStorage.setItem("casino-in-theme", theme);
+      localStorage.removeItem("paradise-theme");
+      hasManualPreference = true;
+    }
     document.querySelector('meta[name="theme-color"]').content = isLight ? "#ffffff" : "#09090b";
     button.setAttribute("aria-pressed", String(isLight));
     button.setAttribute("aria-label", isLight ? "다크 테마로 변경" : "화이트 테마로 변경");
     label.textContent = isLight ? "DARK" : "WHITE";
     icon.textContent = isLight ? "◐" : "☀";
   };
-  apply(document.documentElement.dataset.theme || "dark");
+  apply(document.documentElement.dataset.theme || "light");
   button.addEventListener("click", () => {
-    apply(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+    apply(document.documentElement.dataset.theme === "light" ? "dark" : "light", true);
+  });
+  media?.addEventListener?.("change", (event) => {
+    if (!hasManualPreference) apply(event.matches ? "dark" : "light");
   });
 })();
 

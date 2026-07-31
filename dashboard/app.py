@@ -621,7 +621,7 @@ def inject_globals():
         "holiday_calendar_page": "나라별 연휴",
         "salary_trend_page": "연봉",
         "recruitment_page": "채용",
-        "source_download_page": "소스 다운",
+        "source_download_page": "데이터 다운",
         "casino_industry_page": "카지노업 현황",
         "casino_visitors_page": "연도별 카지노 이용객",
         "casino_revenue_page": "연도별 카지노 매출액 비율",
@@ -700,7 +700,7 @@ def _site_map_links():
         {"label": "연봉", "endpoint": "salary_trend_page"},
         {"label": "채용", "endpoint": "recruitment_page"},
         {
-            "label": "소스 다운",
+            "label": "데이터 다운",
             "endpoint": "source_download_page" if session.get("user_id") else "auth.login",
             "locked": not bool(session.get("user_id")),
         },

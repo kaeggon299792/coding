@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}소스 다운{% endblock %}
+{% block title %}데이터 다운{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
 <main class="page-container source-download-page">
   <header class="page-header">
     <p class="page-eyebrow">DATA / SOURCE DOWNLOAD</p>
-    <h1 class="page-title">소스 다운</h1>
+    <h1 class="page-title">데이터 다운</h1>
     <p class="page-description">사이트에서 수집하는 숫자 데이터를 중앙 DB에 계속 누적하고, 일자·월·연도 단위로 조회해 Excel에 바로 붙여넣을 수 있습니다.</p>
     <div class="source-repository-stats" aria-label="누적 데이터 현황">
       <span><b>{{ source_view.stats.series_count or 0 }}</b>개 데이터 종류</span>

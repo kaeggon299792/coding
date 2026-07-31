@@ -7,7 +7,7 @@ from services.http_utils import HardTimeoutError, get_with_hard_timeout
 OPINET_URL = "https://www.opinet.co.kr/api/avgRecentPrice.do"
 EXCHANGE_URL = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON"
 OILS = {"B027": ("OIL_B027", "보통휘발유"), "D047": ("OIL_D047", "자동차용경유"), "K015": ("OIL_K015", "자동차용부탄")}
-FX = {"USD": ("FX_USD", "미국 달러"), "JPY(100)": ("FX_JPY100", "일본 엔(100)"), "CNH": ("FX_CNH", "중국 위안"), "EUR": ("FX_EUR", "유로")}
+FX = {"USD": ("FX_USD", "미국 달러"), "HKD": ("FX_HKD", "홍콩 달러"), "JPY(100)": ("FX_JPY100", "일본 엔(100)"), "CNH": ("FX_CNH", "중국 위안"), "EUR": ("FX_EUR", "유로")}
 
 def _number(value):
     try: return float(str(value).replace(",", "").strip())

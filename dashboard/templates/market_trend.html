@@ -66,6 +66,7 @@
         <div class="market-quote-label"><span>{{ quote.market }} · {{ quote.symbol }}</span><time>{{ quote.base_date or '-' }}</time></div>
         <h3>{{ quote.name }}</h3>
         <strong class="market-price">{{ quote.currency or '' }} {{ '{:,.2f}'.format(quote.close_price) if quote.close_price is not none else '-' }}</strong>
+        {% if quote.krw_estimate is not none %}<small class="market-krw-estimate">원화 기준 약 {{ "{:,}".format(quote.krw_estimate) }}원</small>{% endif %}
         {% if quote.trend_points %}
         <svg class="market-sparkline {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ quote.name }} 최근 {{ quote.trend_count }}거래일 종가 추이">
           <defs><linearGradient id="global-market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".26"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>

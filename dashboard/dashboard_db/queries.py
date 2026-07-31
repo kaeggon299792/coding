@@ -1581,6 +1581,15 @@ def list_market_quotes(connection):
         "1928.HK": 10, "0027.HK": 11, "0880.HK": 12, "MLCO": 13,
     }
     rows = [dict(row) for row in connection.execute("SELECT * FROM market_quotes").fetchall()]
+    exchange_rates = {}
+    for currency, code in (("USD", "FX_USD"), ("HKD", "FX_HKD")):
+        rate = connection.execute(
+            "SELECT value, observation_date FROM economic_series WHERE series_code=? "
+            "ORDER BY observation_date DESC LIMIT 1",
+            (code,),
+        ).fetchone()
+        if rate:
+            exchange_rates[currency] = dict(rate)
     for row in rows:
         row.update(_market_sparkline(connection, row["symbol"]))
         market_cap = row.get("market_cap")
@@ -1594,6 +1603,13 @@ def list_market_quotes(connection):
             )
         else:
             row["market_cap_label"] = None
+        rate = exchange_rates.get(row.get("currency"))
+        if row.get("asset_type") == "global_stock" and rate and row.get("close_price") is not None:
+            row["krw_estimate"] = round(float(row["close_price"]) * float(rate["value"]))
+            row["krw_rate_date"] = rate["observation_date"]
+        else:
+            row["krw_estimate"] = None
+            row["krw_rate_date"] = None
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 
@@ -1948,7 +1964,7 @@ def list_economic_series(connection, days=45):
     for raw in rows:
         row = dict(raw)
         grouped.setdefault(row["series_code"], []).append(row)
-    order = ("OIL_B027", "OIL_D047", "OIL_K015", "FX_USD", "FX_JPY100", "FX_CNH", "FX_EUR")
+    order = ("OIL_B027", "OIL_D047", "OIL_K015", "FX_USD", "FX_HKD", "FX_JPY100", "FX_CNH", "FX_EUR")
     result = []
     for code in order:
         items = grouped.get(code, [])[-30:]

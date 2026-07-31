@@ -191,3 +191,29 @@ def test_global_quote_failure_keeps_last_successful_price(db_connection):
     assert row["close_price"] == 9.25
     assert row["fetch_status"] == "failed"
     assert row["fetch_error"] == "HTTP 429"
+
+
+def test_global_quote_includes_latest_krw_estimate(db_connection):
+    queries.upsert_economic_observation(db_connection, {
+        "series_code": "FX_HKD", "observation_date": "20260731",
+        "label": "홍콩 달러", "category": "exchange", "value": 180.5,
+        "unit": "원", "source": "한국수출입은행",
+    })
+    queries.upsert_market_quote(db_connection, {
+        "symbol": "1928.HK", "name": "Sands China", "asset_type": "global_stock",
+        "market": "HKEX", "currency": "HKD", "source": "Yahoo Finance",
+        "base_date": "20260731", "close_price": 20.0,
+        "change_value": 0.5, "change_rate": 2.5,
+    })
+    row = next(item for item in queries.list_market_quotes(db_connection) if item["symbol"] == "1928.HK")
+    assert row["krw_estimate"] == 3610
+    assert row["krw_rate_date"] == "20260731"
+
+
+def test_base_template_uses_system_theme_with_light_fallback():
+    from pathlib import Path
+
+    template = (Path(__file__).resolve().parents[1] / "templates" / "base.html").read_text(encoding="utf-8")
+    assert 'matchMedia?.("(prefers-color-scheme: dark)")' in template
+    assert '(systemDark ? "dark" : "light")' in template
+    assert 'document.documentElement.dataset.theme || "light"' in template

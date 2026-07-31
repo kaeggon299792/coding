@@ -56,4 +56,4 @@ def test_source_download_requires_login_and_renders_for_session(monkeypatch, tmp
         session["role"] = "user"
     response = client.get("/performance/source-download")
     assert response.status_code == 200
-    assert "소스 다운" in response.get_data(as_text=True)
+    assert "데이터 다운" in response.get_data(as_text=True)
