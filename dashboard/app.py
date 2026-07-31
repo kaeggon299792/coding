@@ -65,6 +65,7 @@ from localization import (
 from utils import display_y_drive_path, escape_html, setup_logger, today_kst_str
 
 logger = setup_logger("dashboard_app")
+_last_account_retention_cleanup = 0.0
 
 CANONICAL_URL = config.DASHBOARD_PUBLIC_URL.rstrip("/")
 _CANONICAL_PARTS = urlsplit(CANONICAL_URL)
@@ -570,6 +571,34 @@ def log_authenticated_activity(response):
 
 
 @app.before_request
+def purge_expired_account_withdrawals():
+    """Anonymize expired withdrawn accounts at most once per worker per hour."""
+
+    global _last_account_retention_cleanup
+    current_tick = time.monotonic()
+    if current_tick - _last_account_retention_cleanup < 3600:
+        return None
+    connection = dashboard_db()
+    try:
+        purged = queries.purge_expired_withdrawn_users(connection)
+        if purged:
+            logger.info("만료된 탈퇴 계정 개인정보 익명화 완료: %s건", purged)
+            if session.get("user_id"):
+                current = connection.execute(
+                    "SELECT is_active FROM dashboard_users WHERE id=?",
+                    (session["user_id"],),
+                ).fetchone()
+                if not current or not current["is_active"]:
+                    session.clear()
+        _last_account_retention_cleanup = current_tick
+    except Exception:
+        logger.exception("탈퇴 계정 보관기간 정리 실패")
+    finally:
+        connection.close()
+    return None
+
+
+@app.before_request
 def enforce_menu_permission():
     if not session.get("user_id"):
         return None
@@ -651,6 +680,7 @@ def inject_globals():
         "unified_search_page": "통합검색",
         "sitemap_page": "사이트맵",
         "credits_page": "출처 및 저작권",
+        "auth.my_account": "내 계정",
         "auth.login": "로그인",
         "auth.register": "가입 신청",
         "auth.user_management": "계정관리",
@@ -2159,10 +2189,13 @@ def _library_context(connection, error=None):
 
 @app.route("/library", methods=["GET", "POST"])
 def research_library_page():
-    if request.method == "POST" and not session.get("user_id"):
-        return redirect(
-            url_for("auth.login", next=f"{request.script_root}{request.path}")
-        )
+    if request.method == "POST":
+        if not session.get("user_id"):
+            return redirect(
+                url_for("auth.login", next=f"{request.script_root}{request.path}")
+            )
+        if not current_menu_permissions().get("research_library", False):
+            abort(403)
     connection = dashboard_db()
     saved_file = None
     try:

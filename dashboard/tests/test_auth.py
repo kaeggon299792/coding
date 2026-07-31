@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -223,3 +224,182 @@ def test_logged_in_user_can_access_related_news_page(client):
     html = response.get_data(as_text=True)
     assert "관련 뉴스" in html
     assert "경영진 관점 분석" in html
+
+
+def test_regular_user_has_mobile_safe_self_service_account_page(client):
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "employee",
+            "password": "employee-password-123",
+            "csrf_token": csrf,
+        },
+    )
+    response = client.get("/account")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "내 계정" in html
+    assert "회원 탈퇴" in html
+    assert "14일간 보관" in html
+    assert 'class="account-profile-grid"' in html
+
+
+def test_regular_user_withdrawal_disables_account_and_clears_session(client):
+    from config import DASHBOARD_DB_FILE
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "employee",
+            "password": "employee-password-123",
+            "csrf_token": csrf,
+        },
+    )
+    with client.session_transaction() as flask_session:
+        csrf = flask_session["csrf_token"] = "withdraw-csrf"
+    response = client.post(
+        "/account/withdraw",
+        data={"csrf_token": csrf, "confirmation": "탈퇴"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "withdrawn=1" in response.headers["Location"]
+    with client.session_transaction() as flask_session:
+        assert "user_id" not in flask_session
+
+    import sqlite3
+
+    connection = sqlite3.connect(DASHBOARD_DB_FILE)
+    connection.row_factory = sqlite3.Row
+    row = connection.execute(
+        "SELECT * FROM dashboard_users WHERE username='employee'"
+    ).fetchone()
+    connection.close()
+    assert row["is_active"] == 0
+    assert row["approval_status"] == "withdrawal_pending"
+    requested = datetime.fromisoformat(row["deletion_requested_at"])
+    scheduled = datetime.fromisoformat(row["deletion_scheduled_at"])
+    assert timedelta(days=13, hours=23) < scheduled - requested < timedelta(days=14, minutes=1)
+
+
+def test_research_upload_form_requires_research_permission(client):
+    from auth import MENU_PERMISSIONS
+    from dashboard_db import queries
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    employee = queries.get_user_by_username(connection, "employee")
+    queries.replace_user_permissions(
+        connection,
+        employee["id"],
+        MENU_PERMISSIONS.keys(),
+        set(MENU_PERMISSIONS) - {"research_library"},
+        None,
+    )
+    connection.close()
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "employee",
+            "password": "employee-password-123",
+            "csrf_token": csrf,
+        },
+    )
+    response = client.get("/library")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'class="library-upload"' not in html
+    assert "등록·수정 권한은 없습니다" in html
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "research-csrf"
+    assert client.post(
+        "/library", data={"csrf_token": "research-csrf"}
+    ).status_code == 403
+
+
+def test_expired_withdrawal_is_anonymized_after_retention(db_connection):
+    from dashboard_db import queries
+
+    cursor = db_connection.execute(
+        """
+        INSERT INTO dashboard_users
+            (username, password_hash, created_at, role, is_active, email,
+             google_sub, name, picture_url, approval_status,
+             deletion_requested_at, deletion_scheduled_at)
+        VALUES ('leaving-user', 'hash', ?, 'user', 0, 'leaving@example.com',
+                'google-sub-leaving', 'Leaving User', 'https://example.com/a.jpg',
+                'withdrawal_pending', ?, ?)
+        """,
+        (
+            "2026-07-01T00:00:00+09:00",
+            "2026-07-10T00:00:00+09:00",
+            "2026-07-24T00:00:00+09:00",
+        ),
+    )
+    user_id = cursor.lastrowid
+    db_connection.commit()
+
+    assert queries.purge_expired_withdrawn_users(db_connection) == 1
+    row = db_connection.execute(
+        "SELECT * FROM dashboard_users WHERE id=?", (user_id,)
+    ).fetchone()
+    assert row["username"] == f"deleted-user-{user_id}"
+    assert row["email"] is None
+    assert row["google_sub"] is None
+    assert row["name"] is None
+    assert row["picture_url"] is None
+    assert row["approval_status"] == "deleted"
+    assert row["deleted_at"]
+
+
+def test_admin_can_restore_withdrawal_during_retention(client):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute("UPDATE dashboard_users SET role='admin' WHERE username='admin'")
+    connection.execute(
+        """
+        UPDATE dashboard_users
+        SET is_active=0, approval_status='withdrawal_pending',
+            deletion_requested_at='2026-08-01T00:00:00+09:00',
+            deletion_scheduled_at='2099-08-15T00:00:00+09:00'
+        WHERE username='employee'
+        """
+    )
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "restore-csrf"
+    response = client.post(
+        f"/admin/users/{employee_id}/restore-withdrawal",
+        data={"csrf_token": "restore-csrf"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    connection = dashboard_db()
+    row = connection.execute(
+        "SELECT * FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()
+    connection.close()
+    assert row["is_active"] == 1
+    assert row["approval_status"] == "approved"
+    assert row["deletion_requested_at"] is None
+    assert row["deletion_scheduled_at"] is None

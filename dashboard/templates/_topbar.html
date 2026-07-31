@@ -29,17 +29,19 @@
   </nav>
   <div class="topbar-actions">
     {% if current_user %}
-      <span class="topbar-user" title="{{ current_user.name or current_user.username }}">
+      <a class="topbar-user" href="{{ url_for('auth.my_account') }}" title="내 계정 · {{ current_user.name or current_user.username }}">
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
         {% else %}
           <span class="topbar-avatar-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
         {% endif %}
         <span class="topbar-user-name">{{ current_user.name or current_user.username }}</span>
-      </span>
+      </a>
     {% endif %}
     {% if current_user_role == 'admin' %}
     <a class="topbar-account-link" href="{{ url_for('auth.user_management') }}">계정관리</a>
+    {% elif current_username %}
+    <a class="topbar-account-link" href="{{ url_for('auth.my_account') }}">내 계정</a>
     {% endif %}
     <span class="topbar-meta">{{ now_str }}</span>
     {% if current_username %}

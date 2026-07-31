@@ -394,7 +394,8 @@ a:hover { color: var(--brand-text-secondary); text-decoration: underline; }
 .topbar-nav a.active { color: var(--brand-accent); font-weight: 700; border-color: var(--brand-accent); }
 
 .topbar-actions { display: flex; align-items: center; gap: var(--space-3); }
-.topbar-user { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.topbar-user { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color:inherit; text-decoration:none; }
+.topbar-user:hover { text-decoration:none; }
 .topbar-avatar,
 .topbar-avatar-fallback {
   width: 28px;
@@ -1133,6 +1134,52 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .permission-controls{display:grid;gap:12px}.landing-page-select{display:flex;align-items:center;gap:10px;color:var(--brand-text-muted);font-size:var(--text-xs)}.landing-page-select select{height:36px;min-width:180px;padding:0 9px;color:var(--brand-text);background:var(--brand-bg);border:1px solid var(--brand-border-strong)}
 .permission-check-grid{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px 14px}.permission-check-grid label{display:flex;align-items:center;gap:7px;color:var(--brand-text-secondary);font-size:var(--text-sm);cursor:pointer}.permission-check-grid input{accent-color:#d8bd78}
 @media(max-width:1100px){.permission-user-row{grid-template-columns:1fr}.permission-check-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}}@media(max-width:600px){.permission-check-grid{grid-template-columns:1fr}}
+.account-page,
+.account-page > *,
+.account-page .panel,
+.account-page .section-heading,
+.account-page .section-heading > div,
+.account-create-form,
+.permission-user-list,
+.permission-user-row,
+.permission-user-name,
+.permission-controls,
+.permission-check-grid {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.account-page .table-scroll {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.account-page .section-heading > div,
+.permission-user-name,
+.permission-check-grid label,
+.permission-check-grid span { overflow-wrap: anywhere; }
+.account-create-form input,
+.account-create-form select,
+.ip-manual-form input { width: 100%; max-width: 100%; box-sizing: border-box; }
+@media(max-width:600px){
+  .account-page{width:100%;overflow:hidden}
+  .account-page .panel{width:100%;padding:18px;overflow:hidden}
+  .account-page .section-heading{align-items:flex-start;flex-wrap:wrap}
+  .landing-page-select{align-items:stretch;flex-direction:column;gap:7px}
+  .landing-page-select select{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+  .permission-user-row{gap:14px;padding:13px}
+  .permission-user-row>.btn{width:100%}
+  .permission-check-grid label{min-height:36px;padding:5px 0}
+  .ip-manual-form .btn{width:100%}
+}
+.my-account-page{display:grid;gap:20px;min-width:0}.my-account-page>*{min-width:0;max-width:100%;box-sizing:border-box}.my-account-page .panel{margin:0}
+.account-profile-head{display:flex;align-items:center;gap:16px;margin-bottom:22px}.account-profile-head>img,.account-profile-head>span{width:64px;height:64px;flex:0 0 64px;border:1px solid var(--brand-border-strong);border-radius:50%;background:var(--brand-surface-muted);object-fit:cover}.account-profile-head>span{display:flex;align-items:center;justify-content:center;color:var(--brand-text-primary);font-size:var(--text-xl);font-weight:800}.account-profile-head h2{margin:0 0 5px}.account-profile-head p{margin:0;color:var(--brand-text-muted);overflow-wrap:anywhere}
+.account-profile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:0;background:var(--brand-border)}.account-profile-grid>div{min-width:0;padding:16px;background:var(--brand-bg)}.account-profile-grid dt{color:var(--brand-text-muted);font-size:var(--text-xs)}.account-profile-grid dd{margin:7px 0 0;color:var(--brand-text-secondary);overflow-wrap:anywhere}
+.account-withdrawal-panel{border-color:rgba(155,63,74,.55)}.withdrawal-policy{display:grid;gap:8px;margin:0 0 22px;padding:16px 16px 16px 34px;border:1px solid var(--brand-border);background:var(--brand-bg);color:var(--brand-text-secondary);font-size:var(--text-sm);line-height:1.6}.withdrawal-admin-note{margin:0;padding:16px;border:1px solid var(--brand-border);background:var(--brand-bg);color:var(--brand-text-secondary)}.account-withdrawal-form{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:end;gap:12px}.account-withdrawal-form label{display:grid;gap:7px;color:var(--brand-text-muted);font-size:var(--text-sm)}.account-withdrawal-form input{width:100%;height:42px;box-sizing:border-box;padding:0 11px;border:1px solid var(--brand-border-strong);background:var(--brand-bg);color:var(--brand-text-primary)}
+@media(max-width:700px){.my-account-page{width:100%;overflow:hidden}.my-account-page .panel{padding:18px}.account-profile-head{align-items:flex-start}.account-profile-grid{grid-template-columns:1fr}.account-withdrawal-form{grid-template-columns:1fr}.account-withdrawal-form .btn{width:100%}.withdrawal-policy{padding:14px 14px 14px 30px}}
 
 .data-freshness-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.data-freshness{display:inline-flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--brand-border);color:var(--brand-text-muted);font-size:var(--text-xs)}.data-freshness b{color:var(--brand-text-secondary)}
 

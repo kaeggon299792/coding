@@ -716,8 +716,11 @@ def login():
                 if request.args.get("expired") == "1" else None
             ),
             notice=(
-                "가입 신청이 접수되었습니다. 관리자가 승인하면 로그인할 수 있습니다."
-                if request.args.get("registered") == "1" else None
+                "탈퇴 신청이 완료되었습니다. 계정 정보는 14일간 보관되며, 기간 내 복구는 관리자에게 요청할 수 있습니다."
+                if request.args.get("withdrawn") == "1"
+                else "가입 신청이 접수되었습니다. 관리자가 승인하면 로그인할 수 있습니다."
+                if request.args.get("registered") == "1"
+                else None
             ),
         )
 
@@ -839,6 +842,85 @@ def logout():
     return redirect(url_for("public_home"))
 
 
+@auth_bp.route("/account")
+@login_required
+def my_account():
+    connection = dashboard_db()
+    try:
+        user = connection.execute(
+            """
+            SELECT id, username, email, name, picture_url, google_sub, role,
+                   created_at, updated_at, last_login_at, approval_status,
+                   deletion_requested_at, deletion_scheduled_at
+            FROM dashboard_users WHERE id=?
+            """,
+            (session["user_id"],),
+        ).fetchone()
+        if not user:
+            session.clear()
+            return redirect(url_for("auth.login"))
+        return render_template(
+            "account.html",
+            user=dict(user),
+            csrf_token=get_csrf_token(),
+            error=(request.args.get("error") or "").strip(),
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.route("/account/withdraw", methods=["POST"])
+@login_required
+def withdraw_account():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    if (request.form.get("confirmation") or "").strip() != "탈퇴":
+        return redirect(url_for(
+            "auth.my_account", error="확인란에 ‘탈퇴’를 정확히 입력해주세요."
+        ))
+
+    connection = dashboard_db()
+    try:
+        target = connection.execute(
+            "SELECT id, username, role, approval_status FROM dashboard_users WHERE id=?",
+            (session["user_id"],),
+        ).fetchone()
+        if not target:
+            session.clear()
+            return redirect(url_for("auth.login"))
+        if target["role"] == "admin":
+            return redirect(url_for(
+                "auth.my_account",
+                error="관리자 계정은 직접 탈퇴할 수 없습니다. 다른 관리자에게 권한 변경을 요청해주세요.",
+            ))
+        if target["approval_status"] == "withdrawal_pending":
+            return redirect(url_for("auth.login", withdrawn="1"))
+
+        now = now_kst()
+        scheduled = now + timedelta(days=14)
+        connection.execute(
+            """
+            UPDATE dashboard_users
+            SET is_active=0, approval_status='withdrawal_pending',
+                deletion_requested_at=?, deletion_scheduled_at=?, updated_at=?
+            WHERE id=?
+            """,
+            (now.isoformat(), scheduled.isoformat(), now.isoformat(), target["id"]),
+        )
+        _audit_user(
+            connection,
+            target,
+            "ACCOUNT_WITHDRAWAL_REQUESTED",
+            {"retention_days": 14, "deletion_scheduled_at": scheduled.isoformat()},
+        )
+        _revoke_user_sessions(connection, target["id"], "account_withdrawal")
+        connection.commit()
+    finally:
+        connection.close()
+    session.clear()
+    return redirect(url_for("auth.login", withdrawn="1"))
+
+
 @auth_bp.route("/admin/users", methods=["GET", "POST"])
 @admin_required
 def user_management():
@@ -887,7 +969,8 @@ def user_management():
             dict(row) for row in connection.execute(
                 """
                 SELECT id, username, email, role, is_active, approval_status, created_at, updated_at,
-                       last_login_at, password_changed_at, landing_page
+                       last_login_at, password_changed_at, landing_page,
+                       deletion_requested_at, deletion_scheduled_at, deleted_at
                 FROM dashboard_users ORDER BY is_active DESC, role, username
                 """
             ).fetchall()
@@ -955,6 +1038,40 @@ def user_management():
         connection.close()
 
 
+@auth_bp.route("/admin/users/<int:user_id>/restore-withdrawal", methods=["POST"])
+@admin_required
+def restore_withdrawn_user(user_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    connection = dashboard_db()
+    try:
+        target = connection.execute(
+            """
+            SELECT id, username, approval_status, deletion_scheduled_at
+            FROM dashboard_users WHERE id=?
+            """,
+            (user_id,),
+        ).fetchone()
+        if not target or target["approval_status"] != "withdrawal_pending":
+            return redirect(url_for("auth.user_management"))
+        connection.execute(
+            """
+            UPDATE dashboard_users
+            SET is_active=1, approval_status='approved', deletion_requested_at=NULL,
+                deletion_scheduled_at=NULL, deleted_at=NULL, updated_at=?
+            WHERE id=?
+            """,
+            (now_kst().isoformat(), user_id),
+        )
+        _audit_user(connection, target, "ACCOUNT_WITHDRAWAL_RESTORED")
+        connection.commit()
+        return redirect(url_for(
+            "auth.user_management", success="탈퇴 신청을 취소하고 계정을 복구했습니다."
+        ))
+    finally:
+        connection.close()
+
+
 @auth_bp.route("/admin/users/<int:user_id>/role", methods=["POST"])
 @admin_required
 def update_user_role(user_id):
@@ -1005,6 +1122,10 @@ def toggle_user_active(user_id):
         ).fetchone()
         if not target:
             return redirect(url_for("auth.user_management"))
+        if target["approval_status"] == "withdrawal_pending":
+            return redirect(url_for(
+                "auth.user_management", success="탈퇴 보관 중인 계정은 복구 버튼을 사용해주세요."
+            ))
         new_value = 0 if target["is_active"] else 1
         connection.execute(
             """

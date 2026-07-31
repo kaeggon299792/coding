@@ -46,6 +46,78 @@ def any_user_exists(connection):
     return row is not None
 
 
+def purge_expired_withdrawn_users(connection):
+    """Anonymize personal account data after the 14-day withdrawal hold."""
+
+    now_iso = now_kst().isoformat()
+    rows = connection.execute(
+        """
+        SELECT id, username
+        FROM dashboard_users
+        WHERE approval_status='withdrawal_pending'
+          AND deletion_scheduled_at IS NOT NULL
+          AND deletion_scheduled_at<=?
+        """,
+        (now_iso,),
+    ).fetchall()
+    for row in rows:
+        user_id = row["id"]
+        old_username = row["username"]
+        anonymous_username = f"deleted-user-{user_id}"
+        connection.execute(
+            """
+            UPDATE dashboard_users
+            SET username=?, password_hash='!withdrawn', role='user', is_active=0,
+                email=NULL, google_sub=NULL, name=NULL, picture_url=NULL,
+                approval_status='deleted', landing_page='dashboard',
+                updated_at=?, deleted_at=?
+            WHERE id=?
+            """,
+            (anonymous_username, now_iso, now_iso, user_id),
+        )
+        connection.execute(
+            "DELETE FROM dashboard_user_permissions WHERE user_id=?", (user_id,)
+        )
+        connection.execute(
+            """
+            UPDATE dashboard_active_sessions
+            SET revoked_at=COALESCE(revoked_at, ?),
+                revoke_reason=COALESCE(revoke_reason, 'withdrawal_retention_expired')
+            WHERE user_id=?
+            """,
+            (now_iso, user_id),
+        )
+        connection.execute(
+            "UPDATE dashboard_user_audit SET target_username=? WHERE target_user_id=?",
+            (anonymous_username, user_id),
+        )
+        connection.execute(
+            "UPDATE dashboard_user_audit SET actor_username=? WHERE actor_user_id=?",
+            (anonymous_username, user_id),
+        )
+        connection.execute(
+            "UPDATE security_audit_log SET username=? WHERE user_id=?",
+            (anonymous_username, user_id),
+        )
+        # Business records remain available, but the withdrawn member's name is
+        # replaced so their personal account identity is no longer exposed.
+        for table, column in (
+            ("action_items", "reported_by"),
+            ("research_documents", "uploaded_by"),
+            ("official_documents", "registered_by"),
+            ("official_document_history", "actor"),
+            ("official_document_change_log", "actor"),
+            ("official_excel_exports", "exported_by"),
+        ):
+            connection.execute(
+                f"UPDATE {table} SET {column}=? WHERE {column}=?",
+                (anonymous_username, old_username),
+            )
+    if rows:
+        connection.commit()
+    return len(rows)
+
+
 def get_user_permissions(connection, user_id, permission_codes):
     rows = connection.execute(
         "SELECT permission_code, allowed FROM dashboard_user_permissions WHERE user_id=?",

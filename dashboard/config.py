@@ -287,6 +287,7 @@ def known_secrets():
             DART_API_KEY,
             LAW_API_KEY,
             FLASK_SECRET_KEY,
+            GOOGLE_CLIENT_SECRET,
         )
         if value
     ]

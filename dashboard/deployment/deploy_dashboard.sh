@@ -25,6 +25,8 @@ required_endpoints = {
     "auth.login",
     "auth.google_login",
     "auth.google_callback",
+    "auth.my_account",
+    "auth.withdraw_account",
     "market_trend_page",
 }
 registered = {rule.endpoint for rule in app.url_map.iter_rules()}

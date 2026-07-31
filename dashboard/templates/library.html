@@ -12,7 +12,8 @@
   {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
   {% if notice %}<p class="flash success">{{ notice }}</p>{% endif %}
 
-  {% if current_username %}
+  {% set can_manage_research = current_username and menu_permissions.get('research_library', false) %}
+  {% if can_manage_research %}
   <section class="library-upload">
     <h2>새 자료 등록</h2>
     <form method="post" enctype="multipart/form-data" class="library-form">
@@ -47,7 +48,11 @@
     <p class="integration-note">텍스트형 PDF를 지원합니다. 스캔 이미지만 있는 PDF는 본문 추출이 제한될 수 있습니다.</p>
   </section>
   {% else %}
-  <section class="public-action-notice"><p>자료 등록과 AI 분석은 로그인 후 이용할 수 있습니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>
+    {% if current_username %}
+    <section class="public-action-notice"><p>현재 계정은 리서치 자료를 열람할 수 있지만 등록·수정 권한은 없습니다.</p></section>
+    {% else %}
+    <section class="public-action-notice"><p>자료 등록과 AI 분석은 권한이 있는 계정으로 로그인한 후 이용할 수 있습니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>
+    {% endif %}
   {% endif %}
 
   <div class="library-toolbar">
@@ -106,7 +111,7 @@
 
       <div class="library-actions">
         <a class="btn" href="{{ url_for('download_research_document', document_id=doc.id) }}">원본 다운로드</a>
-        {% if current_username %}
+        {% if can_manage_research %}
         <details class="library-title-editor">
           <summary class="btn">제목 수정</summary>
           <div class="library-title-editor-panel">

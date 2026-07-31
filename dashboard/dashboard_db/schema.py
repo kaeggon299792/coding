@@ -52,6 +52,9 @@ def migrate(connection):
     _ensure_column(connection, "dashboard_users", "google_sub", "TEXT")
     _ensure_column(connection, "dashboard_users", "name", "TEXT")
     _ensure_column(connection, "dashboard_users", "picture_url", "TEXT")
+    _ensure_column(connection, "dashboard_users", "deletion_requested_at", "TEXT")
+    _ensure_column(connection, "dashboard_users", "deletion_scheduled_at", "TEXT")
+    _ensure_column(connection, "dashboard_users", "deleted_at", "TEXT")
     _ensure_column(
         connection, "dashboard_users", "approval_status",
         "TEXT NOT NULL DEFAULT 'approved'",
@@ -68,6 +71,12 @@ def migrate(connection):
         CREATE UNIQUE INDEX IF NOT EXISTS idx_dashboard_users_google_sub_unique
         ON dashboard_users(google_sub)
         WHERE google_sub IS NOT NULL AND TRIM(google_sub) != ''
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_dashboard_users_deletion_schedule
+        ON dashboard_users(approval_status, deletion_scheduled_at)
         """
     )
     connection.execute(

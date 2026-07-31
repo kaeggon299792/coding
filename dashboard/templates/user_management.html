@@ -91,7 +91,10 @@
         {% for user in users %}
           <tr>
             <td><strong>{{ user.username }}</strong>{% if user.email %}<small class="self-label">{{ user.email }}</small>{% endif %}{% if user.id == session.user_id %}<small class="self-label">내 계정</small>{% endif %}</td>
-            <td><span class="account-state {{ 'is-active' if user.is_active else 'is-disabled' }}">{{ '사용 중' if user.is_active else ('승인 대기' if user.approval_status == 'pending' else '비활성') }}</span></td>
+            <td>
+              <span class="account-state {{ 'is-active' if user.is_active else 'is-disabled' }}">{{ '사용 중' if user.is_active else ('승인 대기' if user.approval_status == 'pending' else ('탈퇴 보관 중' if user.approval_status == 'withdrawal_pending' else ('탈퇴 완료' if user.approval_status == 'deleted' else '비활성'))) }}</span>
+              {% if user.approval_status == 'withdrawal_pending' and user.deletion_scheduled_at %}<small class="self-label">{{ user.deletion_scheduled_at|replace('T',' ')|truncate(17,true,'') }} 익명화</small>{% endif %}
+            </td>
             <td>
               <form method="post" action="{{ url_for('auth.update_user_role', user_id=user.id) }}" class="inline-account-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -109,10 +112,17 @@
               </form>
             </td>
             <td>
+              {% if user.approval_status == 'withdrawal_pending' %}
+              <form method="post" action="{{ url_for('auth.restore_withdrawn_user', user_id=user.id) }}" onsubmit="return confirm('탈퇴 신청을 취소하고 이 계정을 복구할까요?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small">탈퇴 취소·복구</button>
+              </form>
+              {% else %}
               <form method="post" action="{{ url_for('auth.toggle_user_active', user_id=user.id) }}" onsubmit="return confirm('계정 상태를 변경할까요?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button class="btn btn-small {% if user.is_active %}danger-button{% endif %}" {% if user.id == session.user_id %}disabled{% endif %}>{{ '비활성화' if user.is_active else ('가입 승인' if user.approval_status == 'pending' else '활성화') }}</button>
+                <button class="btn btn-small {% if user.is_active %}danger-button{% endif %}" {% if user.id == session.user_id or user.approval_status == 'deleted' %}disabled{% endif %}>{{ '비활성화' if user.is_active else ('가입 승인' if user.approval_status == 'pending' else ('삭제 완료' if user.approval_status == 'deleted' else '활성화')) }}</button>
               </form>
+              {% endif %}
             </td>
           </tr>
         {% else %}<tr><td colspan="7" class="empty-state">등록된 계정이 없습니다.</td></tr>{% endfor %}
@@ -124,7 +134,7 @@
   <section class="panel">
     <div class="section-heading"><div><h2>계정 변경 로그</h2><p>최근 100건의 생성, 권한 변경, 상태 변경, 비밀번호 초기화 기록입니다.</p></div></div>
     <div class="table-scroll"><table class="data-table"><thead><tr><th>일시</th><th>대상 계정</th><th>작업</th><th>처리자</th></tr></thead><tbody>
-      {% for item in audit %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.target_username }}</td><td>{{ {'ACCOUNT_CREATED':'계정 생성','ACCOUNT_APPROVED':'가입 승인','ROLE_CHANGED':'권한 변경','ACCOUNT_ACTIVATED':'계정 활성화','ACCOUNT_DEACTIVATED':'계정 비활성화','PASSWORD_RESET':'비밀번호 초기화','MENU_PERMISSIONS_CHANGED':'메뉴 권한 변경'}.get(item.action, item.action) }}</td><td>{{ item.actor_username }}</td></tr>
+      {% for item in audit %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.target_username }}</td><td>{{ {'ACCOUNT_CREATED':'계정 생성','ACCOUNT_APPROVED':'가입 승인','ROLE_CHANGED':'권한 변경','ACCOUNT_ACTIVATED':'계정 활성화','ACCOUNT_DEACTIVATED':'계정 비활성화','PASSWORD_RESET':'비밀번호 초기화','MENU_PERMISSIONS_CHANGED':'메뉴 권한 변경','ACCOUNT_WITHDRAWAL_REQUESTED':'회원 탈퇴 신청','ACCOUNT_WITHDRAWAL_RESTORED':'탈퇴 취소·복구'}.get(item.action, item.action) }}</td><td>{{ item.actor_username }}</td></tr>
       {% else %}<tr><td colspan="4" class="empty-state">변경 기록이 없습니다.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
