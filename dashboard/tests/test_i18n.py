@@ -56,9 +56,9 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert '<html lang="en"' in html
     assert "Casino Industry Information and Insights" in html
     assert ">Data<" in html
-    assert 'rel="canonical" href="https://dashboard.shingoon.me/en/"' in html
-    assert 'hreflang="ko" href="https://dashboard.shingoon.me/"' in html
-    assert 'hreflang="en" href="https://dashboard.shingoon.me/en/"' in html
+    assert 'rel="canonical" href="https://casino.shingoon.me/en/"' in html
+    assert 'hreflang="ko" href="https://casino.shingoon.me/"' in html
+    assert 'hreflang="en" href="https://casino.shingoon.me/en/"' in html
     assert 'hreflang="x-default"' in html
     assert "G-PTRL0XC53Z" in html
     assert 'lang="ko" data-i18n-ignore' in html

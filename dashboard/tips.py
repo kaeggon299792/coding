@@ -27,6 +27,13 @@ ALLOWED_EXTENSIONS = {
 }
 
 
+def _snippet(text, limit=170):
+    compact = " ".join((text or "").split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit].rsplit(' ', 1)[0]}…"
+
+
 def _is_admin():
     return session.get("role") == "admin"
 
@@ -369,6 +376,33 @@ def detail_page(slug):
         "tips/detail.html", tip=item, rendered_body=rendered,
         attachments=files, comments=item_comments,
         previous_tip=previous, next_tip=following,
+        seo_title=f"{item['title']} | Casino IN",
+        seo_description=_snippet(item.get("summary") or item.get("body") or ""),
+        seo_og_title=f"{item['title']} | Casino IN",
+        seo_og_description=_snippet(item.get("summary") or item.get("body") or ""),
+        seo_og_type="article",
+        seo_json_ld=[{
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": item["title"],
+            "description": _snippet(item.get("summary") or item.get("body") or ""),
+            "datePublished": item.get("published_date"),
+            "dateModified": (item.get("updated_at") or item.get("updated_date") or item.get("published_date")),
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": f"https://casino.shingoon.me/tips/{item['slug']}",
+            },
+            "author": {"@type": "Organization", "name": "Casino IN"},
+            "publisher": {
+                "@type": "Organization",
+                "name": "Casino IN",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://casino.shingoon.me/static/img/casino-in-logo.png",
+                },
+            },
+            "image": ["https://casino.shingoon.me/static/img/casino-in-logo.png"],
+        }],
     )
 
 

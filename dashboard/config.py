@@ -211,12 +211,14 @@ SESSION_ABSOLUTE_HOURS = _get_int("SESSION_ABSOLUTE_HOURS", 8)
 TRUSTED_HOSTS = tuple(
     host.strip().lower()
     for host in _get_str(
-        "TRUSTED_HOSTS", "dashboard-kaekun.pythonanywhere.com"
+        "TRUSTED_HOSTS",
+        "casino.shingoon.me,www.casino.shingoon.me,"
+        "dashboard.shingoon.me,dashboard-kaekun.pythonanywhere.com",
     ).split(",")
     if host.strip()
 )
 DASHBOARD_PUBLIC_URL = _get_str(
-    "DASHBOARD_PUBLIC_URL", "https://dashboard.shingoon.me"
+    "DASHBOARD_PUBLIC_URL", "https://casino.shingoon.me"
 ).rstrip("/")
 
 

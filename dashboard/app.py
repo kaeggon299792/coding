@@ -8,10 +8,12 @@
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import time
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from flask import (
     Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file,
@@ -59,6 +61,209 @@ from localization import (
 from utils import display_y_drive_path, escape_html, setup_logger, today_kst_str
 
 logger = setup_logger("dashboard_app")
+
+CANONICAL_URL = config.DASHBOARD_PUBLIC_URL.rstrip("/")
+_CANONICAL_PARTS = urlsplit(CANONICAL_URL)
+CANONICAL_SCHEME = (_CANONICAL_PARTS.scheme or "https").lower()
+CANONICAL_HOST = (_CANONICAL_PARTS.netloc or "").split(":", 1)[0].lower()
+SEO_IMAGE_URL = f"{CANONICAL_URL}/static/img/casino-in-logo.png"
+INDEXABLE_ENDPOINTS = {
+    "public_home",
+    "market_trend_page",
+    "related_news_page",
+    "tourism_trend_page",
+    "economic_trend_page",
+    "holiday_calendar_page",
+    "salary_trend_page",
+    "recruitment_page",
+    "casino_industry_page",
+    "casino_visitors_page",
+    "casino_revenue_page",
+    "casino_fund_page",
+    "disclosures_page",
+    "laws_page",
+    "companies_page",
+    "research_library_page",
+    "credits_page",
+    "tips.list_page",
+    "tips.sites_page",
+    "tips.detail_page",
+}
+NOINDEX_ENDPOINTS = {
+    "auth.login",
+    "auth.register",
+    "auth.user_management",
+    "dashboard_home",
+    "paradian_portal_page",
+    "performance_page",
+    "sitemap_page",
+    "unified_search_page",
+    "action_items_page",
+    "action_item_detail",
+    "not_found_page",
+}
+SITEMAP_STATIC_ENDPOINTS = {
+    "public_home": {"changefreq": "daily", "priority": "1.0"},
+    "casino_industry_page": {"changefreq": "monthly", "priority": "0.95"},
+    "related_news_page": {"changefreq": "hourly", "priority": "0.9"},
+    "market_trend_page": {"changefreq": "daily", "priority": "0.85"},
+    "tourism_trend_page": {"changefreq": "monthly", "priority": "0.85"},
+    "economic_trend_page": {"changefreq": "daily", "priority": "0.85"},
+    "holiday_calendar_page": {"changefreq": "monthly", "priority": "0.7"},
+    "salary_trend_page": {"changefreq": "daily", "priority": "0.7"},
+    "recruitment_page": {"changefreq": "daily", "priority": "0.75"},
+    "disclosures_page": {"changefreq": "daily", "priority": "0.9"},
+    "laws_page": {"changefreq": "daily", "priority": "0.9"},
+    "companies_page": {"changefreq": "daily", "priority": "0.85"},
+    "research_library_page": {"changefreq": "weekly", "priority": "0.8"},
+    "tips.list_page": {"changefreq": "weekly", "priority": "0.8"},
+    "tips.sites_page": {"changefreq": "weekly", "priority": "0.65"},
+    "credits_page": {"changefreq": "weekly", "priority": "0.5"},
+}
+SEO_PAGE_COPY = {
+    "ko": {
+        "public_home": (
+            "Casino IN | 카지노 산업 정보와 인사이트",
+            "국내외 카지노 기업, 관광객, 환율, 공시, 시장 동향과 산업 데이터를 한곳에서 확인하는 카지노 산업 인텔리전스 플랫폼입니다.",
+        ),
+        "casino_industry_page": (
+            "카지노업 현황 | Casino IN",
+            "국내 외국인전용 카지노 사업장 현황, 지역 분포, 매출과 이용객 데이터를 한 화면에서 확인합니다.",
+        ),
+        "related_news_page": (
+            "카지노 산업 뉴스 | Casino IN",
+            "국내외 카지노·관광 산업 뉴스와 AI 관점 분석을 한곳에서 확인합니다.",
+        ),
+        "market_trend_page": (
+            "카지노 기업 주가 정보 | Casino IN",
+            "국내 카지노 4사와 마카오 주요 카지노 운영사의 주가, 지수, 시가총액 흐름을 비교합니다.",
+        ),
+        "tourism_trend_page": (
+            "외국인 관광객 통계 및 분석 | Casino IN",
+            "국가별 방한 외래관광객 추이와 전년 대비 변화를 비교합니다.",
+        ),
+        "economic_trend_page": (
+            "유가·환율 데이터 | Casino IN",
+            "국내 유가와 주요 환율 흐름을 시계열 그래프로 확인합니다.",
+        ),
+        "holiday_calendar_page": (
+            "국가별 연휴 캘린더 | Casino IN",
+            "한국, 중국, 일본, 대만, 몽골 등 주요 국가의 연휴 일정을 비교합니다.",
+        ),
+        "salary_trend_page": (
+            "카지노 업계 연봉 정보 | Casino IN",
+            "카지노 4사와 비교 업계 평균연봉의 최근 공개값과 월별 변화를 확인합니다.",
+        ),
+        "recruitment_page": (
+            "카지노 업계 채용 정보 | Casino IN",
+            "잡코리아, 사람인, 인크루트 기반 카지노 관련 채용공고를 구조화해 보여줍니다.",
+        ),
+        "disclosures_page": (
+            "카지노 기업 공시정보 | Casino IN",
+            "관심 카지노 기업의 DART 공시, 제출인, AI 요약을 한곳에서 확인합니다.",
+        ),
+        "laws_page": (
+            "카지노 법률·규제 모니터링 | Casino IN",
+            "카지노 영업준칙, 관광진흥법, 정부입법예고와 국회 의안 동향을 추적합니다.",
+        ),
+        "companies_page": (
+            "국내외 카지노 기업 분석 | Casino IN",
+            "파라다이스, GKL, 강원랜드, 롯데관광개발 등 주요 기업 정보를 비교 분석합니다.",
+        ),
+        "research_library_page": (
+            "카지노 시장 분석과 인사이트 | Casino IN",
+            "증권사·산업 리포트와 AI 분석을 바탕으로 카지노 산업 인사이트를 제공합니다.",
+        ),
+        "tips.list_page": (
+            "자료실 | Casino IN",
+            "업무 자동화, 보고서, 데이터 분석 노하우를 정리한 공개 자료실입니다.",
+        ),
+        "tips.sites_page": (
+            "관련 사이트 모음 | Casino IN",
+            "카지노 산업 조사와 업무에 유용한 관련 사이트 링크를 모아 제공합니다.",
+        ),
+        "credits_page": (
+            "출처 및 저작권 | Casino IN",
+            "Casino IN에서 사용하는 데이터 출처, 업데이트 주기, 최종 확인 시각을 안내합니다.",
+        ),
+        "sitemap_page": (
+            "사이트맵 | Casino IN",
+            "Casino IN의 공개 메뉴와 페이지 구조를 확인할 수 있는 사이트맵입니다.",
+        ),
+    },
+    "en": {
+        "public_home": (
+            "Casino IN | Casino Industry Information and Insights",
+            "An intelligence platform for casino companies, tourism flows, FX, disclosures, market trends, and industry data.",
+        ),
+        "casino_industry_page": (
+            "Casino Industry Overview | Casino IN",
+            "Explore Korean foreigner-only casino properties, locations, revenue, and visitor data in one place.",
+        ),
+        "related_news_page": (
+            "Casino Industry News | Casino IN",
+            "Follow casino and travel-industry news with AI commentary and issue tracking.",
+        ),
+        "market_trend_page": (
+            "Casino Stock Market Data | Casino IN",
+            "Compare listed Korean casino operators and major Macau gaming stocks with recent price trends and market caps.",
+        ),
+        "tourism_trend_page": (
+            "Inbound Tourism Trends | Casino IN",
+            "Compare inbound visitor trends by country and year-over-year change.",
+        ),
+        "economic_trend_page": (
+            "Fuel and FX Trends | Casino IN",
+            "Track Korean retail fuel prices and major exchange-rate movements in one dashboard.",
+        ),
+        "holiday_calendar_page": (
+            "Regional Holiday Calendar | Casino IN",
+            "Review holiday schedules across Korea, China, Japan, Taiwan, Mongolia, and shared observances.",
+        ),
+        "salary_trend_page": (
+            "Casino Compensation Data | Casino IN",
+            "Review public average salary disclosures for Korean casino operators and benchmark industries.",
+        ),
+        "recruitment_page": (
+            "Casino Recruitment Signals | Casino IN",
+            "Browse structured casino-related job postings collected from major Korean hiring platforms.",
+        ),
+        "disclosures_page": (
+            "Casino Company Disclosures | Casino IN",
+            "Monitor DART filings, submitters, and AI summaries for tracked casino companies.",
+        ),
+        "laws_page": (
+            "Casino Regulation Monitor | Casino IN",
+            "Track casino operating rules, tourism law updates, government notices, and National Assembly bills.",
+        ),
+        "companies_page": (
+            "Casino Company Analysis | Casino IN",
+            "Compare Paradise, GKL, Kangwon Land, Lotte Tour Development, and other casino-linked companies.",
+        ),
+        "research_library_page": (
+            "Casino Market Research and Insights | Casino IN",
+            "Review broker reports, industry research, and AI analysis for the casino sector.",
+        ),
+        "tips.list_page": (
+            "Knowledge Library | Casino IN",
+            "Access public guides on automation, reporting, analytics, and operational know-how.",
+        ),
+        "tips.sites_page": (
+            "Reference Sites | Casino IN",
+            "A curated collection of external reference sites for casino-industry research and operations.",
+        ),
+        "credits_page": (
+            "Sources and Copyright | Casino IN",
+            "See the data sources, refresh cadence, and latest verification times used across Casino IN.",
+        ),
+        "sitemap_page": (
+            "Sitemap | Casino IN",
+            "Browse the public page structure of Casino IN.",
+        ),
+    },
+}
+_STRIP_TAGS_RE = re.compile(r"<[^>]+>")
+_SPACE_RE = re.compile(r"\s+")
 
 app = Flask(__name__)
 app.secret_key = config.FLASK_SECRET_KEY or "dev-only-insecure-key-set-FLASK_SECRET_KEY"
@@ -128,10 +333,130 @@ PUBLIC_READ_ENDPOINTS = {
 }
 
 
+def _request_scheme():
+    forwarded = request.headers.get("X-Forwarded-Proto", "")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip().lower()
+    return request.scheme.lower()
+
+
+def _clean_text_snippet(value, limit=180):
+    text = _SPACE_RE.sub(" ", _STRIP_TAGS_RE.sub(" ", value or "")).strip()
+    if len(text) <= limit:
+        return text
+    shortened = text[:limit].rsplit(" ", 1)[0].strip()
+    return f"{shortened}…"
+
+
+def _date_only(value):
+    if not value:
+        return today_kst_str()
+    return str(value)[:10]
+
+
+def _alternate_absolute_urls(path):
+    localized_paths = alternate_paths(path)
+    return {
+        locale: f"{CANONICAL_URL}{localized_path}"
+        for locale, localized_path in localized_paths.items()
+    }
+
+
+def _neutral_url_for(endpoint, **values):
+    path = url_for(endpoint, **values)
+    if path == "/en":
+        return "/"
+    if path.startswith("/en/"):
+        return path[3:]
+    return path
+
+
+def _seo_defaults():
+    locale = getattr(g, "locale", "ko")
+    endpoint = request.endpoint or ""
+    seo_paths = alternate_paths(request.path)
+    canonical_path = seo_paths[locale]
+    localized_copy = SEO_PAGE_COPY.get(locale, {})
+    fallback_title = (
+        "Casino IN | 카지노 산업 정보와 인사이트"
+        if locale == "ko"
+        else "Casino IN | Casino Industry Information and Insights"
+    )
+    fallback_description = (
+        "국내외 카지노 산업 뉴스, 기업정보, 공시, 관광객, 환율, 시장 데이터와 인사이트를 제공하는 정보 플랫폼입니다."
+        if locale == "ko"
+        else "An information platform covering casino-industry news, company data, disclosures, tourism, FX, and market intelligence."
+    )
+    title, description = localized_copy.get(
+        endpoint,
+        (fallback_title, fallback_description),
+    )
+    robots = "index,follow" if endpoint in INDEXABLE_ENDPOINTS else "noindex,nofollow"
+    structured_data = []
+    if endpoint == "public_home":
+        website = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Casino IN",
+            "url": f"{CANONICAL_URL}/",
+            "description": description,
+            "inLanguage": "ko-KR" if locale == "ko" else "en-US",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": f"{CANONICAL_URL}/search?q={{search_term_string}}",
+                "query-input": "required name=search_term_string",
+            },
+        }
+        organization = {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Casino IN",
+            "url": f"{CANONICAL_URL}/",
+            "logo": SEO_IMAGE_URL,
+        }
+        webpage = {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": title,
+            "url": f"{CANONICAL_URL}{canonical_path}",
+            "description": description,
+            "isPartOf": {"@type": "WebSite", "name": "Casino IN", "url": f"{CANONICAL_URL}/"},
+        }
+        structured_data = [website, organization, webpage]
+    return {
+        "seo_title": title,
+        "seo_description": description,
+        "seo_robots": robots,
+        "seo_canonical_url": f"{CANONICAL_URL}{canonical_path}",
+        "seo_hreflang_urls": {
+            "ko": f"{CANONICAL_URL}{seo_paths['ko']}",
+            "en": f"{CANONICAL_URL}{seo_paths['en']}",
+            "x-default": f"{CANONICAL_URL}{seo_paths['ko']}",
+        },
+        "seo_og_title": title,
+        "seo_og_description": description,
+        "seo_og_type": "website",
+        "seo_og_url": f"{CANONICAL_URL}{canonical_path}",
+        "seo_image_url": SEO_IMAGE_URL,
+        "seo_image_alt": "Casino IN logo",
+        "seo_twitter_card": "summary_large_image",
+        "seo_json_ld": structured_data,
+    }
+
+
 @app.before_request
 def establish_request_security():
     g.locale = locale_from_environ(request.environ)
     host = request.host.split(":", 1)[0].lower()
+    if request.method in {"GET", "HEAD"} and request.endpoint != "healthz":
+        current_scheme = _request_scheme()
+        if host in config.TRUSTED_HOSTS and (
+            host != CANONICAL_HOST or current_scheme != CANONICAL_SCHEME
+        ):
+            target = f"{CANONICAL_SCHEME}://{CANONICAL_HOST}{request.full_path}"
+            if target.endswith("?"):
+                target = target[:-1]
+            return redirect(target, code=301)
     if not app.testing and host not in config.TRUSTED_HOSTS:
         abort(400)
     g.csp_nonce = secrets.token_urlsafe(18)
@@ -321,14 +646,13 @@ def inject_globals():
             request.endpoint, "Management Dashboard"
         )
     current_menu_name = translate_text(current_menu_name, locale)
-    public_base_url = config.DASHBOARD_PUBLIC_URL.rstrip("/")
     seo_paths = alternate_paths(request.path)
     switch_paths = alternate_paths(
         request.path, request.query_string.decode("utf-8", errors="ignore")
     )
-    canonical_path = seo_paths[locale]
     target_locale = "ko" if locale == "en" else "en"
     catalog = load_catalog()
+    seo_defaults = _seo_defaults()
     return {
         "current_username": session.get("username"),
         "now_str": today_kst_str(),
@@ -343,15 +667,12 @@ def inject_globals():
         "locale_switch_url": switch_paths[target_locale],
         "locale_switch_label": target_locale.upper(),
         "locale_urls": switch_paths,
-        "canonical_url": f"{public_base_url}{canonical_path}",
-        "hreflang_urls": {
-            "ko": f"{public_base_url}{seo_paths['ko']}",
-            "en": f"{public_base_url}{seo_paths['en']}",
-            "x-default": f"{public_base_url}{seo_paths['ko']}",
-        },
+        "canonical_url": seo_defaults["seo_canonical_url"],
+        "hreflang_urls": seo_defaults["seo_hreflang_urls"],
         "localized_meta": meta_for(locale),
         "i18n_catalog": catalog,
         "t": lambda value: translate_text(value, locale),
+        **seo_defaults,
     }
 
 
@@ -411,11 +732,162 @@ def sitemap_page():
     return render_template("sitemap.html", site_map_links=_site_map_links())
 
 
+def _sitemap_url_entry(path, lastmod, changefreq, priority):
+    urls = _alternate_absolute_urls(path)
+    entries = []
+    for locale_path in (urls["ko"], urls["en"]):
+        entries.append({
+            "loc": locale_path,
+            "lastmod": _date_only(lastmod),
+            "changefreq": changefreq,
+            "priority": priority,
+        })
+    return entries
+
+
+def _build_sitemap_entries(connection):
+    entries = []
+    static_lastmods = {
+        "public_home": max(
+            filter(
+                None,
+                (
+                    news_reader.last_updated_at(),
+                    _max_timestamp(connection, "law_watch_items", "updated_at"),
+                    _max_timestamp(connection, "disclosures", "updated_at"),
+                ),
+            ),
+            default=today_kst_str(),
+        ),
+        "casino_industry_page": today_kst_str(),
+        "related_news_page": news_reader.last_updated_at() or today_kst_str(),
+        "market_trend_page": _max_timestamp(connection, "market_quotes", "updated_at"),
+        "tourism_trend_page": _max_timestamp(connection, "tourism_monthly_stats", "fetched_at"),
+        "economic_trend_page": max(
+            filter(
+                None,
+                (
+                    _max_timestamp(connection, "economic_indicators", "collected_at"),
+                    _max_timestamp(connection, "exchange_rates", "collected_at"),
+                ),
+            ),
+            default=today_kst_str(),
+        ),
+        "holiday_calendar_page": today_kst_str(),
+        "salary_trend_page": _max_timestamp(connection, "salary_snapshots", "fetched_at"),
+        "recruitment_page": _max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
+        "disclosures_page": _max_timestamp(connection, "disclosures", "updated_at"),
+        "laws_page": _max_timestamp(connection, "law_watch_items", "updated_at"),
+        "companies_page": max(
+            filter(
+                None,
+                (
+                    _max_timestamp(connection, "company_research_profiles", "updated_at"),
+                    _max_timestamp(connection, "research_documents", "updated_at"),
+                ),
+            ),
+            default=today_kst_str(),
+        ),
+        "research_library_page": _max_timestamp(connection, "research_documents", "updated_at"),
+        "tips.list_page": _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
+        "tips.sites_page": _max_timestamp(connection, "related_sites", "updated_at", "is_deleted=0 AND is_public=1"),
+        "credits_page": max(
+            filter(
+                None,
+                (
+                    _max_timestamp(connection, "analysis_runs", "finished_at"),
+                    _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
+                ),
+            ),
+            default=today_kst_str(),
+        ),
+    }
+    for endpoint, meta in SITEMAP_STATIC_ENDPOINTS.items():
+        entries.extend(
+            _sitemap_url_entry(
+                _neutral_url_for(endpoint),
+                static_lastmods.get(endpoint) or today_kst_str(),
+                meta["changefreq"],
+                meta["priority"],
+            )
+        )
+
+    tip_rows = connection.execute(
+        """
+        SELECT slug, updated_at, published_date, title, summary, body
+        FROM tips_articles
+        WHERE is_deleted=0 AND draft=0
+        ORDER BY published_date DESC, created_at DESC
+        """
+    ).fetchall()
+    for row in tip_rows:
+        entries.extend(
+            _sitemap_url_entry(
+                _neutral_url_for("tips.detail_page", slug=row["slug"]),
+                row["updated_at"] or row["published_date"],
+                "monthly",
+                "0.7",
+            )
+        )
+    return entries
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "",
+        "Disallow: /admin/",
+        "Disallow: /login",
+        "Disallow: /logout",
+        "Disallow: /register",
+        "Disallow: /api/",
+        "Disallow: /official-docs/",
+        "Disallow: /paradian",
+        "Disallow: /bug-reports",
+        "Disallow: /action-items",
+        "Disallow: /en/login",
+        "Disallow: /en/logout",
+        "Disallow: /en/register",
+        "Disallow: /en/api/",
+        "Disallow: /en/official-docs/",
+        "Disallow: /en/paradian",
+        "Disallow: /en/bug-reports",
+        "Disallow: /en/action-items",
+        "",
+        f"Sitemap: {CANONICAL_URL}/sitemap.xml",
+    ]
+    return app.response_class("\n".join(lines), mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    connection = dashboard_db()
+    try:
+        entries = _build_sitemap_entries(connection)
+    finally:
+        connection.close()
+    urlset = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+    for entry in entries:
+        url_node = SubElement(urlset, "url")
+        SubElement(url_node, "loc").text = entry["loc"]
+        SubElement(url_node, "lastmod").text = entry["lastmod"]
+        SubElement(url_node, "changefreq").text = entry["changefreq"]
+        SubElement(url_node, "priority").text = entry["priority"]
+    xml = tostring(urlset, encoding="utf-8", xml_declaration=True)
+    return app.response_class(xml, mimetype="application/xml")
+
+
 def _max_timestamp(connection, table, column, where_clause="", params=()):
     query = f"SELECT MAX({column}) AS value FROM {table}"
     if where_clause:
         query += f" WHERE {where_clause}"
-    row = connection.execute(query, params).fetchone()
+    try:
+        row = connection.execute(query, params).fetchone()
+    except Exception:
+        logger.warning("최신시각 조회 실패: %s.%s", table, column, exc_info=True)
+        return None
     return row["value"] if row and row["value"] else None
 
 
@@ -664,6 +1136,11 @@ def _render_error_page(status_code):
         error_title=title,
         error_message=message,
         site_map_links=_site_map_links(),
+        seo_title=f"{status_code} | Casino IN",
+        seo_description=message,
+        seo_og_title=f"{status_code} | Casino IN",
+        seo_og_description=message,
+        seo_robots="noindex,nofollow",
     ), status_code
 
 

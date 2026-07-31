@@ -4,7 +4,7 @@
 <div class="login-page">
   <a class="login-home-link" href="{{ url_for('public_home') }}">← 시작 화면</a>
   <form class="login-card" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
-    <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN">
+    <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async">
     <p class="login-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
     <h1 class="login-title">경영기획 인텔리전스 대시보드</h1>
     <p class="login-subtitle">내부 업무용 시스템입니다</p>
