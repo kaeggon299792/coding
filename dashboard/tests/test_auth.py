@@ -123,6 +123,30 @@ def test_public_read_pages_do_not_require_login(client, path):
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/performance/tourism",
+        "/performance/casino-industry",
+        "/performance/casino-industry/visitors",
+        "/performance/casino-industry/revenue",
+        "/performance/casino-industry/fund",
+        "/performance/markets",
+        "/performance/news",
+        "/performance/economy",
+        "/performance/holidays",
+        "/performance/salaries",
+        "/performance/recruitment",
+    ),
+)
+def test_data_pages_render_one_centralized_footer(client, path):
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.count('class="legal-footer"') == 1
+    assert 'class="site-footer"' not in html
+
+
 def test_paradian_portal_requires_login(client):
     response = client.get("/paradian", follow_redirects=False)
     assert response.status_code == 302
