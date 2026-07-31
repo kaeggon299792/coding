@@ -117,6 +117,54 @@ def _ip_security_row(connection, ip):
     return dict(row) if row else None
 
 
+def _user_ip_history(connection, user_ids):
+    """Return recent signup/login IPs grouped by account without N+1 queries."""
+    user_ids = [int(user_id) for user_id in user_ids]
+    if not user_ids:
+        return {}
+    placeholders = ",".join("?" for _ in user_ids)
+    rows = connection.execute(
+        f"""
+        SELECT seen.user_id, seen.ip_address, MAX(seen.seen_at) AS last_seen_at,
+               MAX(CASE WHEN security.blocked_at IS NOT NULL THEN 1 ELSE 0 END) AS is_blocked
+        FROM (
+            SELECT user_id, ip_address, created_at AS seen_at
+            FROM security_audit_log
+            WHERE user_id IN ({placeholders})
+              AND action IN ('LOGIN_SUCCESS', 'GOOGLE_LOGIN_SUCCESS', 'TEST_LOGIN_SUCCESS')
+            UNION ALL
+            SELECT CAST(resource_id AS INTEGER), ip_address, created_at
+            FROM security_audit_log
+            WHERE action='SELF_REGISTRATION'
+              AND CAST(resource_id AS INTEGER) IN ({placeholders})
+            UNION ALL
+            SELECT user_id, ip_address, last_seen_at
+            FROM dashboard_active_sessions
+            WHERE user_id IN ({placeholders})
+        ) AS seen
+        LEFT JOIN login_ip_security AS security ON security.ip_address=seen.ip_address
+        WHERE seen.ip_address IS NOT NULL AND TRIM(seen.ip_address)<>''
+              AND seen.ip_address<>'unknown'
+        GROUP BY seen.user_id, seen.ip_address
+        ORDER BY seen.user_id, last_seen_at DESC
+        """,
+        (*user_ids, *user_ids, *user_ids),
+    ).fetchall()
+    grouped = {user_id: [] for user_id in user_ids}
+    for row in rows:
+        user_id = int(row["user_id"])
+        if len(grouped.setdefault(user_id, [])) < 5:
+            grouped[user_id].append(dict(row))
+    return grouped
+
+
+def _user_has_recorded_ip(connection, user_id, ip_address):
+    return any(
+        item["ip_address"] == ip_address
+        for item in _user_ip_history(connection, [user_id]).get(user_id, [])
+    )
+
+
 def _record_failed_attempt(connection, ip):
     now_iso = now_kst().isoformat()
     current = _ip_security_row(connection, ip)
@@ -1019,6 +1067,10 @@ def user_management():
             )
             for user in users
         }
+        user_ip_history = _user_ip_history(
+            connection,
+            [user["id"] for user in users if user["approval_status"] != "deleted"],
+        )
         return render_template(
             "user_management.html", users=users, audit=audit, error=error,
             success=success, csrf_token=get_csrf_token(),
@@ -1033,6 +1085,8 @@ def user_management():
             session_idle_minutes=config.SESSION_IDLE_MINUTES,
             session_absolute_hours=config.SESSION_ABSOLUTE_HOURS,
             login_ip_max_failures=LOGIN_IP_MAX_FAILURES,
+            user_ip_history=user_ip_history,
+            current_request_ip=_client_ip(),
         )
     finally:
         connection.close()
@@ -1067,6 +1121,123 @@ def restore_withdrawn_user(user_id):
         connection.commit()
         return redirect(url_for(
             "auth.user_management", success="탈퇴 신청을 취소하고 계정을 복구했습니다."
+        ))
+    finally:
+        connection.close()
+
+
+@auth_bp.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@admin_required
+def schedule_user_deletion(user_id):
+    """Disable another account now and anonymize it after the 14-day hold."""
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    if user_id == session.get("user_id"):
+        return redirect(url_for(
+            "auth.user_management", success="현재 관리자 계정은 삭제할 수 없습니다."
+        ))
+    connection = dashboard_db()
+    try:
+        target = connection.execute(
+            """
+            SELECT id, username, role, is_active, approval_status, deletion_scheduled_at
+            FROM dashboard_users WHERE id=?
+            """,
+            (user_id,),
+        ).fetchone()
+        if not target:
+            return redirect(url_for("auth.user_management"))
+        if target["approval_status"] == "deleted":
+            return redirect(url_for(
+                "auth.user_management", success="이미 삭제가 완료된 계정입니다."
+            ))
+        if target["approval_status"] == "withdrawal_pending":
+            return redirect(url_for(
+                "auth.user_management", success="이미 14일 삭제 대기 중인 계정입니다."
+            ))
+        if target["role"] == "admin" and target["is_active"]:
+            active_admins = connection.execute(
+                """
+                SELECT COUNT(*) AS count FROM dashboard_users
+                WHERE role='admin' AND is_active=1 AND approval_status<>'deleted'
+                """
+            ).fetchone()["count"]
+            if active_admins <= 1:
+                return redirect(url_for(
+                    "auth.user_management", success="마지막 활성 관리자 계정은 삭제할 수 없습니다."
+                ))
+        now = now_kst()
+        scheduled = now + timedelta(days=14)
+        connection.execute(
+            """
+            UPDATE dashboard_users
+            SET is_active=0, approval_status='withdrawal_pending',
+                deletion_requested_at=?, deletion_scheduled_at=?, updated_at=?
+            WHERE id=?
+            """,
+            (now.isoformat(), scheduled.isoformat(), now.isoformat(), user_id),
+        )
+        _audit_user(
+            connection,
+            target,
+            "ACCOUNT_DELETION_SCHEDULED",
+            {"retention_days": 14, "deletion_scheduled_at": scheduled.isoformat()},
+        )
+        _revoke_user_sessions(connection, user_id, "admin_account_deletion")
+        connection.commit()
+        return redirect(url_for(
+            "auth.user_management",
+            success=f"{target['username']} 계정을 비활성화했습니다. 14일 동안 복구할 수 있습니다.",
+        ))
+    finally:
+        connection.close()
+
+
+@auth_bp.route("/admin/users/<int:user_id>/block-ip", methods=["POST"])
+@admin_required
+def block_user_ip(user_id):
+    """Block a recorded signup/login IP for another account."""
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    ip = (request.form.get("ip_address") or "").strip()[:100]
+    if user_id == session.get("user_id"):
+        return redirect(url_for(
+            "auth.user_management", success="현재 관리자 계정의 IP는 여기서 차단할 수 없습니다."
+        ))
+    if not ip:
+        abort(400)
+    if ip == _client_ip():
+        return redirect(url_for(
+            "auth.user_management", success="현재 접속 중인 관리자 IP는 차단할 수 없습니다."
+        ))
+    connection = dashboard_db()
+    try:
+        target = connection.execute(
+            "SELECT id, username FROM dashboard_users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not target or not _user_has_recorded_ip(connection, user_id, ip):
+            abort(400)
+        now_iso = now_kst().isoformat()
+        note = f"{target['username']} 계정의 가입·로그인 기록에서 관리자 차단"
+        connection.execute(
+            """
+            INSERT INTO login_ip_security
+                (ip_address, failed_attempts, blocked_at, blocked_by, note, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ip_address) DO UPDATE SET
+                failed_attempts=excluded.failed_attempts,
+                blocked_at=excluded.blocked_at, blocked_by=excluded.blocked_by,
+                note=excluded.note, updated_at=excluded.updated_at
+            """,
+            (
+                ip, LOGIN_IP_MAX_FAILURES, now_iso,
+                session.get("username") or "admin", note, now_iso,
+            ),
+        )
+        _audit_user(connection, target, "ACCOUNT_IP_BLOCKED", {"ip_address": ip})
+        connection.commit()
+        return redirect(url_for(
+            "auth.user_management", success=f"{ip}를 차단했습니다."
         ))
     finally:
         connection.close()

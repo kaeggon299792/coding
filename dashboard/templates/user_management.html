@@ -83,10 +83,10 @@
   </section>
 
   <section class="panel">
-    <div class="section-heading"><div><h2>등록 계정</h2><p>권한 변경과 비활성화는 즉시 적용됩니다. 본인 계정은 보호됩니다.</p></div><span>{{ users|length }}명</span></div>
+    <div class="section-heading"><div><h2>등록 계정</h2><p>다른 계정은 삭제 대기 전환하거나 가입·로그인 기록의 IP를 차단할 수 있습니다. 공유 IP 차단 시 같은 네트워크의 다른 사용자도 로그인할 수 있습니다.</p></div><span>{{ users|length }}명</span></div>
     <div class="table-scroll">
       <table class="data-table account-table">
-        <thead><tr><th>아이디·이메일</th><th>상태</th><th>권한</th><th>최근 로그인</th><th>생성일</th><th>비밀번호 초기화</th><th>계정 상태 변경</th></tr></thead>
+        <thead><tr><th>아이디·이메일</th><th>상태</th><th>권한</th><th>가입·로그인 IP</th><th>최근 로그인</th><th>생성일</th><th>비밀번호 초기화</th><th>계정 관리</th></tr></thead>
         <tbody>
         {% for user in users %}
           <tr>
@@ -102,6 +102,28 @@
                 <button class="btn btn-small" {% if user.id == session.user_id %}disabled{% endif %}>변경</button>
               </form>
             </td>
+            <td class="account-ip-cell">
+              <div class="account-ip-list">
+              {% for ip_item in user_ip_history.get(user.id, []) %}
+                <div class="account-ip-row">
+                  <span><code>{{ ip_item.ip_address }}</code><small>{{ ip_item.last_seen_at|replace('T',' ')|truncate(17,true,'') }}</small></span>
+                  {% if ip_item.is_blocked %}
+                    <span class="account-state is-disabled">차단됨</span>
+                  {% elif user.id == session.user_id or ip_item.ip_address == current_request_ip %}
+                    <span class="account-ip-protected">{{ '현재 계정' if user.id == session.user_id else '현재 IP' }}</span>
+                  {% else %}
+                    <form method="post" action="{{ url_for('auth.block_user_ip', user_id=user.id) }}" onsubmit="return confirm('공유 IP일 수 있습니다. {{ ip_item.ip_address }}를 차단할까요?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="ip_address" value="{{ ip_item.ip_address }}">
+                      <button class="btn btn-small danger-button" type="submit">IP 차단</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="account-ip-empty">기록 없음</span>
+              {% endfor %}
+              </div>
+            </td>
             <td>{{ (user.last_login_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
             <td>{{ (user.created_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
             <td>
@@ -111,7 +133,7 @@
                 <button class="btn btn-small">초기화</button>
               </form>
             </td>
-            <td>
+            <td><div class="account-action-stack">
               {% if user.approval_status == 'withdrawal_pending' %}
               <form method="post" action="{{ url_for('auth.restore_withdrawn_user', user_id=user.id) }}" onsubmit="return confirm('탈퇴 신청을 취소하고 이 계정을 복구할까요?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -122,10 +144,16 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button class="btn btn-small {% if user.is_active %}danger-button{% endif %}" {% if user.id == session.user_id or user.approval_status == 'deleted' %}disabled{% endif %}>{{ '비활성화' if user.is_active else ('가입 승인' if user.approval_status == 'pending' else ('삭제 완료' if user.approval_status == 'deleted' else '활성화')) }}</button>
               </form>
+              {% if user.id != session.user_id and user.approval_status != 'deleted' %}
+              <form method="post" action="{{ url_for('auth.schedule_user_deletion', user_id=user.id) }}" onsubmit="return confirm('{{ user.username }} 계정을 지금 비활성화하고 14일 후 개인정보를 삭제할까요? 14일 안에는 복구할 수 있습니다.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small danger-button" type="submit">계정 삭제</button>
+              </form>
               {% endif %}
-            </td>
+              {% endif %}
+            </div></td>
           </tr>
-        {% else %}<tr><td colspan="7" class="empty-state">등록된 계정이 없습니다.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="8" class="empty-state">등록된 계정이 없습니다.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
@@ -134,7 +162,7 @@
   <section class="panel">
     <div class="section-heading"><div><h2>계정 변경 로그</h2><p>최근 100건의 생성, 권한 변경, 상태 변경, 비밀번호 초기화 기록입니다.</p></div></div>
     <div class="table-scroll"><table class="data-table"><thead><tr><th>일시</th><th>대상 계정</th><th>작업</th><th>처리자</th></tr></thead><tbody>
-      {% for item in audit %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.target_username }}</td><td>{{ {'ACCOUNT_CREATED':'계정 생성','ACCOUNT_APPROVED':'가입 승인','ROLE_CHANGED':'권한 변경','ACCOUNT_ACTIVATED':'계정 활성화','ACCOUNT_DEACTIVATED':'계정 비활성화','PASSWORD_RESET':'비밀번호 초기화','MENU_PERMISSIONS_CHANGED':'메뉴 권한 변경','ACCOUNT_WITHDRAWAL_REQUESTED':'회원 탈퇴 신청','ACCOUNT_WITHDRAWAL_RESTORED':'탈퇴 취소·복구'}.get(item.action, item.action) }}</td><td>{{ item.actor_username }}</td></tr>
+      {% for item in audit %}<tr><td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td><td>{{ item.target_username }}</td><td>{{ {'ACCOUNT_CREATED':'계정 생성','ACCOUNT_APPROVED':'가입 승인','ROLE_CHANGED':'권한 변경','ACCOUNT_ACTIVATED':'계정 활성화','ACCOUNT_DEACTIVATED':'계정 비활성화','PASSWORD_RESET':'비밀번호 초기화','MENU_PERMISSIONS_CHANGED':'메뉴 권한 변경','ACCOUNT_WITHDRAWAL_REQUESTED':'회원 탈퇴 신청','ACCOUNT_WITHDRAWAL_RESTORED':'탈퇴 취소·복구','ACCOUNT_DELETION_SCHEDULED':'관리자 계정 삭제 예약','ACCOUNT_IP_BLOCKED':'계정 IP 차단'}.get(item.action, item.action) }}</td><td>{{ item.actor_username }}</td></tr>
       {% else %}<tr><td colspan="4" class="empty-state">변경 기록이 없습니다.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>

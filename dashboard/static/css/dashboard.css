@@ -1032,6 +1032,8 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .inline-account-form input{width:145px}
 .inline-account-form select{width:120px}
 .account-table td{vertical-align:middle}
+.account-table{min-width:1220px}
+.account-ip-cell{min-width:250px}.account-ip-list{display:grid;gap:8px}.account-ip-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--brand-border)}.account-ip-row:last-child{padding-bottom:0;border-bottom:0}.account-ip-row>span:first-child{display:grid;gap:2px}.account-ip-row code{color:var(--brand-text-secondary);font-size:var(--text-xs)}.account-ip-row small,.account-ip-empty,.account-ip-protected{color:var(--brand-text-muted);font-size:10px}.account-ip-protected{white-space:nowrap}.account-action-stack{display:grid;gap:7px;min-width:112px}.account-action-stack form,.account-action-stack .btn{width:100%}
 .self-label{display:block;color:var(--brand-text-muted);margin-top:3px}
 .account-state{display:inline-flex;border:1px solid var(--brand-border-strong);padding:4px 8px;border-radius:999px;font-size:var(--text-xs)}
 .account-state.is-active{color:#bce8ca;border-color:#3f7f5b}

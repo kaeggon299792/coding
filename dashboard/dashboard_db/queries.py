@@ -82,7 +82,8 @@ def purge_expired_withdrawn_users(connection):
             """
             UPDATE dashboard_active_sessions
             SET revoked_at=COALESCE(revoked_at, ?),
-                revoke_reason=COALESCE(revoke_reason, 'withdrawal_retention_expired')
+                revoke_reason=COALESCE(revoke_reason, 'withdrawal_retention_expired'),
+                ip_address=NULL, user_agent=NULL
             WHERE user_id=?
             """,
             (now_iso, user_id),
@@ -96,8 +97,13 @@ def purge_expired_withdrawn_users(connection):
             (anonymous_username, user_id),
         )
         connection.execute(
-            "UPDATE security_audit_log SET username=? WHERE user_id=?",
-            (anonymous_username, user_id),
+            """
+            UPDATE security_audit_log
+            SET username=?, ip_address=NULL, user_agent=NULL
+            WHERE user_id=?
+               OR (action='SELF_REGISTRATION' AND resource_id=?)
+            """,
+            (anonymous_username, user_id, str(user_id)),
         )
         # Business records remain available, but the withdrawn member's name is
         # replaced so their personal account identity is no longer exposed.

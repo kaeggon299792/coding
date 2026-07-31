@@ -403,3 +403,141 @@ def test_admin_can_restore_withdrawal_during_retention(client):
     assert row["approval_status"] == "approved"
     assert row["deletion_requested_at"] is None
     assert row["deletion_scheduled_at"] is None
+
+
+def _login_as_admin(client):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute("UPDATE dashboard_users SET role='admin' WHERE username='admin'")
+    connection.commit()
+    connection.close()
+    csrf = _get_csrf(client, "/login")
+    response = client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    assert response.status_code == 302
+
+
+def test_admin_can_schedule_another_account_for_deletion(client):
+    from extensions import dashboard_db
+
+    _login_as_admin(client)
+    connection = dashboard_db()
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()["id"]
+    connection.close()
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "admin-delete-csrf"
+    response = client.post(
+        f"/admin/users/{employee_id}/delete",
+        data={"csrf_token": "admin-delete-csrf"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    connection = dashboard_db()
+    row = connection.execute(
+        "SELECT * FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()
+    audit = connection.execute(
+        "SELECT action FROM dashboard_user_audit WHERE target_user_id=? ORDER BY id DESC LIMIT 1",
+        (employee_id,),
+    ).fetchone()
+    connection.close()
+    assert row["is_active"] == 0
+    assert row["approval_status"] == "withdrawal_pending"
+    assert row["deletion_scheduled_at"]
+    assert audit["action"] == "ACCOUNT_DELETION_SCHEDULED"
+
+
+def test_admin_cannot_schedule_own_account_for_deletion(client):
+    from extensions import dashboard_db
+
+    _login_as_admin(client)
+    connection = dashboard_db()
+    admin_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='admin'"
+    ).fetchone()["id"]
+    connection.close()
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "self-delete-csrf"
+    response = client.post(
+        f"/admin/users/{admin_id}/delete",
+        data={"csrf_token": "self-delete-csrf"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    connection = dashboard_db()
+    row = connection.execute(
+        "SELECT is_active, approval_status FROM dashboard_users WHERE id=?", (admin_id,)
+    ).fetchone()
+    connection.close()
+    assert row["is_active"] == 1
+    assert row["approval_status"] != "withdrawal_pending"
+
+
+def test_admin_can_block_another_accounts_recorded_login_ip(client):
+    from extensions import dashboard_db
+
+    recorded_ip = "203.0.113.42"
+    connection = dashboard_db()
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()["id"]
+    connection.execute(
+        """
+        INSERT INTO security_audit_log
+            (user_id, username, ip_address, action, resource_type, resource_id,
+             success, detail_json, created_at)
+        VALUES (?, 'employee', ?, 'LOGIN_SUCCESS', 'dashboard_user', ?, 1, '{}', ?)
+        """,
+        (employee_id, recorded_ip, str(employee_id), datetime.now().isoformat()),
+    )
+    connection.commit()
+    connection.close()
+
+    _login_as_admin(client)
+    page = client.get("/admin/users")
+    html = page.get_data(as_text=True)
+    assert recorded_ip in html
+    assert "IP 차단" in html
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "block-ip-csrf"
+    response = client.post(
+        f"/admin/users/{employee_id}/block-ip",
+        data={"csrf_token": "block-ip-csrf", "ip_address": recorded_ip},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    connection = dashboard_db()
+    blocked = connection.execute(
+        "SELECT blocked_at, blocked_by FROM login_ip_security WHERE ip_address=?",
+        (recorded_ip,),
+    ).fetchone()
+    connection.close()
+    assert blocked["blocked_at"]
+    assert blocked["blocked_by"] == "admin"
+
+
+def test_admin_cannot_block_unrecorded_or_current_ip_from_account_row(client):
+    from extensions import dashboard_db
+
+    _login_as_admin(client)
+    connection = dashboard_db()
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()["id"]
+    connection.close()
+    with client.session_transaction() as flask_session:
+        flask_session["csrf_token"] = "invalid-ip-csrf"
+    assert client.post(
+        f"/admin/users/{employee_id}/block-ip",
+        data={"csrf_token": "invalid-ip-csrf", "ip_address": "198.51.100.10"},
+    ).status_code == 400
