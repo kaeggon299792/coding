@@ -86,9 +86,20 @@ def test_sign_in_page_has_guest_access_button(client):
     html = response.get_data(as_text=True)
     assert "로그인하지 않고 이용하기" in html
     assert 'href="/"' in html
-    assert "CASINO IN / MANAGEMENT DASHBOARD" in html
     assert 'alt="CASINO IN"' in html
     assert "내부 업무용 시스템입니다" not in html
+    tagline_pairs = {
+        "카지노인을 위한 모든 정보.": "Everything casino professionals need.",
+        "카지노인을 위한 하나의 공간.": "One space for the casino industry.",
+        "카지노 업계를 한눈에.": "The casino industry at a glance.",
+        "필요한 정보를, 필요한 순간에.": "The right information, right when you need it.",
+        "업계의 흐름을 가장 빠르게.": "Stay ahead of the industry.",
+        "정보는 흩어져 있어도, 인사이트는 하나로.": "Scattered information. Connected insight.",
+        "카지노 산업을 더 가까이.": "Bringing the casino industry closer.",
+    }
+    title = re.search(r'<h1 class="login-title">([^<]+)</h1>', html).group(1)
+    eyebrow = re.search(r'<p class="login-eyebrow">([^<]+)</p>', html).group(1)
+    assert tagline_pairs[title] == eyebrow
 
 
 def test_removed_test_access_endpoint_returns_not_found(client):

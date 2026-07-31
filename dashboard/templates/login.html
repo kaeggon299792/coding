@@ -5,7 +5,6 @@
   <a class="login-home-link" href="{{ url_for('public_home') }}">← 시작 화면</a>
   <form class="login-card" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
     <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async">
-    <p class="login-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
     {% set login_taglines = [
       ('카지노인을 위한 모든 정보.', 'Everything casino professionals need.'),
       ('카지노인을 위한 하나의 공간.', 'One space for the casino industry.'),
@@ -16,6 +15,7 @@
       ('카지노 산업을 더 가까이.', 'Bringing the casino industry closer.')
     ] %}
     {% set login_tagline = login_taglines | random %}
+    <p class="login-eyebrow">{% if current_locale == 'en' %}CASINO IN / MANAGEMENT DASHBOARD{% else %}{{ login_tagline[1] }}{% endif %}</p>
     <h1 class="login-title">{{ login_tagline[1] if current_locale == 'en' else login_tagline[0] }}</h1>
     {% if error %}
       <p class="login-error">{{ error }}</p>
