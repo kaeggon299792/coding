@@ -116,14 +116,14 @@
         var distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         var angle = Math.atan2(deltaY, deltaX);
         var shapedDistance = distance + Math.cos(angle * 8) * 11;
-        var wave = roundedSquareWave(time - shapedDistance / 330, 0.22 + distance / 2200, 0.052, 0.16);
+        var wave = roundedSquareWave(time - shapedDistance / 245, 0.16 + distance / 2600, 0.18, 0.24);
         var falloff = clamp(1 - distance / maxDistance, 0, 1);
         var scale = 1 + wave * falloff;
         var x = centerX + deltaX * scale;
         var y = centerY + deltaY * scale;
-        var pulse = 0.5 + 0.5 * Math.sin(time * 0.82 - shapedDistance * 0.032);
-        var alpha = (0.24 + pulse * 0.34) * (0.42 + falloff * 0.58);
-        var radius = 0.85 + falloff * 0.95 + pulse * 0.3;
+        var pulse = 0.5 + 0.5 * Math.sin(time * 1.18 - shapedDistance * 0.044);
+        var alpha = (0.52 + pulse * 0.4) * (0.62 + falloff * 0.38);
+        var radius = 1.15 + falloff * 1.35 + pulse * 0.55;
 
         context.beginPath();
         context.arc(x, y, radius, 0, TWO_PI);
