@@ -45,7 +45,7 @@ def test_korean_home_remains_default(client):
     assert response.headers["Content-Language"] == "ko"
     assert '<html lang="ko"' in html
     assert 'class="public-hero-art-image"' in html
-    assert "DATA" in html
+    assert "DATA" not in html
     assert 'href="/en/" data-locale-link="en"' in html
 
 
