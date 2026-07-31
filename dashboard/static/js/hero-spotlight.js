@@ -16,8 +16,6 @@
     var pointerY = 0;
     var currentLightX = 0;
     var currentLightY = 0;
-    var currentLogoX = 0;
-    var currentLogoY = 0;
     var rafId = 0;
 
     function refreshBounds() {
@@ -48,23 +46,17 @@
     function frame(timestamp) {
       var reduced = reduceMotion.matches;
       var desktopInteractive = finePointer.matches && window.innerWidth > 900 && !reduced;
-      var idleX = reduced ? 0 : Math.sin(timestamp / 7000) * 10 + Math.cos(timestamp / 11000) * 6;
-      var idleY = reduced ? 0 : Math.cos(timestamp / 9000) * 8 + Math.sin(timestamp / 13000) * 4;
+      var idleX = reduced ? 0 : Math.sin(timestamp / 5200) * 12 + Math.cos(timestamp / 8400) * 7;
+      var idleY = reduced ? 0 : Math.cos(timestamp / 6100) * 9 + Math.sin(timestamp / 9700) * 5;
 
-      var targetLightX = idleX + (desktopInteractive && pointerActive ? pointerX * 34 : 0);
-      var targetLightY = idleY + (desktopInteractive && pointerActive ? pointerY * 20 : 0);
-      var targetLogoX = desktopInteractive && pointerActive ? pointerX * 3.25 : idleX * 0.1;
-      var targetLogoY = desktopInteractive && pointerActive ? pointerY * 2.5 : idleY * 0.07;
+      var targetLightX = idleX + (desktopInteractive && pointerActive ? pointerX * 28 : 0);
+      var targetLightY = idleY + (desktopInteractive && pointerActive ? pointerY * 22 : 0);
 
-      currentLightX += (targetLightX - currentLightX) * 0.065;
-      currentLightY += (targetLightY - currentLightY) * 0.065;
-      currentLogoX += (targetLogoX - currentLogoX) * 0.075;
-      currentLogoY += (targetLogoY - currentLogoY) * 0.075;
+      currentLightX += (targetLightX - currentLightX) * 0.055;
+      currentLightY += (targetLightY - currentLightY) * 0.055;
 
-      hero.style.setProperty("--hero-light-x", currentLightX.toFixed(2) + "px");
-      hero.style.setProperty("--hero-light-y", currentLightY.toFixed(2) + "px");
-      hero.style.setProperty("--hero-logo-x", currentLogoX.toFixed(2) + "px");
-      hero.style.setProperty("--hero-logo-y", currentLogoY.toFixed(2) + "px");
+      hero.style.setProperty("--mouse-x", currentLightX.toFixed(2) + "px");
+      hero.style.setProperty("--mouse-y", currentLightY.toFixed(2) + "px");
 
       rafId = window.requestAnimationFrame(frame);
     }
