@@ -1090,13 +1090,23 @@ def _credits_rows(connection):
     market_freshness = _market_freshness(market_quotes)
     push(
         "데이터",
-        "국내외 주가·지수",
-        "공공데이터포털 API / Yahoo Finance",
+        "국내 주가·지수",
+        "공공데이터포털 API",
         "https://www.data.go.kr/",
-        "5~15분 캐시 기준 주기적 갱신",
-        checked_at=market_freshness.get("checked_at"),
-        changed_at=market_freshness.get("checked_at"),
-        notes="국내 주가는 금융위원회 API, 해외 종목은 Yahoo Finance 계열 소스를 사용합니다.",
+        "배치 + 화면 진입 시 자동 확인",
+        checked_at=market_freshness.get("domestic_checked_at"),
+        changed_at=market_freshness.get("domestic_checked_at"),
+        notes="국내 4개 카지노 기업과 KOSPI를 자동 확인하며, 오래된 시세는 페이지 진입 시 즉시 재조회합니다.",
+    )
+    push(
+        "데이터",
+        "해외 주가",
+        "Yahoo Finance",
+        "https://finance.yahoo.com/",
+        "10분 캐시 기준 자동 갱신",
+        checked_at=market_freshness.get("global_checked_at"),
+        changed_at=market_freshness.get("global_checked_at"),
+        notes="마카오 주요 카지노 운영사 4개 종목을 자동 갱신하며, 실패 시 마지막 정상값을 유지합니다.",
     )
 
     tourism_freshness = queries.get_data_freshness(
@@ -1116,13 +1126,23 @@ def _credits_rows(connection):
     economic_freshness = _economic_freshness(queries.list_economic_series(connection))
     push(
         "데이터",
-        "유가정보·환율",
-        "Opinet / 한국수출입은행 Open API",
+        "유가정보",
+        "한국석유공사 Opinet",
         "https://www.opinet.co.kr/",
-        "매일 정기 동기화",
-        checked_at=economic_freshness.get("checked_at"),
-        changed_at=economic_freshness.get("changed_at"),
-        notes="휘발유·경유·부탄과 주요 환율 추이를 함께 제공합니다.",
+        "배치 + 화면 진입 시 자동 갱신",
+        checked_at=economic_freshness.get("oil_checked_at"),
+        changed_at=economic_freshness.get("oil_changed_at"),
+        notes="보통휘발유·경유·부탄 평균가를 자동 갱신하며, 오래된 데이터는 화면 진입 시 재수집합니다.",
+    )
+    push(
+        "데이터",
+        "환율",
+        "한국수출입은행 Open API",
+        "https://www.koreaexim.go.kr/",
+        "배치 + 화면 진입 시 자동 갱신",
+        checked_at=economic_freshness.get("exchange_checked_at"),
+        changed_at=economic_freshness.get("exchange_changed_at"),
+        notes="USD·JPY·CNH·EUR 기준 환율을 자동 갱신하며, 오래된 데이터는 화면 진입 시 재수집합니다.",
     )
 
     salary_sync = queries.get_latest_completed_run(connection, "salary_sync")

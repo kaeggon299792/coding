@@ -25,11 +25,11 @@
   <div class="page-header unified-dashboard-heading">
     <p class="page-eyebrow">Operations / Overview</p>
     <h2 class="page-title">오늘의 주요 현황</h2>
-    <p class="page-description">핵심 산업정보와 자동화 데이터의 최신 현황입니다.</p>
+    <p class="page-description">핵심 산업정보와 자동 확인·자동 갱신 데이터의 최신 현황입니다.</p>
     <div class="data-freshness-row">
-      <span class="data-freshness"><b>카지노 뉴스 최종 업데이트</b>{{ casino_news_updated_at or '업데이트 기록 없음' }}</span>
+      <span class="data-freshness"><b>카지노 뉴스 자동 확인</b>{{ casino_news_updated_at or '확인 기록 없음' }}</span>
       {% if is_authenticated %}
-      <span class="data-freshness"><b>공문 DB 최종 업데이트</b>{{ official_db_updated_at or '업데이트 기록 없음' }}</span>
+      <span class="data-freshness"><b>공문 DB 자동 갱신</b>{{ official_db_updated_at or '갱신 기록 없음' }}</span>
       {% endif %}
     </div>
   </div>
@@ -40,7 +40,7 @@
       <div>
         <p class="page-eyebrow">Priority / Official Documents</p>
         <h2>공문·자료관리</h2>
-        <p>접수 후 처리와 Y디스크 보관 상태를 가장 먼저 확인합니다.</p>
+        <p>접수 후 처리 상태와 Y디스크 보관 현황을 자동 확인합니다.</p>
       </div>
       <a class="btn btn-primary" href="{{ url_for('official_docs.dashboard') }}">공문자료관리 열기</a>
     </div>
@@ -71,9 +71,9 @@
       <div>
         <p class="page-eyebrow">Market / Casino Companies</p>
         <h2>카지노 기업 주가 및 KOSPI</h2>
-        <p>국내외 주요 카지노 기업의 최근 영업일 종가입니다.</p>
+        <p>국내외 주요 카지노 기업의 최근 종가를 자동 확인합니다.</p>
       </div>
-      <div class="market-overview-actions"><span>{{ market_updated_at or '업데이트 대기' }}</span><a class="btn btn-small" href="{{ url_for('market_trend_page') }}">주가 정보 전체보기</a></div>
+      <div class="market-overview-actions"><span>자동 갱신 {{ market_updated_at or '대기 중' }}</span><a class="btn btn-small" href="{{ url_for('market_trend_page') }}">주가 정보 전체보기</a></div>
     </div>
     {% if market_quotes %}
     <div class="market-quote-grid">
@@ -125,7 +125,7 @@
 
   <section class="market-overview economic-overview">
     <div class="market-overview-head">
-      <div><p class="page-eyebrow">Market / Oil & Exchange</p><h2>유가정보·환율</h2><p>전국 평균 유가와 주요 환율의 최근 흐름입니다.</p></div>
+      <div><p class="page-eyebrow">Market / Oil & Exchange</p><h2>유가정보·환율</h2><p>전국 평균 유가와 주요 환율 흐름을 자동 갱신합니다.</p></div>
       <a class="btn btn-small" href="{{ url_for('economic_trend_page') }}">상세 추이</a>
     </div>
     {% if economic_series %}<div class="economic-grid">
