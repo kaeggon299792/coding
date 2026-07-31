@@ -65,7 +65,7 @@ def test_public_home_is_available_when_not_authenticated(client):
     assert "오늘의 주요 현황" not in html
     assert "공문 DB 자동 갱신" not in html
     assert "질문·버그 제보·기능 제안" in html
-    assert "CASINO IN / MANAGEMENT DASHBOARD" in html
+    assert "CASINO IN / MANAGEMENT DASHBOARD" not in html
     assert 'img/casino-in-logo.png' in html
     assert "파라디안 전용" in html
     assert "GTM-MVWKPPRP" in html
@@ -87,6 +87,7 @@ def test_login_page_has_guest_access_button(client):
     assert 'href="/"' in html
     assert "CASINO IN / MANAGEMENT DASHBOARD" in html
     assert 'alt="CASINO IN"' in html
+    assert "내부 업무용 시스템입니다" not in html
 
 
 def test_legacy_dashboard_redirects_to_unified_home(client):

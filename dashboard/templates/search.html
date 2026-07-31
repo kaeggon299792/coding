@@ -20,7 +20,7 @@
       </select>
       <button class="btn btn-primary" type="submit">검색</button>
     </div>
-    <div class="source-filter">
+    <div class="search-source-filter">
       {% for source, label in source_labels.items() %}
       <label>
         <input type="checkbox" name="source" value="{{ source }}" {% if source in selected_sources %}checked{% endif %}>

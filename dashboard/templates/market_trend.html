@@ -84,6 +84,7 @@
           <div><dt>데이터 출처</dt><dd>{{ quote.source or 'Yahoo Finance' }}</dd></div>
           <div><dt>최종 업데이트</dt><dd>{{ quote.fetched_at[:16]|replace('T', ' ') if quote.fetched_at else '-' }}</dd></div>
         </dl>
+        {% if quote.market_cap_label %}<div class="market-cap"><span>시가총액</span><b>{{ quote.market_cap_label }}</b>{% if quote.market_cap_krw_label %}<small class="market-cap-krw">(원화 기준 약 {{ quote.market_cap_krw_label }})</small>{% endif %}</div>{% endif %}
         {% if quote.fetch_status == 'failed' %}
         <div class="market-fetch-warning"><b>조회 실패 · 이전 정상값 표시 중</b><span>{{ quote.fetch_error or '외부 시세 응답을 확인할 수 없습니다.' }}</span></div>
         {% endif %}

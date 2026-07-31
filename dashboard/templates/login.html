@@ -6,8 +6,17 @@
   <form class="login-card" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
     <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async">
     <p class="login-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
-    <h1 class="login-title">경영기획 인텔리전스 대시보드</h1>
-    <p class="login-subtitle">내부 업무용 시스템입니다</p>
+    {% set login_taglines = [
+      ('카지노인을 위한 모든 정보.', 'Everything casino professionals need.'),
+      ('카지노인을 위한 하나의 공간.', 'One space for the casino industry.'),
+      ('카지노 업계를 한눈에.', 'The casino industry at a glance.'),
+      ('필요한 정보를, 필요한 순간에.', 'The right information, right when you need it.'),
+      ('업계의 흐름을 가장 빠르게.', 'Stay ahead of the industry.'),
+      ('정보는 흩어져 있어도, 인사이트는 하나로.', 'Scattered information. Connected insight.'),
+      ('카지노 산업을 더 가까이.', 'Bringing the casino industry closer.')
+    ] %}
+    {% set login_tagline = login_taglines | random %}
+    <h1 class="login-title">{{ login_tagline[1] if current_locale == 'en' else login_tagline[0] }}</h1>
     {% if error %}
       <p class="login-error">{{ error }}</p>
     {% endif %}

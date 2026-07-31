@@ -47,6 +47,16 @@ def test_korean_home_remains_default(client):
     assert 'class="public-hero-art-image"' in html
     assert "DATA" not in html
     assert 'href="/en/" data-locale-link="en"' in html
+    pairs = (
+        ("카지노인을 위한 모든 정보.", "Everything casino professionals need."),
+        ("카지노인을 위한 하나의 공간.", "One space for the casino industry."),
+        ("카지노 업계를 한눈에.", "The casino industry at a glance."),
+        ("필요한 정보를, 필요한 순간에.", "The right information, right when you need it."),
+        ("업계의 흐름을 가장 빠르게.", "Stay ahead of the industry."),
+        ("정보는 흩어져 있어도, 인사이트는 하나로.", "Scattered information. Connected insight."),
+        ("카지노 산업을 더 가까이.", "Bringing the casino industry closer."),
+    )
+    assert any(korean in html and english in html for korean, english in pairs)
 
 
 def test_english_home_uses_same_route_with_localized_seo(client):

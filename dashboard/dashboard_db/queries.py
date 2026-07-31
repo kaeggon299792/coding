@@ -1428,7 +1428,7 @@ def upsert_market_quote(connection, quote):
             high_price = excluded.high_price,
             low_price = excluded.low_price,
             volume = excluded.volume,
-            market_cap = excluded.market_cap,
+            market_cap = COALESCE(excluded.market_cap, market_quotes.market_cap),
             fetched_at = excluded.fetched_at,
             currency = excluded.currency,
             source = excluded.source,
@@ -1593,14 +1593,19 @@ def list_market_quotes(connection):
     for row in rows:
         row.update(_market_sparkline(connection, row["symbol"]))
         market_cap = row.get("market_cap")
-        if market_cap:
+        if market_cap and row.get("asset_type") == "global_stock":
+            currency = row.get("currency") or ""
+            value = float(market_cap)
+            if value >= 1_000_000_000_000:
+                row["market_cap_label"] = f"{currency} {value / 1_000_000_000_000:,.2f}T"
+            elif value >= 1_000_000_000:
+                row["market_cap_label"] = f"{currency} {value / 1_000_000_000:,.2f}B"
+            else:
+                row["market_cap_label"] = f"{currency} {value / 1_000_000:,.2f}M"
+        elif market_cap:
             trillion, remainder = divmod(int(market_cap), 1_000_000_000_000)
             hundred_million = remainder // 100_000_000
-            row["market_cap_label"] = (
-                f"{trillion}조 {hundred_million:,}억원"
-                if trillion
-                else f"{hundred_million:,}억원"
-            )
+            row["market_cap_label"] = f"{trillion}조 {hundred_million:,}억원" if trillion else f"{hundred_million:,}억원"
         else:
             row["market_cap_label"] = None
         rate = exchange_rates.get(row.get("currency"))
@@ -1610,6 +1615,16 @@ def list_market_quotes(connection):
         else:
             row["krw_estimate"] = None
             row["krw_rate_date"] = None
+        if row.get("asset_type") == "global_stock" and rate and market_cap:
+            won = round(float(market_cap) * float(rate["value"]))
+            trillion, remainder = divmod(won, 1_000_000_000_000)
+            hundred_million = remainder // 100_000_000
+            row["market_cap_krw_label"] = (
+                f"{trillion:,}조 {hundred_million:,}억원" if trillion and hundred_million
+                else (f"{trillion:,}조원" if trillion else f"{hundred_million:,}억원")
+            )
+        else:
+            row["market_cap_krw_label"] = None
     return sorted(rows, key=lambda row: order.get(row["symbol"], 99))
 
 

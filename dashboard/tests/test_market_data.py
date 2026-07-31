@@ -94,6 +94,20 @@ def test_fetch_global_stock_without_api_key(monkeypatch):
     assert len(result["quote"]["history"]) == 3
 
 
+def test_fetch_global_quotes_adds_market_cap(monkeypatch):
+    monkeypatch.setattr(
+        market_data, "fetch_global_stock",
+        lambda stock: {"ok": True, "quote": {"symbol": stock["symbol"]}},
+    )
+    monkeypatch.setattr(
+        market_data, "_fetch_yahoo_market_caps",
+        lambda symbols: {symbol: 123_000_000_000 for symbol in symbols},
+    )
+    result = market_data.fetch_global_quotes()
+    assert len(result["quotes"]) == 4
+    assert all(quote["market_cap"] == 123_000_000_000 for quote in result["quotes"])
+
+
 def test_fetch_stock_normalizes_market_fields(monkeypatch):
     monkeypatch.setattr("config.MARKET_DATA_API_KEY", "test-key")
     monkeypatch.setattr(
@@ -193,6 +207,22 @@ def test_global_quote_failure_keeps_last_successful_price(db_connection):
     assert row["fetch_error"] == "HTTP 429"
 
 
+def test_successful_quote_without_market_cap_keeps_previous_cap(db_connection):
+    base = {
+        "symbol": "MLCO", "name": "Melco Resorts & Entertainment",
+        "asset_type": "global_stock", "market": "NASDAQ", "currency": "USD",
+        "source": "Yahoo Finance", "base_date": "20260730", "close_price": 9.1,
+        "market_cap": 2_250_000_000,
+    }
+    queries.upsert_market_quote(db_connection, base)
+    queries.upsert_market_quote(
+        db_connection,
+        {**base, "base_date": "20260731", "close_price": 9.25, "market_cap": None},
+    )
+    row = next(item for item in queries.list_market_quotes(db_connection) if item["symbol"] == "MLCO")
+    assert row["market_cap"] == 2_250_000_000
+
+
 def test_global_quote_includes_latest_krw_estimate(db_connection):
     queries.upsert_economic_observation(db_connection, {
         "series_code": "FX_HKD", "observation_date": "20260731",
@@ -202,12 +232,14 @@ def test_global_quote_includes_latest_krw_estimate(db_connection):
     queries.upsert_market_quote(db_connection, {
         "symbol": "1928.HK", "name": "Sands China", "asset_type": "global_stock",
         "market": "HKEX", "currency": "HKD", "source": "Yahoo Finance",
-        "base_date": "20260731", "close_price": 20.0,
+        "base_date": "20260731", "close_price": 20.0, "market_cap": 119_134_552_064,
         "change_value": 0.5, "change_rate": 2.5,
     })
     row = next(item for item in queries.list_market_quotes(db_connection) if item["symbol"] == "1928.HK")
     assert row["krw_estimate"] == 3610
     assert row["krw_rate_date"] == "20260731"
+    assert row["market_cap_label"] == "HKD 119.13B"
+    assert row["market_cap_krw_label"].endswith("억원")
 
 
 def test_base_template_uses_system_theme_with_light_fallback():

@@ -58,3 +58,13 @@ def test_research_documents_are_in_unified_search(db_connection):
     assert len(results) == 1
     assert results[0]["source"] == "research"
     assert results[0]["url"].endswith("/download")
+
+
+def test_search_filter_uses_dedicated_responsive_class():
+    from pathlib import Path
+
+    dashboard_dir = Path(__file__).resolve().parents[1]
+    template = (dashboard_dir / "templates" / "search.html").read_text(encoding="utf-8")
+    css = (dashboard_dir / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    assert 'class="search-source-filter"' in template
+    assert '.search-source-filter input[type="checkbox"]' in css

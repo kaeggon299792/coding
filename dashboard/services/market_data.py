@@ -33,6 +33,8 @@ GLOBAL_STOCKS = (
     {"symbol": "MLCO", "name": "Melco Resorts & Entertainment", "market": "NASDAQ", "currency": "USD"},
 )
 YAHOO_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
+YAHOO_QUOTE_SUMMARY_URL = "https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
+YAHOO_CRUMB_URL = "https://query1.finance.yahoo.com/v1/test/getcrumb"
 TOSS_BASE_URL = "https://openapi.tossinvest.com"
 
 
@@ -412,13 +414,55 @@ def fetch_global_stock(stock):
 
 def fetch_global_quotes():
     results = [fetch_global_stock(stock) for stock in GLOBAL_STOCKS]
+    quotes = [result["quote"] for result in results if result.get("ok")]
+    market_caps = _fetch_yahoo_market_caps([quote["symbol"] for quote in quotes])
+    for quote in quotes:
+        quote["market_cap"] = market_caps.get(quote["symbol"])
     return {
-        "quotes": [result["quote"] for result in results if result.get("ok")],
+        "quotes": quotes,
         "errors": [
             {"symbol": result.get("symbol"), "error": result.get("error")}
             for result in results if not result.get("ok")
         ],
     }
+
+
+def _fetch_yahoo_market_caps(symbols):
+    """Fetch market caps with Yahoo's cookie/crumb flow without adding yfinance."""
+    if not symbols:
+        return {}
+    timeout = min(max(float(config.MARKET_DATA_REQUEST_TIMEOUT_SECONDS), 2.0), 8.0)
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0 (CASINO IN market dashboard)"})
+    try:
+        session.get("https://fc.yahoo.com", timeout=timeout)
+        crumb_response = session.get(YAHOO_CRUMB_URL, timeout=timeout)
+        if crumb_response.status_code != 200:
+            return {}
+        crumb = crumb_response.text.strip()
+        if not crumb or "<" in crumb:
+            return {}
+    except requests.RequestException:
+        return {}
+
+    market_caps = {}
+    for symbol in symbols:
+        try:
+            response = session.get(
+                YAHOO_QUOTE_SUMMARY_URL.format(symbol=symbol),
+                params={"modules": "price", "crumb": crumb},
+                timeout=timeout,
+            )
+            if response.status_code != 200:
+                continue
+            price = (((response.json().get("quoteSummary") or {}).get("result") or [{}])[0].get("price") or {})
+            raw = (price.get("marketCap") or {}).get("raw")
+            value = _number(raw, integer=True)
+            if value is not None:
+                market_caps[symbol] = value
+        except (requests.RequestException, ValueError, AttributeError, IndexError, TypeError):
+            continue
+    return market_caps
 
 
 def fetch_yahoo_domestic_quotes():

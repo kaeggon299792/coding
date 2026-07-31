@@ -5,7 +5,17 @@
   </div>
 
   <div class="public-hero-content">
-    <p class="page-eyebrow public-hero-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
+    {% set hero_tagline_pairs = [
+      ('카지노인을 위한 모든 정보.', 'Everything casino professionals need.'),
+      ('카지노인을 위한 하나의 공간.', 'One space for the casino industry.'),
+      ('카지노 업계를 한눈에.', 'The casino industry at a glance.'),
+      ('필요한 정보를, 필요한 순간에.', 'The right information, right when you need it.'),
+      ('업계의 흐름을 가장 빠르게.', 'Stay ahead of the industry.'),
+      ('정보는 흩어져 있어도, 인사이트는 하나로.', 'Scattered information. Connected insight.'),
+      ('카지노 산업을 더 가까이.', 'Bringing the casino industry closer.')
+    ] %}
+    {% set selected_tagline = hero_tagline_pairs | random %}
+    <p class="page-eyebrow public-hero-eyebrow">{% if current_locale == 'en' %}CASINO IN / MANAGEMENT DASHBOARD{% else %}{{ selected_tagline[1] }}{% endif %}</p>
 
     <div class="public-hero-art">
       <div class="public-hero-art-image" role="img" aria-label="CASINO IN">
@@ -15,27 +25,9 @@
     </div>
 
     {% if current_locale == 'en' %}
-    {% set hero_taglines = [
-      'Everything casino professionals need.',
-      'One space for the casino industry.',
-      'The casino industry at a glance.',
-      'The right information, right when you need it.',
-      'Stay ahead of the industry.',
-      'Scattered information. Connected insight.',
-      'Bringing the casino industry closer.'
-    ] %}
-    <h1 class="public-hero-title">{{ hero_taglines | random }}</h1>
+    <h1 class="public-hero-title">{{ selected_tagline[1] }}</h1>
     {% else %}
-    {% set hero_taglines = [
-      '카지노인을 위한 모든 정보.',
-      '카지노인을 위한 하나의 공간.',
-      '카지노 업계를 한눈에.',
-      '필요한 정보를, 필요한 순간에.',
-      '업계의 흐름을 가장 빠르게.',
-      '정보는 흩어져 있어도, 인사이트는 하나로.',
-      '카지노 산업을 더 가까이.'
-    ] %}
-    <h1 class="public-hero-title">{{ hero_taglines | random }}</h1>
+    <h1 class="public-hero-title">{{ selected_tagline[0] }}</h1>
     {% endif %}
   </div>
 </section>
