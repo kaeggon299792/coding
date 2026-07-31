@@ -4,15 +4,8 @@
 {% include "_topbar.html" %}
 <div class="page-container">
 
-  <section class="public-hero unified-home-hero">
-    <p class="page-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
-    <div class="public-hero-art">
-      <div class="public-hero-art-image" role="img" aria-label="CASINO IN">
-        <img class="public-hero-wordmark public-hero-wordmark-dark" src="{{ url_for('static', filename='img/casino-in-wordmark-white-transparent.png') }}" alt="CASINO IN" width="1330" height="274" decoding="async">
-        <img class="public-hero-wordmark public-hero-wordmark-light" src="{{ url_for('static', filename='img/casino-in-wordmark-black-transparent.png') }}" alt="CASINO IN" width="1330" height="274" decoding="async">
-      </div>
-    </div>
-  </section>
+  {% set authenticated_home = true %}
+  {% include "_hero_spotlight.html" %}
 
   <nav class="public-menu unified-home-menu" aria-label="주요 메뉴">
     <a href="{{ url_for('casino_industry_page') }}"><span>01</span><strong>데이터</strong><small>카지노업 현황·뉴스·주가·관광객</small><i>→</i></a>

@@ -1,0 +1,37 @@
+<section class="public-hero{% if authenticated_home %} unified-home-hero{% endif %}" data-spotlight-hero>
+  <div class="public-hero-lights" aria-hidden="true">
+    <div class="public-hero-light public-hero-light-main"></div>
+    <div class="public-hero-light public-hero-light-top"></div>
+    <div class="public-hero-light public-hero-light-bottom"></div>
+    <div class="public-hero-light public-hero-light-edge public-hero-light-edge-left"></div>
+    <div class="public-hero-light public-hero-light-edge public-hero-light-edge-right"></div>
+    <div class="public-hero-haze public-hero-haze-a"></div>
+    <div class="public-hero-haze public-hero-haze-b"></div>
+  </div>
+
+  <div class="public-hero-content">
+    <p class="page-eyebrow public-hero-eyebrow">CASINO IN / MANAGEMENT DASHBOARD</p>
+
+    <div class="public-hero-art">
+      <div class="public-hero-art-image" role="img" aria-label="CASINO IN">
+        <img class="public-hero-wordmark public-hero-wordmark-dark" src="{{ url_for('static', filename='img/casino-in-wordmark-white-transparent.png') }}" alt="CASINO IN" width="1330" height="274" decoding="async">
+        <img class="public-hero-wordmark public-hero-wordmark-light" src="{{ url_for('static', filename='img/casino-in-wordmark-black-transparent.png') }}" alt="CASINO IN" width="1330" height="274" decoding="async">
+      </div>
+    </div>
+
+    <h1 class="public-hero-title">
+      {% if current_locale == 'en' %}
+      Casino Industry Intelligence Dashboard
+      {% else %}
+      카지노 업계 인텔리전스 대시보드
+      {% endif %}
+    </h1>
+    <p class="public-hero-description">
+      {% if current_locale == 'en' %}
+      A restrained view of industry information and insight.
+      {% else %}
+      업계 정보와 인사이트를 절제된 화면 안에서 확인합니다.
+      {% endif %}
+    </p>
+  </div>
+</section>
