@@ -141,13 +141,6 @@
     hero.addEventListener("pointerleave", resetPointer, { passive: true });
     window.addEventListener("resize", resize, { passive: true });
 
-    if ("IntersectionObserver" in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        isVisible = entries[0] ? entries[0].isIntersecting : true;
-      }, { rootMargin: "160px 0px" });
-      observer.observe(hero);
-    }
-
     resize();
     rafId = window.requestAnimationFrame(draw);
   }
