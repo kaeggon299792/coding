@@ -679,12 +679,41 @@ def inject_globals():
 
 def _site_map_links():
     """현재 로그인 상태와 메뉴 권한에 맞는 사이트맵 링크를 반환한다."""
+    data_children = [
+        {
+            "label": "카지노업 현황",
+            "endpoint": "casino_industry_page",
+            "children": [
+                {"label": "연도별 카지노 이용객", "endpoint": "casino_visitors_page"},
+                {"label": "연도별 카지노 매출액 비율", "endpoint": "casino_revenue_page"},
+                {"label": "기금 부과 현황", "endpoint": "casino_fund_page"},
+            ],
+        },
+        {"label": "관련 뉴스", "endpoint": "related_news_page"},
+        {"label": "주가 정보", "endpoint": "market_trend_page"},
+        {"label": "관광객 추이", "endpoint": "tourism_trend_page"},
+        {"label": "유가정보·환율", "endpoint": "economic_trend_page"},
+        {"label": "나라별 연휴", "endpoint": "holiday_calendar_page"},
+        {"label": "연봉", "endpoint": "salary_trend_page"},
+        {"label": "채용", "endpoint": "recruitment_page"},
+    ]
+    section_children = {
+        "tips.list_page": [
+            {"label": "자료 게시판", "endpoint": "tips.list_page"},
+            {"label": "관련 사이트", "endpoint": "tips.sites_page"},
+        ],
+    }
     links = [
         {"label": "시작 화면", "description": "공개 메뉴와 로그인 안내", "endpoint": "public_home"},
         {"label": "출처 및 저작권", "description": "데이터 출처, 업데이트 주기, 최종 확인 시간", "endpoint": "credits_page"},
     ]
     links.append(
-        {"label": "데이터", "description": "뉴스·주가·카지노업·관광객·경제지표·연휴·연봉·채용", "endpoint": "market_trend_page"}
+        {
+            "label": "데이터",
+            "description": "뉴스·주가·카지노업·관광객·경제지표·연휴·연봉·채용",
+            "endpoint": "casino_industry_page",
+            "children": data_children,
+        }
     )
     menu_links = (
         ("disclosures", "공시·재무", "DART 공시 및 재무정보", "disclosures_page"),
@@ -701,24 +730,39 @@ def _site_map_links():
             "description": description,
             "endpoint": endpoint,
             "locked": False,
+            "children": section_children.get(endpoint, []),
         }
         for permission, label, description, endpoint in menu_links
     )
     if not session.get("user_id"):
         links.extend([
-            {"label": "파라디안 전용", "description": "로그인 후 공문·자료관리 이용", "endpoint": "auth.login", "locked": True},
+            {
+                "label": "파라디안 전용",
+                "description": "로그인 후 공문·자료관리 이용",
+                "endpoint": "auth.login",
+                "locked": True,
+                "children": [
+                    {"label": "공문·자료관리", "endpoint": "auth.login", "locked": True},
+                    {"label": "경영 실적", "endpoint": "auth.login", "locked": True},
+                ],
+            },
             {"label": "로그인", "description": "대시보드 계정으로 접속", "endpoint": "auth.login"},
             {"label": "가입 신청", "description": "새 계정 승인 요청", "endpoint": "auth.register"},
         ])
         return links
-    links.extend([
-        {"label": "파라디안 전용", "description": "공문·자료관리 및 관리자 경영 실적", "endpoint": "paradian_portal_page"},
-        {"label": "공문·자료관리", "description": "접수·처리·Y디스크 보관", "endpoint": "official_docs.dashboard"},
-    ])
-    if session.get("username") == "admin":
-        links.append(
-            {"label": "경영 실적", "description": "내부 경영 실적 현황", "endpoint": "performance_page"}
-        )
+    links.append({
+        "label": "파라디안 전용",
+        "description": "공문·자료관리 및 관리자 경영 실적",
+        "endpoint": "paradian_portal_page",
+        "children": [
+            {"label": "공문·자료관리", "endpoint": "official_docs.dashboard"},
+            {
+                "label": "경영 실적",
+                "endpoint": "performance_page" if session.get("username") == "admin" else "paradian_portal_page",
+                "locked": session.get("username") != "admin",
+            },
+        ],
+    })
     if session.get("role") == "admin":
         links.append({
             "label": "계정·권한관리",

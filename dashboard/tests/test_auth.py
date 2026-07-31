@@ -137,14 +137,27 @@ def test_public_read_pages_do_not_require_login(client, path):
         "/performance/holidays",
         "/performance/salaries",
         "/performance/recruitment",
+        "/bug-reports",
+        "/credits",
+        "/sitemap",
     ),
 )
-def test_data_pages_render_one_centralized_footer(client, path):
+def test_data_and_feedback_pages_render_one_centralized_footer(client, path):
     response = client.get(path, follow_redirects=False)
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert html.count('class="legal-footer"') == 1
     assert 'class="site-footer"' not in html
+
+
+def test_sitemap_renders_data_and_library_submenus(client):
+    response = client.get("/sitemap")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="sitemap-children' in html
+    assert "연도별 카지노 이용객" in html
+    assert "기금 부과 현황" in html
+    assert "관련 사이트" in html
 
 
 def test_paradian_portal_requires_login(client):

@@ -16,12 +16,29 @@
     <p class="page-description">현재 계정으로 이용할 수 있는 대시보드 메뉴를 한눈에 확인합니다.</p>
   </div>
   <section class="error-sitemap">
+    {% macro submenu(items, level=1) -%}
+    <ul class="sitemap-children sitemap-children-level-{{ level }}">
+      {% for item in items %}
+      <li>
+        <a href="{{ url_for(item.endpoint) }}"{% if item.locked %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>
+          <span>{{ item.label }}</span><i aria-hidden="true">{{ '⌁' if item.locked else '→' }}</i>
+        </a>
+        {% if item.children %}{{ submenu(item.children, level + 1) }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {%- endmacro %}
     <div class="sitemap-grid">
       {% for link in site_map_links %}
-      <a href="{{ url_for(link.endpoint) }}" {% if link.locked %}data-locked="true" title="접근 권한이 필요합니다"{% endif %}><strong>{{ link.label }}{% if link.locked %} <small>권한 필요</small>{% endif %}</strong><span>{{ link.description }}</span><i aria-hidden="true">{{ '⌁' if link.locked else '→' }}</i></a>
+      <article class="sitemap-card{% if link.children %} has-children{% endif %}">
+        <a class="sitemap-main-link" href="{{ url_for(link.endpoint) }}"{% if link.locked %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>
+          <strong>{{ link.label }}{% if link.locked %} <small>권한 필요</small>{% endif %}</strong>
+          <span>{{ link.description }}</span><i aria-hidden="true">{{ '⌁' if link.locked else '→' }}</i>
+        </a>
+        {% if link.children %}{{ submenu(link.children) }}{% endif %}
+      </article>
       {% endfor %}
     </div>
   </section>
 </main>
-{% include "_footer.html" %}
 {% endblock %}
