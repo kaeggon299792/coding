@@ -16,6 +16,8 @@ from functools import wraps
 from urllib.parse import urlsplit
 
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, session, url_for
+from authlib.integrations.flask_client import OAuth
+from authlib.integrations.base_client.errors import OAuthError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from dashboard_db import queries
@@ -25,6 +27,7 @@ import config
 from utils import now_kst
 
 auth_bp = Blueprint("auth", __name__)
+oauth = OAuth()
 
 LOGIN_IP_MAX_FAILURES = 10
 SESSION_IDLE_TIMEOUT = timedelta(minutes=config.SESSION_IDLE_MINUTES)
@@ -52,6 +55,34 @@ LANDING_ENDPOINTS = {
     "unified_search": "unified_search_page",
     "tips": "tips.list_page",
 }
+
+
+def init_oauth(app):
+    """Attach Google OIDC to the existing Flask app without creating another app."""
+
+    oauth.init_app(app)
+    oauth.register(
+        name="google",
+        client_id=config.GOOGLE_CLIENT_ID or None,
+        client_secret=config.GOOGLE_CLIENT_SECRET or None,
+        server_metadata_url=config.GOOGLE_OIDC_METADATA_URL,
+        client_kwargs={"scope": "openid email profile"},
+    )
+    missing = google_oauth_missing_settings()
+    if missing:
+        app.logger.warning(
+            "Google OAuth is disabled; missing environment variables: %s",
+            ", ".join(missing),
+        )
+
+
+def google_oauth_missing_settings():
+    settings = {
+        "GOOGLE_CLIENT_ID": config.GOOGLE_CLIENT_ID,
+        "GOOGLE_CLIENT_SECRET": config.GOOGLE_CLIENT_SECRET,
+        "GOOGLE_REDIRECT_URI": config.GOOGLE_REDIRECT_URI,
+    }
+    return [name for name, value in settings.items() if not value]
 
 
 def current_menu_permissions():
@@ -222,7 +253,10 @@ def login_required(view):
             if request.path.startswith("/api/"):
                 return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
             return redirect(
-                url_for("auth.login", next=f"{request.script_root}{request.path}")
+                url_for(
+                    "auth.login",
+                    next=f"{request.script_root}{request.full_path.rstrip('?')}",
+                )
             )
         connection = dashboard_db()
         try:
@@ -361,6 +395,221 @@ def _start_user_session(connection, user):
             str(request.user_agent.string or "")[:500], now.isoformat(), now.isoformat(),
             (now + SESSION_ABSOLUTE_TIMEOUT).isoformat(),
         ),
+    )
+
+
+def _unique_google_username(connection, email, google_sub):
+    local_part = (email.split("@", 1)[0] if "@" in email else "").strip()
+    candidate = re.sub(r"[^A-Za-z0-9._-]", "-", local_part)[:40].strip(".-_")
+    if len(candidate) < 3:
+        candidate = f"google-{google_sub[-12:]}"[:40]
+    base = candidate
+    suffix = 1
+    while connection.execute(
+        "SELECT 1 FROM dashboard_users WHERE LOWER(username)=LOWER(?)", (candidate,)
+    ).fetchone():
+        suffix += 1
+        marker = f"-{suffix}"
+        candidate = f"{base[:40-len(marker)]}{marker}"
+    return candidate
+
+
+def _upsert_google_user(connection, userinfo):
+    """Create, link, or refresh a Google user identified by the stable OIDC sub."""
+
+    google_sub = str(userinfo["sub"]).strip()
+    email = str(userinfo["email"]).strip().lower()
+    name = str(userinfo.get("name") or "").strip()[:200] or None
+    picture_url = str(userinfo.get("picture") or "").strip()[:1000] or None
+    now_iso = now_kst().isoformat()
+
+    row = connection.execute(
+        "SELECT * FROM dashboard_users WHERE google_sub=?", (google_sub,)
+    ).fetchone()
+    linked_existing_account = False
+    created = False
+
+    if row is None:
+        email_row = connection.execute(
+            "SELECT * FROM dashboard_users WHERE LOWER(email)=LOWER(?)", (email,)
+        ).fetchone()
+        if email_row is not None:
+            if email_row["google_sub"] and email_row["google_sub"] != google_sub:
+                raise ValueError("google_identity_conflict")
+            row = email_row
+            linked_existing_account = True
+
+    if row is None:
+        username = _unique_google_username(connection, email, google_sub)
+        unusable_password = generate_password_hash(
+            secrets.token_urlsafe(48), method="scrypt"
+        )
+        cursor = connection.execute(
+            """
+            INSERT INTO dashboard_users
+                (username, password_hash, role, is_active, created_at, updated_at,
+                 landing_page, email, approval_status, google_sub, name, picture_url)
+            VALUES (?, ?, 'user', 1, ?, ?, 'dashboard', ?, 'approved', ?, ?, ?)
+            """,
+            (
+                username, unusable_password, now_iso, now_iso, email,
+                google_sub, name, picture_url,
+            ),
+        )
+        default_permissions = {"bug_reports", "disclosures", "laws", "companies"}
+        queries.replace_user_permissions(
+            connection,
+            cursor.lastrowid,
+            MENU_PERMISSIONS.keys(),
+            default_permissions,
+            None,
+        )
+        row = connection.execute(
+            "SELECT * FROM dashboard_users WHERE id=?", (cursor.lastrowid,)
+        ).fetchone()
+        created = True
+    else:
+        conflicting_email = connection.execute(
+            "SELECT id FROM dashboard_users WHERE LOWER(email)=LOWER(?) AND id<>?",
+            (email, row["id"]),
+        ).fetchone()
+        email_to_store = row["email"] if conflicting_email else email
+        connection.execute(
+            """
+            UPDATE dashboard_users
+            SET google_sub=?, email=?, name=?, picture_url=?, updated_at=?
+            WHERE id=?
+            """,
+            (google_sub, email_to_store, name, picture_url, now_iso, row["id"]),
+        )
+        row = connection.execute(
+            "SELECT * FROM dashboard_users WHERE id=?", (row["id"],)
+        ).fetchone()
+
+    return dict(row), created, linked_existing_account
+
+
+def _google_login_error(message, status=400):
+    return render_template(
+        "login.html",
+        csrf_token=get_csrf_token(),
+        error=message,
+        notice=None,
+    ), status
+
+
+@auth_bp.route("/login/google")
+def google_login():
+    missing = google_oauth_missing_settings()
+    if missing:
+        current_app.logger.error(
+            "Google OAuth login unavailable; missing settings: %s", ", ".join(missing)
+        )
+        return _google_login_error(
+            "Google 로그인을 현재 사용할 수 없습니다. 관리자에게 문의해주세요.", 503
+        )
+    next_path = _safe_local_next(request.args.get("next"))
+    if next_path:
+        session["oauth_next"] = next_path
+    else:
+        session.pop("oauth_next", None)
+    try:
+        return oauth.google.authorize_redirect(config.GOOGLE_REDIRECT_URI)
+    except Exception as exc:
+        current_app.logger.error(
+            "Google OAuth authorization start failed type=%s", type(exc).__name__
+        )
+        return _google_login_error(
+            "Google 로그인 요청을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.", 503
+        )
+
+
+@auth_bp.route("/auth/google/callback")
+def google_callback():
+    if request.args.get("error"):
+        failure = "cancelled" if request.args.get("error") == "access_denied" else "provider_error"
+        current_app.logger.warning("Google OAuth callback failed type=%s", failure)
+        return _google_login_error(
+            "Google 로그인이 취소되었습니다. 다시 시도하거나 다른 로그인 방법을 이용해주세요."
+            if failure == "cancelled"
+            else "Google 인증을 완료하지 못했습니다. 잠시 후 다시 시도해주세요."
+        )
+
+    if google_oauth_missing_settings():
+        current_app.logger.error("Google OAuth callback failed type=missing_configuration")
+        return _google_login_error(
+            "Google 로그인 설정을 확인할 수 없습니다. 관리자에게 문의해주세요.", 503
+        )
+
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get("userinfo") if isinstance(token, dict) else None
+    except OAuthError as exc:
+        failure = getattr(exc, "error", None) or "oauth_state_or_token_error"
+        current_app.logger.warning("Google OAuth callback failed type=%s", failure)
+        return _google_login_error(
+            "인증 요청이 만료되었거나 일치하지 않습니다. Google 로그인을 다시 시작해주세요."
+        )
+    except Exception as exc:
+        current_app.logger.error(
+            "Google OAuth callback failed type=%s", type(exc).__name__
+        )
+        return _google_login_error(
+            "Google 인증 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
+
+    if not isinstance(userinfo, dict):
+        current_app.logger.warning("Google OAuth callback failed type=missing_userinfo")
+        return _google_login_error("Google 계정 정보를 확인할 수 없습니다.")
+    if not str(userinfo.get("sub") or "").strip():
+        current_app.logger.warning("Google OAuth callback failed type=missing_sub")
+        return _google_login_error("Google 계정 식별 정보를 확인할 수 없습니다.")
+    if not str(userinfo.get("email") or "").strip():
+        current_app.logger.warning("Google OAuth callback failed type=missing_email")
+        return _google_login_error("Google 계정 이메일을 확인할 수 없습니다.")
+    verified = userinfo.get("email_verified")
+    if verified is not True and str(verified).lower() != "true":
+        current_app.logger.warning("Google OAuth callback failed type=email_not_verified")
+        return _google_login_error("이메일 인증이 완료된 Google 계정만 사용할 수 있습니다.", 403)
+
+    next_path = _safe_local_next(session.get("oauth_next"))
+    connection = dashboard_db()
+    try:
+        user, created, linked = _upsert_google_user(connection, userinfo)
+        if not user.get("is_active", 1) or user.get("approval_status") == "blocked":
+            connection.rollback()
+            current_app.logger.warning(
+                "Google OAuth callback failed type=account_inactive user_id=%s", user["id"]
+            )
+            return _google_login_error("사용이 중지된 계정입니다. 관리자에게 문의해주세요.", 403)
+        landing_page = _landing_page_for_user(connection, user)
+        _start_user_session(connection, user)
+        queries.touch_last_login(connection, user["id"])
+        security_audit.log_event(
+            connection,
+            "GOOGLE_LOGIN_SUCCESS",
+            "dashboard_user",
+            user["id"],
+            {"created": created, "linked_existing_account": linked},
+        )
+        connection.commit()
+        current_app.logger.info(
+            "Google login succeeded user_id=%s at=%s", user["id"], now_kst().isoformat()
+        )
+    except (sqlite3.Error, ValueError) as exc:
+        connection.rollback()
+        current_app.logger.error(
+            "Google OAuth user persistence failed type=%s", type(exc).__name__
+        )
+        return _google_login_error(
+            "계정 정보를 저장하지 못했습니다. 관리자에게 문의해주세요.", 500
+        )
+    finally:
+        connection.close()
+
+    return redirect(
+        next_path
+        or url_for(LANDING_ENDPOINTS.get(landing_page, "dashboard_home"))
     )
 
 
@@ -587,7 +836,7 @@ def logout():
     finally:
         connection.close()
     session.clear()
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("public_home"))
 
 
 @auth_bp.route("/admin/users", methods=["GET", "POST"])

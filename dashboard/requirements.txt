@@ -1,4 +1,5 @@
 Flask==3.0.3
+Authlib>=1.3.2,<2
 python-dotenv==1.0.1
 requests==2.32.3
 # ai_insights.py는 client.responses.create()(Responses API)를 쓴다. 이 API는

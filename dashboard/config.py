@@ -210,6 +210,13 @@ FLASK_SECRET_KEY = _get_str("FLASK_SECRET_KEY")
 SESSION_LIFETIME_DAYS = _get_int("SESSION_LIFETIME_DAYS", 7)
 SESSION_IDLE_MINUTES = _get_int("SESSION_IDLE_MINUTES", 30)
 SESSION_ABSOLUTE_HOURS = _get_int("SESSION_ABSOLUTE_HOURS", 8)
+SESSION_COOKIE_SECURE = _get_bool("SESSION_COOKIE_SECURE", True)
+GOOGLE_CLIENT_ID = _get_str("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = _get_str("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = _get_str("GOOGLE_REDIRECT_URI")
+GOOGLE_OIDC_METADATA_URL = (
+    "https://accounts.google.com/.well-known/openid-configuration"
+)
 TRUSTED_HOSTS = tuple(
     host.strip().lower()
     for host in _get_str(

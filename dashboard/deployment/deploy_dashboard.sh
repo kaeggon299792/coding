@@ -20,7 +20,13 @@ git -C "${REPO_DIR}" archive "${TARGET_REF}" dashboard | tar -x -C "${REPO_DIR}"
 from app import app
 from extensions import dashboard_db
 
-required_endpoints = {"public_home", "auth.login", "market_trend_page"}
+required_endpoints = {
+    "public_home",
+    "auth.login",
+    "auth.google_login",
+    "auth.google_callback",
+    "market_trend_page",
+}
 registered = {rule.endpoint for rule in app.url_map.iter_rules()}
 assert required_endpoints <= registered
 connection = dashboard_db()

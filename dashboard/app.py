@@ -19,6 +19,7 @@ from flask import (
     Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file,
     session, url_for,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from auth import (
@@ -26,6 +27,7 @@ from auth import (
     auth_bp,
     current_menu_permissions,
     get_csrf_token,
+    init_oauth,
     login_required,
     validate_csrf,
 )
@@ -274,18 +276,22 @@ app.permanent_session_lifetime = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
+    PREFERRED_URL_SCHEME="https",
     MAX_CONTENT_LENGTH=max(
         config.RESEARCH_MAX_FILE_BYTES,
         config.OFFICIAL_DOC_MAX_UPLOAD_MB * 1024 * 1024,
         config.TIPS_MAX_ATTACHMENT_BYTES,
     ) + (512 * 1024),
 )
-app.wsgi_app = LocalePrefixMiddleware(app.wsgi_app)
+app.wsgi_app = LocalePrefixMiddleware(
+    ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+)
 
 if not config.FLASK_SECRET_KEY:
     logger.warning("FLASK_SECRET_KEY가 설정되지 않아 임시 키를 사용합니다. 재시작 시 세션이 모두 만료됩니다.")
 
+init_oauth(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(official_docs_bp)
 app.register_blueprint(tips_bp)
@@ -475,7 +481,8 @@ def apply_security_headers(response):
         "script-src-attr 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
         "font-src 'self' https://cdn.jsdelivr.net data:",
-        "img-src 'self' data: https://www.google-analytics.com https://www.googletagmanager.com",
+        "img-src 'self' data: https://www.google-analytics.com https://www.googletagmanager.com "
+        "https://lh3.googleusercontent.com",
         "connect-src 'self' https://www.google-analytics.com https://analytics.google.com "
         "https://region1.google-analytics.com https://www.googletagmanager.com",
         "frame-src https://www.googletagmanager.com",
@@ -597,14 +604,21 @@ POLICY_CATEGORY_KEYWORDS = [
 def inject_globals():
     locale = getattr(g, "locale", "ko")
     role = session.get("role")
-    if not role and session.get("user_id"):
+    current_user = None
+    if session.get("user_id"):
         connection = dashboard_db()
         try:
             row = connection.execute(
-                "SELECT role FROM dashboard_users WHERE id=?", (session["user_id"],)
+                """
+                SELECT id, username, role, name, picture_url
+                FROM dashboard_users WHERE id=?
+                """,
+                (session["user_id"],),
             ).fetchone()
-            role = (row["role"] if row else None) or "user"
-            session["role"] = role
+            if row:
+                current_user = dict(row)
+                role = current_user.get("role") or "user"
+                session["role"] = role
         finally:
             connection.close()
     endpoint_menu_names = {
@@ -659,6 +673,7 @@ def inject_globals():
     seo_defaults = _seo_defaults()
     return {
         "current_username": session.get("username"),
+        "current_user": current_user,
         "now_str": today_kst_str(),
         "current_user_role": role or "anonymous",
         "menu_permissions": current_menu_permissions(),

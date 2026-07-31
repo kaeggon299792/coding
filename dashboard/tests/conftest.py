@@ -14,6 +14,11 @@ os.environ.setdefault("DASHBOARD_DB_FILE", ":memory:")
 os.environ.setdefault("NEWS_DB_FILE", "")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 os.environ.setdefault("TELEGRAM_CHAT_ID", "-1")
+os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
+os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
+os.environ.setdefault(
+    "GOOGLE_REDIRECT_URI", "https://casino.shingoon.me/auth/google/callback"
+)
 
 
 @pytest.fixture

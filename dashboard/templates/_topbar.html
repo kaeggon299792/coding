@@ -28,10 +28,20 @@
     </details>
   </nav>
   <div class="topbar-actions">
+    {% if current_user %}
+      <span class="topbar-user" title="{{ current_user.name or current_user.username }}">
+        {% if current_user.picture_url %}
+          <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
+        {% else %}
+          <span class="topbar-avatar-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
+        {% endif %}
+        <span class="topbar-user-name">{{ current_user.name or current_user.username }}</span>
+      </span>
+    {% endif %}
     {% if current_user_role == 'admin' %}
     <a class="topbar-account-link" href="{{ url_for('auth.user_management') }}">계정관리</a>
     {% endif %}
-    <span class="topbar-meta">{{ now_str }}{% if current_username %} · {{ current_username }}{% endif %}</span>
+    <span class="topbar-meta">{{ now_str }}</span>
     {% if current_username %}
     <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
       <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
