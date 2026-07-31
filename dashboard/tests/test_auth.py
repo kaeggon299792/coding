@@ -60,7 +60,7 @@ def test_public_home_is_available_when_not_authenticated(client):
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "casino-in-hero-spotlight.png" in html
+    assert 'class="public-hero-art-image"' in html
     assert "DATA" in html
     assert "오늘의 주요 현황" in html
     assert "공문 DB 자동 갱신" not in html
