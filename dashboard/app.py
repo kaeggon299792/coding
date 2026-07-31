@@ -897,6 +897,42 @@ def _format_minute(value):
     return official_document_manager.datetime_minute(value)
 
 
+def _latest_timestamp_from_rows(rows, key, predicate=None):
+    values = []
+    for row in rows:
+        if predicate and not predicate(row):
+            continue
+        value = row.get(key)
+        if value:
+            values.append(value)
+    return max(values) if values else None
+
+
+def _market_freshness(quotes):
+    is_global = lambda row: row.get("asset_type") == "global_stock"
+    is_domestic = lambda row: row.get("asset_type") != "global_stock"
+    return {
+        "domestic_checked_at": _latest_timestamp_from_rows(quotes, "fetched_at", is_domestic),
+        "global_checked_at": _latest_timestamp_from_rows(quotes, "fetched_at", is_global),
+        "domestic_base_date": _latest_timestamp_from_rows(quotes, "base_date", is_domestic),
+        "global_base_date": _latest_timestamp_from_rows(quotes, "base_date", is_global),
+        "checked_at": _latest_timestamp_from_rows(quotes, "fetched_at"),
+    }
+
+
+def _economic_freshness(series):
+    oil = [item for item in series if item.get("category") == "oil"]
+    exchange = [item for item in series if item.get("category") == "exchange"]
+    return {
+        "oil_checked_at": _latest_timestamp_from_rows(oil, "fetched_at"),
+        "oil_changed_at": _latest_timestamp_from_rows(oil, "changed_at"),
+        "exchange_checked_at": _latest_timestamp_from_rows(exchange, "fetched_at"),
+        "exchange_changed_at": _latest_timestamp_from_rows(exchange, "changed_at"),
+        "checked_at": _latest_timestamp_from_rows(series, "fetched_at"),
+        "changed_at": _latest_timestamp_from_rows(series, "changed_at"),
+    }
+
+
 def _credits_rows(connection):
     rows = []
 
@@ -980,15 +1016,16 @@ def _credits_rows(connection):
         notes="정부입법예고와 첨부자료 링크를 함께 관리합니다.",
     )
 
-    market_sync = queries.get_latest_completed_run(connection, "market_quote_sync")
+    market_quotes = queries.list_market_quotes(connection)
+    market_freshness = _market_freshness(market_quotes)
     push(
         "데이터",
         "국내외 주가·지수",
         "공공데이터포털 API / Yahoo Finance",
         "https://www.data.go.kr/",
         "5~15분 캐시 기준 주기적 갱신",
-        checked_at=(market_sync or {}).get("finished_at"),
-        changed_at=_max_timestamp(connection, "market_quotes", "fetched_at"),
+        checked_at=market_freshness.get("checked_at"),
+        changed_at=market_freshness.get("checked_at"),
         notes="국내 주가는 금융위원회 API, 해외 종목은 Yahoo Finance 계열 소스를 사용합니다.",
     )
 
@@ -1006,9 +1043,7 @@ def _credits_rows(connection):
         notes="국가별 방한 관광객 수와 예측치를 함께 시각화합니다.",
     )
 
-    economic_freshness = queries.get_data_freshness(
-        connection, "economic_series", "economic_data_sync"
-    )
+    economic_freshness = _economic_freshness(queries.list_economic_series(connection))
     push(
         "데이터",
         "유가정보·환율",
@@ -1692,18 +1727,16 @@ def market_trend_page():
         global_quotes = [
             quote for quote in quotes if quote.get("asset_type") == "global_stock"
         ]
+        freshness = _market_freshness(quotes)
         latest_run = queries.get_latest_completed_run(connection, "market_quote_sync")
-        checked_at = latest_run.get("finished_at") if latest_run else None
-        base_date = max(
-            (quote.get("base_date") or "" for quote in quotes),
-            default=None,
-        )
         return render_template(
             "market_trend.html",
             market_quotes=domestic_quotes,
             global_market_quotes=global_quotes,
-            market_checked_at=checked_at,
-            market_base_date=base_date,
+            market_domestic_checked_at=freshness["domestic_checked_at"],
+            market_global_checked_at=freshness["global_checked_at"],
+            market_domestic_base_date=freshness["domestic_base_date"],
+            market_global_base_date=freshness["global_base_date"],
             market_check_status=latest_run.get("status") if latest_run else None,
         )
     finally:
@@ -1758,16 +1791,19 @@ def economic_trend_page():
     connection = dashboard_db()
     try:
         series = queries.list_economic_series(connection)
-        freshness = queries.get_data_freshness(
-            connection, "economic_series", "economic_data_sync"
-        )
+        oil_series = [item for item in series if item["category"] == "oil"]
+        exchange_series = [item for item in series if item["category"] == "exchange"]
+        freshness = _economic_freshness(series)
+        latest_run = queries.get_latest_completed_run(connection, "economic_data_sync")
         return render_template(
             "economic_trend.html",
-            oil_series=[item for item in series if item["category"] == "oil"],
-            exchange_series=[item for item in series if item["category"] == "exchange"],
-            economic_checked_at=freshness["checked_at"],
-            economic_changed_at=freshness["changed_at"],
-            economic_check_status=freshness["check_status"],
+            oil_series=oil_series,
+            exchange_series=exchange_series,
+            oil_checked_at=freshness["oil_checked_at"],
+            oil_changed_at=freshness["oil_changed_at"],
+            exchange_checked_at=freshness["exchange_checked_at"],
+            exchange_changed_at=freshness["exchange_changed_at"],
+            economic_check_status=latest_run.get("status") if latest_run else None,
         )
     finally:
         connection.close()
