@@ -84,6 +84,7 @@ ENDPOINT_PERMISSIONS = {
     "research_library_page": "research_library",
     "download_research_document": "research_library",
     "reanalyze_research_document": "research_library",
+    "update_research_document_title": "research_library",
     "delete_research_document": "research_library",
     "unified_search_page": "unified_search",
 }
@@ -260,6 +261,7 @@ def inject_globals():
         "research_library_page": "리서치",
         "download_research_document": "리서치",
         "reanalyze_research_document": "리서치",
+        "update_research_document_title": "리서치",
         "delete_research_document": "리서치",
         "unified_search_page": "통합검색",
         "sitemap_page": "사이트맵",
@@ -1205,7 +1207,9 @@ def research_library_page():
                     ),
                 ), 409
 
-            title = (request.form.get("title") or "").strip()[:200]
+            submitted_title = (request.form.get("title") or "").strip()[:200]
+            use_ai_title = not submitted_title
+            title = submitted_title
             if not title:
                 title = extracted["original_filename"].rsplit(".", 1)[0]
 
@@ -1246,6 +1250,12 @@ def research_library_page():
             queries.update_research_document_analysis(
                 connection, document_id, analysis=analysis, error_message=analysis_error
             )
+            if use_ai_title and analysis and analysis.get("suggested_title"):
+                queries.update_research_document_title(
+                    connection,
+                    document_id,
+                    analysis["suggested_title"].strip()[:200],
+                )
             notice = "업로드 및 AI 분석이 완료되었습니다." if analysis else (
                 "자료는 저장했지만 AI 분석은 완료되지 않았습니다."
             )
@@ -1324,6 +1334,49 @@ def reanalyze_research_document(document_id):
         )
         notice = "AI 재분석이 완료되었습니다." if analysis else f"재분석 실패: {error}"
         return redirect(url_for("research_library_page", notice=notice))
+    finally:
+        connection.close()
+
+
+@app.route("/library/<int:document_id>/title", methods=["POST"])
+@login_required
+def update_research_document_title(document_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return redirect(url_for("research_library_page"))
+    connection = dashboard_db()
+    try:
+        document = queries.get_research_document(connection, document_id)
+        if not document:
+            abort(404)
+        if request.form.get("title_mode") == "ai":
+            title = (document.get("ai_suggested_title") or "").strip()
+            if not title:
+                return redirect(url_for(
+                    "research_library_page",
+                    notice="AI 추천 제목이 없습니다. 먼저 AI 재분석을 실행해주세요.",
+                ))
+        else:
+            title = (request.form.get("title") or "").strip()
+        if not title:
+            return redirect(url_for(
+                "research_library_page", notice="제목을 입력해주세요."
+            ))
+        queries.update_research_document_title(connection, document_id, title[:200])
+        security_audit.log_event(
+            connection,
+            "RESEARCH_TITLE_UPDATE",
+            "research_document",
+            document_id,
+            {
+                "old_title": document.get("title"),
+                "new_title": title[:200],
+                "title_mode": request.form.get("title_mode") or "manual",
+            },
+        )
+        connection.commit()
+        return redirect(url_for(
+            "research_library_page", notice="자료 제목을 수정했습니다."
+        ))
     finally:
         connection.close()
 

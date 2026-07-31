@@ -762,6 +762,7 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   margin-top: var(--space-4);
 }
 .library-actions form { margin: 0; }
+.library-title-editor{position:relative}.library-title-editor>summary{list-style:none;cursor:pointer}.library-title-editor>summary::-webkit-details-marker{display:none}.library-title-editor-panel{position:absolute;z-index:8;left:0;bottom:calc(100% + 8px);width:min(460px,calc(100vw - 48px));padding:16px;border:1px solid var(--brand-border-strong);background:var(--brand-surface);box-shadow:0 14px 40px rgba(0,0,0,.24)}.library-title-editor-panel form:first-child{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.library-title-editor-panel input[type=text]{box-sizing:border-box;width:100%;padding:10px;border:1px solid var(--brand-border-strong);background:var(--brand-bg);color:var(--brand-text-primary);font:inherit}.library-title-editor-panel p{margin:12px 0 8px;color:var(--brand-text-muted);font-size:var(--text-xs);line-height:1.55}.library-title-editor-panel p strong{color:var(--brand-text-secondary)}.industry-impact{font-weight:700}.industry-impact.impact-긍정{border-color:rgba(230,93,104,.38);color:#e65d68}.industry-impact.impact-중립{color:var(--brand-text-secondary)}.industry-impact.impact-부정{border-color:rgba(68,143,240,.38);color:#448ff0}
 .danger-text { color: var(--brand-danger); }
 
 /* ---------- 통합 검색·타임라인 ---------- */

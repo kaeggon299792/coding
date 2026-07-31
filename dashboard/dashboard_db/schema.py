@@ -388,6 +388,8 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_research_documents_company "
         "ON research_documents(company_name, report_date, created_at)"
     )
+    _ensure_column(connection, "research_documents", "ai_suggested_title", "TEXT")
+    _ensure_column(connection, "research_documents", "industry_impact", "TEXT")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS research_document_companies (

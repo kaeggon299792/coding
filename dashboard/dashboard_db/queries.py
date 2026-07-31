@@ -919,7 +919,8 @@ def update_research_document_analysis(connection, document_id, analysis=None, er
         UPDATE research_documents
         SET ai_summary = ?, investment_stance = ?, target_price = ?,
             key_points_json = ?, risks_json = ?, analyzed_at = ?,
-            error_message = ?, updated_at = ?
+            error_message = ?, ai_suggested_title = ?, industry_impact = ?,
+            updated_at = ?
         WHERE id = ?
         """,
         (
@@ -930,11 +931,27 @@ def update_research_document_analysis(connection, document_id, analysis=None, er
             json.dumps(analysis.get("risks") or [], ensure_ascii=False),
             now_iso if analysis else None,
             error_message,
+            (analysis.get("suggested_title") or "").strip()[:200] or None,
+            analysis.get("industry_impact"),
             now_iso,
             document_id,
         ),
     )
     connection.commit()
+
+
+def update_research_document_title(connection, document_id, title):
+    now_iso = now_kst().isoformat()
+    cursor = connection.execute(
+        """
+        UPDATE research_documents
+        SET title=?, updated_at=?
+        WHERE id=?
+        """,
+        (title, now_iso, document_id),
+    )
+    connection.commit()
+    return cursor.rowcount > 0
 
 
 def delete_research_document(connection, document_id):

@@ -85,6 +85,7 @@
       <div class="library-facts">
         <span><strong>투자의견</strong>{{ doc.investment_stance or "명시 없음" }}</span>
         <span><strong>목표주가</strong>{{ doc.target_price or "명시 없음" }}</span>
+        <span class="industry-impact impact-{{ doc.industry_impact or '미분석' }}"><strong>산업 영향도</strong>{{ doc.industry_impact or "미분석" }}</span>
       </div>
       {% if doc.key_points %}
       <details open>
@@ -105,6 +106,26 @@
       <div class="library-actions">
         <a class="btn" href="{{ url_for('download_research_document', document_id=doc.id) }}">원본 다운로드</a>
         {% if current_username %}
+        <details class="library-title-editor">
+          <summary class="btn">제목 수정</summary>
+          <div class="library-title-editor-panel">
+            <form method="post" action="{{ url_for('update_research_document_title', document_id=doc.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="text" name="title" value="{{ doc.title }}" maxlength="200" required aria-label="자료 제목">
+              <button class="btn" type="submit">직접 수정</button>
+            </form>
+            {% if doc.ai_suggested_title %}
+            <p><strong>GPT 추천</strong> {{ doc.ai_suggested_title }}</p>
+            <form method="post" action="{{ url_for('update_research_document_title', document_id=doc.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="title_mode" value="ai">
+              <button class="btn btn-primary" type="submit">GPT 추천 제목 적용</button>
+            </form>
+            {% else %}
+            <p>GPT 추천 제목은 AI 재분석 후 생성됩니다.</p>
+            {% endif %}
+          </div>
+        </details>
         <form method="post" action="{{ url_for('reanalyze_research_document', document_id=doc.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="btn" type="submit">AI 재분석</button>

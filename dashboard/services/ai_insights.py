@@ -439,6 +439,10 @@ def generate_daily_insights(connection, context_text):
 _RESEARCH_DOCUMENT_SCHEMA = {
     "type": "object",
     "properties": {
+        "suggested_title": {
+            "type": "string",
+            "description": "문서 내용을 정확히 설명하는 간결한 한국어 자료 제목. 발행처와 핵심 주제를 포함하되 80자 이내",
+        },
         "ai_summary": {"type": "string", "description": "리포트의 핵심 논지를 4~6문장으로 요약"},
         "investment_stance": {
             "type": "string",
@@ -447,6 +451,11 @@ _RESEARCH_DOCUMENT_SCHEMA = {
         "target_price": {
             "type": "string",
             "description": "문서에 명시된 목표주가와 통화. 없으면 '명시 없음'",
+        },
+        "industry_impact": {
+            "type": "string",
+            "enum": ["긍정", "중립", "부정"],
+            "description": "카지노·복합리조트·호텔 산업 전반에 미치는 방향성",
         },
         "key_points": {
             "type": "array",
@@ -459,7 +468,7 @@ _RESEARCH_DOCUMENT_SCHEMA = {
             "description": "문서가 제시한 리스크 또는 검토 필요 사항",
         },
     },
-    "required": ["ai_summary", "investment_stance", "target_price", "key_points", "risks"],
+    "required": ["suggested_title", "ai_summary", "investment_stance", "target_price", "industry_impact", "key_points", "risks"],
     "additionalProperties": False,
 }
 
