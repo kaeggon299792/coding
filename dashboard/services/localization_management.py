@@ -38,6 +38,20 @@ TRANSLATION_STYLES = {
 }
 PROMPT_MAX_ITEMS = 150
 PROMPT_MAX_CHARS = 60000
+ADMIN_ONLY_TEMPLATES = {
+    "templates/admin_action_items.html",
+    "templates/admin_logs.html",
+    "templates/localization_admin.html",
+    "templates/localization_prompt.html",
+    "templates/localization_qa.html",
+    "templates/user_management.html",
+    "templates/official_docs/settings.html",
+}
+IGNORED_I18N_BLOCK_RE = re.compile(
+    r"<(?P<tag>[a-z][\w:-]*)\b[^>]*\bdata-i18n-ignore\b[^>]*>"
+    r".*?</(?P=tag)\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _timestamp():
@@ -164,6 +178,9 @@ def _scan_file(path, root):
     except (OSError, UnicodeError):
         return []
     relative = path.relative_to(root).as_posix()
+    if relative in ADMIN_ONLY_TEMPLATES:
+        return []
+    source = IGNORED_I18N_BLOCK_RE.sub("", source)
     page = path.stem.replace("_", " ").title()
     matches = []
     patterns = (HTML_TEXT_RE, ATTRIBUTE_RE) if path.suffix == ".html" else (QUOTED_RE,)
@@ -275,10 +292,30 @@ def scan_project(connection, project_root):
                                        locator=f"{field}:{value_index}"):
                         registered += 1
 
+    # News lives in the separate read-only news_history.db. Inventory every
+    # public title, category, issue title and AI summary without modifying it.
+    try:
+        from services import news_reader
+        news_rows = news_reader.localization_content_rows()
+    except Exception:
+        news_rows = []
+    for row in news_rows:
+        if register_string(
+            connection,
+            row.get("source_text"),
+            page="국내 뉴스",
+            component=row.get("component") or "News",
+            string_type="News",
+            source_kind="external_database",
+            source_path=f"news_history:{row.get('source_id')}",
+            locator=row.get("field") or "content",
+        ):
+            registered += 1
+
     # A full scan owns file/catalog references. References not seen in this run
     # represent removed or modified source strings and are retired non-destructively.
     connection.execute(
-        "DELETE FROM localization_references WHERE source_kind IN ('file','catalog') AND last_seen_at<?",
+        "DELETE FROM localization_references WHERE source_kind IN ('file','catalog','external_database') AND last_seen_at<?",
         (scan_started,),
     )
     stale = connection.execute(

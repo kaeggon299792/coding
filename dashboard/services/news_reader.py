@@ -38,6 +38,29 @@ def _safe_query(query, params=()):
         connection.close()
 
 
+def localization_content_rows():
+    """Return all public Korean news strings that the LMS must inventory."""
+    rows = []
+    for item in _safe_query(
+        """SELECT article_id AS source_id, title AS source_text
+           FROM articles
+           WHERE title IS NOT NULL AND TRIM(title) <> ''"""
+    ):
+        rows.append({**item, "field": "title", "component": "News Article"})
+    for field, component in (
+        ("issue_title", "News Issue"),
+        ("category", "News Category"),
+        ("latest_summary", "AI Analysis"),
+    ):
+        for item in _safe_query(
+            f"""SELECT issue_id AS source_id, {field} AS source_text
+                FROM issues
+                WHERE {field} IS NOT NULL AND TRIM({field}) <> ''"""
+        ):
+            rows.append({**item, "field": field, "component": component})
+    return rows
+
+
 def today_important_articles(min_importance_score=60):
     """오늘(KST) 수집되었고 이슈(issues)와 연결된 기사 중 중요도가 높은 것만 반환한다."""
     today = today_kst_str()

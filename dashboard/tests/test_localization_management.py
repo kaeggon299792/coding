@@ -228,6 +228,57 @@ def test_hourly_scan_runs_once_per_interval(tmp_path):
     assert db.execute("SELECT COUNT(*) FROM localization_strings").fetchone()[0] == 1
 
 
+def test_scan_excludes_admin_templates_and_explicit_ignore_blocks(tmp_path):
+    db = connection()
+    templates = tmp_path / "templates"
+    templates.mkdir()
+    (templates / "user_management.html").write_text(
+        "<h1>관리자 계정 관리</h1>", encoding="utf-8"
+    )
+    (templates / "public.html").write_text(
+        '<p>공개 안내</p><a data-i18n-ignore>번역 필요 3건</a>',
+        encoding="utf-8",
+    )
+    lms.scan_project(db, tmp_path)
+    sources = {
+        row[0] for row in db.execute("SELECT source_text FROM localization_strings")
+    }
+    assert "공개 안내" in sources
+    assert "관리자 계정 관리" not in sources
+    assert "번역 필요 3건" not in sources
+
+
+def test_scan_registers_public_news_database_content(monkeypatch, tmp_path):
+    db = connection()
+    (tmp_path / "templates").mkdir()
+    monkeypatch.setattr(
+        "services.news_reader.localization_content_rows",
+        lambda: [
+            {"source_id": 10, "source_text": "카지노 규제 개편", "field": "category",
+             "component": "News Category"},
+            {"source_id": 11, "source_text": "관광산업 주요 뉴스", "field": "title",
+             "component": "News Article"},
+            {"source_id": 12, "source_text": "시장 영향 분석", "field": "latest_summary",
+             "component": "AI Analysis"},
+        ],
+    )
+
+    lms.scan_project(db, tmp_path)
+
+    rows = db.execute(
+        """SELECT s.source_text, r.source_kind, r.source_path, r.locator
+           FROM localization_strings s
+           JOIN localization_references r ON r.string_id=s.id
+           WHERE r.source_kind='external_database'
+           ORDER BY s.source_text"""
+    ).fetchall()
+    assert {(row[0], row[2], row[3]) for row in rows} == {
+        ("카지노 규제 개편", "news_history:10", "category"),
+        ("관광산업 주요 뉴스", "news_history:11", "title"),
+        ("시장 영향 분석", "news_history:12", "latest_summary"),
+    }
+
+
 def test_dynamic_values_flattens_company_profile_json_lists():
     values = list(lms._dynamic_values(
         '["파라다이스시티", {"risk": "외국인 수요 변동"}]'
