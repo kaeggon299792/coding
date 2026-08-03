@@ -459,7 +459,9 @@ def _prompt_instructions(style, glossary):
 7. 번역되지 않은 항목만 작성합니다.
 8. 설명은 작성하지 않습니다.
 9. ID와 EN 출력 형식을 반드시 유지합니다.
-10. 선택한 번역 스타일: {style_rule}
+10. 전체 번역 결과를 하나의 ```text 코드블록 안에 작성합니다.
+11. 코드블록 밖에는 어떤 설명, 주석 또는 인사말도 작성하지 않습니다.
+12. 선택한 번역 스타일: {style_rule}
 
 프로젝트 공통 용어집
 {glossary_text}
@@ -516,7 +518,7 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
     suffix = (
         "=========================\n\n"
         "위 규칙을 모두 준수하고, 출력 형식은 절대 변경하지 마십시오. "
-        "설명이나 주석은 작성하지 말고, 번역 결과만 반환하십시오."
+        "설명이나 주석은 작성하지 말고, 전체 번역 결과만 하나의 ```text 코드블록으로 반환하십시오."
         if mode == "prompt" else ""
     )
     return [prefix + "".join(group) + suffix for group in groups]

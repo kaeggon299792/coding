@@ -148,6 +148,8 @@ def test_ai_prompt_uses_glossary_style_and_splits_long_selection():
     assert "기업정보 → Company Profile" in chunks[0]
     assert "전문적인 비즈니스 문체" in chunks[0]
     assert "ID=" in chunks[0] and "EN:" in chunks[0]
+    assert "하나의 ```text 코드블록" in chunks[0]
+    assert "코드블록 밖에는" in chunks[0]
 
 
 def test_ai_result_import_matches_language_key_and_rejects_unknown_ids():
