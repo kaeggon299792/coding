@@ -8,8 +8,8 @@
 <meta name="description" content="{{ seo_description }}">
 <meta name="robots" content="{{ seo_robots }}">
 <link rel="canonical" href="{{ seo_canonical_url }}">
-<link rel="alternate" hreflang="ko" href="{{ seo_hreflang_urls.ko }}">
-<link rel="alternate" hreflang="en" href="{{ seo_hreflang_urls.en }}">
+{% for locale_code, locale_url in seo_hreflang_urls.items() if locale_code != 'x-default' %}<link rel="alternate" hreflang="{{ locale_code }}" href="{{ locale_url }}">
+{% endfor %}
 <link rel="alternate" hreflang="x-default" href="{{ seo_hreflang_urls['x-default'] }}">
 <meta property="og:type" content="{{ seo_og_type }}">
 <meta property="og:site_name" content="Casino IN">
@@ -80,11 +80,12 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
   </div>
 </div>
 {% block body %}{% endblock %}
-<nav class="global-language-switch" aria-label="{{ t('언어 선택') }}">
-  <a href="{{ locale_urls.ko }}" data-locale-link="ko"{% if current_locale == 'ko' %} class="active" aria-current="page"{% endif %}>KR</a>
-  <span aria-hidden="true">/</span>
-  <a href="{{ locale_urls.en }}" data-locale-link="en"{% if current_locale == 'en' %} class="active" aria-current="page"{% endif %}>EN</a>
-</nav>
+<details class="global-language-switch">
+  <summary aria-label="{{ t('언어 선택') }}">{{ current_locale.upper() if current_locale != 'yue-HK' else 'YUE' }}<span aria-hidden="true">⌄</span></summary>
+  <nav aria-label="{{ t('언어 선택') }}">
+    {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><b>{{ item.label }}</b><span>{{ item.name }}</span></a>{% endfor %}
+  </nav>
+</details>
 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="화이트 테마로 변경" aria-pressed="false">
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>

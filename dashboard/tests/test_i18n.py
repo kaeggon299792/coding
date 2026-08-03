@@ -47,6 +47,8 @@ def test_korean_home_remains_default(client):
     assert 'class="public-hero-art-image"' in html
     assert "DATA" not in html
     assert 'href="/en/" data-locale-link="en"' in html
+    assert 'href="/ja/" data-locale-link="ja"' in html
+    assert 'href="/yue-hk/" data-locale-link="yue-HK"' in html
     pairs = (
         ("카지노인을 위한 모든 정보.", "Everything casino professionals need."),
         ("카지노인을 위한 하나의 공간.", "One space for the casino industry."),
@@ -123,6 +125,17 @@ def test_language_switch_preserves_path_and_query(client):
         'href="/en/performance/holidays?year=2027" data-locale-link="en"'
         in html
     )
+    assert 'href="/ja/performance/holidays?year=2027" data-locale-link="ja"' in html
+    assert 'href="/yue-hk/performance/holidays?year=2027" data-locale-link="yue-HK"' in html
+
+
+@pytest.mark.parametrize("locale", ("ja", "yue-hk"))
+def test_additional_locale_prefixes_use_same_routes(client, locale):
+    response = client.get(f"/{locale}/performance/news")
+    assert response.status_code == 200
+    expected = "yue-HK" if locale == "yue-hk" else locale
+    assert response.headers["Content-Language"] == expected
+    assert f'<html lang="{expected}"' in response.get_data(as_text=True)
 
 
 def test_english_static_assets_are_served_through_prefix(client):

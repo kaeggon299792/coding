@@ -15,7 +15,7 @@ import config
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080403
+SCHEMA_VERSION = 2026080404
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -1615,6 +1615,7 @@ def migrate(connection):
     localization_now = datetime.now(timezone.utc).isoformat()
     for language_code, display_name, is_source in (
         ('ko', '한국어', 1), ('en', 'English', 0),
+        ('ja', '日本語', 0), ('yue-HK', '廣東話', 0),
     ):
         connection.execute(
             """INSERT OR IGNORE INTO localization_languages

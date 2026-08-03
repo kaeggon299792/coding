@@ -582,8 +582,10 @@ def _seo_defaults():
         "seo_robots": robots,
         "seo_canonical_url": f"{CANONICAL_URL}{canonical_path}",
         "seo_hreflang_urls": {
-            "ko": f"{CANONICAL_URL}{seo_paths['ko']}",
-            "en": f"{CANONICAL_URL}{seo_paths['en']}",
+            **{
+                language: f"{CANONICAL_URL}{localized_path}"
+                for language, localized_path in seo_paths.items()
+            },
             "x-default": f"{CANONICAL_URL}{seo_paths['ko']}",
         },
         "seo_og_title": title,
@@ -671,7 +673,7 @@ def localize_response(response):
 
     locale = getattr(g, "locale", "ko")
     response.headers["Content-Language"] = locale
-    if locale != "en" or response.direct_passthrough:
+    if locale == "ko" or response.direct_passthrough:
         return response
 
     content_type = response.headers.get("Content-Type", "")
@@ -995,7 +997,6 @@ def inject_globals():
     switch_paths = alternate_paths(
         request.path, request.query_string.decode("utf-8", errors="ignore")
     )
-    target_locale = "ko" if locale == "en" else "en"
     catalog = load_catalog()
     seo_defaults = _seo_defaults()
     return {
@@ -1012,9 +1013,13 @@ def inject_globals():
         "current_menu_name": current_menu_name,
         "display_y_drive_path": display_y_drive_path,
         "current_locale": locale,
-        "locale_prefix": "/en" if locale == "en" else "",
-        "locale_switch_url": switch_paths[target_locale],
-        "locale_switch_label": target_locale.upper(),
+        "locale_prefix": "" if locale == "ko" else f"/{locale.lower()}",
+        "locale_options": (
+            {"code": "ko", "label": "KO", "name": "한국어"},
+            {"code": "en", "label": "EN", "name": "English"},
+            {"code": "ja", "label": "JA", "name": "日本語"},
+            {"code": "yue-HK", "label": "YUE", "name": "廣東話"},
+        ),
         "locale_urls": switch_paths,
         "canonical_url": seo_defaults["seo_canonical_url"],
         "hreflang_urls": seo_defaults["seo_hreflang_urls"],

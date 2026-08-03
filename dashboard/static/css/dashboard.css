@@ -2232,17 +2232,15 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
 .casino-chart-area{pointer-events:none}.casino-interactive-chart .casino-chart-line{filter:drop-shadow(0 3px 5px rgba(0,0,0,.14))}
 @media(max-width:760px){.data-subnav,.casino-subnav{justify-content:flex-start;overflow-x:auto}.casino-history-kpis,.casino-history-kpis.fund{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* ---------- Korean / English language switch ---------- */
+/* ---------- Language switch ---------- */
 .global-language-switch{
   position:fixed;
   z-index:1250;
   top:16px;
   right:18px;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
+  display:block;
   min-height:30px;
-  padding:5px 9px;
+  padding:0;
   border:1px solid var(--brand-border-strong);
   border-radius:999px;
   background:color-mix(in srgb,var(--brand-surface) 94%,transparent);
@@ -2257,9 +2255,16 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
   flex:0 0 auto;
   margin:0;
 }
-.global-language-switch a{color:var(--brand-text-muted);text-decoration:none}
+.global-language-switch summary{display:flex;align-items:center;gap:5px;min-height:30px;padding:5px 10px;cursor:pointer;list-style:none;color:var(--brand-text-primary)}
+.global-language-switch summary::-webkit-details-marker{display:none}
+.global-language-switch summary span{font-size:9px;transition:transform .15s}
+.global-language-switch[open] summary span{transform:rotate(180deg)}
+.global-language-switch nav{position:absolute;top:calc(100% + 7px);right:0;display:grid;min-width:145px;padding:5px;border:1px solid var(--brand-border-strong);border-radius:12px;background:var(--brand-surface);box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.global-language-switch a{display:grid;grid-template-columns:36px 1fr;align-items:center;gap:5px;padding:8px 9px;border-radius:8px;color:var(--brand-text-muted);text-decoration:none}
+.global-language-switch a b{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em}
+.global-language-switch a span{font-size:11px;white-space:nowrap}
 .global-language-switch a:hover,
-.global-language-switch a.active{color:var(--brand-text-primary);text-decoration:none}
+.global-language-switch a.active{background:var(--brand-bg);color:var(--brand-text-primary);text-decoration:none}
 .global-language-switch a.active{cursor:default}
 html[lang="en"] body,
 html[lang="en"] button,
@@ -2282,7 +2287,7 @@ html[lang="en"] .table-scroll:before{content:"Swipe horizontally to view all col
 }
 @media(max-width:768px){
   .global-language-switch{top:12px;right:12px}
-  .global-language-switch.is-embedded{padding:5px 8px}
+  .global-language-switch nav{min-width:138px}
   html[lang="en"] .topbar{display:grid}
   html[lang="en"] .topbar-nav{order:initial}
 }

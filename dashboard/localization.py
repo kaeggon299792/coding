@@ -1,4 +1,4 @@
-"""Lightweight Korean/English localization for the dashboard.
+"""Prefix-based localization for the dashboard.
 
 The application keeps one set of routes and templates.  English requests use an
 ``/en`` URL prefix which is removed by :class:`LocalePrefixMiddleware` before
@@ -23,7 +23,8 @@ from typing import Any, Callable, Iterable
 from urllib.parse import parse_qsl, urlencode
 
 
-SUPPORTED_LOCALES = ("ko", "en")
+SUPPORTED_LOCALES = ("ko", "en", "ja", "yue-HK")
+LOCALE_PREFIXES = {locale.lower(): locale for locale in SUPPORTED_LOCALES if locale != "ko"}
 DEFAULT_LOCALE = "ko"
 CATALOG_FILE = Path(__file__).resolve().parent / "translations" / "catalog.json"
 _LMS_CACHE = {"expires": 0.0, "db_path": "", "text": {}}
@@ -63,7 +64,7 @@ _PEOPLE_RE = re.compile(r"^([+-]?[0-9,]+)명$")
 
 
 class LocalePrefixMiddleware:
-    """Expose the complete Flask application below ``/en`` as well as ``/``."""
+    """Expose the complete Flask application below every supported locale prefix."""
 
     def __init__(self, app: Callable):
         self.app = app
@@ -71,11 +72,13 @@ class LocalePrefixMiddleware:
     def __call__(self, environ: dict, start_response: Callable):
         path = environ.get("PATH_INFO", "") or "/"
         locale = DEFAULT_LOCALE
-        if path == "/en" or path.startswith("/en/"):
-            locale = "en"
+        first_segment = path.lstrip("/").split("/", 1)[0].lower()
+        if first_segment in LOCALE_PREFIXES:
+            locale = LOCALE_PREFIXES[first_segment]
+            prefix = f"/{first_segment}"
             script_name = (environ.get("SCRIPT_NAME", "") or "").rstrip("/")
-            environ["SCRIPT_NAME"] = f"{script_name}/en"
-            stripped = path[3:]
+            environ["SCRIPT_NAME"] = f"{script_name}{prefix}"
+            stripped = path[len(prefix):]
             environ["PATH_INFO"] = stripped or "/"
         environ["DASHBOARD_LOCALE"] = locale
         return self.app(environ, start_response)
@@ -134,7 +137,7 @@ def _apply_patterns(text: str, patterns: Iterable[tuple[str, str]]) -> str:
 def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     """Translate one UI value while preserving whitespace and non-strings."""
 
-    if locale != "en" or not isinstance(value, str) or not value:
+    if locale == DEFAULT_LOCALE or not isinstance(value, str) or not value:
         return value
     catalog = load_catalog()
     match = _SPACE_RE.match(value)
@@ -142,12 +145,14 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
         return value
     leading, core, trailing = match.groups()
     translated = _lms_text_map(locale).get(core)
-    if translated is None:
+    if translated is None and locale == "en":
         translated = catalog["text"].get(core)
-    if translated is None:
+    if translated is None and locale == "en":
         translated = _translate_numeric_unit(core)
-    if translated is None:
+    if translated is None and locale == "en":
         translated = _apply_patterns(core, catalog.get("patterns", {}).items())
+    if translated is None:
+        translated = core
     return f"{leading}{translated}{trailing}"
 
 
@@ -203,7 +208,7 @@ def _lms_text_map(locale: str) -> dict[str, str]:
 def translate_structure(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     """Translate message-like JSON structures without changing source datasets."""
 
-    if locale != "en":
+    if locale == DEFAULT_LOCALE:
         return value
     if isinstance(value, list):
         return [translate_structure(item, locale) for item in value]
@@ -244,9 +249,11 @@ def _translate_js_strings(script: str, locale: str) -> str:
 def _translate_inline_phrases(value: str, locale: str) -> str:
     """Translate known phrases inside compound strings such as document titles."""
 
-    if locale != "en":
+    if locale == DEFAULT_LOCALE:
         return value
-    text_map = load_catalog().get("text", {})
+    text_map = _lms_text_map(locale)
+    if locale == "en":
+        text_map = {**load_catalog().get("text", {}), **text_map}
     for source in sorted(text_map, key=len, reverse=True):
         if source and source in value:
             value = value.replace(source, str(text_map[source]))
@@ -256,7 +263,7 @@ def _translate_inline_phrases(value: str, locale: str) -> str:
 def translate_html(html: str, locale: str = DEFAULT_LOCALE) -> str:
     """Translate rendered HTML without duplicating any Jinja template."""
 
-    if locale != "en" or not html:
+    if locale == DEFAULT_LOCALE or not html:
         return html
 
     html = _TITLE_RE.sub(
@@ -334,7 +341,6 @@ def extract_translatable_html_strings(html: str) -> list[str]:
 
 def alternate_paths(path: str, query_string: str = "") -> dict[str, str]:
     normalized = path if path.startswith("/") else f"/{path}"
-    en_path = "/en/" if normalized == "/" else f"/en{normalized}"
 
     def localized_query(target_locale: str) -> str:
         if not query_string:
@@ -343,17 +349,26 @@ def alternate_paths(path: str, query_string: str = "") -> dict[str, str]:
         localized_pairs = []
         for key, value in pairs:
             if key == "next" and value.startswith("/") and not value.startswith("//"):
-                if target_locale == "ko":
-                    value = "/" if value == "/en" else (
-                        value[3:] if value.startswith("/en/") else value
-                    )
-                elif value != "/en" and not value.startswith("/en/"):
-                    value = f"/en{value}"
+                for prefix in LOCALE_PREFIXES:
+                    marker = f"/{prefix}"
+                    if value == marker:
+                        value = "/"
+                        break
+                    if value.startswith(f"{marker}/"):
+                        value = value[len(marker):]
+                        break
+                if target_locale != "ko":
+                    prefix = f"/{target_locale.lower()}"
+                    value = prefix if value == "/" else f"{prefix}{value}"
             localized_pairs.append((key, value))
         encoded = urlencode(localized_pairs, doseq=True)
         return f"?{encoded}" if encoded else ""
 
-    return {
-        "ko": f"{normalized}{localized_query('ko')}",
-        "en": f"{en_path}{localized_query('en')}",
-    }
+    paths = {"ko": f"{normalized}{localized_query('ko')}"}
+    for locale in SUPPORTED_LOCALES:
+        if locale == "ko":
+            continue
+        prefix = f"/{locale.lower()}"
+        localized = f"{prefix}/" if normalized == "/" else f"{prefix}{normalized}"
+        paths[locale] = f"{localized}{localized_query(locale)}"
+    return paths
