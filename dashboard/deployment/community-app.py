@@ -383,7 +383,9 @@ _STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 
 app = Flask(__name__)
-app.secret_key = config.FLASK_SECRET_KEY or "dev-only-insecure-key-set-FLASK_SECRET_KEY"
+if not config.FLASK_SECRET_KEY:
+    raise RuntimeError("FLASK_SECRET_KEY must be configured before the application starts")
+app.secret_key = config.FLASK_SECRET_KEY
 app.permanent_session_lifetime = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -399,9 +401,6 @@ app.config.update(
 app.wsgi_app = LocalePrefixMiddleware(
     ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 )
-
-if not config.FLASK_SECRET_KEY:
-    logger.warning("FLASK_SECRET_KEY가 설정되지 않아 임시 키를 사용합니다. 재시작 시 세션이 모두 만료됩니다.")
 
 init_oauth(app)
 app.register_blueprint(auth_bp)

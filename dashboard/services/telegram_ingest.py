@@ -110,8 +110,13 @@ def poll_once(dashboard_connection):
     try:
         updates = _get_updates(offset)
     except (requests.RequestException, TelegramIngestError) as error:
-        logger.error("getUpdates 호출 실패: %s", error)
-        queries.log_error(dashboard_connection, "telegram_ingest", type(error).__name__, str(error))
+        # requests exceptions may include the request URL, and Telegram embeds
+        # the bot token in that URL. Persist only the exception class.
+        logger.error("getUpdates 호출 실패: %s", type(error).__name__)
+        queries.log_error(
+            dashboard_connection, "telegram_ingest", type(error).__name__,
+            "Telegram Bot API request failed",
+        )
         return 0
 
     saved_count = 0

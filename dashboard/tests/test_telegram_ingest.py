@@ -2,6 +2,7 @@ from dashboard_db import queries
 from services import telegram_ingest
 import hashlib
 import hmac
+import requests
 
 
 class FakeResponse:
@@ -31,6 +32,27 @@ def test_webhook_conflict_blocks_polling(monkeypatch, db_connection):
     errors = db_connection.execute("SELECT * FROM errors").fetchall()
     assert len(errors) == 1
     assert errors[0]["stage"] == "telegram_ingest"
+
+
+def test_request_failure_never_persists_bot_token(monkeypatch, db_connection):
+    telegram_ingest._webhook_verified = True
+    secret = "123456:very-secret-bot-token"
+    monkeypatch.setattr("config.TELEGRAM_BOT_TOKEN", secret)
+    request = requests.Request(
+        "GET", f"https://api.telegram.org/bot{secret}/getUpdates"
+    ).prepare()
+    error = requests.ConnectionError("failed", request=request)
+    def fail_updates(_offset):
+        raise error
+
+    monkeypatch.setattr(telegram_ingest, "_get_updates", fail_updates)
+
+    assert telegram_ingest.poll_once(db_connection) == 0
+    stored = db_connection.execute(
+        "SELECT error_message FROM errors ORDER BY id DESC LIMIT 1"
+    ).fetchone()[0]
+    assert secret not in stored
+    assert "api.telegram.org" not in stored
 
 
 def test_datalab_message_is_saved_and_offset_advances(monkeypatch, db_connection):

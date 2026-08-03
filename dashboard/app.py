@@ -392,7 +392,9 @@ _STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 
 app = Flask(__name__)
-app.secret_key = config.FLASK_SECRET_KEY or "dev-only-insecure-key-set-FLASK_SECRET_KEY"
+if not config.FLASK_SECRET_KEY:
+    raise RuntimeError("FLASK_SECRET_KEY must be configured before the application starts")
+app.secret_key = config.FLASK_SECRET_KEY
 app.permanent_session_lifetime = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -408,9 +410,6 @@ app.config.update(
 app.wsgi_app = LocalePrefixMiddleware(
     ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 )
-
-if not config.FLASK_SECRET_KEY:
-    logger.warning("FLASK_SECRET_KEY가 설정되지 않아 임시 키를 사용합니다. 재시작 시 세션이 모두 만료됩니다.")
 
 init_oauth(app)
 app.register_blueprint(auth_bp)
@@ -641,7 +640,14 @@ def apply_security_headers(response):
     if session.get("user_id"):
         response.headers["Cache-Control"] = "no-store, private"
         response.headers["Pragma"] = "no-cache"
-    if getattr(g, "clear_remember_cookie", False):
+    rotated_remember_cookie = getattr(g, "remember_cookie_value", None)
+    if rotated_remember_cookie:
+        response.set_cookie(
+            "casino_in_remember", rotated_remember_cookie,
+            max_age=config.REMEMBER_LOGIN_DAYS * 86400,
+            secure=True, httponly=True, samesite="Lax", path="/",
+        )
+    elif getattr(g, "clear_remember_cookie", False):
         response.delete_cookie(
             "casino_in_remember", secure=True, httponly=True,
             samesite="Lax", path="/",

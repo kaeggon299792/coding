@@ -76,6 +76,35 @@ def test_remember_login_stores_only_hash(account_client):
     assert "SameSite=Lax" in response.headers["Set-Cookie"]
 
 
+def test_remember_login_rotates_after_successful_restore(account_client):
+    client, db_path = account_client
+    response = _login(client, remember=True)
+    original = SimpleCookie()
+    original.load(response.headers["Set-Cookie"])
+    original_value = original["casino_in_remember"].value
+    original_selector = original_value.split(".", 1)[0]
+    with client.session_transaction() as flask_session:
+        flask_session.clear()
+
+    restored = client.get("/", follow_redirects=False)
+    rotated = SimpleCookie()
+    rotated.load(restored.headers["Set-Cookie"])
+    rotated_value = rotated["casino_in_remember"].value
+    assert rotated_value != original_value
+
+    connection = sqlite3.connect(db_path)
+    old_revoked = connection.execute(
+        "SELECT revoked_at FROM remember_login_tokens WHERE selector=?",
+        (original_selector,),
+    ).fetchone()[0]
+    active = connection.execute(
+        "SELECT COUNT(*) FROM remember_login_tokens WHERE revoked_at IS NULL"
+    ).fetchone()[0]
+    connection.close()
+    assert old_revoked
+    assert active == 1
+
+
 def test_email_change_requires_current_password(account_client):
     client, db_path = account_client
     _login(client)

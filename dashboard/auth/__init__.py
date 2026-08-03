@@ -318,10 +318,10 @@ def restore_remembered_login():
             "role": item.get("role") or "user",
         }
         _start_user_session(connection, user)
-        connection.execute(
-            "UPDATE remember_login_tokens SET last_used_at=? WHERE selector=?",
-            (now_kst().isoformat(), selector),
-        )
+        # A remember token is single-use. Rotate it after successful restoration
+        # so a copied cookie cannot be replayed for the remainder of its lifetime.
+        _revoke_remember_cookie(connection, cookie_value, "rotated_after_use")
+        g.remember_cookie_value = _issue_remember_token(connection, user["id"])
         queries.touch_last_login(connection, user["id"])
         security_audit.log_event(
             connection, "REMEMBER_LOGIN_SUCCESS", "dashboard_user", user["id"]
