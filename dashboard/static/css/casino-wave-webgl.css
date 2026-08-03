@@ -1,0 +1,69 @@
+body.cinematic-home .casino-wave-canvas,
+body.cinematic-home .casino-wave-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+body.cinematic-home .casino-wave-fallback {
+  z-index: 0;
+  opacity: 1;
+  background:
+    radial-gradient(ellipse 64% 54% at 50% 42%, rgba(255, 255, 255, .11), rgba(200, 205, 210, .035) 45%, transparent 78%),
+    #050607;
+  transition: opacity .8s ease;
+}
+
+body.cinematic-home .casino-wave-canvas {
+  z-index: 1;
+  display: block;
+  opacity: 0;
+  background: transparent;
+  mask-image: radial-gradient(ellipse 94% 88% at 50% 46%, #000 0%, rgba(0, 0, 0, .96) 58%, rgba(0, 0, 0, .42) 79%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 94% 88% at 50% 46%, #000 0%, rgba(0, 0, 0, .96) 58%, rgba(0, 0, 0, .42) 79%, transparent 100%);
+  transition: opacity 1.1s ease;
+}
+
+body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
+  opacity: .92;
+}
+
+body.cinematic-home.webgl-wave-ready .casino-wave-fallback {
+  opacity: 0;
+}
+
+html[data-theme="light"] body.cinematic-home .casino-wave-canvas {
+  display: block;
+  opacity: 1;
+  filter: brightness(0);
+  mix-blend-mode: multiply;
+}
+
+html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
+  opacity: 1;
+  background: radial-gradient(ellipse 62% 52% at 50% 42%, rgba(83, 89, 96, .07), rgba(200, 205, 210, .025) 48%, transparent 80%);
+}
+
+@media (max-width: 700px) {
+  body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
+    opacity: 1;
+  }
+
+  body.cinematic-home .casino-wave-canvas {
+    mask-image: radial-gradient(ellipse 105% 92% at 50% 43%, #000 0%, rgba(0, 0, 0, .98) 65%, rgba(0, 0, 0, .45) 84%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 105% 92% at 50% 43%, #000 0%, rgba(0, 0, 0, .98) 65%, rgba(0, 0, 0, .45) 84%, transparent 100%);
+  }
+
+  html[data-theme="light"] body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.cinematic-home .casino-wave-canvas,
+  body.cinematic-home .casino-wave-fallback {
+    transition: none;
+  }
+}

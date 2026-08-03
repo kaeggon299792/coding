@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} · {{ '공지사항' if post.board_type == 'notice' else '자유 게시판' }}{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container community-page community-detail-page">
+  <nav class="community-detail-toolbar"><a href="{{ url_for('notice_board_page' if post.board_type == 'notice' else 'community_board_page') }}">← {{ '공지 목록' if post.board_type == 'notice' else '목록으로' }}</a></nav>
+
+  <article class="panel community-detail-card">
+    <header class="community-detail-header">
+      <p class="page-eyebrow">{{ 'COMMUNITY / NOTICE' if post.board_type == 'notice' else 'COMMUNITY / POST' }} #{{ post.id }}</p>
+      <h1>{{ post.title }}</h1>
+      <div class="community-post-meta"><strong>{{ post.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:16]|replace('T', ' ') }}</time></div>
+    </header>
+    <div class="community-post-content community-markdown">{{ post_html }}</div>
+    {% if post.image_url or post.pdf_url %}
+    <div class="community-attachments">
+      {% if post.image_url %}<a class="community-image-attachment" href="{{ post.image_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ post.image_url }}" alt="{{ post.title }} 첨부 이미지" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span>첨부 이미지 원본 보기 ↗</span></a>{% endif %}
+      {% if post.pdf_url %}<a class="community-pdf-attachment" href="{{ post.pdf_url }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">PDF</span><strong>첨부 PDF 열기 ↗</strong></a>{% endif %}
+    </div>
+    {% endif %}
+    <div class="community-post-actions" id="post-actions">
+      {% if current_username %}
+      <form method="post" action="{{ url_for('recommend_community_post_route', post_id=post.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn community-recommend-button{% if post.recommended_by_current_user %} is-active{% endif %}" type="submit" aria-pressed="{{ 'true' if post.recommended_by_current_user else 'false' }}">↑ {{ '추천 취소' if post.recommended_by_current_user else '추천' }} <strong>{{ post.recommendation_count }}</strong></button>
+      </form>
+      {% else %}
+      <a class="btn community-recommend-button" href="{{ url_for('auth.login', next=request.path) }}">↑ 추천 <strong>{{ post.recommendation_count }}</strong></a>
+      {% endif %}
+      <button class="btn community-share-button" type="button" data-community-share data-share-title="{{ post.title }}">공유</button>
+      <span class="community-share-status" data-community-share-status role="status" aria-live="polite"></span>
+    </div>
+  </article>
+
+  <section class="panel community-comments" id="comments">
+    <div class="section-heading community-section-heading">
+      <div><p class="section-kicker">DISCUSSION</p><h2>댓글 <span>{{ comments|length }}</span></h2></div>
+    </div>
+    {% if comment_error %}<div class="flash error" role="alert">{{ comment_error }}</div>{% endif %}
+
+    {% if current_username %}
+    <form class="community-comment-form" method="post" action="{{ url_for('create_community_comment_route', post_id=post.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="community-comment-content">{{ current_username }} 님의 댓글</label>
+      <textarea id="community-comment-content" name="content" maxlength="1000" rows="4" required placeholder="댓글을 입력해주세요">{{ comment_content or '' }}</textarea>
+      <div><small>최대 1,000자</small><button class="btn btn-primary" type="submit">댓글 등록</button></div>
+    </form>
+    {% else %}
+    <div class="community-comment-login"><p>댓글을 작성하려면 로그인이 필요합니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></div>
+    {% endif %}
+
+    {% if comments %}
+    <ol class="community-comment-list">
+      {% for comment in comments %}
+      <li>
+        <div class="community-comment-meta"><strong>{{ comment.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ comment.created_at or '' }}">{{ (comment.created_at or '')[:16]|replace('T', ' ') }}</time></div>
+        <p>{{ comment.content }}</p>
+        {% if current_user_role == 'admin' or (current_user and current_user.id == comment.author_id) %}
+        <form method="post" action="{{ url_for('delete_community_comment_route', post_id=post.id, comment_id=comment.id) }}" onsubmit="return confirm('댓글을 삭제할까요?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="community-delete-button" type="submit">삭제</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}<div class="community-empty compact"><p>아직 댓글이 없습니다. 첫 의견을 남겨보세요.</p></div>{% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/community-board.js') }}?v=20260803-1" defer></script>{% endblock %}

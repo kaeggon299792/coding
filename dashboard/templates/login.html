@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}로그인{% endblock %}
+{% block body %}
+<div class="login-page">
+  <a class="login-home-link" href="{{ url_for('public_home') }}">← 시작 화면</a>
+  <form class="login-card" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+    <img class="brand-logo login-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async">
+    {% set login_taglines = [
+      ('카지노인을 위한 모든 정보.', 'Everything casino professionals need.'),
+      ('카지노인을 위한 하나의 공간.', 'One space for the casino industry.'),
+      ('카지노 업계를 한눈에.', 'The casino industry at a glance.'),
+      ('필요한 정보를, 필요한 순간에.', 'The right information, right when you need it.'),
+      ('업계의 흐름을 가장 빠르게.', 'Stay ahead of the industry.'),
+      ('정보는 흩어져 있어도, 인사이트는 하나로.', 'Scattered information. Connected insight.'),
+      ('카지노 산업을 더 가까이.', 'Bringing the casino industry closer.')
+    ] %}
+    {% set login_tagline = login_taglines | random %}
+    <p class="login-eyebrow">{% if current_locale == 'en' %}CASINO IN / MANAGEMENT DASHBOARD{% else %}{{ login_tagline[1] }}{% endif %}</p>
+    <h1 class="login-title">{{ login_tagline[1] if current_locale == 'en' else login_tagline[0] }}</h1>
+    {% if error %}
+      <p class="login-error">{{ error }}</p>
+    {% endif %}
+    {% if notice %}<p class="account-notice">{{ notice }}</p>{% endif %}
+    <a class="google-login-button" href="{{ url_for('auth.google_login', next=request.args.get('next')) }}">
+      <img src="{{ url_for('static', filename='img/google-g.svg') }}" alt="" width="18" height="18" aria-hidden="true">
+      <span>Google 계정으로 로그인</span>
+    </a>
+    <div class="login-divider" role="separator"><span>또는</span></div>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="login-label" for="username">아이디</label>
+    <input class="login-input" type="text" id="username" name="username" autocomplete="username" required autofocus>
+    <label class="login-label" for="password">비밀번호</label>
+    <input class="login-input" type="password" id="password" name="password" autocomplete="current-password" required>
+    <label class="remember-login-option">
+      <input type="checkbox" name="remember_me" value="1">
+      <span><strong>자동 로그인</strong><small>30일 동안 이 기기에서 로그인 상태를 복원합니다.</small></span>
+    </label>
+    <p class="remember-login-warning">공용·회사 공용 PC에서는 선택하지 마세요. 로그아웃하거나 비밀번호를 변경하면 자동 로그인이 해제됩니다.</p>
+    <button class="login-button" type="submit">로그인</button>
+    <a class="register-link" href="{{ url_for('auth.register') }}">계정이 없으신가요? 가입 신청</a>
+  </form>
+  <div class="guest-access-wrap">
+    <a class="guest-access-button" href="{{ url_for('public_home') }}"><strong>로그인하지 않고 이용하기</strong><span>공개 메뉴와 대시보드 보기</span></a>
+  </div>
+</div>
+{% endblock %}

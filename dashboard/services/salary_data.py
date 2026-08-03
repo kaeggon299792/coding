@@ -1,0 +1,516 @@
+"""공개 채용정보 원문에서 평균연봉을 확인한다.
+
+검색결과 페이지 자체를 수집하지 않고 검색에 노출되는 원 출처를 조회한다.
+수집 실패 시 호출자가 기존 DB 값을 유지할 수 있도록 실패 항목을 분리한다.
+"""
+
+import html as html_module
+import re
+from datetime import datetime
+
+import config
+from services.http_utils import get_with_hard_timeout
+from utils import now_kst
+
+
+SOURCES = (
+    {
+        "entity_code": "paradise",
+        "entity_name": "파라다이스",
+        "url": "https://www.jobkorea.co.kr/company/1535297/Salary",
+        "source_name": "잡코리아",
+        "kind": "jobkorea",
+    },
+    {
+        "entity_code": "gkl",
+        "entity_name": "GKL",
+        "url": "https://www.jobkorea.co.kr/company/1469899/Salary",
+        "source_name": "잡코리아",
+        "kind": "jobkorea",
+    },
+    {
+        "entity_code": "kangwon_land",
+        "entity_name": "강원랜드",
+        "url": "https://www.jobkorea.co.kr/company/1683297/Salary",
+        "source_name": "잡코리아",
+        "kind": "jobkorea",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발",
+        "url": "https://www.openbizdata.com/lottetourdev/",
+        "source_name": "OpenBizData",
+        "kind": "openbiz",
+    },
+)
+
+REVIEW_SOURCES = (
+    {
+        "entity_code": "paradise",
+        "entity_name": "파라다이스",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/50639/reviews/"
+            "%ED%8C%8C%EB%9D%BC%EB%8B%A4%EC%9D%B4%EC%8A%A4"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "paradise",
+        "entity_name": "파라다이스",
+        "source_code": "blind",
+        "source_name": "블라인드",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%ED%8C%8C%EB%9D%BC%EB%8B%A4%EC%9D%B4%EC%8A%A4/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "gkl",
+        "entity_name": "GKL",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · GKL",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/44165/reviews/"
+            "%EA%B7%B8%EB%9E%9C%EB%93%9C%EC%BD%94%EB%A6%AC%EC%95%84%EB%A0%88%EC%A0%80"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "gkl",
+        "entity_name": "GKL",
+        "source_code": "jobplanet_sevenluck",
+        "source_name": "잡플래닛 · 세븐럭카지노",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/316912/reviews/"
+            "%EC%84%B8%EB%B8%90%EB%9F%AD%EC%B9%B4%EC%A7%80%EB%85%B8"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "gkl",
+        "entity_name": "GKL",
+        "source_code": "blind",
+        "source_name": "블라인드 · GKL",
+        "url": "https://www.teamblind.com/kr/company/GKL/",
+        "kind": "blind",
+    },
+    {
+        "entity_code": "kangwon_land",
+        "entity_name": "강원랜드",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 강원랜드",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/85983/reviews/"
+            "%EA%B0%95%EC%9B%90%EB%9E%9C%EB%93%9C"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "kangwon_land",
+        "entity_name": "강원랜드",
+        "source_code": "blind",
+        "source_name": "블라인드 · 강원랜드",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EA%B0%95%EC%9B%90%EB%9E%9C%EB%93%9C/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 롯데관광개발",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/35673/reviews/"
+            "%EB%A1%AF%EB%8D%B0%EA%B4%80%EA%B4%91%EA%B0%9C%EB%B0%9C"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발",
+        "source_code": "blind",
+        "source_name": "블라인드 · 롯데관광개발",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EB%A1%AF%EB%8D%B0%EA%B4%80%EA%B4%91%EA%B0%9C%EB%B0%9C/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발",
+        "source_code": "jobplanet_dreamtower",
+        "source_name": "잡플래닛 · 제주드림타워",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/356954/reviews/"
+            "%EC%A0%9C%EC%A3%BC%EB%93%9C%EB%A6%BC%ED%83%80%EC%9B%8C"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발",
+        "source_code": "blind_dreamtower",
+        "source_name": "블라인드 · 제주드림타워",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EC%A0%9C%EC%A3%BC%EB%93%9C%EB%A6%BC%ED%83%80%EC%9B%8C/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "paradise_segasammy",
+        "entity_name": "파라다이스세가사미",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 파라다이스세가사미",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/148195/reviews/"
+            "%ED%8C%8C%EB%9D%BC%EB%8B%A4%EC%9D%B4%EC%8A%A4%EC%84%B8%EA%B0%80%EC%82%AC%EB%AF%B8"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "paradise_segasammy",
+        "entity_name": "파라다이스세가사미",
+        "source_code": "blind",
+        "source_name": "블라인드 · 파라다이스세가사미",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%ED%8C%8C%EB%9D%BC%EB%8B%A4%EC%9D%B4%EC%8A%A4%EC%84%B8%EA%B0%80%EC%82%AC%EB%AF%B8/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "inspire",
+        "entity_name": "인스파이어 인티그레이티드 리조트",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 인스파이어",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/393355/reviews/"
+            "%EC%9D%B8%EC%8A%A4%ED%8C%8C%EC%9D%B4%EC%96%B4%EC%9D%B8%ED%8B%B0%EA%B7%B8%EB%A0%88%EC%9D%B4%ED%8B%B0%EB%93%9C%EB%A6%AC%EC%A1%B0%ED%8A%B8"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "inspire",
+        "entity_name": "인스파이어 인티그레이티드 리조트",
+        "source_code": "blind",
+        "source_name": "블라인드 · 인스파이어",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EC%9D%B8%EC%8A%A4%ED%8C%8C%EC%9D%B4%EC%96%B4%EC%9D%B8%ED%8B%B0%EA%B7%B8%EB%A0%88%EC%9D%B4%ED%8B%B0%EB%93%9C%EB%A6%AC%EC%A1%B0%ED%8A%B8/"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "golden_crown",
+        "entity_name": "㈜골든크라운",
+        "source_code": "jobplanet_interburgo",
+        "source_name": "잡플래닛 · 호텔인터불고엑스코(참고)",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/141004/reviews/"
+            "%ED%98%B8%ED%85%94%EC%9D%B8%ED%84%B0%EB%B6%88%EA%B3%A0%EC%97%91%EC%8A%A4%EC%BD%94"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "golden_crown",
+        "entity_name": "㈜골든크라운",
+        "source_code": "blind_interburgo",
+        "source_name": "블라인드 · 인터불고엑스코(참고)",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EC%9D%B8%ED%84%B0%EB%B6%88%EA%B3%A0%EC%97%91%EC%8A%A4%EC%BD%94/reviews"
+        ),
+        "kind": "blind",
+    },
+    {
+        "entity_code": "paradise",
+        "entity_name": "파라다이스",
+        "source_code": "jobplanet_glad",
+        "source_name": "잡플래닛 · 글래드호텔앤리조트(참고)",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/361539/reviews/"
+            "%EA%B8%80%EB%9E%98%EB%93%9C%ED%98%B8%ED%85%94%EC%95%A4%EB%A6%AC%EC%A1%B0%ED%8A%B8"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "paradise",
+        "entity_name": "파라다이스",
+        "source_code": "blind_glad",
+        "source_name": "블라인드 · 글래드호텔앤리조트(참고)",
+        "url": (
+            "https://www.teamblind.com/kr/company/"
+            "%EA%B8%80%EB%9E%98%EB%93%9C%ED%98%B8%ED%85%94%EC%95%A4%EB%A6%AC%EC%A1%B0%ED%8A%B8/"
+        ),
+        "kind": "blind",
+    },
+)
+
+
+def merge_operator_cards(items, operators):
+    """DB 최신값에 카지노 운영 법인 전체를 합치고 미공개 법인도 보존한다."""
+    companies = {
+        item["entity_code"]: dict(item)
+        for item in items
+        if item.get("entity_type") != "industry"
+    }
+    benchmarks = [dict(item) for item in items if item.get("entity_type") == "industry"]
+    merged = []
+    registry_codes = set()
+    for operator in operators:
+        entity_code = operator["entity_code"]
+        registry_codes.add(entity_code)
+        item = companies.get(entity_code, {
+            "entity_code": entity_code,
+            "entity_name": operator["entity_name"],
+            "entity_type": "company",
+            "average_salary_manwon": None,
+            "source_name": None,
+            "source_url": None,
+            "source_period": None,
+            "collected_date": None,
+            "review_ratings": [],
+            "trend_points": "",
+            "trend_area_points": "",
+            "monthly_change": None,
+        })
+        item.update({
+            "operator_name": operator["operator_name"],
+            "venue_names": operator["venue_names"],
+            "venue_count": operator["venue_count"],
+            "regions": operator["regions"],
+            "data_available": (
+                item.get("average_salary_manwon") is not None
+                or bool(item.get("review_ratings"))
+            ),
+        })
+        merged.append(item)
+    for entity_code, item in companies.items():
+        if entity_code not in registry_codes:
+            item.setdefault("data_available", True)
+            merged.append(item)
+    priority = {
+        "paradise": 0,
+        "gkl": 1,
+        "kangwon_land": 2,
+        "lotte_tour": 3,
+    }
+    merged.sort(key=lambda item: priority.get(item["entity_code"], 100))
+    return [*merged, *benchmarks]
+
+
+def _number(value):
+    return int(str(value).replace(",", ""))
+
+
+def _parse_jobkorea(html):
+    title = re.search(
+        r'<meta\s+name="title"\s+content="[^"]*?([0-9][0-9,]{3,})\s*만원',
+        html,
+        re.IGNORECASE,
+    )
+    if not title:
+        raise ValueError("평균연봉 메타정보를 찾지 못했습니다.")
+    period = re.search(r"(\d{4})년\s*기준", html)
+    return _number(title.group(1)), period.group(1) if period else None
+
+
+def _parse_openbiz(html):
+    match = re.search(r"추정\s*평균\s*연봉[^0-9]{0,30}([0-9][0-9,]{3,})만원", html)
+    if not match:
+        raise ValueError("추정 평균연봉 정보를 찾지 못했습니다.")
+    period = re.search(r"(\d{4})년\s*(\d{1,2})월\s*기준", html)
+    label = f"{period.group(1)}.{int(period.group(2)):02d}" if period else None
+    return _number(match.group(1)), label
+
+
+def _plain_text(document):
+    without_scripts = re.sub(
+        r"<(?:script|style)\b[^>]*>.*?</(?:script|style)>",
+        " ",
+        document,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return re.sub(
+        r"\s+", " ", html_module.unescape(re.sub(r"<[^>]+>", " ", without_scripts))
+    ).strip()
+
+
+def _parse_blind_rating(document):
+    structured = re.search(
+        r'"@type"\s*:\s*"EmployerAggregateRating".*?'
+        r'"ratingValue"\s*:\s*"?([0-5](?:\.\d+)?)"?.*?'
+        r'"ratingCount"\s*:\s*"?([0-9,]+)"?',
+        document,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if structured:
+        return float(structured.group(1)), _number(structured.group(2))
+    text = _plain_text(document)
+    match = re.search(
+        r"Rating\s+Score\s*([0-5](?:\.\d+)?)\s*\(([0-9,]+)개\s*리뷰\)",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        raise ValueError("블라인드 공개 평점 정보를 찾지 못했습니다.")
+    return float(match.group(1)), _number(match.group(2))
+
+
+def _parse_jobplanet_rating(document):
+    text = _plain_text(document)
+    patterns = (
+        r"기업리뷰\s*([0-9,]+)건,?\s*([0-5](?:\.\d+)?)\s*리뷰평점",
+        r"전체\s*리뷰\s*통계\s*\(([0-9,]+)명\)\s*([0-5](?:\.\d+)?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return float(match.group(2)), _number(match.group(1))
+    raise ValueError("잡플래닛 공개 평점 정보를 찾지 못했습니다.")
+
+
+def fetch_source(source):
+    response = get_with_hard_timeout(
+        source["url"],
+        hard_timeout_seconds=config.SALARY_REQUEST_TIMEOUT_SECONDS,
+        retry_attempts=2,
+        timeout=(5, config.SALARY_REQUEST_TIMEOUT_SECONDS),
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 Chrome/126 Safari/537.36"
+            )
+        },
+    )
+    response.raise_for_status()
+    response.encoding = response.apparent_encoding or response.encoding
+    parser = _parse_jobkorea if source["kind"] == "jobkorea" else _parse_openbiz
+    salary, source_period = parser(response.text)
+    timestamp = now_kst()
+    return {
+        **source,
+        "entity_type": "company",
+        "average_salary_manwon": salary,
+        "source_url": source["url"],
+        "source_period": source_period,
+        "collected_date": timestamp.date().isoformat(),
+        "fetched_at": timestamp.isoformat(),
+    }
+
+
+def fetch_review_source(source):
+    parser = _parse_blind_rating if source["kind"] == "blind" else _parse_jobplanet_rating
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/126 Safari/537.36"
+        ),
+        "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.7",
+    }
+    retrieval_method = "direct"
+    try:
+        response = get_with_hard_timeout(
+            source["url"],
+            hard_timeout_seconds=config.SALARY_REQUEST_TIMEOUT_SECONDS,
+            retry_attempts=2,
+            timeout=(5, config.SALARY_REQUEST_TIMEOUT_SECONDS),
+            headers=headers,
+        )
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding or response.encoding
+        rating, review_count = parser(response.text)
+    except Exception:  # 공개 원문이 봇 요청을 막거나 동적 렌더링만 제공하는 경우
+        retrieval_method = "reader"
+        reader_url = f"https://r.jina.ai/{source['url']}"
+        response = get_with_hard_timeout(
+            reader_url,
+            hard_timeout_seconds=max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 45),
+            retry_attempts=2,
+            timeout=(5, max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 45)),
+            headers={"Accept": "text/plain", "User-Agent": headers["User-Agent"]},
+        )
+        response.raise_for_status()
+        rating, review_count = parser(response.text)
+    timestamp = now_kst()
+    return {
+        **source,
+        "rating": rating,
+        "review_count": review_count,
+        "source_url": source["url"],
+        "retrieval_method": retrieval_method,
+        "collected_date": timestamp.date().isoformat(),
+        "fetched_at": timestamp.isoformat(),
+    }
+
+
+def build_benchmarks(companies):
+    if not companies:
+        return []
+    timestamp = now_kst()
+    common = {
+        "collected_date": timestamp.date().isoformat(),
+        "fetched_at": timestamp.isoformat(),
+    }
+    casino_average = round(
+        sum(item["average_salary_manwon"] for item in companies) / len(companies)
+    )
+    # 호텔 비교군은 잡코리아의 호텔·여행·항공 순위에 함께 노출되는 대표 호텔
+    # 6개사(호텔롯데, 호텔신라, 파르나스, 칼호텔, 호반호텔, 파라다이스호텔부산)
+    # 최신 공개값의 단순평균이다. 개별 회사를 재배포하지 않고 비교 기준만 저장한다.
+    hotel_reference_values = (6531, 6105, 5250, 6209, 4740, 5523)
+    return [
+        {
+            **common,
+            "entity_code": "casino_average",
+            "entity_name": "카지노 4사 평균",
+            "entity_type": "industry",
+            "average_salary_manwon": casino_average,
+            "source_name": "4사 공개값 단순평균",
+            "source_url": None,
+            "source_period": max(
+                (item.get("source_period") or "" for item in companies), default=""
+            ),
+        },
+        {
+            **common,
+            "entity_code": "hotel_average",
+            "entity_name": "호텔업계 비교군 평균",
+            "entity_type": "industry",
+            "average_salary_manwon": round(
+                sum(hotel_reference_values) / len(hotel_reference_values)
+            ),
+            "source_name": "잡코리아 호텔·여행·항공 비교군",
+            "source_url": SOURCES[0]["url"],
+            "source_period": f"{datetime.now().year}.07",
+        },
+    ]
+
+
+def fetch_all():
+    items, reviews, errors = [], [], []
+    for source in SOURCES:
+        try:
+            items.append(fetch_source(source))
+        except Exception as error:  # noqa: BLE001 - 다른 출처 수집은 계속한다.
+            errors.append({"entity_code": source["entity_code"], "error": str(error)})
+    for source in REVIEW_SOURCES:
+        try:
+            reviews.append(fetch_review_source(source))
+        except Exception as error:  # noqa: BLE001 - 기존 정상 평점은 유지한다.
+            errors.append({
+                "entity_code": f"{source['entity_code']}.{source['source_code']}",
+                "error": str(error),
+            })
+    return {
+        "items": [*items, *build_benchmarks(items)],
+        "reviews": reviews,
+        "errors": errors,
+    }

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}주가 정보{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container market-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Market / Casino Companies</p>
+    <h1 class="page-title">주가 정보</h1>
+    <p class="page-description">국내 4개 카지노 기업과 마카오 주요 카지노 운영사 4곳의 최근 종가 및 30거래일 추이를 비교합니다.</p>
+    <div class="data-freshness-row">
+      <span class="data-freshness"><b>국내 최종 확인</b>{{ market_domestic_checked_at[:16]|replace('T', ' ') if market_domestic_checked_at else '확인 기록 없음' }}</span>
+      <span class="data-freshness"><b>해외 최종 확인</b>{{ market_global_checked_at[:16]|replace('T', ' ') if market_global_checked_at else '확인 기록 없음' }}</span>
+      <span class="data-freshness"><b>국내 기준일</b>{{ market_domestic_base_date or '시세 기록 없음' }}</span>
+      <span class="data-freshness"><b>해외 기준일</b>{{ market_global_base_date or '시세 기록 없음' }}</span>
+      {% if market_check_status and market_check_status != 'success' %}<span class="data-freshness is-warning"><b>확인 상태</b>일부 종목 확인 필요</span>{% endif %}
+    </div>
+  </header>
+
+  <section class="market-overview market-detail-overview">
+    <div class="section-heading market-section-heading"><div><p class="page-eyebrow">Korea / Market</p><h2>국내 주가</h2></div></div>
+    {% if market_quotes %}
+    <div class="market-quote-grid">
+      {% for quote in market_quotes %}
+      <article class="market-quote-card {% if quote.name|upper == 'KOSPI' %}is-primary{% endif %}">
+        <div class="market-quote-label"><span>{{ quote.market or quote.asset_type }}</span><time>{{ quote.base_date or '-' }}</time></div>
+        <h3>{{ quote.name }}</h3>
+        <strong class="market-price">{% if quote.asset_type == 'stock' %}₩{% endif %}{{ '{:,.2f}'.format(quote.close_price)|replace('.00', '') if quote.close_price is not none else '-' }}</strong>
+        {% if quote.trend_points %}
+        <svg class="market-sparkline {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ quote.name }} 최근 {{ quote.trend_count }}거래일 종가 추이">
+          <defs><linearGradient id="detail-market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".26"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <polygon points="{{ quote.trend_area_points }}" fill="url(#detail-market-gradient-{{ loop.index }})"/>
+          <polyline points="{{ quote.trend_points }}"/>
+          {% set final_point = quote.trend_points.split(' ')[-1].split(',') %}<circle cx="{{ final_point[0] }}" cy="{{ final_point[1] }}" r="1.6"/>
+        </svg>
+        {% endif %}
+        <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">
+          <span>{{ '{:+,.2f}'.format(quote.change_value)|replace('.00', '') if quote.change_value is not none else '-' }}</span>
+          <b>{{ '{:+.2f}%'.format(quote.change_rate) if quote.change_rate is not none else '-' }}</b>
+        </div>
+        <dl class="market-detail-stats">
+          <div><dt>시가</dt><dd>{{ '{:,.2f}'.format(quote.open_price)|replace('.00', '') if quote.open_price is not none else '-' }}</dd></div>
+          <div><dt>고가</dt><dd>{{ '{:,.2f}'.format(quote.high_price)|replace('.00', '') if quote.high_price is not none else '-' }}</dd></div>
+          <div><dt>저가</dt><dd>{{ '{:,.2f}'.format(quote.low_price)|replace('.00', '') if quote.low_price is not none else '-' }}</dd></div>
+          <div><dt>거래량</dt><dd>{{ '{:,}'.format(quote.volume) if quote.volume is not none else '-' }}</dd></div>
+        </dl>
+        {% if quote.market_cap_label %}<div class="market-cap"><span>시가총액</span><b>{{ quote.market_cap_label }}</b></div>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="market-empty"><strong>시장 시세 업데이트 대기</strong><p>시장 데이터 동기화 후 자동으로 표시됩니다.</p></div>
+    {% endif %}
+  </section>
+  <p class="tourism-source">출처: 금융위원회 주식시세정보·지수시세정보 Open API · 실시간 체결가가 아닌 최근 영업일 종가 기준</p>
+
+  <section class="market-overview market-detail-overview global-market-section">
+    <div class="section-heading market-section-heading">
+      <div><p class="page-eyebrow">Macau Operators / Global Market</p><h2>해외 주가</h2></div>
+      <span>10분 캐시 · 마지막 정상값 보존</span>
+    </div>
+    {% if global_market_quotes %}
+    <div class="market-quote-grid global-market-grid">
+      {% for quote in global_market_quotes %}
+      <article class="market-quote-card global-market-card {% if quote.fetch_status == 'failed' %}has-fetch-error{% endif %}">
+        <div class="market-quote-label"><span>{{ quote.market }} · {{ quote.symbol }}</span><time>{{ quote.base_date or '-' }}</time></div>
+        <h3>{{ quote.name }}</h3>
+        <strong class="market-price">{{ quote.currency or '' }} {{ '{:,.2f}'.format(quote.close_price) if quote.close_price is not none else '-' }}</strong>
+        {% if quote.krw_estimate is not none %}<small class="market-krw-estimate">(원화 기준 약 {{ "{:,}".format(quote.krw_estimate) }}원)</small>{% endif %}
+        {% if quote.trend_points %}
+        <svg class="market-sparkline {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="{{ quote.name }} 최근 {{ quote.trend_count }}거래일 종가 추이">
+          <defs><linearGradient id="global-market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".26"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <polygon points="{{ quote.trend_area_points }}" fill="url(#global-market-gradient-{{ loop.index }})"/>
+          <polyline points="{{ quote.trend_points }}"/>
+          {% set final_point = quote.trend_points.split(' ')[-1].split(',') %}<circle cx="{{ final_point[0] }}" cy="{{ final_point[1] }}" r="1.6"/>
+        </svg>
+        {% endif %}
+        <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">
+          <span>{{ '{:+,.2f}'.format(quote.change_value) if quote.change_value is not none else '-' }} {{ quote.currency or '' }}</span>
+          <b>{{ '{:+.2f}%'.format(quote.change_rate) if quote.change_rate is not none else '-' }}</b>
+        </div>
+        <dl class="global-quote-meta">
+          <div><dt>거래 통화</dt><dd>{{ quote.currency or '-' }}</dd></div>
+          <div><dt>데이터 출처</dt><dd>{{ quote.source or 'Yahoo Finance' }}</dd></div>
+          <div><dt>최종 업데이트</dt><dd>{{ quote.fetched_at[:16]|replace('T', ' ') if quote.fetched_at else '-' }}</dd></div>
+        </dl>
+        {% if quote.market_cap_label %}<div class="market-cap"><span>시가총액</span><b>{{ quote.market_cap_label }}</b>{% if quote.market_cap_krw_label %}<small class="market-cap-krw">(원화 기준 약 {{ quote.market_cap_krw_label }})</small>{% endif %}</div>{% endif %}
+        {% if quote.fetch_status == 'failed' %}
+        <div class="market-fetch-warning"><b>조회 실패 · 이전 정상값 표시 중</b><span>{{ quote.fetch_error or '외부 시세 응답을 확인할 수 없습니다.' }}</span></div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="market-empty"><strong>해외 시세 최초 조회 대기</strong><p>페이지를 새로 열거나 다음 자동 동기화 때 저장됩니다.</p></div>
+    {% endif %}
+  </section>
+  <p class="tourism-source">출처: Yahoo Finance · 홍콩 종목 HKD, 미국 종목 USD · 실시간 체결가가 아닌 외부 제공 시세 기준</p>
+</main>
+{% endblock %}

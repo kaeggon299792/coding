@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block extra_head %}
+<style>
+  .casino-history-table.revenue{table-layout:fixed;min-width:900px}
+  .casino-history-table.revenue th,.casino-history-table.revenue td{vertical-align:middle}
+  .casino-history-table.revenue th:not(:first-child){text-align:right}
+  .casino-history-table.revenue .casino-money-cell{white-space:nowrap}
+  .casino-krw-note{display:block;margin-top:3px;color:var(--brand-text-muted);font-size:9px;font-weight:500;line-height:1.25;white-space:nowrap}
+</style>
+{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+{% include "_casino_subnav.html" %}
+<main class="page-container casino-history-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Data / Casino Industry / History</p>
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-description">{{ page_description }}</p>
+  </header>
+
+  {% if mode == "visitors" %}
+  <section class="casino-history-kpis">
+    <article><span>2025 외래 방한객</span><strong>{{ "{:,.0f}".format(statistics.latest.foreign_visitors) }}</strong><small>명</small></article>
+    <article><span>2025 카지노 이용객</span><strong>{{ "{:,.0f}".format(statistics.latest.casino_visitors) }}</strong><small>명</small></article>
+    <article><span>외래객 대비 점유율</span><strong>{{ statistics.latest.share }}%</strong><small>B / A</small></article>
+    <article><span>카지노 이용객 증감률</span><strong class="{% if statistics.latest.growth >= 0 %}is-up{% else %}is-down{% endif %}">{{ "%+.1f"|format(statistics.latest.growth) }}%</strong><small>전년 대비</small></article>
+  </section>
+  <section class="panel casino-history-chart">
+    <header><div><p class="page-eyebrow">1994—2025</p><h2>외래 방한객과 카지노 이용객 추이</h2></div>
+      <div class="casino-chart-legend"><span class="foreign">외래 방한객</span><span class="casino">카지노 이용객</span></div></header>
+    <svg class="casino-interactive-chart" viewBox="0 0 920 280" role="img" aria-label="1994년부터 2025년까지 외래 방한객과 카지노 이용객 추이">
+      <defs>
+        <linearGradient id="visitor-foreign-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c8797" stop-opacity=".24"/><stop offset="100%" stop-color="#7c8797" stop-opacity="0"/></linearGradient>
+        <linearGradient id="visitor-casino-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4da8ff" stop-opacity=".34"/><stop offset="100%" stop-color="#4da8ff" stop-opacity="0"/></linearGradient>
+      </defs>
+      {% for y in (40, 90, 140, 190, 236) %}<line class="casino-chart-grid" x1="24" y1="{{ y }}" x2="896" y2="{{ y }}"/>{% endfor %}
+      <polygon class="casino-chart-area foreign" points="{{ statistics.foreign_area_points }}" fill="url(#visitor-foreign-area)"/>
+      <polygon class="casino-chart-area casino" points="{{ statistics.casino_area_points }}" fill="url(#visitor-casino-area)"/>
+      <polyline class="casino-chart-line foreign" points="{{ statistics.foreign_points }}"/>
+      <polyline class="casino-chart-line casino" points="{{ statistics.casino_points }}"/>
+      {% for tick in statistics.year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="266">{{ tick.year }}</text>{% endfor %}
+      {% for point in statistics.foreign_chart_points %}<circle class="casino-chart-hitpoint foreign" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="{{ 'Inbound visitors' if current_locale == 'en' else '외래 방한객' }}" data-value="{{ point.value }}" data-unit="{{ 'visitors' if current_locale == 'en' else '명' }}"/>{% endfor %}
+      {% for point in statistics.casino_chart_points %}<circle class="casino-chart-hitpoint casino" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="{{ 'Casino visitors' if current_locale == 'en' else '카지노 이용객' }}" data-value="{{ point.value }}" data-unit="{{ 'visitors' if current_locale == 'en' else '명' }}"/>{% endfor %}
+    </svg>
+    <div class="casino-chart-tooltip" role="status" aria-live="polite"></div>
+  </section>
+  <section class="panel casino-share-chart">
+    <header><p class="page-eyebrow">CASINO VISITOR SHARE</p><h2>외래 방한객 대비 카지노 이용객 비율</h2></header>
+    <svg class="casino-interactive-chart" viewBox="0 0 920 175" role="img" aria-label="카지노 이용객 점유율 추이">
+      <defs><linearGradient id="visitor-share-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--brand-highlight)" stop-opacity=".34"/><stop offset="100%" stop-color="var(--brand-highlight)" stop-opacity="0"/></linearGradient></defs>
+      <polygon class="casino-chart-area share" points="{{ statistics.share_area_points }}" fill="url(#visitor-share-area)"/>
+      <polyline class="casino-chart-line share" points="{{ statistics.share_points }}"/>
+      {% for tick in statistics.share_year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="166">{{ tick.year }}</text>{% endfor %}
+      {% for point in statistics.share_chart_points %}<circle class="casino-chart-hitpoint share" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="카지노 이용객 비율" data-value="{{ point.value }}" data-unit="%"/>{% endfor %}
+    </svg>
+    <div class="casino-chart-tooltip" role="status" aria-live="polite"></div>
+  </section>
+  <section class="panel casino-history-table-panel">
+    <div class="table-scroll" tabindex="0">
+      <table class="data-table casino-history-table">
+        <thead><tr><th>연도</th><th>외래 방한객(A)</th><th>카지노 이용객(B)</th><th>점유율(B/A)</th><th>이용객 증감률</th></tr></thead>
+        <tbody>{% for row in statistics.rows|reverse %}<tr><td>{{ row.year }}</td><td class="num">{{ "{:,.0f}".format(row.foreign_visitors) }}</td><td class="num">{{ "{:,.0f}".format(row.casino_visitors) }}</td><td class="num">{{ "%.1f"|format(row.share) }}%</td><td class="num {% if row.growth >= 0 %}is-up{% else %}is-down{% endif %}">{{ "%+.1f"|format(row.growth) }}%</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+  {% else %}
+  <section class="casino-history-kpis">
+    <article><span>2025 관광 외화수입</span><strong>${{ "{:,.0f}".format(statistics.latest.tourism_income) }}</strong><small>천 달러</small></article>
+    <article><span>2025 카지노 외화수입</span><strong>${{ "{:,.0f}".format(statistics.latest.casino_income) }}</strong><small>천 달러</small></article>
+    <article><span>카지노 매출액 비율</span><strong>{{ statistics.latest.share }}%</strong><small>B / A</small></article>
+    <article><span>카지노 외화수입 증감률</span><strong class="{% if statistics.latest.casino_growth >= 0 %}is-up{% else %}is-down{% endif %}">{{ "%+.1f"|format(statistics.latest.casino_growth) }}%</strong><small>전년 대비</small></article>
+  </section>
+  <section class="panel casino-history-chart">
+    <header><div><p class="page-eyebrow">1994—2025</p><h2>관광·카지노 외화수입 추이</h2></div>
+      <div class="casino-chart-legend"><span class="foreign">관광 외화수입</span><span class="casino">카지노 외화수입</span></div></header>
+    <svg class="casino-interactive-chart" viewBox="0 0 920 280" role="img" aria-label="1994년부터 2025년까지 관광 외화수입과 카지노 외화수입 추이">
+      <defs>
+        <linearGradient id="revenue-tourism-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c8797" stop-opacity=".24"/><stop offset="100%" stop-color="#7c8797" stop-opacity="0"/></linearGradient>
+        <linearGradient id="revenue-casino-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4da8ff" stop-opacity=".34"/><stop offset="100%" stop-color="#4da8ff" stop-opacity="0"/></linearGradient>
+      </defs>
+      {% for y in (40, 90, 140, 190, 236) %}<line class="casino-chart-grid" x1="24" y1="{{ y }}" x2="896" y2="{{ y }}"/>{% endfor %}
+      <polygon class="casino-chart-area foreign" points="{{ statistics.tourism_area_points }}" fill="url(#revenue-tourism-area)"/>
+      <polygon class="casino-chart-area casino" points="{{ statistics.casino_area_points }}" fill="url(#revenue-casino-area)"/>
+      <polyline class="casino-chart-line foreign" points="{{ statistics.tourism_points }}"/>
+      <polyline class="casino-chart-line casino" points="{{ statistics.casino_points }}"/>
+      {% for tick in statistics.year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="266">{{ tick.year }}</text>{% endfor %}
+      {% for point in statistics.tourism_chart_points %}<circle class="casino-chart-hitpoint foreign" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="{{ 'Tourism foreign-currency revenue' if current_locale == 'en' else '관광 외화수입' }}" data-value="{{ point.value }}" data-unit="{{ 'USD thousands' if current_locale == 'en' else '천 달러' }}"/>{% endfor %}
+      {% for point in statistics.casino_chart_points %}<circle class="casino-chart-hitpoint casino" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="{{ 'Casino foreign-currency revenue' if current_locale == 'en' else '카지노 외화수입' }}" data-value="{{ point.value }}" data-unit="{{ 'USD thousands' if current_locale == 'en' else '천 달러' }}"/>{% endfor %}
+    </svg>
+    <div class="casino-chart-tooltip" role="status" aria-live="polite"></div>
+  </section>
+  <section class="panel casino-share-chart">
+    <header><p class="page-eyebrow">CASINO REVENUE SHARE</p><h2>관광 외화수입 대비 카지노 매출액 비율</h2></header>
+    <svg class="casino-interactive-chart" viewBox="0 0 920 175" role="img" aria-label="카지노 매출액 비율 추이">
+      <defs><linearGradient id="revenue-share-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--brand-highlight)" stop-opacity=".34"/><stop offset="100%" stop-color="var(--brand-highlight)" stop-opacity="0"/></linearGradient></defs>
+      <polygon class="casino-chart-area share" points="{{ statistics.share_area_points }}" fill="url(#revenue-share-area)"/>
+      <polyline class="casino-chart-line share" points="{{ statistics.share_points }}"/>
+      {% for tick in statistics.share_year_ticks %}<text class="casino-chart-year" x="{{ tick.x }}" y="166">{{ tick.year }}</text>{% endfor %}
+      {% for point in statistics.share_chart_points %}<circle class="casino-chart-hitpoint share" cx="{{ point.x }}" cy="{{ point.y }}" r="8" tabindex="0" data-year="{{ point.year }}" data-label="카지노 매출액 비율" data-value="{{ point.value }}" data-unit="%"/>{% endfor %}
+    </svg>
+    <div class="casino-chart-tooltip" role="status" aria-live="polite"></div>
+  </section>
+  <section class="panel casino-history-table-panel">
+    <div class="table-scroll" tabindex="0">
+      <table class="data-table casino-history-table revenue">
+        <colgroup><col style="width:8%"><col style="width:24%"><col style="width:11%"><col style="width:24%"><col style="width:11%"><col style="width:12%"></colgroup>
+        <thead><tr><th>연도</th><th>관광 외화수입(천$)</th><th>증감률</th><th>카지노 외화수입(천$)</th><th>증감률</th><th>점유율</th></tr></thead>
+        <tbody>{% for row in statistics.rows|reverse %}<tr><td>{{ row.year }}</td><td class="num casino-money-cell">{{ "{:,.0f}".format(row.tourism_income) }}</td><td class="num {% if row.tourism_growth >= 0 %}is-up{% else %}is-down{% endif %}">{{ "%+.1f"|format(row.tourism_growth) }}%</td><td class="num casino-money-cell">{{ "{:,.0f}".format(row.casino_income) }}{% set casino_krw_eok = row.casino_income * 15 / 1000 %}<small class="casino-krw-note">{% if current_locale == 'en' %}Approx. KRW {% if casino_krw_eok >= 10000 %}{{ "%.1f"|format(casino_krw_eok / 10000) }}T{% else %}{{ "%.1f"|format(casino_krw_eok / 10) }}B{% endif %}{% else %}약 {% if casino_krw_eok >= 10000 %}{{ "%.1f"|format(casino_krw_eok / 10000) }}조원{% else %}{{ "{:,.0f}".format(casino_krw_eok) }}억원{% endif %}{% endif %}</small></td><td class="num {% if row.casino_growth >= 0 %}is-up{% else %}is-down{% endif %}">{{ "%+.2g"|format(row.casino_growth) }}%</td><td class="num">{{ "%.1f"|format(row.share) }}%</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+  <p class="casino-industry-source">{% if current_locale == 'en' %}KRW conversion: USD 1 ≈ KRW 1,500 (simple conversion) · Source: 2026 Casino Statistics (as of April 2026){% else %}원화 환산: 1달러≈1,500원 단순 적용 · 출처: 「2026 카지노 통계」(2026년 4월 기준){% endif %}</p>
+</main>
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/casino-charts.js') }}?v=20260730-1" defer></script>{% endblock %}

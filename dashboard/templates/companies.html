@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}기업 360°{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<div class="page-container">
+  <div class="page-header">
+    <p class="page-eyebrow">Intelligence / Company 360</p>
+    <h1 class="page-title">기업 360° 비교</h1>
+    <p class="page-description">공식 기업정보와 DART 재무자료를 기준점으로 두고, 뉴스·공시·규제 신호를 같은 기준으로 비교합니다.</p>
+  </div>
+
+  <form class="form-inline" method="get">
+    <label for="days" class="item-meta">동향 비교 기간</label>
+    <select id="days" name="days" onchange="this.form.submit()">
+      <option value="30" {% if days == 30 %}selected{% endif %}>최근 30일</option>
+      <option value="90" {% if days == 90 %}selected{% endif %}>최근 90일</option>
+      <option value="180" {% if days == 180 %}selected{% endif %}>최근 180일</option>
+      <option value="365" {% if days == 365 %}selected{% endif %}>최근 1년</option>
+    </select>
+  </form>
+
+  <div class="company-grid">
+    {% for company in companies %}
+    <article class="company-card" id="company-{{ loop.index }}">
+      <div class="company-card-header">
+        <div>
+          <p class="page-eyebrow">Company {{ "%02d"|format(loop.index) }}</p>
+          <h2>
+            <a class="company-title-link" href="{{ url_for('company_detail_page', company_slug=company.slug) }}">
+              {{ company.display_name or company.name }}
+            </a>
+          </h2>
+          <p class="item-meta">{{ (company.display_aliases or company.aliases)|join(" · ") }}</p>
+        </div>
+        <div class="company-card-status">
+          <div class="company-status-badges">
+            <span class="badge {% if company.dart_corp_code or company.research %}high{% endif %}">
+              DART {% if company.dart_corp_code or company.research %}연동{% else %}코드 미등록{% endif %}
+            </span>
+            {% if company.credit_rating %}
+              {% set rating_code = company.credit_rating.rating|upper %}
+              {% if rating_code.startswith('A') %}
+              <span class="badge credit-best" title="현재 신용등급 {{ company.credit_rating.rating }}">BEST</span>
+              {% elif rating_code.startswith('B') %}
+              <span class="badge credit-good" title="현재 신용등급 {{ company.credit_rating.rating }}">GOOD</span>
+              {% else %}
+              <span class="badge credit-risk" title="현재 신용등급 {{ company.credit_rating.rating }}">HIGH RISK</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          {% if company.credit_rating %}
+          <a class="company-rating-badge" href="{{ url_for('company_detail_page', company_slug=company.slug) }}#credit-rating-history" aria-label="{{ company.display_name or company.name }} 현재 신용등급 {{ company.credit_rating.rating }}, 나이스신용평가 기준">
+            <span>현재 신용등급</span> <strong>{{ company.credit_rating.rating }}</strong><small>나이스신용평가 기준</small>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if company.research %}
+      <section class="research-profile">
+        <div class="research-meta">
+          <span><strong>종목</strong> {{ company.research.stock_code or "비상장" }}</span>
+          <span><strong>대표</strong> {{ company.research.ceo_names or "-" }}</span>
+          <span><strong>설립</strong> {{ company.research.established_date or "-" }}</span>
+          <span><strong>본사</strong> {{ company.research.headquarters or "-" }}</span>
+        </div>
+        <p>{{ company.research.business_summary }}</p>
+        <p class="strategy-brief"><strong>전략 관찰점</strong> {{ company.research.strategy_summary }}</p>
+
+        <div class="financial-strip">
+          {% for metric in company.research.financial_metrics %}
+          <div>
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.display }}</strong>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="item-meta">2025년 연결 기준 · DART 사업보고서</p>
+
+        <div class="research-columns">
+          <div>
+            <h3>핵심 사업·자산</h3>
+            <ul>{% for item in company.research.key_assets %}<li>{{ item }}</li>{% endfor %}</ul>
+          </div>
+          <div>
+            <h3>기회 요인</h3>
+            <ul>{% for item in company.research.opportunities %}<li>{{ item }}</li>{% endfor %}</ul>
+          </div>
+          <div>
+            <h3>점검 리스크</h3>
+            <ul>{% for item in company.research.risks %}<li>{{ item }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+
+        <details>
+          <summary>조사 출처</summary>
+          <ul class="compact-feed">
+            {% for source in company.research.sources %}
+            <li><a href="{{ source.url }}" target="_blank" rel="noopener">{{ source.label }}</a></li>
+            {% endfor %}
+          </ul>
+          <small>조사 갱신: {{ (company.research.researched_at or "")[:10] }}</small>
+        </details>
+      </section>
+      {% else %}
+      <p class="empty-state">아직 기초 조사 자료가 없습니다.</p>
+      {% endif %}
+
+      <div class="company-metrics">
+        <div><strong>{{ company.counts.news }}</strong><span>최근 뉴스</span></div>
+        <div><strong>{{ company.counts.disclosures }}</strong><span>DART 공시</span></div>
+        <div><strong>{{ company.counts.leadership }}</strong><span>임원·조직</span></div>
+        <div><strong>{{ company.counts.investment }}</strong><span>투자·시설</span></div>
+        <div><strong>{{ company.counts.hiring }}</strong><span>채용공고</span></div>
+        <div><strong>{{ company.counts.finance }}</strong><span>재무제표</span></div>
+        <div><strong>{{ company.counts.research_documents }}</strong><span>업로드 리포트</span></div>
+      </div>
+
+      <details>
+        <summary>업로드 리포트 분석</summary>
+        {% if company.research_documents %}
+        <ul class="compact-feed">
+          {% for doc in company.research_documents %}
+          <li>
+            <a href="{{ url_for('download_research_document', document_id=doc.id) }}">{{ doc.title }}</a>
+            <small>{{ doc.publisher or "발행처 미입력" }} · {{ doc.report_date or doc.created_at[:10] }}</small>
+            {% if doc.ai_summary %}<p>{{ doc.ai_summary }}</p>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        <a class="btn btn-text" href="{{ url_for('research_library_page', company=company.name) }}">이 회사 리서치 보기 →</a>
+        {% else %}
+        <p class="empty-state">등록된 리포트가 없습니다. <a href="{{ url_for('research_library_page', company=company.name) }}">자료 업로드</a></p>
+        {% endif %}
+      </details>
+
+      <details>
+        <summary>지난달 대비 전략 변화</summary>
+        {% if company.strategy_changes %}
+          <ul class="signal-list">
+          {% for change in company.strategy_changes %}
+            <li>
+              <span>{{ change.topic }}</span>
+              <strong class="{% if change.delta > 0 %}delta favorable{% else %}delta unfavorable{% endif %}">
+                {{ "%+d"|format(change.delta) }}
+              </strong>
+              <small>최근 30일 {{ change.current }}건 / 이전 30일 {{ change.previous }}건</small>
+            </li>
+          {% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty-state">비교 가능한 전략 신호가 아직 없습니다.</p>
+        {% endif %}
+      </details>
+
+      <div class="company-sections">
+        <details>
+          <summary>최근 뉴스</summary>
+          {% if company.news %}
+            <ul class="compact-feed">
+            {% for item in company.news[:5] %}
+              <li>
+                {% if item.original_url %}<a href="{{ item.original_url }}" target="_blank" rel="noopener">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+                <small>{{ item.publisher or "" }} · {{ (item.published_at or item.collected_at or "")[:10] }}</small>
+              </li>
+            {% endfor %}
+            </ul>
+          {% else %}<p class="empty-state">수집된 뉴스가 없습니다.</p>{% endif %}
+        </details>
+
+        <details>
+          <summary>DART 공시·재무</summary>
+          {% if company.disclosures %}
+            <ul class="compact-feed">
+            {% for item in company.disclosures[:5] %}
+              <li><a href="{{ item.dart_link }}" target="_blank" rel="noopener">{{ item.report_nm }}</a><small>{{ item.rcept_dt }}</small></li>
+            {% endfor %}
+            </ul>
+          {% else %}<p class="empty-state">DART 코드 또는 수집 공시가 없습니다.</p>{% endif %}
+        </details>
+
+        <details>
+          <summary>임원·조직 변화</summary>
+          {% if company.leadership %}
+            <ul class="compact-feed">{% for item in company.leadership[:4] %}<li><a href="{{ item.original_url }}" target="_blank" rel="noopener">{{ item.title }}</a></li>{% endfor %}</ul>
+          {% else %}<p class="empty-state">관련 신호가 없습니다.</p>{% endif %}
+        </details>
+
+        <details>
+          <summary>투자·시설 확장</summary>
+          {% if company.investment %}
+            <ul class="compact-feed">{% for item in company.investment[:4] %}<li><a href="{{ item.original_url }}" target="_blank" rel="noopener">{{ item.title }}</a></li>{% endfor %}</ul>
+          {% else %}<p class="empty-state">관련 신호가 없습니다.</p>{% endif %}
+        </details>
+
+        <details>
+          <summary>채용 동향</summary>
+          {% if company.hiring %}
+            <ul class="compact-feed">{% for item in company.hiring[:4] %}<li><a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a><small>{{ item.source_name }}{% if item.deadline %} · 마감 {{ item.deadline }}{% endif %}</small></li>{% endfor %}</ul>
+            <a class="btn btn-text" href="{{ url_for('recruitment_page', term=company.name) }}">이 회사 채용정보 보기 →</a>
+          {% else %}<p class="empty-state">현재 활성 채용공고가 없습니다.</p>{% endif %}
+        </details>
+
+        <details>
+          <summary>주가·재무지표</summary>
+          {% if company.market_quote %}
+          <div class="company-market-snapshot">
+            <strong>{{ "{:,.0f}".format(company.market_quote.close_price) }} {{ company.market_quote.currency or 'KRW' }}</strong>
+            <span class="{% if company.market_quote.change_rate and company.market_quote.change_rate > 0 %}delta favorable{% elif company.market_quote.change_rate and company.market_quote.change_rate < 0 %}delta unfavorable{% endif %}">{{ '%+.2f'|format(company.market_quote.change_rate or 0) }}%</span>
+            <small>{{ company.market_quote.base_date }} · {{ company.market_quote.source }}</small>
+          </div>
+          {% else %}<p class="empty-state">비상장사이거나 연동된 주가가 없습니다.</p>{% endif %}
+          {% if company.financial_statements %}
+            {% for statement in company.financial_statements %}
+            <div class="company-financial-summary">
+              <strong>{{ statement.title }}</strong><small>{{ statement.period_labels[statement.periods[-1]] if statement.periods else '' }}</small>
+              <ul class="compact-feed">
+                {% for row in statement.rows[:4] %}{% set amount = row.amounts.get(statement.periods[-1]) if statement.periods else none %}<li><span>{{ row.label }}</span><strong>{{ amount.display if amount else '-' }}억원</strong></li>{% endfor %}
+              </ul>
+            </div>
+            {% endfor %}
+          {% else %}<p class="empty-state">등록된 중앙 재무제표가 없습니다.</p>{% endif %}
+          <a class="btn btn-text" href="{{ url_for('company_detail_page', company_slug=company.slug) }}#financial-statements">상세 재무제표 보기 →</a>
+        </details>
+
+        <details>
+          <summary>관련 규제</summary>
+          {% if company.regulations %}
+            <ul class="compact-feed">{% for item in company.regulations[:4] %}<li>{{ item.law_name }}<small>{{ item.status or "" }} · {{ (item.fetched_at or "")[:10] }}</small></li>{% endfor %}</ul>
+          {% else %}<p class="empty-state">수집된 법령 변경이 없습니다.</p>{% endif %}
+        </details>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% include "_footer.html" %}
+{% endblock %}

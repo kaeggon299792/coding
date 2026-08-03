@@ -1,0 +1,12 @@
+{% set rows = compact_items if compact_items is defined else recent %}
+{% if rows %}
+<ul class="compact-feed">
+  {% for item in rows %}
+  <li>
+    <a href="{{ url_for('official_docs.document_detail', document_id=item.id) }}">{{ item.management_number }}</a>
+    <small>{{ item.receipt_date }} · {{ item.organization }} · {{ item.manager }}</small>
+    {% if item.review_reasons %}<span class="review-reasons">{{ item.review_reasons|join(" / ") }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="empty-state">표시할 자료가 없습니다.</p>{% endif %}

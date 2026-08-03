@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}{{ company_display_name or company_name }}{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+
+{% set company_research = research or {} %}
+<main class="page-container company-detail-page">
+  <div class="page-header">
+    <p class="page-eyebrow">{{ "Intelligence / Company Profile" if current_locale == "en" else "기업 인텔리전스 / 회사 개요" }}</p>
+    <h1 class="page-title">{{ company_display_name or company_name }}</h1>
+    <p class="page-description">{{ company_aliases_display|join(" / ") or (company_name) }}</p>
+  </div>
+
+  <div class="company-detail-toolbar">
+    <a class="btn btn-text" href="{{ url_for('companies_page') }}">{{ "Back to list" if current_locale == "en" else "목록으로" }}</a>
+    <a class="btn btn-text" href="{{ url_for('disclosures_page') }}">{{ "Company filings" if current_locale == "en" else "회사 공시" }}</a>
+    <a class="btn btn-text" href="{{ url_for('research_library_page', company=company_name) }}">{{ "Company research" if current_locale == "en" else "회사 리포트" }}</a>
+  </div>
+
+  <div class="company-detail-grid">
+    <section class="panel">
+      <h2>{{ "Company overview" if current_locale == "en" else "기업 개요" }}</h2>
+      <dl class="company-key-matrix">
+        <div><dt>{{ "Ticker" if current_locale == "en" else "종목코드" }}</dt><dd>{{ company_research.stock_code or "-" }}</dd></div>
+        <div><dt>{{ "Legal name" if current_locale == "en" else "상호" }}</dt><dd>{{ company_research.legal_name or company_name }}</dd></div>
+        <div><dt>{{ "Legal name (EN)" if current_locale == "en" else "영문상호" }}</dt><dd>{{ company_research.legal_name_eng or "-" }}</dd></div>
+        <div><dt>CEO</dt><dd>{{ company_research.ceo_names or "-" }}</dd></div>
+        <div><dt>{{ "Headquarters" if current_locale == "en" else "본사" }}</dt><dd>{{ company_research.headquarters or "-" }}</dd></div>
+        <div><dt>{{ "Established" if current_locale == "en" else "설립일" }}</dt><dd>{{ company_research.established_date or "-" }}</dd></div>
+        <div><dt>{{ "Fiscal month" if current_locale == "en" else "회계월" }}</dt><dd>{{ company_research.fiscal_month or "-" }}</dd></div>
+        <div><dt>IR</dt>
+          <dd>
+            {% if company_research.website_url %}
+              <a href="{{ company_research.website_url }}" target="_blank" rel="noopener noreferrer">{{ company_research.website_url }}</a>
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>{{ "Business summary" if current_locale == "en" else "사업 요약" }}</h2>
+      <p class="business-summary">{{ company_research.business_summary or ( "No business summary available." if current_locale == "en" else "사업 요약 정보가 없습니다." ) }}</p>
+      <p class="business-summary">{{ company_research.strategy_summary or ( "No strategy summary available." if current_locale == "en" else "전략 요약 정보가 없습니다." ) }}</p>
+    </section>
+
+    <section class="panel">
+      <h2>{{ "Credit information" if current_locale == "en" else "신용정보" }}</h2>
+      {% if credit_rating %}
+      <div class="company-current-credit">
+        <div><span>{{ "Current rating" if current_locale == "en" else "현재 신용등급" }}</span><strong>{{ credit_rating.rating }}</strong></div>
+        <dl>
+          <div><dt>{{ "Evaluated" if current_locale == "en" else "평가일" }}</dt><dd>{{ credit_rating.evaluated_on }}</dd></div>
+          <div><dt>{{ "Type" if current_locale == "en" else "등급구분" }}</dt><dd>{{ credit_rating.rating_type }}</dd></div>
+        </dl>
+        <small>{{ "Based on NICE Credit Rating data" if current_locale == "en" else "나이스신용평가 기준" }}</small>
+      </div>
+      {% endif %}
+      {% if credit_data %}
+      <dl class="company-key-matrix">
+        {% for key, value in credit_data.items() %}
+        <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+        {% endfor %}
+      </dl>
+      {% else %}
+        {% if not credit_rating %}<p class="item-meta">{{ "No credit data available." if current_locale == "en" else "신용정보 데이터가 없습니다." }}</p>{% endif %}
+      {% endif %}
+    </section>
+  </div>
+
+  {% if credit_ratings %}
+  <section class="panel company-credit-history" id="credit-rating-history">
+    <div class="company-financial-heading">
+      <div><p class="page-eyebrow">CREDIT RATING HISTORY</p><h2>{{ "Credit rating timeline" if current_locale == "en" else "기업평가등급 이력" }}</h2></div>
+      <p class="item-meta">{{ "NICE Credit Rating · newest first" if current_locale == "en" else "나이스신용평가 기준 · 최신순" }}</p>
+    </div>
+    <div class="company-credit-table-wrap" tabindex="0" role="region" aria-label="{{ 'Credit rating timeline' if current_locale == 'en' else '기업평가등급 이력' }}">
+      <table class="company-credit-table">
+        <thead><tr><th>{{ "Rating" if current_locale == "en" else "등급" }}</th><th>{{ "Evaluation date" if current_locale == "en" else "평가 일자" }}</th><th>{{ "Financial date" if current_locale == "en" else "재무 기준 일자" }}</th><th>{{ "Rating type" if current_locale == "en" else "등급구분" }}</th></tr></thead>
+        <tbody>
+          {% for item in credit_ratings %}
+          <tr><td><strong>{{ item.rating }}</strong></td><td>{{ item.evaluated_on }}</td><td>{{ item.financial_as_of or "-" }}</td><td>{{ item.rating_type }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if financial_statements %}
+  <section class="panel company-financial-statements" id="financial-statements">
+    <div class="company-financial-heading">
+      <div>
+        <p class="page-eyebrow">{{ "FINANCIAL DATA" if current_locale == "en" else "FINANCIAL DATA" }}</p>
+        <h2>{{ "Financial statements" if current_locale == "en" else "재무제표" }}</h2>
+      </div>
+      <p class="item-meta">{{ "Unit: KRW 100 million · Source values retained in KRW" if current_locale == "en" else "단위: 억원 · 원본값은 원 단위로 보존" }}</p>
+    </div>
+    <div class="company-financial-list">
+      {% for statement in financial_statements %}
+      <article class="company-financial-card">
+        <div class="company-financial-card-head">
+          <div>
+            <h3>{{ statement.title_en if current_locale == "en" else statement.title }}</h3>
+            <p>{{ statement.accounting_standard }} · {{ statement.report_as_of }} {{ "data snapshot" if current_locale == "en" else "자료 기준" }}</p>
+          </div>
+        </div>
+        <div class="company-financial-table-wrap" tabindex="0" role="region" aria-label="{{ statement.title_en if current_locale == 'en' else statement.title }}">
+          <table class="company-financial-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ "Account" if current_locale == "en" else "계정" }}</th>
+                {% for period in statement.periods %}
+                <th scope="col">{{ statement.period_labels[period] }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in statement.rows %}
+              <tr>
+                <th scope="row">{{ row.label }}</th>
+                {% for period in statement.periods %}
+                  {% set amount = row.amounts.get(period) %}
+                  <td class="financial-amount{% if amount and amount.raw < 0 %} is-negative{% endif %}">{{ amount.display if amount else "-" }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% elif financial_sections %}
+  <section class="panel">
+    <h2>{{ "Financial statements & metrics" if current_locale == "en" else "재무제표 및 핵심지표" }}</h2>
+    <div class="financial-sections-grid">
+      {% for section in financial_sections %}
+      <article class="financial-section-card">
+        <h3>{{ section.title }}</h3>
+        <ul>
+          {% for row in section.rows %}
+          <li><span>{{ row.label }}</span><strong>{{ row.display }}</strong></li>
+          {% endfor %}
+        </ul>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="company-detail-two-columns">
+    <article class="panel">
+      <h2>{{ "Recent DART filings" if current_locale == "en" else "최근 DART 공시" }}</h2>
+      {% if disclosures %}
+      <ul class="compact-feed">
+        {% for disclosure in disclosures[:12] %}
+        <li>
+          <a href="{{ disclosure.dart_link }}" target="_blank" rel="noopener noreferrer">{{ disclosure.report_nm }}</a>
+          <small>{{ disclosure.corp_name }} · {{ disclosure.rcept_dt }}{% if disclosure.flr_nm %} · {{ disclosure.flr_nm }}{% endif %}</small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="item-meta">{{ "No recent filings." if current_locale == "en" else "최근 공시가 없습니다." }}</p>
+      {% endif %}
+    </article>
+
+    <article class="panel">
+      <h2>{{ "Recent news" if current_locale == "en" else "최근 뉴스" }}</h2>
+      {% if news %}
+      <ul class="compact-feed">
+        {% for item in news[:12] %}
+        <li>
+          {% if item.original_url %}<a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+          <small>{% if item.published_at %}{{ item.published_at }}{% elif item.collected_at %}{{ item.collected_at }}{% endif %}</small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="item-meta">{{ "No recent news." if current_locale == "en" else "최근 뉴스가 없습니다." }}</p>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="panel">
+    <h2>{{ "Company research documents" if current_locale == "en" else "회사 리포트" }}</h2>
+    {% if research_documents %}
+    <ul class="compact-feed">
+      {% for doc in research_documents %}
+      <li>
+        <a href="{{ url_for('download_research_document', document_id=doc.id) }}">{{ doc.title }}</a>
+        <small>{{ doc.report_date or doc.created_at[:10] }}</small>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="item-meta">{{ "No research documents." if current_locale == "en" else "리서치 문서가 없습니다." }}</p>
+    {% endif %}
+  </section>
+</main>
+
+{% include "_footer.html" %}
+{% endblock %}

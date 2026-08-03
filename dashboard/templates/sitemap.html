@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}사이트맵{% endblock %}
+{% block body %}
+{% if current_username %}
+{% include "_topbar.html" %}
+{% else %}
+<header class="error-public-header">
+  <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ MANAGEMENT DASHBOARD</span></a>
+  <a class="public-login-link" href="{{ url_for('auth.login') }}">로그인</a>
+</header>
+{% endif %}
+<main class="error-shell sitemap-page">
+  <div class="page-header">
+    <p class="page-eyebrow">Navigation / Sitemap</p>
+    <h1 class="page-title">사이트맵</h1>
+    <p class="page-description">현재 계정으로 이용할 수 있는 대시보드 메뉴를 한눈에 확인합니다.</p>
+  </div>
+  <section class="error-sitemap">
+    {% macro submenu(items, level=1) -%}
+    <ul class="sitemap-children sitemap-children-level-{{ level }}">
+      {% for item in items %}
+      <li>
+        <a href="{{ url_for(item.endpoint) }}{% if item.fragment %}#{{ item.fragment }}{% endif %}"{% if item.locked %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>
+          <span>{{ item.label }}</span><i aria-hidden="true">{{ '⌁' if item.locked else '→' }}</i>
+        </a>
+        {% if item.children %}{{ submenu(item.children, level + 1) }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {%- endmacro %}
+    <div class="sitemap-grid">
+      {% for link in site_map_links %}
+      <article class="sitemap-card{% if link.children %} has-children{% endif %}">
+        <a class="sitemap-main-link" href="{{ url_for(link.endpoint) }}{% if link.fragment %}#{{ link.fragment }}{% endif %}"{% if link.locked %} data-locked="true" title="접근 권한이 필요합니다"{% endif %}>
+          <strong>{{ link.label }}{% if link.locked %} <small>권한 필요</small>{% endif %}</strong>
+          <span>{{ link.description }}</span><i aria-hidden="true">{{ '⌁' if link.locked else '→' }}</i>
+        </a>
+        {% if link.children %}{{ submenu(link.children) }}{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

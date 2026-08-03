@@ -1,0 +1,95 @@
+/* Cache-independent full-screen breathing dots layer. */
+body.cinematic-home .public-hero-lights {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  transform: none !important;
+  overflow: hidden !important;
+  z-index: 0 !important;
+  pointer-events: none;
+}
+
+body.cinematic-home .breathing-dots-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  opacity: 1 !important;
+  display: block !important;
+  mix-blend-mode: screen;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  pointer-events: none;
+}
+
+body.cinematic-home .public-menu a {
+  background: rgba(7, 8, 9, .96);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+body.cinematic-home .public-menu a:hover {
+  background: rgba(22, 23, 26, .98);
+}
+
+body.cinematic-home .public-header {
+  background: rgba(7, 8, 9, .94);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
+  opacity: .76 !important;
+  mix-blend-mode: multiply;
+}
+
+html[data-theme="light"] body.cinematic-home .public-menu a {
+  background: rgba(248, 248, 246, .97);
+}
+
+html[data-theme="light"] body.cinematic-home .public-menu a:hover {
+  background: rgba(235, 235, 232, .99);
+}
+
+html[data-theme="light"] body.cinematic-home .public-header {
+  background: rgba(248, 248, 246, .97);
+}
+
+@media (max-width: 700px) {
+  body.cinematic-home .breathing-dots-canvas {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 1 !important;
+  }
+
+  body.cinematic-home .public-menu a {
+    background: rgba(7, 8, 9, .98);
+  }
+
+  body.cinematic-home .public-header {
+    background: rgba(7, 8, 9, .97);
+  }
+
+  html[data-theme="light"] body.cinematic-home .breathing-dots-canvas {
+    opacity: .82 !important;
+  }
+
+
+  html[data-theme="light"] body.cinematic-home .public-menu a {
+    background: rgba(248, 248, 246, .985);
+  }
+
+
+  html[data-theme="light"] body.cinematic-home .public-header {
+    background: rgba(248, 248, 246, .985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.cinematic-home .breathing-dots-canvas {
+    opacity: .82 !important;
+  }
+}

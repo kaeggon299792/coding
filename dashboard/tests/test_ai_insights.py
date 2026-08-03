@@ -1,0 +1,149 @@
+"""
+OpenAI 클라이언트가 실제로 이 코드가 필요로 하는 형태로 동작하는지 확인하는 테스트.
+
+과거 PythonAnywhere 실배포에서 두 가지 의존성 버전 문제가 실제로 발생했다:
+1. openai==1.51.0 + httpx>=0.28 조합 -> "Client.__init__() got an unexpected
+   keyword argument 'proxies'" (httpx가 옛 openai SDK가 넘기던 인자를 제거함)
+2. openai==1.51.0 -> client.responses(Responses API)가 아예 없음(이후 SDK에
+   추가된 기능이라 그 버전엔 없었음)
+이 테스트들은 두 문제를 다시 놓치지 않도록 클라이언트 생성과 responses 속성
+존재 여부를 검증한다(실제 API 호출은 하지 않음).
+"""
+
+import json
+from types import SimpleNamespace
+
+from services import ai_insights
+
+
+def test_openai_client_can_be_constructed(monkeypatch):
+    monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
+    ai_insights._client = None  # 이전 테스트에서 캐시된 클라이언트가 있으면 초기화
+
+    client = ai_insights._get_client()
+    assert client is not None
+
+
+def test_openai_client_supports_responses_api(monkeypatch):
+    """이 코드는 client.responses.create()를 사용하므로 그 속성이 반드시 있어야 한다."""
+    monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
+    ai_insights._client = None
+
+    client = ai_insights._get_client()
+    assert hasattr(client, "responses"), (
+        "설치된 openai 패키지 버전이 Responses API(client.responses)를 지원하지 않습니다. "
+        "requirements.txt의 openai 버전을 확인하세요."
+    )
+
+
+def test_summarize_disclosure_without_key_returns_error_not_exception(db_connection, monkeypatch):
+    monkeypatch.setattr("config.OPENAI_API_KEY", "")
+    result = ai_insights.summarize_disclosure(db_connection, {"corp_name": "테스트기업", "report_nm": "사업보고서"})
+    assert result["ai_summary"] is None
+    assert result["error"] is not None
+
+
+def test_manual_document_analysis_can_bypass_internal_daily_limit(
+    db_connection, monkeypatch
+):
+    monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
+    monkeypatch.setattr("config.OPENAI_INSIGHT_MODEL", "test-model")
+    monkeypatch.setattr(
+        ai_insights,
+        "_check_daily_limits",
+        lambda connection: (_ for _ in ()).throw(
+            ai_insights.DailyLimitExceeded("daily limit")
+        ),
+    )
+
+    blocked, blocked_error = ai_insights.analyze_research_document(
+        db_connection, {"extracted_text": "본문"}
+    )
+    assert blocked is None
+    assert blocked_error == "daily limit"
+
+    called = []
+    monkeypatch.setattr(
+        ai_insights,
+        "_call",
+        lambda *args, **kwargs: called.append(kwargs["bypass_daily_limits"])
+        or ({"ai_summary": "완료"}, None),
+    )
+    result, error = ai_insights.analyze_research_document(
+        db_connection,
+        {"extracted_text": "본문"},
+        bypass_daily_limits=True,
+    )
+    assert result == {"ai_summary": "완료"}
+    assert error is None
+    assert called == [True]
+
+
+def test_daily_limit_sends_one_detailed_telegram_alert(
+    db_connection, monkeypatch
+):
+    monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
+    monkeypatch.setattr("config.OPENAI_INSIGHT_MODEL", "test-model")
+    monkeypatch.setattr("config.MAX_GPT_CALLS_PER_DAY", 0)
+    sent = []
+    monkeypatch.setattr(
+        ai_insights.telegram_alert,
+        "send_alert",
+        lambda message, *, force=False: sent.append((message, force)) or True,
+    )
+
+    for _ in range(2):
+        result, error = ai_insights.analyze_research_document(
+            db_connection, {"extracted_text": "본문"}
+        )
+        assert result is None
+        assert "하루 GPT 호출 한도" in error
+
+    assert len(sent) == 1
+    assert sent[0][1] is True
+    assert "CASINO IN GPT 내부 한도 초과" in sent[0][0]
+    assert "research_document_analysis" in sent[0][0]
+    assert "현재 호출" in sent[0][0]
+    assert "예상 비용" in sent[0][0]
+    row = db_connection.execute(
+        "SELECT sent_at FROM ai_limit_alerts WHERE limit_type='call_count'"
+    ).fetchone()
+    assert row["sent_at"]
+
+
+def test_important_overseas_news_uses_low_context_web_search(
+    db_connection, monkeypatch
+):
+    monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
+    monkeypatch.setattr("config.OPENAI_NEWS_MODEL", "gpt-news-test")
+    captured = {}
+
+    class Responses:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+                output_text=json.dumps({
+                    "title_ko": "검증 제목", "summary_ko": "검증 요약",
+                    "category": "실적·시장", "impact_direction": "positive",
+                    "importance_score": 90, "ai_analysis": "검증 분석",
+                    "canonical_url": "https://publisher.example/story",
+                    "source_urls": ["https://publisher.example/story"],
+                }),
+            )
+
+    monkeypatch.setattr(
+        ai_insights, "_get_client", lambda: SimpleNamespace(responses=Responses())
+    )
+    result, error = ai_insights.analyze_important_overseas_news_with_web(
+        db_connection,
+        {
+            "region": "macau", "publisher": "Publisher",
+            "original_title": "Important casino news",
+            "original_summary": "Summary", "original_url": "https://example.com/rss",
+        },
+    )
+    assert error is None
+    assert result["importance_score"] == 90
+    assert captured["model"] == "gpt-news-test"
+    assert captured["tools"] == [{"type": "web_search", "search_context_size": "low"}]

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} · 버그 및 건의{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container bug-detail-page">
+  <a class="tips-back" href="{{ url_for('action_items_page') }}">← {{ t('버그 및 건의 목록으로 돌아가기') }}</a>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
+
+  <article class="panel bug-detail-card">
+    <header class="bug-detail-header">
+      <div>
+        <div class="bug-detail-badges"><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span><span class="status-badge">{{ item.status }}</span><span>비공개</span></div>
+        <h1>{{ item.title }}</h1>
+        <p>{{ t('작성자') }} {{ item.reported_by or '-' }} · {{ t('등록') }} {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · {{ t('수정') }} {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %}</p>
+      </div>
+    </header>
+    <dl class="bug-detail-meta">
+      <div><dt>관련 화면</dt><dd>{{ item.bug_page or '-' }}</dd></div>
+      <div><dt>사용 환경</dt><dd>{{ item.environment or '-' }}</dd></div>
+      <div><dt>처리 담당자</dt><dd>{{ item.owner or '-' }}</dd></div>
+    </dl>
+    <section class="bug-detail-content"><h2>내용</h2><p>{{ item.description or '내용 없음' }}</p></section>
+
+    <details class="bug-edit-panel">
+      <summary>게시글 수정</summary>
+      <form method="post" action="{{ url_for('update_action_item_route', item_id=item.id) }}" class="bug-report-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ url_for('action_item_detail', item_id=item.id) }}">
+        <label><span>글 유형</span><select name="feedback_type">{% for kind in ['질문','버그 제보','기능 제안','일반 의견'] %}<option value="{{ kind }}" {% if (item.feedback_type or '일반 의견') == kind %}selected{% endif %}>{{ kind }}</option>{% endfor %}</select></label>
+        <label class="wide"><span>제목</span><input name="title" value="{{ item.title }}" required maxlength="150"></label>
+        <label><span>관련 화면</span><input name="bug_page" value="{{ item.bug_page or '' }}" maxlength="200"></label>
+        <label><span>사용 환경</span><input name="environment" value="{{ item.environment or '' }}" maxlength="200"></label>
+        <label><span>중요도</span><select name="priority">{% for priority in ['긴급','높음','보통','낮음'] %}<option value="{{ priority }}" {% if item.priority == priority %}selected{% endif %}>{{ priority }}</option>{% endfor %}</select></label>
+        {% if is_admin %}<label><span>담당자</span><input name="owner" value="{{ item.owner or '' }}"></label><label><span>상태</span><select name="status">{% for status in ['접수','확인 중','수정 중','검증 중','해결','보류'] %}<option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>{% endif %}
+        <label class="wide"><span>내용</span><textarea name="description" rows="6" required>{{ item.description or '' }}</textarea></label>
+        <div class="bug-form-footer"><span>작성자와 관리자만 수정할 수 있습니다.</span><button class="btn" type="submit">변경사항 저장</button></div>
+      </form>
+    </details>
+    {% if is_admin %}<form method="post" action="{{ url_for('delete_action_item_route', item_id=item.id) }}" class="bug-delete-form" onsubmit="return confirm('{{ t('이 게시글과 댓글을 삭제할까요?') }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button" type="submit">게시글 삭제</button></form>{% endif %}
+  </article>
+
+  <section class="panel bug-comments" id="comments">
+    <header class="section-heading"><div><h2>댓글 <span>{{ comments|length }}</span></h2><p>작성자와 관리자가 답변과 진행 상황을 공유합니다.</p></div></header>
+    <form class="bug-comment-form" method="post" action="{{ url_for('add_action_item_comment', item_id=item.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="bug-comment-content">댓글 작성</label>
+      <textarea id="bug-comment-content" name="content" rows="4" maxlength="1000" required placeholder="답변이나 추가 내용을 입력해주세요."></textarea>
+      <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
+    </form>
+    {% if comments %}<div class="bug-comment-list">{% for comment in comments %}
+      <article class="bug-comment">
+        <header><strong>{{ comment.author_name }}{% if comment.author_name == item.reported_by %} <span>작성자</span>{% endif %}</strong><time>{{ comment.created_at|replace('T',' ')|truncate(17, true, '') }}</time>{% if comment.updated_at != comment.created_at %}<small>수정됨</small>{% endif %}</header>
+        <p>{{ comment.content }}</p>
+        {% if comment.author_id == session.user_id or is_admin %}<div class="bug-comment-actions">
+          <details><summary>수정</summary><form method="post" action="{{ url_for('edit_action_item_comment', item_id=item.id, comment_id=comment.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><textarea name="content" rows="3" maxlength="1000" required>{{ comment.content }}</textarea><button class="btn btn-small" type="submit">저장</button></form></details>
+          <form method="post" action="{{ url_for('delete_action_item_comment', item_id=item.id, comment_id=comment.id) }}" onsubmit="return confirm('{{ t('댓글을 삭제할까요?') }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button" type="submit">삭제</button></form>
+        </div>{% endif %}
+      </article>
+    {% endfor %}</div>{% else %}<p class="empty-state">아직 댓글이 없습니다.</p>{% endif %}
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,6 @@
+<nav class="casino-subnav" aria-label="국내 카지노 산업 메뉴">
+  <a href="{{ url_for('casino_industry_page') }}"{% if request.endpoint == 'casino_industry_page' %} class="active" aria-current="page"{% endif %}>국내 카지노 산업</a>
+  <a href="{{ url_for('casino_visitors_page') }}"{% if request.endpoint == 'casino_visitors_page' %} class="active" aria-current="page"{% endif %}>연도별 카지노 이용객</a>
+  <a href="{{ url_for('casino_revenue_page') }}"{% if request.endpoint == 'casino_revenue_page' %} class="active" aria-current="page"{% endif %}>연도별 카지노 매출액 비율</a>
+  <a href="{{ url_for('casino_fund_page') }}"{% if request.endpoint == 'casino_fund_page' %} class="active" aria-current="page"{% endif %}>기금 부과 현황</a>
+</nav>

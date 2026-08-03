@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}해외 뉴스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container overseas-news-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Intelligence / Overseas News</p>
+    <h1 class="page-title">해외 뉴스</h1>
+    <p class="page-description">{{ t('마카오·일본 카지노 및 복합리조트 뉴스를 RSS로 수집해 일괄 분석하고, 중요 뉴스는 웹 검색으로 추가 검증합니다.') }}</p>
+    <div class="data-freshness-row">
+      <span class="data-freshness"><b>최종 확인</b>{{ sync_state.last_checked_at[:16]|replace('T', ' ') if sync_state.last_checked_at else t('확인 기록 없음') }}</span>
+      <span class="data-freshness"><b>최종 변경</b>{{ sync_state.last_changed_at[:16]|replace('T', ' ') if sync_state.last_changed_at else t('변경 기록 없음') }}</span>
+      {% if sync_state.last_status and sync_state.last_status != 'success' %}<span class="data-freshness is-warning"><b>{{ t('수집 상태') }}</b>일부 데이터 확인 필요</span>{% endif %}
+    </div>
+  </header>
+
+  <section class="news-stat-grid" aria-label="{% if current_locale == 'en' %}{{ selected_days }}-day global news overview{% else %}{{ selected_days }}일 해외 뉴스 현황{% endif %}">
+    <article><span>{{ t('전체 뉴스') }}</span><strong>{{ news_stats.total_count or 0 }}</strong></article>
+    <article><span>AI 분석 완료</span><strong>{{ news_stats.analyzed_count or 0 }}</strong></article>
+    <article><span>{{ t('일괄 분석') }}</span><strong>{{ news_stats.batch_count or 0 }}</strong></article>
+    <article><span>{{ t('웹 검증') }}</span><strong>{{ news_stats.web_verified_count or 0 }}</strong></article>
+    <article><span>중요 뉴스</span><strong>{{ news_stats.important_count or 0 }}</strong></article>
+    <article class="is-alert"><span>부정 영향</span><strong>{{ news_stats.negative_count or 0 }}</strong></article>
+    <article><span>{{ t('마카오') }}</span><strong>{{ news_stats.macau_count or 0 }}</strong></article>
+    <article><span>일본</span><strong>{{ news_stats.japan_count or 0 }}</strong></article>
+  </section>
+
+  <form class="news-filter-form overseas-news-filter" method="get" action="{{ url_for('overseas_news_page') }}">
+    <label><span>검색</span><input type="search" name="q" value="{{ selected_term }}" placeholder="{{ t('한글·원문 제목·언론사 검색') }}"></label>
+    <label><span>기간</span><select name="days">{% for value, label in [(7, '최근 7일'), (14, '최근 14일'), (30, '최근 30일'), (90, '최근 90일'), (365, '최근 1년')] %}<option value="{{ value }}" {% if selected_days == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>지역</span><select name="region"><option value="">전체 지역</option><option value="macau" {% if selected_region == 'macau' %}selected{% endif %}>{{ t('마카오') }}</option><option value="japan" {% if selected_region == 'japan' %}selected{% endif %}>{{ t('일본') }}</option></select></label>
+    <label><span>분류</span><select name="category"><option value="">전체 분류</option>{% for item in categories %}<option value="{{ item.category }}" {% if selected_category == item.category %}selected{% endif %}>{{ t(item.category) }} ({{ item.article_count }})</option>{% endfor %}</select></label>
+    <label><span>영향 방향</span><select name="impact"><option value="">전체 영향</option>{% for value, label in [('positive', '긍정'), ('negative', '부정'), ('neutral', '중립'), ('mixed', '혼합')] %}<option value="{{ value }}" {% if selected_impact == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
+    <label class="news-check"><input type="checkbox" name="importance" value="important" {% if important_only %}checked{% endif %}><span>중요 뉴스만</span></label>
+    <button class="btn" type="submit">조회</button>
+  </form>
+
+  <section class="news-feed overseas-news-feed">
+    <div class="section-heading"><div><p class="page-eyebrow">Translated Archive</p><h2>뉴스 목록</h2></div><span>{% if current_locale == 'en' %}{{ news_total_count }} items · Page {{ news_page }} of {{ news_page_count }}{% else %}총 {{ news_total_count }}건 · {{ news_page }}/{{ news_page_count }}페이지{% endif %}</span></div>
+    {% if articles %}
+      {% for item in articles %}
+      <article class="news-card overseas-news-card">
+        <div class="news-card-meta">
+          <span class="region-badge is-{{ item.region }}">{{ t('마카오' if item.region == 'macau' else '일본') }}</span>
+          <span>{{ t(item.category or '미분류') }}</span>
+          {% if item.impact_direction %}<span class="impact-badge is-{{ item.impact_direction }}">{{ t({'positive':'긍정', 'negative':'부정', 'neutral':'중립', 'mixed':'혼합'}.get(item.impact_direction, item.impact_direction)) }}</span>{% endif %}
+          <span>{{ item.publisher or t('출처 미상') }}</span>
+          <time datetime="{{ item.published_at or item.collected_at }}">{{ (item.published_at or item.collected_at or '')[:16]|replace('T', ' ') }}</time>
+        </div>
+        <h3><a href="{{ item.display_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ item.title_ko or item.original_title }}</a></h3>
+        {% if item.title_ko %}<p class="overseas-original-title" lang="{{ 'ja' if item.region == 'japan' else 'en' }}">{{ item.original_title }}</p>{% endif %}
+        <p class="news-source">
+          {{ item.publisher or t('출처 미상') }} · {{ t('중요도') }} {{ item.importance_score if item.importance_score is not none else '-' }}
+          {% if item.analysis_basis == 'web_search' %}<span class="analysis-basis is-grounded">{{ t('웹 검증') }}</span>
+          {% elif item.analysis_basis and item.analysis_basis.startswith('rss_batch') %}<span class="analysis-basis is-full">{{ t('RSS 일괄 분석') }}</span>
+          {% elif item.analysis_basis == 'title_only' %}<span class="analysis-basis is-title">{{ t('제목 기반') }}</span>{% endif %}
+        </p>
+        {% if item.summary_ko %}<div class="overseas-article-summary"><b>{{ t('기사 요약') }}</b><p>{{ item.summary_ko }}</p></div>{% endif %}
+        {% if item.ai_analysis %}<div class="news-ai-summary"><b>AI 관점</b><p>{{ item.ai_analysis }}</p></div>{% elif item.translation_status != 'translated' %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
+        {% if item.source_citations %}
+        <details class="overseas-grounding-sources"><summary>{% if current_locale == 'en' %}{{ item.source_citations|length }} supporting sources{% else %}분석 근거 {{ item.source_citations|length }}개{% endif %}</summary><ul>{% for citation in item.source_citations %}<li><a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ citation.title or citation.url }}</a></li>{% endfor %}</ul></details>
+        {% endif %}
+        <div class="overseas-news-actions">
+          <a class="btn btn-small" href="{{ item.display_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ t('원문 보기 ↗') }}</a>
+          {% if item.original_summary %}
+          <details><summary>{{ t('원문 요약') }}</summary><p lang="{{ 'ja' if item.region == 'japan' else 'en' }}">{{ item.original_summary }}</p></details>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+      {% if news_page_count > 1 %}
+      <nav class="news-pagination" aria-label="{{ t('해외 뉴스 페이지 이동') }}">
+        {% if news_page > 1 %}<a class="btn" href="{{ url_for('overseas_news_page', page=news_page-1, days=selected_days, q=selected_term, region=selected_region, category=selected_category, impact=selected_impact, importance='important' if important_only else '') }}">이전</a>{% endif %}
+        <span>{{ news_page }} / {{ news_page_count }}</span>
+        {% if news_page < news_page_count %}<a class="btn" href="{{ url_for('overseas_news_page', page=news_page+1, days=selected_days, q=selected_term, region=selected_region, category=selected_category, impact=selected_impact, importance='important' if important_only else '') }}">다음</a>{% endif %}
+      </nav>
+      {% endif %}
+    {% else %}
+      <div class="news-empty"><h3>{{ t('조건에 맞는 해외 뉴스가 없습니다.') }}</h3><p>{{ t('수집 배치 실행 후 표시되며, 검색어나 기간 필터를 변경할 수도 있습니다.') }}</p></div>
+    {% endif %}
+  </section>
+
+  <p class="overseas-news-notice">{{ t('일반 뉴스는 RSS 제목·요약을 저비용 일괄 분석하고, 중요 뉴스만 웹 검색으로 추가 검증합니다. 정확한 내용은 반드시 원문과 해당 언론사의 정정 내역을 확인하세요.') }}</p>
+</main>
+{% endblock %}

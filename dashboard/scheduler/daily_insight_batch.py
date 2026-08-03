@@ -1,0 +1,150 @@
+"""
+PythonAnywhere Scheduled Task 진입점 (1일 1회, 뉴스 수집 이후 시간대 권장).
+
+오늘의 중요 뉴스 + 공문·자료관리 현황 + 오늘 실적 데이터를 모아 AI에게
+경영진 관점 시사점을 생성하도록 요청하고 executive_insights에 저장한다.
+페이지를 열 때마다 재분석하지 않고 하루 1회만 실행한다(스펙 12절).
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import config  # noqa: E402
+from dashboard_db import queries  # noqa: E402
+from extensions import dashboard_db  # noqa: E402
+from services import (  # noqa: E402
+    ai_insights, content_translation, news_reader, official_document_manager,
+    overseas_news,
+)
+from utils import setup_logger, today_kst_str  # noqa: E402
+
+logger = setup_logger("daily_insight_batch")
+
+
+def _build_context_text(connection, today):
+    news_items = news_reader.today_important_articles()[:15]
+    official_documents, _ = official_document_manager.list_documents(
+        connection, per_page=100000, review_only=True
+    )
+    performance = queries.get_latest_performance_report(connection, today)
+    research_documents = queries.list_research_documents(connection, limit=10)
+
+    lines = [f"기준일: {today}", ""]
+
+    lines.append(f"## 오늘의 중요 뉴스 ({len(news_items)}건)")
+    if news_items:
+        for item in news_items:
+            lines.append(
+                f"- [{item.get('category') or '미분류'}] {item.get('title')} "
+                f"(중요도점수 {item.get('importance_score')}) - "
+                f"{item.get('latest_summary') or '요약 없음'}"
+            )
+    else:
+        lines.append("- 없음")
+    lines.append("")
+
+    lines.append(f"## 검토가 필요한 공문·자료 ({len(official_documents)}건)")
+    if official_documents:
+        for item in official_documents[:15]:
+            lines.append(
+                f"- [{item.get('receipt_date')}] {item.get('organization')} "
+                f"(담당: {item.get('manager')}) - "
+                f"{' / '.join(item.get('review_reasons') or [])}: {item.get('request_content')}"
+            )
+    else:
+        lines.append("- 없음")
+    lines.append("")
+
+    lines.append("## 오늘 실적(텔레그램 데이터랩 알림 기준, 일부 지표만 확인 가능)")
+    if performance and performance.get("parsed"):
+        parsed = performance["parsed"]
+        for key, value in parsed.items():
+            lines.append(f"- {key}: {value}")
+    else:
+        lines.append("- 오늘 파싱된 실적 데이터 없음")
+    lines.append("")
+
+    lines.append(f"## 최근 업로드 리서치 자료 ({len(research_documents)}건)")
+    if research_documents:
+        for item in research_documents:
+            summary = item.get("ai_summary") or "AI 요약 없음"
+            lines.append(
+                f"- [{item.get('company_name')}] {item.get('title')} "
+                f"({item.get('publisher') or '발행처 미입력'}, "
+                f"{item.get('report_date') or item.get('created_at', '')[:10]}) - {summary}"
+            )
+    else:
+        lines.append("- 없음")
+
+    return "\n".join(lines)
+
+
+def run():
+    connection = dashboard_db()
+    today = today_kst_str()
+    run_id = queries.start_analysis_run(connection, "daily_insight", config.AI_INSIGHT_PROMPT_VERSION)
+
+    try:
+        if queries.count_insights_for_date(connection, today) > 0:
+            logger.info("오늘(%s) 시사점이 이미 생성되어 있어 건너뜁니다.", today)
+            queries.finish_analysis_run(connection, run_id, "skipped_already_done")
+            return
+
+        context_text = _build_context_text(connection, today)
+        insights, error = ai_insights.generate_daily_insights(connection, context_text)
+
+        if error:
+            logger.error("경영진 시사점 생성 실패: %s", error)
+            queries.log_error(connection, "daily_insight_batch", "ai_insights", error)
+            queries.finish_analysis_run(connection, run_id, "failed", error)
+            return
+
+        for insight in insights:
+            queries.create_executive_insight(
+                connection,
+                insight_date=today,
+                title=insight["title"],
+                importance=insight["importance"],
+                evidence=insight.get("evidence_refs", []),
+                facts=insight["facts"],
+                ai_interpretation=insight["ai_interpretation"],
+                expected_impact=insight["expected_impact"],
+                recommended_action=insight["recommended_action"],
+                needs_executive_review=insight["needs_executive_review"],
+                category=insight["category"],
+                prompt_version=config.AI_INSIGHT_PROMPT_VERSION,
+            )
+
+        logger.info("경영진 시사점 %d건 생성 완료", len(insights))
+        queries.finish_analysis_run(connection, run_id, "success")
+
+    except Exception as error:
+        logger.error("일일 시사점 배치 실패: %s", error)
+        queries.log_error(connection, "daily_insight_batch", type(error).__name__, str(error))
+        queries.finish_analysis_run(connection, run_id, "failed", str(error))
+    finally:
+        try:
+            overseas_summary = overseas_news.sync(connection)
+            logger.info("해외 뉴스 수집·Gemini 근거 분석 배치 완료: %s", overseas_summary)
+        except Exception as overseas_error:
+            logger.error("해외 뉴스 수집·Gemini 근거 분석 배치 실패: %s", overseas_error)
+            queries.log_error(
+                connection, "overseas_news_sync",
+                type(overseas_error).__name__, str(overseas_error),
+            )
+        try:
+            translation_summary = content_translation.run_daily_translation(connection)
+            logger.info("영문 콘텐츠 번역 배치 완료: %s", translation_summary)
+        except Exception as translation_error:
+            logger.error("영문 콘텐츠 번역 배치 실패: %s", translation_error)
+            queries.log_error(
+                connection, "daily_content_translation",
+                type(translation_error).__name__, str(translation_error),
+            )
+        connection.close()
+
+
+if __name__ == "__main__":
+    run()

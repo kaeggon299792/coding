@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}관리자 페이지{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container account-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Administration / Accounts</p>
+    <h1 class="page-title">관리자 페이지</h1>
+    <p class="page-description">사용자 계정을 만들고 접근 권한, 사용 상태, 비밀번호를 관리합니다.</p>
+    <p><a class="btn" href="{{ url_for('auth.admin_logs') }}">{{ t('로그 10건씩 보기') }}</a> <a class="btn" href="{{ url_for('admin_action_items_page') }}">미처리 과제 관리</a></p>
+  </header>
+
+  {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="account-notice">{{ success }}</div>{% endif %}
+
+  <section class="panel">
+    <div class="section-heading">
+      <div>
+        <h2>{{ t('Gemini 기사 분석 사용량·비용') }}</h2>
+        <p>{{ t('해외 뉴스 기사 분석의 실제 응답 토큰과 Google 검색 실행 횟수를 호출별로 저장합니다. 원화는 호출 시점의 최신 수집 USD 환율로 환산한 예상치입니다.') }}</p>
+      </div>
+      <span>{% if current_locale == 'en' %}{{ gemini_usage.month.call_count }} calls · This month{% else %}{{ gemini_usage.month.call_count }}회 · 이번 달{% endif %}</span>
+    </div>
+    <div class="news-stat-grid" aria-label="{{ t('오늘 Gemini 사용량') }}">
+      <article><span>{{ t('오늘 분석 기사') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.article_count) }}</strong><small>{% if current_locale == 'en' %}{{ '{:,}'.format(gemini_usage.today.call_count) }} API calls{% else %}{{ '{:,}'.format(gemini_usage.today.call_count) }} API 호출{% endif %}</small></article>
+      <article><span>{{ t('오늘 입력 토큰') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.input_tokens) }}</strong><small>{{ t('프롬프트·URL 컨텍스트') }}</small></article>
+      <article><span>{{ t('오늘 출력·생각 토큰') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.output_tokens + gemini_usage.today.thought_tokens) }}</strong><small>{% if current_locale == 'en' %}Response {{ '{:,}'.format(gemini_usage.today.output_tokens) }} · Reasoning {{ '{:,}'.format(gemini_usage.today.thought_tokens) }}{% else %}응답 {{ '{:,}'.format(gemini_usage.today.output_tokens) }} · 생각 {{ '{:,}'.format(gemini_usage.today.thought_tokens) }}{% endif %}</small></article>
+      <article><span>{{ t('오늘 검색·예상 비용') }}</span><strong>₩{{ '{:,.2f}'.format(gemini_usage.today.estimated_cost_krw) }}</strong><small>{% if current_locale == 'en' %}{{ '{:,}'.format(gemini_usage.today.search_query_count) }} search queries{% else %}{{ '{:,}'.format(gemini_usage.today.search_query_count) }}개 검색어{% endif %}</small></article>
+    </div>
+    <div class="table-scroll"><table class="data-table">
+      <thead><tr><th>구분</th><th>기사</th><th>호출</th><th>입력 토큰</th><th>출력 토큰</th><th>생각 토큰</th><th>검색</th><th>USD</th><th>예상 원화</th></tr></thead>
+      <tbody>
+        {% for label, usage in [('오늘', gemini_usage.today), ('이번 달', gemini_usage.month), ('전체 누적', gemini_usage.all_time)] %}
+        <tr><td><strong>{{ label }}</strong></td><td>{{ '{:,}'.format(usage.article_count) }}</td><td>{{ '{:,}'.format(usage.call_count) }}</td><td>{{ '{:,}'.format(usage.input_tokens) }}</td><td>{{ '{:,}'.format(usage.output_tokens) }}</td><td>{{ '{:,}'.format(usage.thought_tokens) }}</td><td>{{ '{:,}'.format(usage.search_query_count) }}</td><td>${{ '{:,.6f}'.format(usage.estimated_cost_usd) }}</td><td>₩{{ '{:,.2f}'.format(usage.estimated_cost_krw) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <details>
+      <summary>최근 일별 비용 보기</summary>
+      <div class="table-scroll"><table class="data-table">
+        <thead><tr><th>일자</th><th>기사</th><th>호출</th><th>입력</th><th>출력+생각</th><th>검색</th><th>예상 원화</th></tr></thead>
+        <tbody>{% for item in gemini_usage.daily %}<tr><td>{{ item.usage_date }}</td><td>{{ item.article_count }}</td><td>{{ item.call_count }}</td><td>{{ '{:,}'.format(item.input_tokens) }}</td><td>{{ '{:,}'.format(item.output_tokens + item.thought_tokens) }}</td><td>{{ item.search_query_count }}</td><td>₩{{ '{:,.2f}'.format(item.estimated_cost_krw) }}</td></tr>{% else %}<tr><td colspan="7" class="empty-state">{{ t('아직 저장된 사용량이 없습니다.') }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </details>
+    <details>
+      <summary>최근 기사별 비용 보기</summary>
+      <div class="table-scroll"><table class="data-table">
+        <thead><tr><th>분석 시각</th><th>기사</th><th>단계</th><th>입력</th><th>출력</th><th>생각</th><th>검색</th><th>예상 원화</th></tr></thead>
+        <tbody>{% for item in gemini_usage.recent_articles %}<tr>
+          <td>{{ item.called_at|replace('T', ' ')|truncate(17, true, '') }}</td>
+          <td>{% if item.article_url %}<a href="{{ item.article_url }}" target="_blank" rel="noopener noreferrer"><strong>{{ item.article_title }}</strong></a>{% else %}<strong>{{ item.article_title }}</strong>{% endif %}{% if item.publisher %}<small class="self-label">{{ item.publisher }}</small>{% endif %}</td>
+          <td>{{ (item.request_stages or '-')|replace(',', ' + ') }} · {% if current_locale == 'en' %}{{ item.call_count }} calls{% else %}{{ item.call_count }}회{% endif %}</td>
+          <td>{{ '{:,}'.format(item.input_tokens) }}</td><td>{{ '{:,}'.format(item.output_tokens) }}</td><td>{{ '{:,}'.format(item.thought_tokens) }}</td><td>{{ item.search_query_count }}</td><td>₩{{ '{:,.2f}'.format(item.estimated_cost_krw) }}</td>
+        </tr>{% else %}<tr><td colspan="8" class="empty-state">{{ t('다음 해외 뉴스 분석부터 기사별 비용이 저장됩니다.') }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </details>
+    <p class="page-description">{% if current_locale == 'en' %}Pricing basis: input ${{ gemini_usage.pricing.input_per_million_usd }} per 1M tokens, output (including reasoning) ${{ gemini_usage.pricing.output_per_million_usd }} per 1M tokens, and search ${{ gemini_usage.pricing.search_per_thousand_usd }} per 1,000 queries. The Google-account-wide monthly free search allowance and taxes cannot be verified, so this is an upper-bound estimate before those deductions and may differ from the actual charge.{% else %}계산 기준: 입력 ${{ gemini_usage.pricing.input_per_million_usd }}/100만 토큰, 출력(생각 포함) ${{ gemini_usage.pricing.output_per_million_usd }}/100만 토큰, 검색 ${{ gemini_usage.pricing.search_per_thousand_usd }}/1,000회. Google 계정 전체에 적용되는 월 무료 검색 할당량과 세금은 확인할 수 없어 차감하지 않은 상한 예상치이며 실제 청구액과 다를 수 있습니다.{% endif %}</p>
+  </section>
+
+  <section class="panel account-create-panel">
+    <div class="section-heading"><div><h2>{{ t('사이트 기본 웹폰트') }}</h2><p>{{ t('본문 글꼴과 숫자 글꼴을 독립적으로 선택합니다. 모든 글꼴 파일은 사이트 내부에서 제공됩니다.') }}</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_site_font') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>{{ t('기본 글꼴') }}</span><select name="site_font" required>{% for value, label in site_font_choices.items() %}<option value="{{ value }}" {% if site_font == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
+      <label><span>{{ t('숫자 전용 글꼴') }}</span><select name="number_font" required>{% for value, label in number_font_choices.items() %}<option value="{{ value }}" {% if number_font == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
+      <button class="btn btn-primary" type="submit">{{ t('본문·숫자 글꼴 적용') }}</button>
+    </form>
+  </section>
+
+  <section class="panel account-create-panel">
+    <div class="section-heading"><div><h2>새 계정 생성</h2><p>비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.</p></div></div>
+    <form method="post" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>아이디 <em>필수</em></span><input name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" autocomplete="off" required placeholder="영문·숫자·.-_"></label>
+      <label><span>임시 비밀번호 <em>필수</em></span><input type="password" name="password" minlength="10" autocomplete="new-password" required placeholder="10자 이상"></label>
+      <label><span>권한 <em>필수</em></span><select name="role" required><option value="user">일반 사용자</option><option value="admin">관리자</option></select></label>
+      <button class="btn btn-primary" type="submit">계정 생성</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>로그인 IP 보안</h2><p>로그인에 {{ login_ip_max_failures }}회 실패한 IP는 관리자 해제 전까지 차단됩니다. 정상 로그인 시 누적 실패 횟수는 초기화됩니다.</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_ip_security') }}" class="ip-manual-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input name="ip_address" required placeholder="차단할 IP 주소">
+      <input name="note" maxlength="300" placeholder="관리 메모">
+      <button class="btn danger-button" name="action" value="block">IP 수동 차단</button>
+    </form>
+    <div class="table-scroll"><table class="data-table ip-security-table">
+      <thead><tr><th>IP 주소</th><th>실패 횟수</th><th>상태</th><th>최근 실패</th><th>차단일</th><th>관리 메모·작업</th></tr></thead>
+      <tbody>{% for item in ip_security %}<tr>
+        <td><code>{{ item.ip_address }}</code></td><td>{{ item.failed_attempts }} / {{ login_ip_max_failures }}</td>
+        <td><span class="account-state {{ 'is-disabled' if item.blocked_at else 'is-active' }}">{{ '차단' if item.blocked_at else '정상' }}</span></td>
+        <td>{{ (item.last_failed_at or '-')|replace('T',' ')|truncate(17,true,'') }}</td><td>{{ (item.blocked_at or '-')|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td><form method="post" action="{{ url_for('auth.update_ip_security') }}" class="ip-row-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="ip_address" value="{{ item.ip_address }}">
+          <input name="note" maxlength="300" value="{{ item.note or '' }}" placeholder="관리 메모">
+          <button class="btn btn-small" name="action" value="note">메모 저장</button>
+          {% if item.blocked_at %}<button class="btn btn-small" name="action" value="unblock">차단 해제</button>{% else %}<button class="btn btn-small danger-button" name="action" value="block">차단</button>{% endif %}
+        </form></td>
+      </tr>{% else %}<tr><td colspan="6" class="empty-state">아직 기록된 로그인 실패 IP가 없습니다.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>활성 로그인 세션</h2><p>{% if current_locale == 'en' %}Sessions end automatically after {{ session_idle_minutes }} minutes of inactivity or {{ session_absolute_hours }} hours after sign-in.{% else %}{{ session_idle_minutes }}분 미사용 또는 로그인 후 {{ session_absolute_hours }}시간이 지나면 자동 종료됩니다.{% endif %}</p></div><span>{% if current_locale == 'en' %}{{ active_sessions|length }} sessions{% else %}{{ active_sessions|length }}개{% endif %}</span></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>계정</th><th>IP</th><th>로그인</th><th>최근 활동</th><th>브라우저</th><th>작업</th></tr></thead><tbody>
+      {% for item in active_sessions %}<tr>
+        <td><strong>{{ item.username }}</strong>{% if item.session_hash == current_session_hash %}<small class="self-label">현재 로그인</small>{% endif %}</td>
+        <td><code>{{ item.ip_address or '-' }}</code></td>
+        <td>{{ item.created_at|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td>{{ item.last_seen_at|replace('T',' ')|truncate(17,true,'') }}</td>
+        <td class="truncate-cell" title="{{ item.user_agent or '' }}">{{ item.user_agent or '-' }}</td>
+        <td><form method="post" action="{{ url_for('auth.revoke_active_session', session_hash=item.session_hash) }}" onsubmit="return confirm('이 로그인을 종료할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button">세션 종료</button></form></td>
+      </tr>{% else %}<tr><td colspan="6" class="empty-state">활성 로그인 세션이 없습니다.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>메뉴별 접근 권한</h2><p>체크를 해제하면 메뉴가 숨겨지고 주소를 직접 입력해도 접근이 차단됩니다. 홈은 모든 활성 계정에 제공됩니다.</p></div></div>
+    <div class="permission-user-list">
+      {% for user in users %}
+      <form method="post" action="{{ url_for('auth.update_user_permissions', user_id=user.id) }}" class="permission-user-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="permission-user-name"><strong>{{ user.username }}</strong><span>{{ '관리자 · 전체 허용' if user.role == 'admin' else '일반 사용자' }}</span></div>
+        <div class="permission-controls">
+        <label class="landing-page-select"><span>로그인 후 첫 화면</span><select name="landing_page"><option value="dashboard" {% if (user.landing_page or 'dashboard') == 'dashboard' %}selected{% endif %}>홈</option>{% for code,label in menu_permissions_catalog.items() %}<option value="{{ code }}" {% if user.landing_page == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <div class="permission-check-grid">
+          {% for code,label in menu_permissions_catalog.items() %}
+          <label><input type="checkbox" name="permissions" value="{{ code }}" {% if permission_matrix[user.id][code] %}checked{% endif %} {% if user.role == 'admin' %}disabled{% endif %}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        </div>
+        <button class="btn btn-small" type="submit">권한·첫 화면 저장</button>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>등록 계정</h2><p>{{ t('다른 계정은 삭제 대기 전환하거나 가입·로그인 기록의 IP를 차단할 수 있습니다. 공유 IP 차단 시 같은 네트워크의 다른 사용자도 로그인할 수 있습니다.') }}</p></div><span>{% if current_locale == 'en' %}{{ users|length }} accounts{% else %}{{ users|length }}명{% endif %}</span></div>
+    <div class="table-scroll">
+      <table class="data-table account-table">
+        <thead><tr><th>아이디·이메일</th><th>상태</th><th>권한</th><th>가입·로그인 IP</th><th>최근 로그인</th><th>생성일</th><th>비밀번호 초기화</th><th>계정 관리</th></tr></thead>
+        <tbody>
+        {% for user in users %}
+          <tr id="user-{{ user.id }}">
+            <td><strong>{{ user.username }}</strong>{% if user.email %}<small class="self-label">{{ user.email }}</small>{% endif %}{% if user.id == session.user_id %}<small class="self-label">내 계정</small>{% endif %}</td>
+            <td>
+              <span class="account-state {{ 'is-active' if user.is_active else 'is-disabled' }}">{{ '사용 중' if user.is_active else ('승인 대기' if user.approval_status == 'pending' else ('탈퇴 보관 중' if user.approval_status == 'withdrawal_pending' else ('탈퇴 완료' if user.approval_status == 'deleted' else '비활성'))) }}</span>
+              {% if user.approval_status == 'withdrawal_pending' and user.deletion_scheduled_at %}<small class="self-label">{{ user.deletion_scheduled_at|replace('T',' ')|truncate(17,true,'') }} 익명화</small>{% endif %}
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('auth.update_user_role', user_id=user.id) }}" class="inline-account-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <select name="role" {% if user.id == session.user_id %}disabled{% endif %}><option value="user" {% if user.role == 'user' %}selected{% endif %}>일반 사용자</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>관리자</option></select>
+                <button class="btn btn-small" {% if user.id == session.user_id %}disabled{% endif %}>변경</button>
+              </form>
+            </td>
+            <td class="account-ip-cell">
+              <div class="account-ip-list">
+              {% for ip_item in user_ip_history.get(user.id, []) %}
+                <div class="account-ip-row">
+                  <span><code>{{ ip_item.ip_address }}</code><small>{{ ip_item.last_seen_at|replace('T',' ')|truncate(17,true,'') }}</small></span>
+                  {% if ip_item.is_blocked %}
+                    <span class="account-state is-disabled">차단됨</span>
+                  {% elif user.id == session.user_id or ip_item.ip_address == current_request_ip %}
+                    <span class="account-ip-protected">{{ '현재 계정' if user.id == session.user_id else '현재 IP' }}</span>
+                  {% else %}
+                    <form method="post" action="{{ url_for('auth.block_user_ip', user_id=user.id) }}" onsubmit="return confirm('공유 IP일 수 있습니다. {{ ip_item.ip_address }}를 차단할까요?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="ip_address" value="{{ ip_item.ip_address }}">
+                      <button class="btn btn-small danger-button" type="submit">IP 차단</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="account-ip-empty">기록 없음</span>
+              {% endfor %}
+              </div>
+            </td>
+            <td>{{ (user.last_login_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>{{ (user.created_at or '-')|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>
+              <form method="post" action="{{ url_for('auth.reset_user_password', user_id=user.id) }}" class="inline-account-form" onsubmit="return confirm('{{ 'Reset the password for this account?' if current_locale == 'en' else '이 계정의 비밀번호를 초기화할까요?' }}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="password" name="new_password" minlength="10" required placeholder="새 비밀번호" autocomplete="new-password">
+                <button class="btn btn-small">초기화</button>
+              </form>
+            </td>
+            <td><div class="account-action-stack">
+              {% if user.approval_status == 'withdrawal_pending' %}
+              <form method="post" action="{{ url_for('auth.restore_withdrawn_user', user_id=user.id) }}" onsubmit="return confirm('탈퇴 신청을 취소하고 이 계정을 복구할까요?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small">탈퇴 취소·복구</button>
+              </form>
+              {% else %}
+              <form method="post" action="{{ url_for('auth.toggle_user_active', user_id=user.id) }}" onsubmit="return confirm('{{ 'Change this account status?' if current_locale == 'en' else '계정 상태를 변경할까요?' }}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small {% if user.is_active %}danger-button{% endif %}" {% if user.id == session.user_id or user.approval_status == 'deleted' %}disabled{% endif %}>{{ '비활성화' if user.is_active else ('가입 승인' if user.approval_status == 'pending' else ('삭제 완료' if user.approval_status == 'deleted' else '활성화')) }}</button>
+              </form>
+              {% if user.id != session.user_id and user.approval_status != 'deleted' %}
+              <form method="post" action="{{ url_for('auth.schedule_user_deletion', user_id=user.id) }}" onsubmit="return confirm('{% if current_locale == 'en' %}Deactivate {{ user.username }} now and delete its personal data after 14 days? The account can be restored during that period.{% else %}{{ user.username }} 계정을 지금 비활성화하고 14일 후 개인정보를 삭제할까요? 14일 안에는 복구할 수 있습니다.{% endif %}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-small danger-button" type="submit">계정 삭제</button>
+              </form>
+              {% endif %}
+              {% endif %}
+              {% if user.id != session.user_id and user.approval_status != 'deleted' %}
+              <form method="post" action="{{ url_for('auth.delete_user_immediately', user_id=user.id) }}" onsubmit="return confirm('{% if current_locale == 'en' %}Delete and anonymize {{ user.username }} now without a recovery period? This action cannot be undone.{% else %}{{ user.username }} 계정의 개인정보를 복구 대기 없이 지금 삭제·익명화할까요? 이 작업은 되돌릴 수 없습니다.{% endif %}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="confirmation" value="{{ user.username }}">
+                <button class="btn btn-small danger-button" type="submit">즉시 삭제</button>
+              </form>
+              {% endif %}
+            </div></td>
+          </tr>
+        {% else %}<tr><td colspan="8" class="empty-state">등록된 계정이 없습니다.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+{% include "_footer.html" %}
+{% endblock %}

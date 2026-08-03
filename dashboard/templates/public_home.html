@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}홈{% endblock %}
+{% block body_class %}cinematic-home{% endblock %}
+{% block body %}
+<main class="public-home">
+  <header class="public-header">
+    <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ MANAGEMENT DASHBOARD</span></a>
+    <a class="public-login-link" href="{{ url_for('auth.login') }}">로그인</a>
+  </header>
+
+  {% set authenticated_home = false %}
+  {% include "_hero_spotlight.html" %}
+
+  <nav class="public-menu" aria-label="주요 메뉴">
+    <a href="{{ url_for('related_news_page') }}"><span>01</span><strong>뉴스</strong><small>국내·해외 카지노 산업 뉴스</small><i>→</i></a>
+    <a href="{{ url_for('casino_industry_page') }}"><span>02</span><strong>시장 정보</strong><small>산업·관광객·주가·환율·연휴</small><i>→</i></a>
+    <a href="{{ url_for('companies_page') }}"><span>03</span><strong>기업정보</strong><small>국내 주요 기업의 뉴스·공시·리포트</small><i>→</i></a>
+    <a href="{{ url_for('laws_page') }}"><span>04</span><strong>법률·규제</strong><small>카지노 법령과 국회·정부 입법동향</small><i>→</i></a>
+    <a href="{{ url_for('tips.list_page') }}"><span>05</span><strong>자료실</strong><small>업무 자료·관련 사이트·원천 데이터</small><i>→</i></a>
+    <a href="{{ url_for('community_board_page') }}"><span>06</span><strong>게시판</strong><small>자유 게시판·공지사항·버그 및 건의</small><i>→</i></a>
+    <a href="{{ url_for('unified_search_page') }}"><span>07</span><strong>통합검색</strong><small>뉴스·공시·법령·자료 검색</small><i>→</i></a>
+    <a href="{{ url_for('credits_page') }}"><span>08</span><strong>출처 및 저작권</strong><small>데이터 출처·갱신 주기·이용 안내</small><i>→</i></a>
+  </nav>
+
+  <footer class="public-footer"><span>CASINO IN</span><span>Casino industry intelligence</span></footer>
+</main>
+{% endblock %}

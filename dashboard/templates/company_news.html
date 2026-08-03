@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}기업별 뉴스{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container company-news-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Intelligence / News by Company</p>
+    <h1 class="page-title">기업별 뉴스</h1>
+    <p class="page-description">수집된 국내 뉴스를 기업과 AI 분류 기준으로 나누어 한눈에 확인합니다.</p>
+  </header>
+
+  <section class="company-news-kpis" aria-label="{{ t('뉴스 현황') }}">
+    <article><span>{{ t('전체 뉴스') }}</span><strong>{{ news_stats.total }}</strong></article>
+    <article class="is-important"><span>{{ t('중요 뉴스') }}</span><strong>{{ news_stats.important }}</strong></article>
+    <article class="is-analyzed"><span>{{ t('AI 분석 완료') }}</span><strong>{{ news_stats.analyzed }}</strong></article>
+    <article class="is-negative"><span>{{ t('부정 영향') }}</span><strong>{{ news_stats.negative }}</strong></article>
+  </section>
+
+  <form class="company-news-filter" method="get" action="{{ url_for('company_news_page') }}">
+    <label class="company-news-search"><span>검색</span><input type="search" name="q" maxlength="100" value="{{ search_query }}" placeholder="기업명·제목·AI 요약"></label>
+    <label><span>기업</span><select name="company"><option value="">전체 기업</option>{% for company_name in company_names %}<option value="{{ company_name }}"{% if selected_company == company_name %} selected{% endif %}>{{ company_name_labels.get(company_name, company_name) }}</option>{% endfor %}</select></label>
+    <label><span>분류</span><select name="category">{% for code, label in category_labels.items() %}<option value="{{ code }}"{% if selected_category == code %} selected{% endif %}>{{ t(label) }} ({{ category_counts.get(code, 0) }})</option>{% endfor %}</select></label>
+    <label><span>중요도</span><select name="importance"><option value="all"{% if selected_importance == 'all' %} selected{% endif %}>전체</option><option value="important"{% if selected_importance == 'important' %} selected{% endif %}>중요 뉴스만</option><option value="regular"{% if selected_importance == 'regular' %} selected{% endif %}>일반 뉴스만</option></select></label>
+    <label><span>AI 분석</span><select name="analysis"><option value="all"{% if selected_analysis == 'all' %} selected{% endif %}>전체</option><option value="analyzed"{% if selected_analysis == 'analyzed' %} selected{% endif %}>AI 분석 뉴스만</option><option value="pending"{% if selected_analysis == 'pending' %} selected{% endif %}>분석 대기만</option></select></label>
+    <label><span>영향 방향</span><select name="impact"><option value="all"{% if selected_impact == 'all' %} selected{% endif %}>전체</option><option value="positive"{% if selected_impact == 'positive' %} selected{% endif %}>긍정</option><option value="negative"{% if selected_impact == 'negative' %} selected{% endif %}>부정</option><option value="mixed"{% if selected_impact == 'mixed' %} selected{% endif %}>혼재</option><option value="neutral"{% if selected_impact == 'neutral' %} selected{% endif %}>중립·미분류</option></select></label>
+    <label><span>기간</span><select name="days">{% for value, label in [(30, '최근 30일'), (90, '최근 90일'), (180, '최근 180일'), (365, '최근 1년')] %}<option value="{{ value }}"{% if days == value %} selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
+    <div class="company-news-filter-actions"><button class="btn btn-primary" type="submit">필터 적용</button><a class="btn" href="{{ url_for('company_news_page') }}">초기화</a></div>
+  </form>
+
+  <div class="company-news-category-summary company-news-total-summary" aria-label="{{ t('선택 기업 뉴스 분류 현황') }}">
+    {% for code, label in category_labels.items() %}<span{% if selected_category == code %} class="is-active"{% endif %}><b>{{ category_counts.get(code, 0) }}</b>{{ t(label) }}</span>{% endfor %}
+  </div>
+
+  <div class="company-news-dashboard">
+    {% for company in companies %}
+    {% set company_articles = company.visible_articles %}
+    <section class="panel company-news-section">
+      <header>
+        <div><p class="page-eyebrow">Company {{ "%02d"|format(loop.index) }}</p><h2>{{ company.display_name }}</h2><p>{{ company.display_aliases|join(' · ') }}</p></div>
+        <strong>{{ company_articles|length }} {{ 'items' if current_locale == 'en' else '건' }}</strong>
+      </header>
+      <div class="company-news-category-summary" aria-label="{{ company.display_name }} {{ t('뉴스 분류 현황') }}">
+        {% for code, label in category_labels.items() if code != 'all' %}
+        <span><b>{{ company.counts[code]|default(0, true) }}</b>{{ t(label) }}</span>
+        {% endfor %}
+      </div>
+      {% if company_articles %}
+      <div class="company-news-list">
+        {% for item in company_articles %}
+        <article class="company-news-card{% if item.is_important %} is-important{% endif %}">
+          <div class="news-card-meta"><span class="company-news-category is-{{ item.category_code or 'other' }}">{{ t(item.category_label or '기타') }}</span>{% if item.is_important %}<span class="company-news-flag important">IMPORTANT</span>{% endif %}{% if item.is_analyzed %}<span class="company-news-flag analyzed">AI ANALYZED</span>{% endif %}<span class="impact-badge is-{{ item.impact_code }}">{{ {'positive':'긍정','negative':'부정','mixed':'혼재','neutral':'중립'}.get(item.impact_code, '중립') }}</span><time>{{ (item.published_at or item.collected_at or '')[:16]|replace('T', ' ') }}</time></div>
+          <h3>{% if item.original_url %}<a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</h3>
+          <p class="news-source">{{ item.publisher or t('출처 미상') }}{% if item.category %} · {{ t('AI 분류') }} {{ item.category }}{% endif %}{% if item.importance_score %} · {{ t('중요도') }} {{ item.importance_score|round|int }}{% endif %}</p>
+          {% if item.latest_summary %}<div class="company-news-summary"><b>AI SUMMARY</b><p>{{ item.latest_summary }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}<p class="empty-state"><strong>{{ company.display_name }}</strong> · {{ t('선택한 조건의 뉴스가 없습니다.') }}</p>{% endif %}
+    </section>
+    {% else %}
+    <p class="empty-state">{{ t('분류할 기업 정보가 없습니다.') }}</p>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

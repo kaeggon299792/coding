@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}관리자 전용{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container paradian-portal">
+  <header class="page-header">
+    <p class="page-eyebrow">Administration / Restricted Access</p>
+    <h1 class="page-title">관리자 전용</h1>
+    <p class="page-description">사이트·계정·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
+  </header>
+  <section class="paradian-menu-grid">
+    <a href="{{ url_for('auth.user_management') }}">
+      <span>Site Administration</span><h2>관리자 페이지</h2>
+      <p>가입 승인, 권한, 계정과 사이트 설정을 관리합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('auth.admin_logs') }}">
+      <span>Security &amp; Activity Logs</span><h2>로그</h2>
+      <p>로그인, 활동과 비가입자 접근 기록을 확인합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('admin_action_items_page') }}">
+      <span>Operational Action Items</span><h2>미처리 과제</h2>
+      <p>기존 운영 과제와 처리 상태를 관리합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('official_docs.dashboard') }}">
+      <span>Official Documents</span><h2>공문·자료관리</h2>
+      <p>공문 접수, 자료 처리와 Y디스크 보관 상태를 관리합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('performance_page') }}">
+      <span>Management Performance</span><h2>경영 실적</h2>
+      <p>일별 실적과 워커힐 카지노 매출 추이를 확인합니다.</p><b>열기 →</b>
+    </a>
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,585 @@
+"""Dashboard-integrated tips board routes."""
+
+import hashlib
+import mimetypes
+import os
+import uuid
+from pathlib import Path
+from urllib.parse import urlparse
+
+from flask import (
+    Blueprint, abort, flash, g, redirect, render_template, request, send_file,
+    session, url_for,
+)
+from werkzeug.utils import secure_filename
+
+import config
+from auth import admin_required, login_required, validate_csrf
+from extensions import dashboard_db
+from services import content_translation, tips_content
+from utils import now_kst
+
+
+tips_bp = Blueprint("tips", __name__, url_prefix="/tips")
+ALLOWED_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".xlsx", ".xlsm",
+    ".docx", ".pptx", ".txt", ".csv", ".zip",
+}
+
+
+def _snippet(text, limit=170):
+    compact = " ".join((text or "").split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit].rsplit(' ', 1)[0]}…"
+
+
+def _is_admin():
+    return session.get("role") == "admin"
+
+
+def _site_form_values():
+    title = request.form.get("title", "").strip()
+    site_url = request.form.get("url", "").strip()
+    description = request.form.get("description", "").strip()
+    category = request.form.get("category", "기타").strip() or "기타"
+    tags = request.form.get("tags", "").strip()
+    if not title:
+        raise ValueError("사이트명을 입력해주세요.")
+    parsed = urlparse(site_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError("http:// 또는 https://로 시작하는 올바른 주소를 입력해주세요.")
+    return {
+        "title": title[:150], "url": site_url[:1000],
+        "description": description[:1000], "category": category[:50],
+        "tags": tags[:300], "is_pinned": request.form.get("is_pinned") == "1",
+        "is_public": request.form.get("is_public", "1") == "1",
+    }
+
+
+def _site_categories(connection):
+    names = [
+        row["name"] for row in connection.execute(
+            "SELECT name FROM related_site_categories "
+            "WHERE is_active=1 ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    ]
+    return tuple(dict.fromkeys(names))
+
+
+def _ensure_site_category(connection, category):
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO related_site_categories
+            (name, created_by, created_at, is_active)
+        VALUES (?, ?, ?, 1)
+        """,
+        (
+            category, session.get("user_id"),
+            now_kst().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def _form_values():
+    return {
+        "title": request.form.get("title", ""),
+        "slug": request.form.get("slug", ""),
+        "summary": request.form.get("summary", ""),
+        "body": request.form.get("body", ""),
+        "category": request.form.get("category", "기타"),
+        "tags": request.form.get("tags", ""),
+        "published_date": request.form.get("published_date", ""),
+        "cover_image": request.form.get("cover_image", ""),
+        "featured": request.form.get("featured") == "1",
+        "draft": request.form.get("draft") == "1",
+    }
+
+
+def _save_attachments(connection, tip_id):
+    root = Path(config.TIPS_ATTACHMENT_DIR)
+    root.mkdir(parents=True, exist_ok=True)
+    for uploaded in request.files.getlist("attachments"):
+        if not uploaded or not uploaded.filename:
+            continue
+        original = secure_filename(uploaded.filename)
+        suffix = Path(original).suffix.lower()
+        if not original or suffix not in ALLOWED_EXTENSIONS:
+            raise ValueError(f"허용되지 않는 첨부파일 형식입니다: {uploaded.filename}")
+        uploaded.stream.seek(0, os.SEEK_END)
+        size = uploaded.stream.tell()
+        uploaded.stream.seek(0)
+        if size > config.TIPS_MAX_ATTACHMENT_BYTES:
+            raise ValueError(f"첨부파일은 개별 {config.TIPS_MAX_ATTACHMENT_BYTES // 1048576}MB 이하만 가능합니다.")
+        stored = f"{uuid.uuid4().hex}{suffix}"
+        destination = root / stored
+        uploaded.save(destination)
+        digest = hashlib.sha256(destination.read_bytes()).hexdigest()
+        connection.execute(
+            """INSERT INTO tips_attachments
+               (tip_id, original_filename, stored_filename, mime_type, file_size,
+                sha256, uploaded_by, created_at, is_deleted)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+            (tip_id, original, stored,
+             uploaded.mimetype or mimetypes.guess_type(original)[0],
+             size, digest, session.get("user_id"),
+             now_kst().isoformat(timespec="seconds")),
+        )
+    connection.commit()
+
+
+@tips_bp.route("")
+def list_page():
+    query = request.args.get("q", "").strip()
+    category = request.args.get("category", "").strip()
+    connection = dashboard_db()
+    try:
+        items = tips_content.list_tips(
+            connection, query, category, include_drafts=_is_admin()
+        )
+        if g.locale == "en":
+            items = content_translation.apply_cached(connection, "tip", items)
+        existing_categories = [
+            row["category"] for row in connection.execute(
+                """SELECT DISTINCT category FROM tips_articles
+                   WHERE is_deleted=0 AND category<>'' ORDER BY category"""
+            ).fetchall()
+        ]
+    finally:
+        connection.close()
+    categories = tuple(dict.fromkeys(
+        (*tips_content.CATEGORIES, *existing_categories)
+    ))
+    return render_template(
+        "tips/list.html", tips=items, query=query, selected_category=category,
+        categories=categories,
+    )
+
+
+@tips_bp.route("/sites", methods=["GET", "POST"])
+def sites_page():
+    connection = dashboard_db()
+    try:
+        if request.method == "POST":
+            if not _is_admin():
+                abort(403)
+            if not validate_csrf(request.form.get("csrf_token")):
+                abort(400)
+            try:
+                values = _site_form_values()
+            except ValueError as exc:
+                flash(str(exc), "error")
+                return redirect(url_for("tips.sites_page"))
+            timestamp = now_kst().isoformat(timespec="seconds")
+            _ensure_site_category(connection, values["category"])
+            connection.execute(
+                """
+                INSERT INTO related_sites (
+                    title, url, description, category, tags, is_pinned,
+                    is_public, created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    values["title"], values["url"], values["description"],
+                    values["category"], values["tags"],
+                    1 if values["is_pinned"] else 0,
+                    1 if values["is_public"] else 0,
+                    session.get("user_id"), timestamp, timestamp,
+                ),
+            )
+            connection.commit()
+            flash("관련 사이트를 등록했습니다.", "success")
+            return redirect(url_for("tips.sites_page"))
+
+        query = request.args.get("q", "").strip()
+        category = request.args.get("category", "").strip()
+        conditions = ["is_deleted=0"]
+        params = []
+        if not _is_admin():
+            conditions.append("is_public=1")
+        if query:
+            like = f"%{query}%"
+            conditions.append(
+                "(title LIKE ? OR description LIKE ? OR tags LIKE ? OR url LIKE ?)"
+            )
+            params.extend([like] * 4)
+        if category:
+            conditions.append("category=?")
+            params.append(category)
+        sites = [
+            dict(row) for row in connection.execute(
+                f"SELECT * FROM related_sites WHERE {' AND '.join(conditions)} "
+                "ORDER BY is_pinned DESC, updated_at DESC, id DESC",
+                params,
+            ).fetchall()
+        ]
+        if g.locale == "en":
+            sites = content_translation.apply_cached(connection, "related_site", sites)
+        categories = _site_categories(connection)
+        return render_template(
+            "tips/sites.html", sites=sites, query=query,
+            selected_category=category, categories=categories,
+        )
+    finally:
+        connection.close()
+
+
+@tips_bp.post("/sites/<int:site_id>/edit")
+@admin_required
+def edit_site_page(site_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    try:
+        values = _site_form_values()
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("tips.sites_page"))
+    connection = dashboard_db()
+    try:
+        _ensure_site_category(connection, values["category"])
+        cursor = connection.execute(
+            """
+            UPDATE related_sites SET
+                title=?, url=?, description=?, category=?, tags=?,
+                is_pinned=?, is_public=?, updated_at=?
+            WHERE id=? AND is_deleted=0
+            """,
+            (
+                values["title"], values["url"], values["description"],
+                values["category"], values["tags"],
+                1 if values["is_pinned"] else 0,
+                1 if values["is_public"] else 0,
+                now_kst().isoformat(timespec="seconds"), site_id,
+            ),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("관련 사이트를 수정했습니다.", "success")
+    return redirect(url_for("tips.sites_page"))
+
+
+@tips_bp.post("/sites/categories")
+@admin_required
+def add_site_category_page():
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    name = " ".join(request.form.get("name", "").split()).strip()
+    if not name:
+        flash("카테고리명을 입력해주세요.", "error")
+        return redirect(url_for("tips.sites_page"))
+    if len(name) > 50:
+        flash("카테고리명은 50자 이하로 입력해주세요.", "error")
+        return redirect(url_for("tips.sites_page"))
+    connection = dashboard_db()
+    try:
+        before = connection.total_changes
+        _ensure_site_category(connection, name)
+        connection.commit()
+        created = connection.total_changes > before
+    finally:
+        connection.close()
+    flash(
+        "카테고리를 추가했습니다." if created else "이미 등록된 카테고리입니다.",
+        "success" if created else "info",
+    )
+    return redirect(url_for("tips.sites_page"))
+
+
+@tips_bp.post("/sites/<int:site_id>/delete")
+@admin_required
+def delete_site_page(site_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        cursor = connection.execute(
+            "UPDATE related_sites SET is_deleted=1, deleted_at=?, updated_at=? "
+            "WHERE id=? AND is_deleted=0",
+            (
+                now_kst().isoformat(timespec="seconds"),
+                now_kst().isoformat(timespec="seconds"), site_id,
+            ),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("관련 사이트를 삭제했습니다.", "success")
+    return redirect(url_for("tips.sites_page"))
+
+
+@tips_bp.route("/trash")
+@admin_required
+def trash_page():
+    connection = dashboard_db()
+    try:
+        items = tips_content.list_tips(
+            connection, include_drafts=True, include_deleted=True
+        )
+        items = [item for item in items if item["is_deleted"]]
+    finally:
+        connection.close()
+    return render_template("tips/trash.html", tips=items)
+
+
+@tips_bp.route("/new", methods=["GET", "POST"])
+@admin_required
+def new_page():
+    if request.method == "POST":
+        if not validate_csrf(request.form.get("csrf_token")):
+            abort(400)
+        values = _form_values()
+        connection = dashboard_db()
+        try:
+            item = tips_content.save_tip(
+                connection, values, session.get("user_id")
+            )
+            _save_attachments(connection, item["id"])
+        except ValueError as exc:
+            connection.rollback()
+            flash(str(exc), "error")
+            return render_template(
+                "tips/form.html", tip=values, categories=tips_content.CATEGORIES,
+                mode="new",
+            ), 400
+        finally:
+            connection.close()
+        flash("자료를 등록했습니다.", "success")
+        return redirect(url_for("tips.detail_page", slug=item["slug"]))
+    return render_template(
+        "tips/form.html", tip={}, categories=tips_content.CATEGORIES, mode="new"
+    )
+
+
+@tips_bp.route("/<slug>")
+def detail_page(slug):
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        if not item:
+            abort(404)
+        viewed = set(session.get("viewed_tips", []))
+        if item["id"] not in viewed:
+            tips_content.increment_view(connection, item["id"])
+            item["view_count"] += 1
+            viewed.add(item["id"])
+            session["viewed_tips"] = list(viewed)[-100:]
+        files = tips_content.attachments(connection, item["id"])
+        item_comments = tips_content.comments(connection, item["id"])
+        previous, following = tips_content.adjacent_tips(connection, item)
+        if g.locale == "en":
+            item = content_translation.apply_one(connection, "tip", item)
+            item_comments = content_translation.apply_cached(
+                connection, "tip_comment", item_comments
+            )
+        rendered = tips_content.render_markdown(item["body"])
+    finally:
+        connection.close()
+    return render_template(
+        "tips/detail.html", tip=item, rendered_body=rendered,
+        attachments=files, comments=item_comments,
+        previous_tip=previous, next_tip=following,
+        seo_title=f"{item['title']} | Casino IN",
+        seo_description=_snippet(item.get("summary") or item.get("body") or ""),
+        seo_og_title=f"{item['title']} | Casino IN",
+        seo_og_description=_snippet(item.get("summary") or item.get("body") or ""),
+        seo_og_type="article",
+        seo_json_ld=[{
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": item["title"],
+            "description": _snippet(item.get("summary") or item.get("body") or ""),
+            "datePublished": item.get("published_date"),
+            "dateModified": (item.get("updated_at") or item.get("updated_date") or item.get("published_date")),
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": f"https://casino.shingoon.me/tips/{item['slug']}",
+            },
+            "author": {"@type": "Organization", "name": "Casino IN"},
+            "publisher": {
+                "@type": "Organization",
+                "name": "Casino IN",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://casino.shingoon.me/static/img/casino-in-logo.png",
+                },
+            },
+            "image": ["https://casino.shingoon.me/static/img/casino-in-logo.png"],
+        }],
+    )
+
+
+@tips_bp.post("/<slug>/comments")
+@login_required
+def add_comment_page(slug):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        if not item:
+            abort(404)
+        try:
+            tips_content.add_comment(
+                connection, item["id"], session["user_id"],
+                request.form.get("content", ""),
+            )
+            flash("댓글을 등록했습니다.", "success")
+        except ValueError as exc:
+            flash(str(exc), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
+
+
+@tips_bp.post("/<slug>/comments/<int:comment_id>/edit")
+@login_required
+def edit_comment_page(slug, comment_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        comment = tips_content.get_comment(connection, comment_id)
+        if not item or not comment or comment["tip_id"] != item["id"] or comment["is_deleted"]:
+            abort(404)
+        if comment["author_id"] != session["user_id"] and not _is_admin():
+            abort(403)
+        try:
+            tips_content.update_comment(
+                connection, comment_id, request.form.get("content", "")
+            )
+            flash("댓글을 수정했습니다.", "success")
+        except ValueError as exc:
+            flash(str(exc), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
+
+
+@tips_bp.post("/<slug>/comments/<int:comment_id>/delete")
+@login_required
+def delete_comment_page(slug, comment_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=_is_admin()
+        )
+        comment = tips_content.get_comment(connection, comment_id)
+        if not item or not comment or comment["tip_id"] != item["id"] or comment["is_deleted"]:
+            abort(404)
+        if comment["author_id"] != session["user_id"] and not _is_admin():
+            abort(403)
+        tips_content.delete_comment(connection, comment_id, session["user_id"])
+        flash("댓글을 삭제했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#comments")
+
+
+@tips_bp.route("/<slug>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_page(slug):
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(
+            connection, slug, include_drafts=True, include_deleted=False
+        )
+        if not item:
+            abort(404)
+        if request.method == "POST":
+            if not validate_csrf(request.form.get("csrf_token")):
+                abort(400)
+            values = _form_values()
+            try:
+                item = tips_content.save_tip(
+                    connection, values, session.get("user_id"), item["id"]
+                )
+                _save_attachments(connection, item["id"])
+            except ValueError as exc:
+                connection.rollback()
+                flash(str(exc), "error")
+                return render_template(
+                    "tips/form.html", tip=values,
+                    categories=tips_content.CATEGORIES, mode="edit",
+                ), 400
+            flash("자료를 수정했습니다.", "success")
+            return redirect(url_for("tips.detail_page", slug=item["slug"]))
+        return render_template(
+            "tips/form.html", tip=item,
+            categories=tuple(dict.fromkeys((
+                *tips_content.CATEGORIES, item["category"]
+            ))),
+            mode="edit",
+        )
+    finally:
+        connection.close()
+
+
+@tips_bp.post("/<slug>/delete")
+@admin_required
+def delete_page(slug):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(connection, slug, include_drafts=True)
+        if not item:
+            abort(404)
+        tips_content.soft_delete(connection, item["id"], session.get("user_id"))
+    finally:
+        connection.close()
+    flash("휴지통으로 이동했습니다. 첨부파일은 보존됩니다.", "success")
+    return redirect(url_for("tips.list_page"))
+
+
+@tips_bp.post("/<tip_id>/restore")
+@admin_required
+def restore_page(tip_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not tips_content.get_tip_by_id(connection, tip_id):
+            abort(404)
+        tips_content.restore(connection, tip_id)
+    finally:
+        connection.close()
+    flash("자료를 복구했습니다.", "success")
+    return redirect(url_for("tips.trash_page"))
+
+
+@tips_bp.get("/attachment/<int:attachment_id>")
+def attachment_file(attachment_id):
+    connection = dashboard_db()
+    try:
+        row = connection.execute(
+            """SELECT a.* FROM tips_attachments a
+               JOIN tips_articles t ON t.id=a.tip_id
+               WHERE a.id=? AND a.is_deleted=0 AND t.is_deleted=0
+                 AND (t.draft=0 OR ?)""",
+            (attachment_id, 1 if _is_admin() else 0),
+        ).fetchone()
+        if not row:
+            abort(404)
+        path = Path(config.TIPS_ATTACHMENT_DIR) / row["stored_filename"]
+        if not path.is_file():
+            abort(404)
+        return send_file(
+            path, mimetype=row["mime_type"], as_attachment=True,
+            download_name=row["original_filename"],
+        )
+    finally:
+        connection.close()

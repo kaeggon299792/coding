@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}버그 및 건의{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container bug-report-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Community / Bug Reports &amp; Suggestions</p>
+    <h1 class="page-title">버그 및 건의</h1>
+    <p class="page-description">질문, 버그 제보, 기능 제안과 일반 의견을 등록하는 게시판입니다. 게시글은 작성자와 관리자만 열람할 수 있습니다.</p>
+  </header>
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+  {% if current_username %}
+  <section class="panel bug-report-form-panel">
+    <div class="section-heading"><div><h2>새 글 작성</h2><p>오류는 재현 방법을, 질문은 확인이 필요한 내용을 구체적으로 작성해주세요.</p></div></div>
+    <form method="post" action="{{ url_for('create_action_item_route') }}" class="bug-report-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>글 유형 <em>필수</em></span><select name="feedback_type" required><option value="질문">질문</option><option value="버그 제보">버그 제보</option><option value="기능 제안">기능 제안</option><option value="일반 의견" selected>일반 의견</option></select></label>
+      <label class="wide"><span>제목 <em>필수</em></span><input type="text" name="title" required maxlength="150" placeholder="예: 선택 자료 다운로드 후 로딩 게이지가 멈춤"></label>
+      <label><span>관련 화면</span><input type="text" name="bug_page" maxlength="200" placeholder="{{ t('예: 공문·자료관리 → 자료목록') }}"></label>
+      <label><span>사용 환경</span><input type="text" name="environment" maxlength="200" placeholder="예: 회사 VM / Chrome"></label>
+      <label><span>중요도 <em>필수</em></span><select name="priority" required><option value="긴급">긴급 · 업무 불가</option><option value="높음">높음 · 빠른 확인 필요</option><option value="보통" selected>보통</option><option value="낮음">낮음 · 문의/개선</option></select></label>
+      {% if is_admin %}<label><span>처리 담당자</span><input type="text" name="owner" maxlength="80" placeholder="미지정 가능"></label>{% endif %}
+      <label class="wide"><span>내용 <em>필수</em></span><textarea name="description" required maxlength="5000" rows="5" placeholder="오류 현상, 기대한 동작 또는 질문 내용을 입력해주세요."></textarea></label>
+      <div class="bug-form-footer"><span>{{ t('작성자') }}: {{ current_username }} · {{ t('비공개') }}</span><button class="btn btn-primary" type="submit">등록</button></div>
+    </form>
+  </section>
+  {% else %}
+  <section class="public-action-notice"><p>게시글은 작성자와 관리자만 볼 수 있습니다. 새 글 작성은 로그인 후 이용해주세요.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>
+  {% endif %}
+
+  <section class="panel">
+    <div class="section-heading">
+      <div><h2>{{ '전체 게시글' if is_admin else '내 게시글' }}</h2><p>{{ '관리자는 모든 글을 확인하고 답변할 수 있습니다.' if is_admin else '본인이 작성한 글만 표시됩니다.' }}</p></div>
+      <span>{{ items|length }}건</span>
+    </div>
+    {% if items %}
+    <div class="table-scroll"><table class="data-table bug-board-table">
+      <thead><tr><th>번호</th><th>유형</th><th>제목</th><th>중요도</th><th>작성자</th><th>담당</th><th>상태</th><th>등록일</th></tr></thead>
+      <tbody>{% for item in items %}<tr>
+        <td>{{ item.id }}</td>
+        <td><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span></td>
+        <td><a class="bug-board-title" href="{{ url_for('action_item_detail', item_id=item.id) }}">{{ item.title }}</a>{% if item.bug_page %}<small>{{ item.bug_page }}</small>{% endif %}</td>
+        <td><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span></td>
+        <td>{{ item.reported_by or ('AI/기존 기록' if item.ai_suggested else '-') }}</td>
+        <td>{{ item.owner or '-' }}</td>
+        <td>{{ item.status }}</td>
+        <td>{{ item.created_at|replace('T',' ')|truncate(17, true, '') }}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty-state">등록된 게시글이 없습니다.</p>{% endif %}
+  </section>
+</main>
+{% endblock %}

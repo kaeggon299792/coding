@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}실적{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<div class="page-container">
+  <div class="page-header">
+    <p class="page-eyebrow">Operations / Performance</p>
+    <h1 class="page-title">경영 실적</h1>
+    <p class="page-description">데이터랩에서 수집한 그룹 실적과 사업 부문별 흐름을 확인합니다.</p>
+  </div>
+  <form class="form-inline" method="get">
+    <input type="date" name="date" value="{{ report_date }}">
+    <button class="btn" type="submit">조회</button>
+  </form>
+
+  {% if casino_trend %}
+  <section class="panel walkerhill-trend-panel">
+    <header class="walkerhill-trend-head">
+      <div>
+        <p class="page-eyebrow">Priority / Walkerhill Casino</p>
+        <h2>워커힐 카지노 30일 매출 추이</h2>
+        <p>가장 중요한 워커힐 카지노 지표를 일별로 추적합니다.</p>
+      </div>
+      <div class="walkerhill-latest {% if casino_trend.latest.value < 0 %}is-negative{% endif %}">
+        <span>최근 매출</span>
+        <strong>{{ "{:,.0f}".format(casino_trend.latest.value) }}</strong>
+        <small>백만원 · {{ casino_trend.latest.label }}</small>
+      </div>
+    </header>
+
+    <div class="walkerhill-chart-wrap">
+      <svg class="walkerhill-chart" viewBox="0 0 1000 270" role="img" aria-labelledby="walkerhill-chart-title walkerhill-chart-desc">
+        <title id="walkerhill-chart-title">워커힐 카지노 최근 30일 매출 선그래프</title>
+        <desc id="walkerhill-chart-desc">{{ casino_trend.start_date }}부터 {{ casino_trend.end_date }}까지 {{ casino_trend.day_count }}일의 매출 변화</desc>
+        <defs>
+          <linearGradient id="walkerhill-line-gradient" x1="0" x2="1">
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#60a5fa"/>
+          </linearGradient>
+          <linearGradient id="walkerhill-area-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#448ff0" stop-opacity=".30"/>
+            <stop offset="72%" stop-color="#448ff0" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#448ff0" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <line class="walkerhill-grid-line" x1="42" y1="24" x2="958" y2="24"/>
+        <line class="walkerhill-grid-line" x1="42" y1="124" x2="958" y2="124"/>
+        <line class="walkerhill-grid-line" x1="42" y1="224" x2="958" y2="224"/>
+        <line class="walkerhill-zero-line" x1="42" y1="{{ casino_trend.zero_y }}" x2="958" y2="{{ casino_trend.zero_y }}"/>
+        <polygon class="walkerhill-area" points="42,224 {{ casino_trend.points }} 958,224"/>
+        <polyline class="walkerhill-line" points="{{ casino_trend.points }}"/>
+        {% for point in casino_trend.entries %}
+        {% if loop.last %}
+        <g class="walkerhill-point-group is-latest">
+          <circle class="walkerhill-point {% if point.value < 0 %}is-negative{% endif %}" cx="{{ point.x }}" cy="{{ point.y }}" r="5">
+            <title>{{ point.date }} · {{ "{:,.0f}".format(point.value) }}백만원</title>
+          </circle>
+          <circle class="walkerhill-point-pulse" cx="{{ point.x }}" cy="{{ point.y }}" r="11"/>
+        </g>
+        {% endif %}
+        {% endfor %}
+        <text class="walkerhill-axis-label" x="42" y="258">{{ casino_trend.start_date[5:] }}</text>
+        <text class="walkerhill-axis-label is-end" x="958" y="258">{{ casino_trend.end_date[5:] }}</text>
+      </svg>
+    </div>
+
+    <div class="walkerhill-trend-stats">
+      <div><span>수집 일수</span><strong>{{ casino_trend.day_count }}일</strong><small>최근 30일 중</small></div>
+      <div><span>기간 최고</span><strong>{{ "{:,.0f}".format(casino_trend.highest.value) }}</strong><small>{{ casino_trend.highest.label }} · 백만원</small></div>
+      <div><span>기간 최저</span><strong class="{% if casino_trend.lowest.value < 0 %}is-negative{% endif %}">{{ "{:,.0f}".format(casino_trend.lowest.value) }}</strong><small>{{ casino_trend.lowest.label }} · 백만원</small></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="panel">
+    <h2>{{ report_date }} 데이터랩 실적</h2>
+    <p class="item-meta">Brity 데이터랩 자동화가 수집한 그룹 및 사업 부문별 실적입니다.</p>
+    {% if reports %}
+      <div class="performance-report-list">
+        {% for report in reports %}
+          {% if report.parsed %}
+            {% include "_performance_chart.html" %}
+          {% elif report.parsing_error %}
+            <div class="empty-state">데이터 분석 실패: {{ report.parsing_error }}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">해당 날짜에 수신된 실적 데이터가 없습니다.</p>
+    {% endif %}
+  </div>
+</div>
+{% include "_footer.html" %}
+{% endblock %}

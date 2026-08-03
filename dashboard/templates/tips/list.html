@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}자료실{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260801-library-theme-colors">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container tips-shell">
+  <header class="tips-library-hero">
+    <div class="tips-hero-top"><span class="eyebrow">KNOWLEDGE / LIBRARY</span><span>ARCHIVE / {{ now_str[:4] }}</span></div>
+    <h1>자료실</h1>
+    <p class="tips-hero-lead">업무 노하우와 자동화 자료를 검색하고 확인합니다.</p>
+    <p class="tips-hero-supporting">실무에서 검증한 방법, 도구와 업무 기준을 한곳에 축적합니다.</p>
+    {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn" href="{{ url_for('tips.new_page') }}">새 자료 등록</a><a class="btn btn-secondary" href="{{ url_for('tips.trash_page') }}">휴지통</a></div>{% endif %}
+  </header>
+
+  <form class="tips-search" method="get" action="{{ url_for('tips.list_page') }}">
+    <label><span>제목·본문 검색</span><input type="search" name="q" value="{{ query }}" placeholder="자료, 도구, 업무 키워드 검색"></label>
+    <label><span>카테고리</span><select name="category"><option value="">전체 카테고리</option>{% for category in categories %}<option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
+    <button class="btn" type="submit">검색</button>
+    {% if query or selected_category %}<a class="btn btn-secondary" href="{{ url_for('tips.list_page') }}">초기화</a>{% endif %}
+  </form>
+
+  <div class="tips-result-line"><span>{{ tips|length }}개의 자료</span>{% if query %}<span>“{{ query }}” 검색 결과</span>{% endif %}</div>
+  {% if tips %}
+  <section class="tips-archive-list" aria-label="자료 목록">
+    {% for tip in tips %}
+    <article class="tips-archive-item{% if tip.featured %} is-pinned{% endif %}">
+      <a href="{{ url_for('tips.detail_page', slug=tip.slug) }}">
+        <span class="tips-list-index">{{ '%02d' % loop.index }}</span>
+        <span class="tips-list-main">
+          <span class="tips-list-category">{{ tip.category }}{% if tip.featured %} · 중요{% endif %}{% if tip.draft %} · 비공개{% endif %}</span>
+          <strong>{{ tip.title }}</strong>
+          <span class="tips-list-summary">{{ tip.summary or tip.body|striptags|truncate(180) }}</span>
+          {% if tip.tags %}<span class="tips-list-tags">{% for tag in tip.tags %}<i>#{{ tag }}</i>{% endfor %}</span>{% endif %}
+        </span>
+        <span class="tips-list-side"><time>{{ tip.published_date }}</time><span>조회 {{ tip.view_count }}</span><b aria-hidden="true">→</b></span>
+      </a>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="tips-empty"><h2>{% if query or selected_category %}검색 결과가 없습니다{% else %}등록된 자료가 없습니다{% endif %}</h2><p>검색 조건을 바꾸거나 나중에 다시 확인해 주세요.</p></section>
+  {% endif %}
+</main>
+{% include "_footer.html" %}
+{% endblock %}

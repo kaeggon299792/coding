@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ document.management_number }} 수정{% endblock %}
+{% block body %}{% include "_topbar.html" %}
+<div class="page-container">
+  {% include "official_docs/_subnav.html" %}
+  <div class="page-header"><p class="page-eyebrow">Official Documents / Edit</p><h1 class="page-title">자료 수정</h1><p class="page-description">{{ document.management_number }} · 모든 변경 전후 값은 수정로그에 남습니다.</p></div>
+  {% if errors %}<div class="flash error"><strong>입력 내용을 확인해주세요.</strong><ul>{% for field,message in errors.items() %}<li>{{ message }}</li>{% endfor %}</ul></div>{% endif %}
+  <form method="post" class="official-form" id="official-document-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <fieldset><legend>분류·접수</legend>
+      <label><span>분류 *</span><select name="category_code" id="official-category" required>{% for row in categories %}<option value="{{ row.code }}" {% if form_values.category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+      <label class="conditional-other"><span>분류 기타 상세내용</span><input name="category_detail" value="{{ form_values.category_detail or '' }}"></label>
+      <label><span>폴더구분 *</span><select name="folder_category_code" id="official-folder-category" required>{% for row in folder_categories %}<option value="{{ row.code }}" {% if form_values.folder_category_code==row.code %}selected{% endif %}>{{ row.label }}</option>{% endfor %}</select></label>
+      <label class="conditional-folder-other"><span>폴더 기타 상세내용</span><input name="folder_category_detail" value="{{ form_values.folder_category_detail or '' }}"></label>
+      <label><span>접수번호</span><input name="receipt_number" value="{{ form_values.receipt_number or '' }}"></label>
+      <label class="autocomplete-field"><span>담당 *</span><input name="manager" value="{{ form_values.manager or '' }}" autocomplete="off" aria-controls="manager-suggestions" required><div id="manager-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
+      <label><span>접수일 *</span><div class="date-input-picker"><input name="receipt_date" value="{{ form_values.receipt_date or '' }}" placeholder="2026-07-28 또는 20260728" inputmode="numeric" required><button class="btn date-picker-button" type="button" aria-label="접수일 달력 열기">달력</button><input class="native-date-picker" type="date" aria-label="접수일 선택" tabindex="-1"></div></label>
+      <label class="autocomplete-field"><span>기관명·회사명 *</span><input name="organization" value="{{ form_values.organization or '' }}" autocomplete="off" aria-controls="organization-suggestions" required><div id="organization-suggestions" class="field-suggestions" role="listbox" hidden></div></label>
+    </fieldset>
+    <fieldset><legend>업무 내용</legend>
+      <label><span>사건</span><input name="case_name" value="{{ form_values.case_name or '' }}"></label>
+      <label class="wide"><span>요청내용 *</span><textarea name="request_content" required>{{ form_values.request_content or '' }}</textarea></label>
+      <label class="wide"><span>특이사항</span><textarea name="special_note">{{ form_values.special_note or '' }}</textarea></label>
+      <label><span>의뢰자</span><input name="requester" value="{{ form_values.requester or '' }}"></label>
+      <label><span>연락처</span><input name="contact" value="{{ form_values.contact or '' }}"></label>
+      <label><span>이메일</span><input type="email" name="email" value="{{ form_values.email or '' }}"></label>
+      <label><span>발송번호</span><input name="dispatch_number" value="{{ form_values.dispatch_number or '' }}"></label>
+      <label><span>회신일</span><input name="reply_date" value="{{ form_values.reply_date or '' }}"></label>
+      <label><span>처리결과</span><select name="processing_result">{% for value in ('처리 필요','진행 중','완료') %}<option {% if form_values.processing_result==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+      <label><span>영상반출여부</span><select name="video_exported" id="video-exported">{% for value in video_values %}<option {% if form_values.video_exported==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+      <label><span>반출확약서</span><select name="export_pledge" id="export-pledge">{% for value in pledge_values %}<option {% if form_values.export_pledge==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    </fieldset>
+    <fieldset><legend>폴더 연결</legend>
+      <div class="wide folder-mode"><span>폴더 처리방식</span><label><input type="radio" name="folder_handling_type" value="CREATE_NEW" {% if form_values.folder_handling_type!='LINK_EXISTING' %}checked{% endif %}> 새 폴더 자동 생성</label><label><input type="radio" name="folder_handling_type" value="LINK_EXISTING" {% if form_values.folder_handling_type=='LINK_EXISTING' %}checked{% endif %}> 기존 폴더 연결</label></div>
+      <div class="wide existing-folder-fields" hidden>
+        <p>검색 또는 폴더 탐색으로 기존 경로를 선택할 수 있으며, 경로를 직접 입력해도 됩니다.</p>
+        <div class="folder-choice-tools">
+          <section class="folder-choice-tool"><strong>방법 1 · 폴더명 검색</strong><p>폴더명, 연도 또는 기관명의 일부를 입력하세요.</p><div class="folder-search-row"><input id="folder-index-query" placeholder="예: 서울경찰청 또는 2026"><button type="button" class="btn" id="folder-index-search">검색</button></div><div id="folder-index-results" class="folder-index-results" aria-live="polite"></div></section>
+          <section class="folder-choice-tool"><strong>방법 2 · 동기화 폴더 탐색</strong><p>Windows 탐색기처럼 동기화된 Y드라이브 폴더를 단계별로 찾아갑니다.</p><button type="button" class="btn" id="folder-browse-button">폴더 탐색 열기</button></section>
+        </div>
+        <label><span>기존 폴더 경로 *</span><input name="requested_folder_path" value="{{ form_values.requested_folder_path or '' }}" placeholder="Y:\07. 외부자료제공\... 또는 \\회사파일서버\..."></label>
+        <div id="folder-browser" class="folder-browser" hidden>
+          <div class="folder-browser-head"><strong>기존 폴더 찾기</strong><button type="button" class="btn btn-small" id="folder-browser-close">닫기</button></div>
+          <div id="folder-browser-path" class="folder-browser-path">동기화된 폴더</div>
+          <div id="folder-browser-list" class="folder-browser-list" aria-live="polite"></div>
+          <div class="folder-browser-actions"><button type="button" class="btn" id="folder-browser-up">상위 폴더</button><button type="button" class="btn btn-primary" id="folder-browser-select" disabled>현재 폴더 선택</button></div>
+        </div>
+        <label><span>폴더 표시명</span><input name="folder_display_name" value="{{ form_values.folder_display_name or '' }}"></label>
+      </div>
+    </fieldset>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">수정사항 저장</button><a class="btn" href="{{ url_for('official_docs.document_detail', document_id=document.id) }}">취소</a></div>
+  </form>
+</div>
+<script src="{{ url_for('static', filename='js/official-docs.js') }}?v=20260729-receipt-calendar"></script>
+{% include "_footer.html" %}{% endblock %}

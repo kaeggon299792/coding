@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}관리자 로그{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container admin-log-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Admin Only / Audit Logs</p>
+    <h1 class="page-title">로그</h1>
+    <p class="page-description">계정 변경과 가입자·비가입자의 로그인 및 활동 기록을 10건씩 확인합니다.</p>
+    <p><a class="btn" href="{{ url_for('auth.user_management') }}">관리자 페이지로 돌아가기</a></p>
+  </header>
+
+  <section class="panel" id="account-audit">
+    <div class="section-heading">
+      <div>
+        <h2>계정 변경 로그</h2>
+        <p>계정 생성·승인·권한·상태·삭제 기록입니다.</p>
+      </div>
+      <span>{{ account_total }}건</span>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>일시</th><th>대상 계정</th><th>작업</th><th>처리자</th></tr></thead>
+        <tbody>
+          {% set account_action_labels = {
+            'ACCOUNT_CREATED': '계정 생성',
+            'ACCOUNT_APPROVED': '가입 승인',
+            'ROLE_CHANGED': '권한 변경',
+            'ACCOUNT_ACTIVATED': '계정 활성화',
+            'ACCOUNT_DEACTIVATED': '계정 비활성화',
+            'PASSWORD_RESET': '비밀번호 초기화',
+            'MENU_PERMISSIONS_CHANGED': '메뉴 권한 변경',
+            'ACCOUNT_WITHDRAWAL_REQUESTED': '회원 탈퇴 신청',
+            'ACCOUNT_WITHDRAWAL_RESTORED': '탈퇴 취소·복구',
+            'ACCOUNT_DELETION_SCHEDULED': '관리자 계정 삭제 예약',
+            'ACCOUNT_DELETION_IMMEDIATE': '관리자 계정 즉시 삭제',
+            'ACCOUNT_IP_BLOCKED': '계정 IP 차단'
+          } %}
+          {% for item in audit %}
+          <tr>
+            <td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>{{ item.target_username }}</td>
+            <td>{{ account_action_labels.get(item.action, item.action) }}</td>
+            <td>{{ item.actor_username }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-state">변경 기록이 없습니다.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav class="news-pagination" aria-label="{{ t('계정 변경 로그 페이지 이동') }}">
+      {% if account_page > 1 %}
+      <a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page-1, activity_page=activity_page) }}#account-audit">이전</a>
+      {% endif %}
+      <span>{{ account_page }} / {{ account_pages }}</span>
+      {% if account_page < account_pages %}
+      <a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page+1, activity_page=activity_page) }}#account-audit">다음</a>
+      {% endif %}
+    </nav>
+  </section>
+
+  <section class="panel" id="activity-audit">
+    <div class="section-heading">
+      <div>
+        <h2>로그인·활동 로그</h2>
+        <p>{{ t('anonymous는 비가입자·비로그인 방문자이며, system은 시스템 작업입니다.') }}</p>
+      </div>
+      <span>{{ activity_total }}건</span>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>일시</th><th>사용자</th><th>IP</th><th>작업</th><th>대상</th><th>{{ t('결과') }}</th><th>상세</th></tr></thead>
+        <tbody>
+          {% set activity_action_labels = {
+            'LOGIN_SUCCESS': '로그인 성공',
+            'LOGIN_FAILED': '로그인 실패',
+            'LOGIN_BLOCKED': '차단 IP 로그인 시도',
+            'LOGOUT': '로그아웃',
+            'PAGE_VIEW': '화면 조회',
+            'USER_ACTION': '사용자 작업',
+            'COMMUNITY_POST_CREATE': '자유 게시판 글 작성',
+            'PDF_UPLOAD': 'PDF 업로드',
+            'PDF_DOWNLOAD': 'PDF 다운로드',
+            'RESEARCH_TITLE_UPDATE': '리포트 제목 수정',
+            'IR_TITLE_UPDATE': 'IR 제목 수정'
+          } %}
+          {% for item in security_events %}
+          <tr>
+            <td>{{ item.created_at|replace('T', ' ')|truncate(17, true, '') }}</td>
+            <td>{{ item.username or 'anonymous' }}</td>
+            <td><code>{{ item.ip_address or '-' }}</code></td>
+            <td>{{ activity_action_labels.get(item.action, account_action_labels.get(item.action, item.action)) }}</td>
+            <td>{{ item.resource_type or '-' }} · {{ item.resource_id or '-' }}</td>
+            <td>{{ t('성공') if item.success else t('실패') }}</td>
+            <td class="change-detail"><code>{{ item.detail_json or '{}' }}</code></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-state">보안 감사 기록이 없습니다.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav class="news-pagination" aria-label="{{ t('로그인·활동 로그 페이지 이동') }}">
+      {% if activity_page > 1 %}
+      <a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page, activity_page=activity_page-1) }}#activity-audit">이전</a>
+      {% endif %}
+      <span>{{ activity_page }} / {{ activity_pages }}</span>
+      {% if activity_page < activity_pages %}
+      <a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page, activity_page=activity_page+1) }}#activity-audit">다음</a>
+      {% endif %}
+    </nav>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

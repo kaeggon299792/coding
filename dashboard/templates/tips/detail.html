@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ tip.title }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260801-library-theme-colors">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<div class="tips-mobile-progress" aria-hidden="true"><div id="tips-mobile-progress-fill"></div></div>
+<main class="page-container tips-shell">
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
+  <article class="tip-detail">
+    <header class="tip-article-header">
+      <a class="tips-back" href="{{ url_for('tips.list_page') }}">← 자료실 전체 목록</a>
+      <div class="tip-card-meta"><span>{{ tip.category }}</span>{% if tip.featured %}<span class="tip-pin">중요</span>{% endif %}{% if tip.draft %}<span class="tip-draft">비공개</span>{% endif %}</div>
+      <h1>{{ tip.title }}</h1>
+      {% if tip.summary %}<p class="tip-summary">{{ tip.summary }}</p>{% endif %}
+      <div class="tip-detail-meta"><span>{{ tip.published_date }}</span>{% if tip.updated_date and tip.updated_date != tip.published_date %}<span>업데이트 {{ tip.updated_date }}</span>{% endif %}<span>조회 {{ tip.view_count }}</span></div>
+      {% if tip.tags %}<div class="tip-tags" aria-label="태그">{% for tag in tip.tags %}<span>#{{ tag }}</span>{% endfor %}</div>{% endif %}
+
+      <div class="tip-header-actions">
+        <div class="tip-share" role="group" aria-label="이 글 공유">
+          <span>공유</span>
+          <button type="button" id="share-tip-link" data-label="링크 복사" aria-label="게시글 링크 복사" title="링크 복사">링크 복사</button>
+          <button type="button" id="share-tip-native" aria-label="기기 공유" title="기기 공유" hidden>기기 공유</button>
+          <small id="tip-share-feedback" role="status" aria-live="polite"></small>
+        </div>
+        <div class="tips-actions">
+          {% if current_user_role == 'admin' %}<a class="btn btn-secondary" href="{{ url_for('tips.edit_page', slug=tip.slug) }}">수정</a><form method="post" action="{{ url_for('tips.delete_page', slug=tip.slug) }}" onsubmit="return confirm('휴지통으로 이동할까요?')"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><button class="btn btn-danger" type="submit">삭제</button></form>{% endif %}
+        </div>
+      </div>
+    </header>
+
+    <div class="tip-reading-layout">
+      <div class="tip-reading-main">
+        <div class="tip-body" id="tip-body">{{ rendered_body|safe }}</div>
+        {% if attachments %}<section class="tip-attachments"><h2>첨부파일</h2><ul>{% for file in attachments %}<li><a href="{{ url_for('tips.attachment_file', attachment_id=file.id) }}">{{ file.original_filename }}</a><span>{{ (file.file_size / 1024)|round|int }} KB</span></li>{% endfor %}</ul></section>{% endif %}
+      </div>
+      <aside class="tip-toc-sidebar" id="tip-toc-sidebar" aria-label="글 목차 및 읽기 진행률">
+        <div class="tip-progress-track" aria-hidden="true"><div id="tip-progress-fill"></div></div>
+        <strong>목차</strong>
+        <ol id="tip-toc"></ol>
+        <button type="button" id="tip-back-to-top">↑ 맨 위로</button>
+      </aside>
+    </div>
+  </article>
+
+  <nav class="tip-adjacent" aria-label="이전 및 다음 자료">
+    {% if previous_tip %}<a href="{{ url_for('tips.detail_page', slug=previous_tip.slug) }}"><small>← 이전 자료</small><strong>{{ previous_tip.title }}</strong></a>{% else %}<span></span>{% endif %}
+    {% if next_tip %}<a class="is-next" href="{{ url_for('tips.detail_page', slug=next_tip.slug) }}"><small>다음 자료 →</small><strong>{{ next_tip.title }}</strong></a>{% endif %}
+  </nav>
+
+  <section class="tip-comments" id="comments">
+    <header><h2>댓글 <span>{{ comments|length }}</span></h2></header>
+    {% if current_username %}
+    <form class="comment-form" method="post" action="{{ url_for('tips.add_comment_page', slug=tip.slug) }}">
+      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+      <label for="comment-content">댓글 작성</label>
+      <textarea id="comment-content" name="content" rows="3" maxlength="1000" required placeholder="의견이나 추가 정보를 남겨주세요."></textarea>
+      <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
+    </form>
+    {% else %}
+    <div class="public-action-notice"><p>댓글 작성은 로그인 후 이용할 수 있습니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></div>
+    {% endif %}
+    {% if comments %}<div class="comment-list">{% for comment in comments %}
+      <article class="comment-item">
+        <header><strong>{{ comment.author_name }}</strong><time>{{ comment.created_at|replace('T', ' ')|truncate(16, true, '') }}</time>{% if comment.updated_at != comment.created_at %}<span>수정됨</span>{% endif %}</header>
+        <p>{{ comment.content }}</p>
+        {% if comment.author_id == session.user_id or current_user_role == 'admin' %}<div class="comment-actions">
+          <details><summary>수정</summary><form method="post" action="{{ url_for('tips.edit_comment_page', slug=tip.slug, comment_id=comment.id) }}"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><textarea name="content" rows="3" maxlength="1000" required>{{ comment.content }}</textarea><button class="btn btn-secondary" type="submit">수정 저장</button></form></details>
+          <form method="post" action="{{ url_for('tips.delete_comment_page', slug=tip.slug, comment_id=comment.id) }}" onsubmit="return confirm('댓글을 삭제할까요?')"><input type="hidden" name="csrf_token" value="{{ global_csrf_token }}"><button class="btn btn-text danger-text" type="submit">삭제</button></form>
+        </div>{% endif %}
+      </article>
+    {% endfor %}</div>{% else %}<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</p>{% endif %}
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/tips-article.js') }}?v=20260729-portfolio-design" defer></script>{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}국내 카지노 산업{% endblock %}
+{% block body %}
+{% set region_labels_en = {
+  '서울': 'Seoul',
+  '인천': 'Incheon',
+  '강원·평창': 'Gangwon · Pyeongchang',
+  '대구': 'Daegu',
+  '부산': 'Busan',
+  '제주': 'Jeju'
+} %}
+{% macro region_label(region) -%}
+{{- region_labels_en.get(region, region) if current_locale == 'en' else region -}}
+{%- endmacro %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+{% include "_casino_subnav.html" %}
+<main class="page-container casino-industry-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Data / Casino Industry</p>
+    <h1 class="page-title">국내 카지노 산업</h1>
+    <p class="page-description">2025년 국내 외국인전용 카지노 17개 사업장의 허가·영업장·매출·입장객 현황을 확인합니다.</p>
+  </header>
+
+  <section class="casino-industry-hero">
+    <div class="casino-map-panel">
+      <header>
+        <div>
+          <span>LOCATION OVERVIEW</span>
+          <h2>국내 카지노 영업 거점</h2>
+        </div>
+        <small>지역을 선택하면 사업장 목록이 필터링됩니다.</small>
+      </header>
+      <div class="casino-korea-map" role="img" aria-label="{% if current_locale == 'en' %}17 casino properties in Seoul, Incheon, Gangwon and Pyeongchang, Daegu, Busan, and Jeju{% else %}서울, 인천, 강원 평창, 대구, 부산, 제주에 있는 17개 카지노 사업장{% endif %}">
+        <img src="{{ url_for('static', filename='img/kr.svg') }}?v=20260730-2" alt="" aria-hidden="true">
+        {% for marker in casino_industry.markers %}
+        <a class="casino-map-marker{% if marker.selected %} is-selected{% endif %}" style="left:{{ marker.x }}%;top:{{ marker.y }}%" href="{{ url_for('casino_industry_page', region=marker.region) }}" aria-label="{% if current_locale == 'en' %}{{ region_label(marker.region) }}: {{ marker.count }} casino {{ 'property' if marker.count == 1 else 'properties' }}{% else %}{{ marker.region }} {{ marker.count }}개 사업장{% endif %}">
+          <i></i><span><b>{{ region_label(marker.region) }}</b><small>{% if current_locale == 'en' %}{{ marker.count }} {{ 'property' if marker.count == 1 else 'properties' }} · KRW {{ "{:,.0f}".format(marker.revenue) }} million{% else %}{{ marker.count }}개 · {{ "{:,.0f}".format(marker.revenue) }}백만{% endif %}</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      {% if casino_industry.selected_region %}
+      <a class="casino-map-reset" href="{{ url_for('casino_industry_page') }}">전체 지역 보기</a>
+      {% endif %}
+    </div>
+
+    <div class="casino-industry-summary">
+      <article class="casino-summary-primary">
+        <span>2025 TOTAL REVENUE</span>
+        <strong>{{ "{:,.0f}".format(casino_industry.summary.revenue_2025) }}</strong>
+        <small>백만원</small>
+      </article>
+      <article><span>외국인전용 사업장</span><strong>{{ casino_industry.summary.venue_count }}</strong><small>개 업체</small></article>
+      <article><span>입장객</span><strong>{{ "{:,.0f}".format(casino_industry.summary.visitors_2025) }}</strong><small>명</small></article>
+      <article><span>허가증 면적</span><strong>{{ "{:,.2f}".format(casino_industry.summary.area_sqm) }}</strong><small>㎡</small></article>
+      <article><span>운영 형태</span><strong>{{ casino_industry.summary.direct_count }} / {{ casino_industry.summary.leased_count }}</strong><small>직영 / 임대</small></article>
+    </div>
+  </section>
+
+  <section class="panel casino-industry-list">
+    <header class="casino-list-head">
+      <div>
+        <p class="page-eyebrow">2025 BUSINESS STATUS</p>
+        <h2>{% if current_locale == 'en' %}{{ region_label(casino_industry.selected_region) if casino_industry.selected_region else "All" }} properties{% else %}{{ casino_industry.selected_region or "전체" }} 사업장{% endif %}</h2>
+        <p>총 {{ casino_industry["items"]|length }}개 사업장이 표시됩니다.</p>
+      </div>
+      <form method="get">
+        <label for="casino-region">지역</label>
+        <select id="casino-region" name="region">
+          <option value="">전체 지역</option>
+          {% for region in casino_industry.regions %}
+          <option value="{{ region }}"{% if casino_industry.selected_region == region %} selected{% endif %}>{{ region_label(region) }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">적용</button>
+      </form>
+    </header>
+
+    <div class="table-wrap casino-table-desktop">
+      <table class="data-table casino-status-table">
+        <thead><tr>
+          <th>지역</th><th>업체명·법인명</th><th>최초허가일</th><th>영업장소 및 주소</th>
+          <th>면적(㎡)</th><th>운영형태</th><th>2025 매출액<br>(백만원)</th><th>입장객(명)</th>
+        </tr></thead>
+        <tbody>
+          {% for item in casino_industry["items"] %}
+          <tr>
+            <td><span class="casino-region-badge">{{ region_label(item.region) }}</span></td>
+            <td><strong>{{ item.venue_name }}</strong><small>{{ item.company_name }}</small></td>
+            <td>{{ item.permit_date }}</td>
+            <td><strong>{{ item.place }}</strong><small>{{ item.address }}</small></td>
+            <td class="number">{{ "{:,.2f}".format(item.area_sqm) }}</td>
+            <td><span class="casino-operation {{ 'is-direct' if item.operation == '직영' else '' }}">{% if current_locale == 'en' and item.operation == '직영' %}Directly operated{% elif current_locale == 'en' and item.operation == '임대' %}Leased{% else %}{{ item.operation }}{% endif %} · {{ item.grade }}</span></td>
+            <td class="number revenue">{{ "{:,.0f}".format(item.revenue_2025) }}</td>
+            <td class="number">{{ "{:,.0f}".format(item.visitors_2025) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="casino-mobile-list">
+      {% for item in casino_industry["items"] %}
+      <article class="casino-venue-card">
+        <header><span>{{ region_label(item.region) }}</span><b class="{{ 'is-direct' if item.operation == '직영' else '' }}">{% if current_locale == 'en' and item.operation == '직영' %}Directly operated{% elif current_locale == 'en' and item.operation == '임대' %}Leased{% else %}{{ item.operation }}{% endif %} · {{ item.grade }}</b></header>
+        <h3>{{ item.venue_name }}</h3>
+        <p>{{ item.company_name }}</p>
+        <dl>
+          <div><dt>2025 매출액</dt><dd>{% if current_locale == 'en' %}KRW {{ "{:,.0f}".format(item.revenue_2025) }} million{% else %}{{ "{:,.0f}".format(item.revenue_2025) }}백만원{% endif %}</dd></div>
+          <div><dt>입장객</dt><dd>{% if current_locale == 'en' %}{{ "{:,.0f}".format(item.visitors_2025) }} visitors{% else %}{{ "{:,.0f}".format(item.visitors_2025) }}명{% endif %}</dd></div>
+          <div><dt>허가증 면적</dt><dd>{{ "{:,.2f}".format(item.area_sqm) }}㎡</dd></div>
+          <div><dt>최초허가일</dt><dd>{{ item.permit_date }}</dd></div>
+        </dl>
+        <footer><strong>{{ item.place }}</strong><span>{{ item.address }}</span></footer>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="casino-industry-source">출처: 「2026 카지노 통계」(2026년 4월 기준) · 실적 기준연도: 2025년</p>
+  </section>
+</main>
+{% endblock %}

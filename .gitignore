@@ -1,0 +1,51 @@
+# Environment / secrets
+.env
+*.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Credentials / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# Databases (dashboard's own DB is runtime data, never committed)
+dashboard/dashboard.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Logs
+dashboard/logs/
+*.log
+
+# Runtime uploads, backups, and generated deployment workspaces
+dashboard/static/uploads/
+dashboard/data/research_library/
+dashboard/backups/
+backups/
+deployment-candidates/
+pdf-fix-test-*/
+test-gpt-news-performance-*/
+
+# One-off local copies retained on the server but not part of the app
+dashboard/companies.html
+dashboard/company_detail.html
+dashboard/company_intelligence.py
+dashboard/dashboard.css
+dashboard/test_ir_documents.py
+dashboard/templates/*.backup-*
+dashboard/templates/*.backup*
+dashboard/app.py.backup-*
+dashboard/*-source-backup-*.tar.gz

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}나라별 연휴{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container holiday-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Calendar / Northeast Asia</p>
+    <h1 class="page-title">나라별 연휴</h1>
+    <p class="page-description">한국·중국·일본·대만·몽골과 주요 공통 기념일을 한 달력에서 비교합니다.</p>
+    <nav class="holiday-year-tabs" aria-label="연도 선택">
+      {% for year in (2026, 2027, 2028) %}
+      <a href="{{ url_for('holiday_calendar_page', year=year, country=holiday_calendar.selected_country or None) }}" {% if holiday_calendar.year == year %}class="active" aria-current="page"{% endif %}>{{ year }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="holiday-country-filter" aria-label="국가 선택">
+      {% for code,label in [('', '전체'),('KR','한국'),('CN','중국'),('JP','일본'),('TW','대만'),('MN','몽골'),('ETC','기타')] %}
+      <a href="{{ url_for('holiday_calendar_page', year=holiday_calendar.year, country=code or None) }}" class="{% if holiday_calendar.selected_country == code %}active {% endif %}{% if code %}country-{{ code|lower }}{% endif %}" {% if holiday_calendar.selected_country == code %}aria-current="page"{% endif %}>{{ t(label) }}</a>
+      {% endfor %}
+    </nav>
+    {% if holiday_calendar.provisional %}
+    <p class="tourism-notice">일부 국가의 대체휴일·조정근무일은 정부 발표에 따라 변경될 수 있습니다.</p>
+    {% endif %}
+  </header>
+  <div class="holiday-month-grid">
+    {% for month in holiday_calendar.months %}
+    <section class="panel holiday-month">
+      <h2>{{ holiday_calendar.year }}. {{ "%02d"|format(month.month) }}</h2>
+      <div class="holiday-weekdays" aria-hidden="true">
+        {% set weekday_names = ('Sun','Mon','Tue','Wed','Thu','Fri','Sat') if current_locale == 'en' else ('일','월','화','수','목','금','토') %}
+        {% for name in weekday_names %}<span>{{ name }}</span>{% endfor %}
+      </div>
+      <div class="holiday-days">
+        {% for week in month.weeks %}{% for item in week %}
+        <div class="holiday-day {% if not item.in_month %}is-outside{% endif %}">
+          <b>{{ item.day }}</b>
+          {% for event in item.events %}
+          <span class="country-{{ event.code|lower }}" title="{{ t(event.country) }} · {{ t(event.name) }}">{{ t(event.country) }} · {{ t(event.name) }}</span>
+          {% endfor %}
+        </div>
+        {% endfor %}{% endfor %}
+      </div>
+      <div class="holiday-mobile-events">
+        {% for week in month.weeks %}{% for item in week if item.in_month and item.events %}
+        <details>
+          <summary>{% if current_locale == 'en' %}{{ "%02d"|format(month.month) }}/{{ "%02d"|format(item.day) }} <span>{{ item.events|length }} {{ 'event' if item.events|length == 1 else 'events' }}</span>{% else %}{{ month.month }}월 {{ item.day }}일 <span>{{ item.events|length }}건</span>{% endif %}</summary>
+          <ul>{% for event in item.events %}<li class="country-{{ event.code|lower }}"><b>{{ t(event.country) }}</b>{{ t(event.name) }}</li>{% endfor %}</ul>
+        </details>
+        {% endfor %}{% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  <p class="tourism-source">공휴일 데이터: python-holidays. 향후 조정휴일은 확정 발표 후 갱신될 수 있습니다.</p>
+</main>
+{% endblock %}

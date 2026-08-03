@@ -1,0 +1,5 @@
+<nav class="tips-subnav" aria-label="자료실 하위 메뉴">
+  <a href="{{ url_for('tips.list_page') }}" {% if request.endpoint != 'tips.sites_page' and request.endpoint not in ('tips.edit_site_page', 'tips.delete_site_page') and request.endpoint != 'source_download_page' %}class="is-active" aria-current="page"{% endif %}>자료실</a>
+  <a href="{{ url_for('tips.sites_page') }}" {% if request.endpoint in ('tips.sites_page', 'tips.edit_site_page', 'tips.delete_site_page') %}class="is-active" aria-current="page"{% endif %}>관련 사이트</a>
+  <a href="{{ url_for('source_download_page') }}" {% if request.endpoint == 'source_download_page' %}class="is-active" aria-current="page"{% endif %}>원천 데이터 다운{% if not current_username %} <span aria-label="로그인 필요">⌑</span>{% endif %}</a>
+</nav>

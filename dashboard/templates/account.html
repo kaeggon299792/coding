@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}내 계정{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container my-account-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Account / Profile</p>
+    <h1 class="page-title">내 계정</h1>
+    <p class="page-description">내 계정 정보와 로그인 방식을 확인하고 회원 탈퇴를 신청할 수 있습니다.</p>
+  </header>
+
+  {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="account-notice">{{ success }}</div>{% endif %}
+
+  <section class="panel account-profile-panel">
+    <div class="account-profile-head">
+      {% if user.picture_url %}
+      <img src="{{ user.picture_url }}" alt="" width="64" height="64" referrerpolicy="no-referrer">
+      {% else %}
+      <span aria-hidden="true">{{ (user.name or user.username)[0]|upper }}</span>
+      {% endif %}
+      <div><h2>{{ user.name or user.username }}</h2><p>{{ user.email or '이메일 미등록' }}</p></div>
+    </div>
+    <dl class="account-profile-grid">
+      <div><dt>아이디</dt><dd>{{ user.username }}</dd></div>
+      <div><dt>계정 유형</dt><dd>{{ 'Google 연동 계정' if user.google_sub else '아이디·비밀번호 계정' }}</dd></div>
+      <div><dt>권한</dt><dd>{{ '관리자' if user.role == 'admin' else '일반 사용자' }}</dd></div>
+      <div><dt>가입일</dt><dd>{{ (user.created_at or '-')|replace('T',' ')|truncate(17,true,'') }}</dd></div>
+      <div><dt>최근 로그인</dt><dd>{{ (user.last_login_at or '-')|replace('T',' ')|truncate(17,true,'') }}</dd></div>
+      <div><dt>계정 상태</dt><dd>사용 중</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel account-settings-panel">
+    <div class="section-heading"><div><h2>프로필 사진</h2><p>PNG, JPG, WebP 형식의 3MB 이하 이미지를 사용할 수 있습니다.</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_account_picture') }}" enctype="multipart/form-data" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>새 프로필 사진</span><input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required></label>
+      <button class="btn" type="submit">사진 변경</button>
+    </form>
+  </section>
+
+  <section class="panel account-settings-panel">
+    <div class="section-heading"><div><h2>이메일 변경</h2><p>로그인 알림과 계정 식별에 사용할 이메일을 변경합니다.</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_account_email') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>이메일</span><input type="email" name="email" value="{{ user.email or '' }}" autocomplete="email" required></label>
+      {% if not user.google_sub %}<label><span>현재 비밀번호</span><input type="password" name="current_password" autocomplete="current-password" required></label>{% endif %}
+      <button class="btn" type="submit">이메일 변경</button>
+    </form>
+  </section>
+
+  <section class="panel account-settings-panel">
+    <div class="section-heading"><div><h2>비밀번호 변경</h2><p>변경 후 모든 기기의 로그인과 자동 로그인이 해제됩니다.</p></div></div>
+    <form method="post" action="{{ url_for('auth.update_account_password') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% if not user.google_sub %}<label><span>현재 비밀번호</span><input type="password" name="current_password" autocomplete="current-password" required></label>{% endif %}
+      <label><span>새 비밀번호</span><input type="password" name="new_password" minlength="10" autocomplete="new-password" required></label>
+      <label><span>새 비밀번호 확인</span><input type="password" name="new_password_confirmation" minlength="10" autocomplete="new-password" required></label>
+      <button class="btn" type="submit">비밀번호 변경</button>
+    </form>
+  </section>
+
+  <section class="panel account-withdrawal-panel">
+    <div class="section-heading"><div><h2>회원 탈퇴</h2><p>탈퇴 즉시 모든 로그인 세션이 종료되고 계정을 사용할 수 없습니다.</p></div></div>
+    {% if user.role == 'admin' %}
+    <p class="withdrawal-admin-note">관리자 계정은 직접 탈퇴할 수 없습니다. 다른 관리자에게 일반 사용자로 권한 변경을 요청한 후 진행해주세요.</p>
+    {% else %}
+    <ul class="withdrawal-policy">
+      <li>계정과 개인정보는 복구 요청을 위해 탈퇴 신청일로부터 14일간 보관됩니다.</li>
+      <li>14일 안에는 관리자에게 요청해 계정을 복구할 수 있습니다.</li>
+      <li>14일이 지나면 이메일·Google 식별값·이름·프로필 이미지는 자동 삭제·익명화됩니다.</li>
+      <li>업무 기록과 게시물은 서비스 운영상 유지될 수 있지만 작성자 표시는 익명화됩니다.</li>
+    </ul>
+    <form method="post" action="{{ url_for('auth.withdraw_account') }}" class="account-withdrawal-form" onsubmit="return confirm('회원 탈퇴를 신청할까요? 즉시 로그아웃됩니다.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>확인을 위해 <strong>탈퇴</strong>를 입력해주세요.</span><input name="confirmation" required autocomplete="off" placeholder="탈퇴"></label>
+      <button class="btn danger-button" type="submit">회원 탈퇴 신청</button>
+    </form>
+    {% endif %}
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

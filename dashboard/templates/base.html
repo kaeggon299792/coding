@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}" data-site-font="{{ site_font }}" data-number-font="{{ number_font }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{{ seo_title }}</title>
+<meta name="description" content="{{ seo_description }}">
+<meta name="robots" content="{{ seo_robots }}">
+<link rel="canonical" href="{{ seo_canonical_url }}">
+<link rel="alternate" hreflang="ko" href="{{ seo_hreflang_urls.ko }}">
+<link rel="alternate" hreflang="en" href="{{ seo_hreflang_urls.en }}">
+<link rel="alternate" hreflang="x-default" href="{{ seo_hreflang_urls['x-default'] }}">
+<meta property="og:type" content="{{ seo_og_type }}">
+<meta property="og:site_name" content="Casino IN">
+<meta property="og:title" content="{{ seo_og_title }}">
+<meta property="og:description" content="{{ seo_og_description }}">
+<meta property="og:url" content="{{ seo_og_url }}">
+<meta property="og:image" content="{{ seo_image_url }}">
+<meta property="og:image:alt" content="{{ seo_image_alt }}">
+<meta property="og:locale" content="{{ 'en_US' if current_locale == 'en' else 'ko_KR' }}">
+<meta property="og:locale:alternate" content="{{ 'ko_KR' if current_locale == 'en' else 'en_US' }}">
+<meta name="twitter:card" content="{{ seo_twitter_card }}">
+<meta name="twitter:title" content="{{ seo_og_title }}">
+<meta name="twitter:description" content="{{ seo_og_description }}">
+<meta name="twitter:image" content="{{ seo_image_url }}">
+<meta name="twitter:image:alt" content="{{ seo_image_alt }}">
+{% for item in seo_json_ld %}
+<script type="application/ld+json">{{ item | tojson }}</script>
+{% endfor %}
+<!-- Google Tag Manager -->
+<script nonce="{{ csp_nonce }}">
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MVWKPPRP');
+</script>
+<!-- End Google Tag Manager -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PTRL0XC53Z"></script>
+<script nonce="{{ csp_nonce }}">
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-PTRL0XC53Z');
+</script>
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const isManual = localStorage.getItem("casino-in-theme-manual") === "1";
+  const saved = isManual ? localStorage.getItem("casino-in-theme") : null;
+  const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
+  const theme = saved === "light" || saved === "dark" ? saved : (systemDark ? "dark" : "light");
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]').content = theme === "light" ? "#ffffff" : "#09090b";
+})();
+</script>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+{% if site_font == 'gowun-batang' %}
+<link rel="preload" href="{{ url_for('static', filename='fonts/GowunBatang-Regular.woff2') }}" as="font" type="font/woff2" crossorigin>
+{% elif site_font == 'hahmlet' %}
+<link rel="preload" href="{{ url_for('static', filename='fonts/Hahmlet-Variable.woff2') }}" as="font" type="font/woff2" crossorigin>
+{% else %}
+<link rel="preload" href="{{ url_for('static', filename='fonts/PretendardVariable.woff2') }}" as="font" type="font/woff2" crossorigin>
+{% endif %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260803-library-board1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MVWKPPRP"
+height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div class="page-loader" id="page-loader" role="status" aria-live="polite" aria-label="페이지 로딩 중">
+  <div class="page-loader-card">
+    <div class="page-loader-head"><span class="page-loader-label">CASINO IN · Loading</span><span class="page-loader-percent" id="page-loader-percent">0%</span></div>
+    <div class="page-loader-track"><div class="page-loader-fill" id="page-loader-fill"></div></div>
+  </div>
+</div>
+{% block body %}{% endblock %}
+<nav class="global-language-switch" aria-label="{{ t('언어 선택') }}">
+  <a href="{{ locale_urls.ko }}" data-locale-link="ko"{% if current_locale == 'ko' %} class="active" aria-current="page"{% endif %}>KR</a>
+  <span aria-hidden="true">/</span>
+  <a href="{{ locale_urls.en }}" data-locale-link="en"{% if current_locale == 'en' %} class="active" aria-current="page"{% endif %}>EN</a>
+</nav>
+<button class="theme-toggle" id="theme-toggle" type="button" aria-label="화이트 테마로 변경" aria-pressed="false">
+  <span class="theme-toggle-icon" aria-hidden="true">☀</span>
+  <span class="theme-toggle-label">WHITE</span>
+</button>
+<button class="back-to-top" id="back-to-top" type="button" aria-label="맨 위로 이동" hidden>↑</button>
+{% include "_legal_footer.html" %}
+<script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
+<script src="{{ url_for('static', filename='js/dashboard-i18n.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260731-spotlight7" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"></script>
+<script nonce="{{ csp_nonce }}">
+const languageSwitch = document.querySelector(".global-language-switch");
+const languageSwitchHost = document.querySelector(".topbar-actions, .public-header");
+if (languageSwitch && languageSwitchHost) {
+  languageSwitch.classList.add("is-embedded");
+  if (languageSwitchHost.classList.contains("public-header")) {
+    languageSwitchHost.insertBefore(
+      languageSwitch,
+      languageSwitchHost.querySelector(".public-login-link")
+    );
+  } else {
+    languageSwitchHost.prepend(languageSwitch);
+  }
+}
+document.querySelectorAll("[data-locale-link]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    if (!window.location.hash) return;
+    event.preventDefault();
+    window.location.assign(link.href + window.location.hash);
+  });
+});
+
+(() => {
+  const button = document.getElementById("theme-toggle");
+  const label = button.querySelector(".theme-toggle-label");
+  const icon = button.querySelector(".theme-toggle-icon");
+  const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+  const savedTheme = localStorage.getItem("casino-in-theme");
+  let hasManualPreference = localStorage.getItem("casino-in-theme-manual") === "1" &&
+    (savedTheme === "light" || savedTheme === "dark");
+  const apply = (theme, persist = false) => {
+    const isLight = theme === "light";
+    document.documentElement.dataset.theme = theme;
+    if (persist) {
+      localStorage.setItem("casino-in-theme", theme);
+      localStorage.setItem("casino-in-theme-manual", "1");
+      localStorage.removeItem("paradise-theme");
+      hasManualPreference = true;
+    }
+    document.querySelector('meta[name="theme-color"]').content = isLight ? "#ffffff" : "#09090b";
+    button.setAttribute("aria-pressed", String(isLight));
+    button.setAttribute("aria-label", isLight ? "다크 테마로 변경" : "화이트 테마로 변경");
+    label.textContent = isLight ? "DARK" : "WHITE";
+    icon.textContent = isLight ? "◐" : "☀";
+  };
+  apply(document.documentElement.dataset.theme || "light");
+  button.addEventListener("click", () => {
+    apply(document.documentElement.dataset.theme === "light" ? "dark" : "light", true);
+  });
+  media?.addEventListener?.("change", (event) => {
+    if (!hasManualPreference) apply(event.matches ? "dark" : "light");
+  });
+})();
+
+(() => {
+  const button = document.getElementById("back-to-top");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const onScroll = () => {
+    if (window.scrollY > 480) {
+      button.hidden = false;
+      requestAnimationFrame(() => button.classList.add("is-visible"));
+    } else {
+      button.classList.remove("is-visible");
+    }
+  };
+  window.addEventListener("scroll", onScroll, {passive: true});
+  onScroll();
+  button.addEventListener("click", () => {
+    window.scrollTo({top: 0, behavior: reduceMotion ? "auto" : "smooth"});
+  });
+})();
+
+(() => {
+  const loader = document.getElementById("page-loader");
+  const percent = document.getElementById("page-loader-percent");
+  const fill = document.getElementById("page-loader-fill");
+  let value = 0;
+  let timer;
+  let safetyTimer;
+  const paint = (next) => {
+    value = Math.max(0, Math.min(100, Math.round(next)));
+    percent.textContent = `${value}%`;
+    fill.style.width = `${value}%`;
+  };
+  const start = (initial = 0, maxWait = 4000) => {
+    clearInterval(timer);
+    clearTimeout(safetyTimer);
+    paint(initial);
+    loader.removeAttribute("aria-hidden");
+    loader.classList.remove("is-hidden");
+    timer = setInterval(() => {
+      const step = value < 45 ? 7 : value < 75 ? 3 : value < 92 ? 1 : 0;
+      if (step) paint(value + step);
+    }, 90);
+    // load 이벤트는 느린 이미지·외부 리소스 하나만 있어도 발생하지 않을 수 있다.
+    // 콘텐츠가 준비된 뒤 로더가 92%에서 화면을 계속 막지 않도록 안전 종료한다.
+    safetyTimer = setTimeout(finish, maxWait);
+  };
+  function finish() {
+    clearInterval(timer);
+    clearTimeout(safetyTimer);
+    paint(100);
+    setTimeout(() => {
+      loader.classList.add("is-hidden");
+      loader.setAttribute("aria-hidden", "true");
+    }, 180);
+  }
+  start(0);
+  document.addEventListener("DOMContentLoaded", () => {
+    paint(Math.max(value, 92));
+    setTimeout(finish, 240);
+  });
+  window.addEventListener("load", finish, {once: true});
+  window.addEventListener("pageshow", (event) => { if (event.persisted) finish(); });
+  document.addEventListener("submit", (event) => {
+    start(5, 8000);
+    if (event.submitter?.classList.contains("file-download-trigger")) {
+      setTimeout(finish, 1200);
+    }
+  });
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const url = new URL(link.href, location.href);
+    if (url.origin === location.origin && !link.hasAttribute("download") && link.target !== "_blank" && url.href !== location.href) {
+      start(5, 8000);
+      if (link.classList.contains("file-download-trigger")) setTimeout(finish, 1200);
+    }
+  });
+})();
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

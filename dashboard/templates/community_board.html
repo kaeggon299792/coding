@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ '공지사항' if is_notice_board else '자유 게시판' }}{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container community-page">
+  <header class="page-header community-hero">
+    <div>
+      <p class="page-eyebrow">{{ 'COMMUNITY / NOTICE' if is_notice_board else 'COMMUNITY / OPEN BOARD' }}</p>
+      <h1 class="page-title">{{ '공지사항' if is_notice_board else '자유 게시판' }}</h1>
+      <p class="page-description">{{ 'CASINO IN의 주요 안내와 운영 공지를 확인합니다.' if is_notice_board else '카지노 산업과 업무에 관한 정보, 의견, 질문을 자유롭게 나누는 공간입니다.' }}</p>
+    </div>
+  </header>
+
+  {% if error %}<div class="flash error community-flash" role="alert">{{ error }}</div>{% endif %}
+
+  {% if can_write %}
+  <details class="panel community-compose-panel"{% if error %} open{% endif %}>
+    <summary class="btn btn-primary community-compose-toggle">{{ '공지 작성' if is_notice_board else '글쓰기' }}</summary>
+    <div class="community-compose-body">
+    <div class="section-heading community-section-heading">
+      <div><p class="section-kicker">WRITE</p><h2>{{ '새 공지 작성' if is_notice_board else '새 글 작성' }}</h2></div>
+      <span>{{ current_username }} 님</span>
+    </div>
+    <form class="community-compose-form" method="post" action="{{ url_for(create_endpoint) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="community-field">
+        <span>제목 <em>필수</em></span>
+        <input type="text" name="title" maxlength="150" required value="{{ form_data.title or '' }}" placeholder="제목을 입력해주세요">
+      </label>
+      <label class="community-field">
+        <span>내용 <em>필수 · Markdown 지원</em></span>
+        <textarea name="content" maxlength="5000" rows="9" required placeholder="Markdown으로 작성할 수 있습니다.&#10;&#10;## 소제목&#10;- 목록&#10;**강조**와 [링크](https://...) 지원">{{ form_data.content or '' }}</textarea>
+      </label>
+      <div class="community-attachment-fields">
+        <label class="community-field"><span>이미지 링크 <em>선택</em></span><input type="url" name="image_url" maxlength="2048" inputmode="url" value="{{ form_data.image_url or '' }}" placeholder="https://example.com/image.png"></label>
+        <label class="community-field"><span>PDF 링크 <em>선택</em></span><input type="url" name="pdf_url" maxlength="2048" inputmode="url" value="{{ form_data.pdf_url or '' }}" placeholder="https://example.com/document.pdf"></label>
+      </div>
+      <div class="community-form-footer">
+        <small>공개 게시판 · 최대 5,000자 · HTTPS 링크만 허용</small>
+        <button class="btn btn-primary" type="submit">{{ '공지 등록' if is_notice_board else '글 등록' }}</button>
+      </div>
+    </form>
+    </div>
+  </details>
+  {% else %}
+  <section class="panel community-compose-panel">
+    <div class="community-login-prompt">
+      {% if is_notice_board %}
+      <div><p class="section-kicker">ADMIN NOTICE</p><h2>운영 공지</h2><p>공지사항은 누구나 읽을 수 있으며 관리자만 작성할 수 있습니다.</p></div>
+      {% else %}
+      <div><p class="section-kicker">MEMBERS ONLY</p><h2>의견을 남겨보세요</h2><p>게시글은 누구나 읽을 수 있으며, 작성은 로그인 후 이용할 수 있습니다.</p></div>
+      <a class="btn btn-primary" href="{{ url_for('auth.login', next=request.path) }}">로그인하고 글쓰기</a>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="panel community-list-panel">
+    <div class="section-heading community-section-heading">
+      <div><p class="section-kicker">LATEST</p><h2>{{ '공지 목록' if is_notice_board else '게시글' }}</h2></div>
+      <span>최신 작성순</span>
+    </div>
+    {% if posts %}
+    <div class="community-table-wrap">
+      <table class="community-table">
+        <thead><tr><th class="community-number">번호</th><th>제목</th><th>작성자</th><th>추천·댓글</th><th>작성일</th></tr></thead>
+        <tbody>
+        {% for post in posts %}
+          <tr>
+            <td class="community-number">{{ total - (((page|default(1, true)) - 1) * 20 + loop.index0) }}</td>
+            <td class="community-title-cell"><a href="{{ url_for('community_post_page', post_id=post.id) }}"><strong>{{ post.title }}</strong><span>{{ post.content|striptags|truncate(90, true, '…') }}</span></a></td>
+            <td data-label="작성자">{{ post.author_username or '탈퇴한 사용자' }}</td>
+            <td data-label="추천·댓글">↑ {{ post.recommendation_count }} · {{ post.comment_count }}</td>
+            <td data-label="작성일"><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:10] }}</time></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<div class="community-empty"><span aria-hidden="true">＋</span><h3>첫 게시글을 기다리고 있습니다</h3><p>로그인 후 새로운 이야기를 시작해보세요.</p></div>{% endif %}
+
+    {% set current_page = page|default(1, true) %}{% set last_page = total_pages|default(1, true) %}
+    {% if last_page > 1 %}
+    <nav class="news-pagination" aria-label="{{ '공지사항' if is_notice_board else '자유 게시판' }} 페이지 이동">
+      {% if current_page > 1 %}<a class="btn" href="{{ url_for('notice_board_page' if is_notice_board else 'community_board_page', page=current_page-1) }}">이전</a>{% endif %}
+      <span>{{ current_page }} / {{ last_page }}</span>
+      {% if current_page < last_page %}<a class="btn" href="{{ url_for('notice_board_page' if is_notice_board else 'community_board_page', page=current_page+1) }}">다음</a>{% endif %}
+    </nav>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
