@@ -1443,7 +1443,11 @@ def admin_logs():
 def localization_dashboard():
     language_code = (request.args.get("language") or "en").strip()
     query = (request.args.get("q") or "").strip()
-    status = (request.args.get("status") or "").strip()
+    status = (
+        (request.args.get("status") or "").strip()
+        if "status" in request.args
+        else "Pending"
+    )
     priority = (request.args.get("priority") or "").strip()
     sort = (request.args.get("sort") or "newest").strip()
     try:

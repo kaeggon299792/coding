@@ -225,6 +225,10 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert response.status_code == 200
         assert "Localization Management" in response.get_data(as_text=True)
         assert "AI 번역 프롬프트 생성" in response.get_data(as_text=True)
+        assert "<option selected>Pending</option>" in response.get_data(as_text=True)
+        all_statuses = client.get("/admin/localization?status=")
+        assert all_statuses.status_code == 200
+        assert "<option selected>Pending</option>" not in all_statuses.get_data(as_text=True)
         route_db = schema.connect(str(db_path))
         pending_id = route_db.execute(
             """SELECT s.id FROM localization_strings s
