@@ -115,6 +115,49 @@ def register_string(connection, source_text, *, page="Unknown", component="Conte
     return string_id
 
 
+def register_rendered_strings(connection, strings, *, page, source_path):
+    """Register Korean copy observed on a public rendered page in one batch."""
+
+    registered = 0
+    for index, text in enumerate(strings):
+        if register_string(
+            connection,
+            text,
+            page=page,
+            component="Rendered Content",
+            string_type="UI",
+            source_kind="rendered",
+            source_path=source_path,
+            locator=f"text:{index}",
+        ):
+            registered += 1
+    connection.commit()
+    return registered
+
+
+def _dynamic_values(value):
+    """Yield strings from scalar or JSON-backed public content fields."""
+
+    if value is None:
+        return
+    parsed = value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped[:1] in ("[", "{"):
+            try:
+                parsed = json.loads(stripped)
+            except (TypeError, ValueError):
+                parsed = value
+    if isinstance(parsed, dict):
+        for item in parsed.values():
+            yield from _dynamic_values(item)
+    elif isinstance(parsed, (list, tuple)):
+        for item in parsed:
+            yield from _dynamic_values(item)
+    elif isinstance(parsed, str):
+        yield parsed
+
+
 def _scan_file(path, root):
     try:
         source = path.read_text(encoding="utf-8")
@@ -185,7 +228,22 @@ def scan_project(connection, project_root):
     dynamic = (
         ("company", "monitored_companies", ("name",), "기업정보", "Company", ""),
         ("company_profile", "company_research_profiles",
-         ("company_name", "business_summary", "strategy_summary"), "기업정보", "Company", ""),
+         ("company_name", "legal_name", "ceo_names", "headquarters", "business_summary",
+          "strategy_summary", "key_assets_json", "opportunities_json", "risks_json",
+          "financials_json", "sources_json"), "기업정보", "Company", ""),
+        ("law", "monitored_laws", ("law_name", "notes"), "법령·규제", "Law", "active=1"),
+        ("law_analysis", "law_analysis",
+         ("ai_summary", "affected_scope", "company_impact", "action_needed"),
+         "법령·규제", "Law Analysis", ""),
+        ("assembly_bill", "legislative_bills",
+         ("bill_kind", "bill_name", "proposer_kind", "proposer_name", "committee_name",
+          "committee_result", "plenary_result", "process_stage", "pass_status",
+          "matched_keyword", "ai_summary", "impact_direction", "impact_level",
+          "impact_reason", "action_needed", "analysis_error"),
+         "입법동향", "Legislation", ""),
+        ("government_notice", "government_legislative_notices",
+         ("notice_name", "law_type", "ministry_name", "attachment_name",
+          "announcement_type", "matched_keyword"), "입법동향", "Legislation", ""),
         ("notice", "community_posts", ("title", "content"), "공지", "Notice", "board_type='notice'"),
         ("board", "community_posts", ("title", "content"), "자유 게시판", "Content", "board_type='community'"),
         ("research", "research_documents",
@@ -207,10 +265,12 @@ def scan_project(connection, project_root):
             sql += f" WHERE {where}"
         for row in connection.execute(sql).fetchall():
             for field in fields:
-                if register_string(connection, row[field], page=page, component="Dynamic Content",
-                                   string_type=string_type, source_kind="database",
-                                   source_path=f"{table}:{row['id']}", locator=field):
-                    registered += 1
+                for value_index, value in enumerate(_dynamic_values(row[field])):
+                    if register_string(connection, value, page=page, component="Dynamic Content",
+                                       string_type=string_type, source_kind="database",
+                                       source_path=f"{table}:{row['id']}",
+                                       locator=f"{field}:{value_index}"):
+                        registered += 1
 
     # A full scan owns file/catalog references. References not seen in this run
     # represent removed or modified source strings and are retired non-destructively.

@@ -66,7 +66,7 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert response.headers["Content-Language"] == "en"
     assert '<html lang="en"' in html
     assert "Casino Industry Information and Insights" in html
-    assert ">Data<" in html
+    assert ">Market Intelligence<" in html
     assert 'rel="canonical" href="https://casino.shingoon.me/en/"' in html
     assert 'hreflang="ko" href="https://casino.shingoon.me/"' in html
     assert 'hreflang="en" href="https://casino.shingoon.me/en/"' in html
@@ -205,3 +205,25 @@ def test_dynamic_translation_patterns_expand_capture_groups():
         == "Incorrect username or password. "
         "9 attempts remain before this IP address is blocked."
     )
+
+
+def test_visible_dynamic_korean_is_discovered_without_scripts_or_code():
+    from localization import extract_translatable_html_strings
+
+    html = """
+    <article aria-label="파라다이스 기업 카드">
+      <h2>파라다이스</h2><li>외국인 관광객 회복</li>
+      <code>비밀 한국어</code><script>const message = '실행 한국어';</script>
+    </article>
+    """
+    assert extract_translatable_html_strings(html) == [
+        "파라다이스 기업 카드", "파라다이스", "외국인 관광객 회복",
+    ]
+
+
+def test_changing_korean_financial_and_people_units_translate_without_exact_entries():
+    from localization import translate_text
+
+    assert translate_text("11,499억원", "en") == "KRW 1,149.9B"
+    assert translate_text("3,450만원", "en") == "KRW 34.50M"
+    assert translate_text("+1,883,952명", "en") == "+1,883,952 people"

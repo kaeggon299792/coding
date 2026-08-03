@@ -228,6 +228,27 @@ def test_hourly_scan_runs_once_per_interval(tmp_path):
     assert db.execute("SELECT COUNT(*) FROM localization_strings").fetchone()[0] == 1
 
 
+def test_dynamic_values_flattens_company_profile_json_lists():
+    values = list(lms._dynamic_values(
+        '["파라다이스시티", {"risk": "외국인 수요 변동"}]'
+    ))
+    assert values == ["파라다이스시티", "외국인 수요 변동"]
+
+
+def test_register_rendered_strings_deduplicates_public_copy():
+    db = connection()
+    first = lms.register_rendered_strings(
+        db, ["관광진흥법", "관광진흥법"],
+        page="laws_page", source_path="/en/laws",
+    )
+    second = lms.register_rendered_strings(
+        db, ["관광진흥법"], page="laws_page", source_path="/en/laws",
+    )
+    assert first == 2
+    assert second == 1
+    assert db.execute("SELECT COUNT(*) FROM localization_strings").fetchone()[0] == 1
+
+
 def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
     import app as app_module
     from dashboard_db import schema

@@ -66,6 +66,7 @@ from tips import tips_bp
 from localization import (
     LocalePrefixMiddleware,
     alternate_paths,
+    extract_translatable_html_strings,
     load_catalog,
     locale_from_environ,
     meta_for,
@@ -77,6 +78,7 @@ from utils import display_y_drive_path, escape_html, now_kst, setup_logger, toda
 
 logger = setup_logger("dashboard_app")
 _last_account_retention_cleanup = 0.0
+_localization_render_scan_at = {}
 
 ANONYMOUS_ACTIVITY_DEDUPE_MINUTES = 5
 ANONYMOUS_ACTIVITY_PER_IP_DAILY_LIMIT = 200
@@ -129,6 +131,11 @@ NOINDEX_ENDPOINTS = {
     "notice_board_page",
     "community_post_page",
     "not_found_page",
+}
+LOCALIZATION_DISCOVERY_ENDPOINTS = INDEXABLE_ENDPOINTS | {
+    "community_board_page",
+    "notice_board_page",
+    "community_post_page",
 }
 SITEMAP_STATIC_ENDPOINTS = {
     "public_home": {"changefreq": "daily", "priority": "1.0"},
@@ -666,7 +673,34 @@ def localize_response(response):
 
     content_type = response.headers.get("Content-Type", "")
     if content_type.startswith("text/html"):
-        response.set_data(translate_html(response.get_data(as_text=True), locale))
+        rendered_html = response.get_data(as_text=True)
+        endpoint = request.endpoint or ""
+        now = time.monotonic()
+        if (
+            request.method == "GET"
+            and endpoint in LOCALIZATION_DISCOVERY_ENDPOINTS
+            and now - _localization_render_scan_at.get(endpoint, 0.0) >= 3600
+        ):
+            try:
+                candidates = [
+                    text for text in extract_translatable_html_strings(rendered_html)
+                    if re.search(r"[\uac00-\ud7a3]", str(translate_text(text, locale)))
+                ]
+                if candidates:
+                    connection = dashboard_db()
+                    try:
+                        localization_management.register_rendered_strings(
+                            connection,
+                            candidates,
+                            page=endpoint,
+                            source_path=request.path,
+                        )
+                    finally:
+                        connection.close()
+                _localization_render_scan_at[endpoint] = now
+            except Exception:
+                logger.exception("Public localization discovery failed for %s", endpoint)
+        response.set_data(translate_html(rendered_html, locale))
     elif content_type.startswith("application/json"):
         payload = response.get_json(silent=True)
         if payload is not None:

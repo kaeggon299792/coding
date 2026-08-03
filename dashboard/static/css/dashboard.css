@@ -2359,3 +2359,32 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 @media(max-width:900px){.localization-prompt-pair{grid-template-columns:1fr}.localization-prompt-pair textarea{min-height:300px}.localization-chunk-submit{align-items:stretch;flex-direction:column}}
 .localization-prompt-pair{align-items:start}.localization-prompt-chunk pre{width:100%;height:320px;max-height:320px;box-sizing:border-box}.localization-prompt-pair textarea{height:320px;min-height:320px;max-height:520px;overflow:auto}
 @media(max-width:900px){.localization-prompt-chunk pre,.localization-prompt-pair textarea{height:260px;min-height:260px;max-height:420px}}
+
+/* Localization workspace: align cards and editing surfaces with admin UI. */
+.section-heading>span{flex:0 0 auto;white-space:nowrap}
+.localization-admin>.panel,.localization-admin .localization-item,.localization-prompt-chunk{border-color:var(--brand-border-strong);box-shadow:0 10px 28px rgba(0,0,0,.05)}
+.localization-stats article{position:relative;overflow:hidden;padding:19px 18px;border-color:var(--brand-border-strong)}
+.localization-stats article:before{position:absolute;inset:0 auto 0 0;width:2px;background:var(--brand-accent);content:""}
+.localization-toolbar{padding:20px;border-left:2px solid var(--brand-accent)}
+.localization-filter input,.localization-filter select,.localization-item textarea,.localization-item select,.localization-bulk input[type=file],.localization-prompt-builder select,.localization-ai-import textarea,.localization-glossary input{border-color:var(--brand-border-strong);outline:none;transition:border-color .18s,box-shadow .18s}
+.localization-filter input:focus,.localization-filter select:focus,.localization-item textarea:focus,.localization-item select:focus,.localization-prompt-builder select:focus,.localization-ai-import textarea:focus,.localization-glossary input:focus{border-color:var(--brand-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand-accent) 16%,transparent)}
+.localization-prompt-builder,.localization-ai-import,.localization-glossary,.localization-timeline{padding:22px}
+.localization-prompt-builder{border-top:2px solid var(--brand-accent)}
+.localization-results>summary{border-color:var(--brand-border-strong);font-weight:700}
+.localization-item>summary{min-height:54px;padding:16px 18px}
+.localization-item>summary span{background:var(--brand-bg)}
+.localization-item-body{padding:18px;border-top-color:var(--brand-border-strong)}
+.localization-columns{gap:18px}
+.localization-columns>div,.localization-columns>form{min-width:0;padding:14px;border:1px solid var(--brand-border);background:var(--brand-surface-elevated)}
+.localization-columns pre,.translation-prompt{border-color:var(--brand-border-strong);background:var(--brand-bg)}
+.localization-prompt-chunk{padding:22px;border-top:2px solid var(--brand-accent)}
+.localization-prompt-pair>label,.localization-prompt-pair>pre{min-width:0}
+.localization-prompt-pair>label{padding:14px;border:1px solid var(--brand-border);background:var(--brand-surface-elevated)}
+.localization-prompt-pair textarea{border-color:var(--brand-border-strong)}
+.localization-chunk-submit{border-top:2px solid var(--brand-accent)}
+.localization-alert{position:relative;display:flex;align-items:center;min-height:52px;padding:14px 18px 14px 52px;border-color:rgba(239,102,113,.48);background:linear-gradient(90deg,rgba(239,102,113,.12),rgba(239,102,113,.035));font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.localization-alert:before{position:absolute;left:17px;display:grid;width:24px;height:24px;place-items:center;border:1px solid rgba(239,102,113,.55);border-radius:50%;color:#ef6671;content:"!";font-size:13px;font-weight:800}
+.localization-notice{display:flex;align-items:center;min-height:48px;border-left:3px solid #46c891}
+.localization-global-alert{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border-left:3px solid #ef6671;background:var(--brand-surface-elevated);font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.localization-global-alert:before{width:7px;height:7px;border-radius:50%;background:#ef6671;content:"";box-shadow:0 0 0 4px rgba(239,102,113,.13)}
+@media(max-width:560px){.localization-toolbar,.localization-prompt-builder,.localization-ai-import,.localization-glossary,.localization-timeline,.localization-prompt-chunk{padding:16px}.localization-item-body{padding:14px}.localization-columns>div,.localization-columns>form{padding:11px}}

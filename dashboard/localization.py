@@ -17,7 +17,7 @@ import re
 import sqlite3
 import time
 from functools import lru_cache
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 from typing import Any, Callable, Iterable
 from urllib.parse import parse_qsl, urlencode
@@ -52,6 +52,14 @@ _JS_STRING_RE = re.compile(
     re.DOTALL,
 )
 _SPACE_RE = re.compile(r"^(\s*)(.*?)(\s*)$", re.DOTALL)
+_DISCOVERY_BLOCK_RE = re.compile(
+    r"<(?:script|style|svg|pre|code|textarea)\b[^>]*>.*?</(?:script|style|svg|pre|code|textarea)\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_HANGUL_RE = re.compile(r"[\uac00-\ud7a3]")
+_EOK_WON_RE = re.compile(r"^([+-]?[0-9,]+(?:\.[0-9]+)?)억원$")
+_MAN_WON_RE = re.compile(r"^([+-]?[0-9,]+(?:\.[0-9]+)?)만원$")
+_PEOPLE_RE = re.compile(r"^([+-]?[0-9,]+)명$")
 
 
 class LocalePrefixMiddleware:
@@ -137,8 +145,27 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     if translated is None:
         translated = catalog["text"].get(core)
     if translated is None:
+        translated = _translate_numeric_unit(core)
+    if translated is None:
         translated = _apply_patterns(core, catalog.get("patterns", {}).items())
     return f"{leading}{translated}{trailing}"
+
+
+def _translate_numeric_unit(text: str) -> str | None:
+    """Translate frequently changing Korean financial/count units."""
+
+    match = _EOK_WON_RE.match(text)
+    if match:
+        value = float(match.group(1).replace(",", "")) / 10
+        return f"KRW {value:,.1f}B"
+    match = _MAN_WON_RE.match(text)
+    if match:
+        value = float(match.group(1).replace(",", "")) / 100
+        return f"KRW {value:,.2f}M"
+    match = _PEOPLE_RE.match(text)
+    if match:
+        return f"{match.group(1)} people"
+    return None
 
 
 def _lms_text_map(locale: str) -> dict[str, str]:
@@ -279,6 +306,30 @@ def translate_html(html: str, locale: str = DEFAULT_LOCALE) -> str:
             f"___DASHBOARD_IGNORED_{index}___", block
         )
     return translated_html
+
+
+def extract_translatable_html_strings(html: str) -> list[str]:
+    """Return deduplicated Korean strings that are actually visible in HTML.
+
+    Executable/protected blocks are deliberately excluded.  This is used only
+    for public-page LMS discovery; it never changes the rendered response.
+    """
+
+    if not html:
+        return []
+    visible = _IGNORED_BLOCK_RE.sub("", html)
+    visible = _DISCOVERY_BLOCK_RE.sub("", visible)
+    candidates = [match.group("value") for match in _ATTRIBUTE_RE.finditer(visible)]
+    candidates.extend(re.split(r"<[^>]+>", visible))
+    found: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        text = re.sub(r"\s+", " ", unescape(candidate)).strip()
+        if not text or len(text) > 2000 or not _HANGUL_RE.search(text) or text in seen:
+            continue
+        seen.add(text)
+        found.append(text)
+    return found
 
 
 def alternate_paths(path: str, query_string: str = "") -> dict[str, str]:

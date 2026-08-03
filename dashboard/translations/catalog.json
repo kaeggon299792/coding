@@ -1248,6 +1248,7 @@
     "\uad8c\ud55c \ud544\uc694": "Permission required"
   },
   "patterns": {
+    "^(.+)\\s+하위\\s*메뉴$": "$1 submenu",
     "^\ucd1d\\s*([0-9,]+)\uac74$": "Total: $1",
     "^([0-9,]+)\uac74$": "$1 items",
     "^([0-9,]+)\uac1c\uc758\\s*\uae00$": "$1 posts",
