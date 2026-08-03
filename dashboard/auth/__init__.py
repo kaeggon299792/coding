@@ -1622,11 +1622,17 @@ def localization_import_ai():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     language_code = (request.form.get("language_code") or "en").strip()
+    translation_payload = request.form.get("translation_payload") or ""
+    chunk_payloads = request.form.getlist("translation_chunk")
+    if chunk_payloads:
+        translation_payload = "\n\n".join(
+            payload.strip() for payload in chunk_payloads if payload.strip()
+        )
     connection = dashboard_db()
     try:
         try:
             result = localization_management.import_ai_translation_text(
-                connection, request.form.get("translation_payload") or "",
+                connection, translation_payload,
                 language_code, session.get("user_id"),
             )
         except ValueError as exc:

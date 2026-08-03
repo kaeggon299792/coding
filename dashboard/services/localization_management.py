@@ -36,8 +36,8 @@ TRANSLATION_STYLES = {
     "business": "간결하고 전문적인 비즈니스 문체를 사용합니다.",
     "marketing": "정확성을 유지하면서 설득력 있는 마케팅 문체를 사용합니다.",
 }
-PROMPT_MAX_ITEMS = 50
-PROMPT_MAX_CHARS = 12000
+PROMPT_MAX_ITEMS = 200
+PROMPT_MAX_CHARS = 60000
 
 
 def _timestamp():
@@ -487,8 +487,8 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
         raise ValueError("번역할 항목을 하나 이상 선택해주세요.")
     if len(ids) > 500:
         raise ValueError("한 번에 최대 500개 항목을 선택할 수 있습니다.")
-    max_items = max(1, min(int(max_items or PROMPT_MAX_ITEMS), 100))
-    max_chars = max(3000, min(int(max_chars or PROMPT_MAX_CHARS), 30000))
+    max_items = max(1, min(int(max_items or PROMPT_MAX_ITEMS), 500))
+    max_chars = max(3000, min(int(max_chars or PROMPT_MAX_CHARS), 100000))
     placeholders = ",".join("?" for _ in ids)
     rows = [dict(row) for row in connection.execute(
         f"""SELECT s.id,s.language_key,s.source_text,s.page_name,s.string_type

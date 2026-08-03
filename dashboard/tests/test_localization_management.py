@@ -254,6 +254,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         })
         assert prompt.status_code == 200
         assert "카지노 산업 전문 번역가" in prompt.get_data(as_text=True)
+        assert 'name="translation_chunk"' in prompt.get_data(as_text=True)
         imported = client.post("/admin/localization/import-ai", data={
             "csrf_token": "a" * 64, "language_code": "en",
             "translation_payload": "ID=UI_" + "0" * 16 + "\n\nEN:\nIgnored",
