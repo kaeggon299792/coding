@@ -229,6 +229,8 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert 'name="string_ids"' in response.get_data(as_text=True)
         assert 'name="string_ids" value=' in response.get_data(as_text=True)
         assert ' checked> AI 번역 대상 선택' in response.get_data(as_text=True)
+        assert '<details class="localization-results">' in response.get_data(as_text=True)
+        assert '<details class="panel localization-item">' in response.get_data(as_text=True)
         all_statuses = client.get("/admin/localization?status=")
         assert all_statuses.status_code == 200
         assert "<option selected>Pending</option>" not in all_statuses.get_data(as_text=True)

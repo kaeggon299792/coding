@@ -43,10 +43,13 @@
     <div class="localization-selection-actions"><button class="btn" type="button" data-select-pending>현재 페이지 미번역 전체 선택</button><button class="btn btn-primary" type="submit">선택 항목 생성</button></div>
   </form>
   <p class="localization-result-count">전체 {{ total }}개 · 페이지 {{ page }} / {{ pages }}</p>
+  <details class="localization-results">
+    <summary>번역 항목 {{ items|length }}건 펼쳐보기</summary>
   <section class="localization-list">
     {% for item in items %}
-    <article class="panel localization-item">
-      <header><div><span class="localization-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span><span class="status-{{ item.effective_status|lower }}">{{ item.effective_status }}</span><code>{{ item.language_key }}</code></div><small>{{ item.page_name }} / {{ item.component }} / {{ item.string_type }} · 참조 {{ item.reference_count }}곳</small></header>
+    <details class="panel localization-item">
+      <summary><div><span class="localization-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span><span class="status-{{ item.effective_status|lower }}">{{ item.effective_status }}</span><code>{{ item.language_key }}</code></div><small>{{ item.page_name }} / {{ item.component }} / {{ item.string_type }} · 참조 {{ item.reference_count }}곳</small></summary>
+      <div class="localization-item-body">
       {% if item.effective_status == 'Pending' %}<label class="localization-prompt-check"><input form="localization-prompt-form" type="checkbox" name="string_ids" value="{{ item.id }}" checked> AI 번역 대상 선택</label>{% endif %}
       <div class="localization-columns">
         <div><b>KOREAN</b><pre>{{ item.source_text }}</pre></div>
@@ -63,9 +66,11 @@ PAGE
 
 KOREAN
 {{ item.source_text }}</pre><button class="btn" type="button" data-copy-target="prompt-{{ item.id }}">복사</button></div><ul>{% for ref in item.references %}<li><code>{{ ref.source_path }}{% if ref.locator %}:{{ ref.locator }}{% endif %}</code></li>{% endfor %}</ul></details>
-    </article>
+      </div>
+    </details>
     {% else %}<div class="panel empty-state">조건에 맞는 문자열이 없습니다. Translation Scan을 실행해 프로젝트를 검사하세요.</div>{% endfor %}
   </section>
+  </details>
   <nav class="news-pagination" aria-label="Localization 페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('auth.localization_dashboard', page=page-1, language=language_code, q=query, status=selected_status, priority=selected_priority, sort=selected_sort) }}">이전</a>{% endif %}<span>{{ page }} / {{ pages }}</span>{% if page < pages %}<a class="btn" href="{{ url_for('auth.localization_dashboard', page=page+1, language=language_code, q=query, status=selected_status, priority=selected_priority, sort=selected_sort) }}">다음</a>{% endif %}</nav>
   <section class="panel localization-ai-import"><h2>AI 번역 결과 붙여넣기</h2><p>AI가 반환한 여러 묶음을 이어 붙여도 ID를 기준으로 일괄 반영합니다.</p><form method="post" action="{{ url_for('auth.localization_import_ai') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><textarea name="translation_payload" rows="12" maxlength="2000000" placeholder="ID=MENU_HOME&#10;&#10;EN:&#10;Home" required></textarea><button class="btn btn-primary" type="submit">AI 번역 일괄 반영</button></form></section>
   <section class="panel localization-glossary"><header><div><h2>프로젝트 공통 용어집</h2><p>활성 용어는 AI 번역 프롬프트에 자동 포함됩니다.</p></div></header><form class="localization-glossary-add" method="post" action="{{ url_for('auth.localization_glossary_save') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><input name="source_text" maxlength="300" placeholder="한국어 용어" required><input name="target_text" maxlength="500" placeholder="{{ language_code }} 번역" required><button class="btn btn-primary" type="submit">용어 추가</button></form><div class="localization-glossary-list">{% for term in glossary %}<form method="post" action="{{ url_for('auth.localization_glossary_save') }}" class="{% if not term.is_active %}is-inactive{% endif %}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><input type="hidden" name="glossary_id" value="{{ term.id }}"><input name="source_text" value="{{ term.source_text }}" maxlength="300" required><input name="target_text" value="{{ term.target_text }}" maxlength="500" required><button class="btn" type="submit">저장</button>{% if term.is_active %}<button class="btn danger-button" type="submit" formaction="{{ url_for('auth.localization_glossary_delete', glossary_id=term.id) }}">비활성</button>{% else %}<span>비활성</span>{% endif %}</form>{% else %}<p>등록된 용어가 없습니다.</p>{% endfor %}</div></section>
