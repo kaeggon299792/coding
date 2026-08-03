@@ -81,7 +81,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 </div>
 {% block body %}{% endblock %}
 <details class="global-language-switch">
-  <summary aria-label="{{ t('언어 선택') }}" aria-haspopup="listbox">{{ current_locale.upper() if current_locale != 'yue-HK' else 'YUE' }}<span class="language-switch-chevron" aria-hidden="true"></span></summary>
+  <summary aria-label="{{ t('언어 선택') }}" aria-haspopup="listbox">{{ current_locale.upper() if current_locale != 'yue-HK' else 'YUE' }}<span aria-hidden="true">⌄</span></summary>
   <nav aria-label="{{ t('언어 선택') }}">
     {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><b>{{ item.label }}</b><span>{{ item.name }}</span></a>{% endfor %}
   </nav>
