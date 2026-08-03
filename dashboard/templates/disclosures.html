@@ -35,42 +35,6 @@
   </section>
   {% endif %}
 
-  <section class="ir-library" aria-labelledby="ir-library-title">
-    <div class="library-toolbar"><h2 id="ir-library-title">{{ 'Company IR Documents' if is_english else '기업 IR 자료' }} <span class="item-meta">{{ ir_documents|length }} {{ 'documents' if is_english else '건' }}</span></h2></div>
-    {% if ir_documents %}
-    <div class="library-grid">
-      {% for doc in ir_documents %}
-      <article class="library-card">
-        <div class="library-card-head"><div><span class="badge high">{{ doc.company_name }}</span><h2>{{ doc.title }}</h2><p class="item-meta">{{ doc.publisher or ('Publisher not entered' if is_english else '발행처 미입력') }} · {{ doc.report_date or doc.created_at[:10] }} · {{ doc.page_count or 0 }} {{ 'pages' if is_english else '쪽' }} · {{ "%.1f"|format(doc.file_size / 1024 / 1024) }}MB</p></div><span class="badge {% if doc.ai_summary %}high{% endif %}">{% if doc.ai_summary %}AI 분석 완료{% elif doc.extraction_status == "no_text" %}본문 없음{% else %}분석 필요{% endif %}</span></div>
-        {% if doc.ai_summary %}
-        <p class="library-summary">{{ doc.ai_summary }}</p>
-        <div class="library-facts"><span><strong>투자의견</strong>{{ doc.investment_stance or "명시 없음" }}</span><span><strong>목표주가</strong>{{ doc.target_price or "명시 없음" }}</span><span class="industry-impact impact-{{ doc.industry_impact or '미분석' }}"><strong>산업 영향도</strong>{{ doc.industry_impact or "미분석" }}</span></div>
-        {% if doc.key_points %}<details open><summary>{{ 'Key Points' if is_english else '핵심 포인트' }}</summary><ul>{% for point in doc.key_points %}<li>{{ point }}</li>{% endfor %}</ul></details>{% endif %}
-        {% if doc.risks %}<details><summary>리스크·확인사항</summary><ul>{% for risk in doc.risks %}<li>{{ risk }}</li>{% endfor %}</ul></details>{% endif %}
-        {% elif doc.error_message %}<p class="flash error">{{ 'AI analysis could not be completed. Authorized users can run the analysis again.' if is_english else 'AI 분석을 완료하지 못했습니다. 권한 사용자는 재분석할 수 있습니다.' }}</p>{% endif %}
-        <div class="library-actions">
-          <a class="btn" href="{{ url_for('download_ir_document', document_id=doc.id) }}">{{ 'Download Original PDF' if is_english else '원본 PDF 다운로드' }}</a>
-          {% if can_manage_ir %}
-          <details class="library-title-editor">
-            <summary class="btn">제목 수정</summary>
-            <div class="library-title-editor-panel">
-              <form method="post" action="{{ url_for('update_ir_document_title', document_id=doc.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="text" name="title" value="{{ doc.title }}" maxlength="200" required aria-label="{{ 'IR document title' if is_english else 'IR 자료 제목' }}">
-                <button class="btn" type="submit">수정</button>
-              </form>
-            </div>
-          </details>
-          <form method="post" action="{{ url_for('reanalyze_ir_document', document_id=doc.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">AI 재분석</button></form>
-          <form method="post" action="{{ url_for('delete_ir_document', document_id=doc.id) }}" onsubmit="return confirm('{{ 'Delete this IR document and its analysis?' if is_english else '이 IR 자료와 분석 결과를 삭제할까요?' }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-text danger-text" type="submit">삭제</button></form>
-          {% endif %}
-        </div>
-      </article>
-      {% endfor %}
-    </div>
-    {% else %}<div class="empty-state">{{ 'No company IR documents have been uploaded.' if is_english else '등록된 기업 IR 자료가 없습니다.' }}</div>{% endif %}
-  </section>
-
   <form class="form-inline" method="get">
     <label for="disclosure-company" class="item-meta">{{ 'Company' if is_english else '기업' }}</label>
     <select id="disclosure-company" name="company" onchange="this.form.submit()">
@@ -88,10 +52,31 @@
   </form>
 
   <section class="disclosure-library" aria-labelledby="disclosure-library-title">
-    <div class="library-toolbar"><h2 id="disclosure-library-title">DART 공시 <span class="item-meta">{{ disclosures|length }} {{ 'filings' if is_english else '건' }}</span></h2></div>
-    {% if disclosures %}
+    <div class="library-toolbar"><h2 id="disclosure-library-title">{{ 'Company Filings' if is_english else '기업 공시 자료' }} <span class="item-meta">{{ company_filings|length }} {{ 'filings' if is_english else '건' }}</span></h2></div>
+    {% if company_filings %}
     <div class="library-grid disclosure-card-grid">
-      {% for d in disclosures %}
+      {% for filing in company_filings %}
+      {% if filing.source_type == 'ir' %}
+      {% set doc = filing.ir_document %}
+      <article class="library-card disclosure-card">
+        <div class="library-card-head"><div><div class="disclosure-card-badges"><span class="badge high">{{ doc.company_name }}</span><span class="badge">IR</span></div><h2>{{ doc.title }}</h2><p class="item-meta">{{ doc.publisher or ('Publisher not entered' if is_english else '발행처 미입력') }} · {{ doc.report_date or doc.created_at[:10] }} · {{ doc.page_count or 0 }} {{ 'pages' if is_english else '쪽' }} · {{ "%.1f"|format(doc.file_size / 1024 / 1024) }}MB</p></div><span class="badge {% if doc.ai_summary %}high{% endif %}">{% if doc.ai_summary %}AI 분석 완료{% elif doc.extraction_status == "no_text" %}본문 없음{% else %}분석 필요{% endif %}</span></div>
+        {% if doc.ai_summary %}
+        <p class="library-summary">{{ doc.ai_summary }}</p>
+        <div class="library-facts"><span><strong>투자의견</strong>{{ doc.investment_stance or "명시 없음" }}</span><span><strong>목표주가</strong>{{ doc.target_price or "명시 없음" }}</span><span class="industry-impact impact-{{ doc.industry_impact or '미분석' }}"><strong>산업 영향도</strong>{{ doc.industry_impact or "미분석" }}</span></div>
+        {% if doc.key_points %}<details open><summary>{{ 'Key Points' if is_english else '핵심 포인트' }}</summary><ul>{% for point in doc.key_points %}<li>{{ point }}</li>{% endfor %}</ul></details>{% endif %}
+        {% if doc.risks %}<details><summary>리스크·확인사항</summary><ul>{% for risk in doc.risks %}<li>{{ risk }}</li>{% endfor %}</ul></details>{% endif %}
+        {% elif doc.error_message %}<p class="flash error">{{ 'AI analysis could not be completed. Authorized users can run the analysis again.' if is_english else 'AI 분석을 완료하지 못했습니다. 권한 사용자는 재분석할 수 있습니다.' }}</p>{% endif %}
+        <div class="library-actions">
+          <a class="btn" href="{{ url_for('download_ir_document', document_id=doc.id) }}">{{ 'Download Original PDF' if is_english else '원본 PDF 다운로드' }}</a>
+          {% if can_manage_ir %}
+          <details class="library-title-editor"><summary class="btn">제목 수정</summary><div class="library-title-editor-panel"><form method="post" action="{{ url_for('update_ir_document_title', document_id=doc.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="text" name="title" value="{{ doc.title }}" maxlength="200" required aria-label="{{ 'IR document title' if is_english else 'IR 자료 제목' }}"><button class="btn" type="submit">수정</button></form></div></details>
+          <form method="post" action="{{ url_for('reanalyze_ir_document', document_id=doc.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">AI 재분석</button></form>
+          <form method="post" action="{{ url_for('delete_ir_document', document_id=doc.id) }}" onsubmit="return confirm('{{ 'Delete this IR document and its analysis?' if is_english else '이 IR 자료와 분석 결과를 삭제할까요?' }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-text danger-text" type="submit">삭제</button></form>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}
+      {% set d = filing.disclosure %}
       {% set analysis = analyses.get(d.id) %}
       <article class="library-card disclosure-card">
         <div class="library-card-head">
@@ -118,10 +103,11 @@
           {% endif %}
         </div>
       </article>
+      {% endif %}
       {% endfor %}
     </div>
     {% else %}
-      <p class="empty-state">{{ 'No filings are available. DART_API_KEY may not be configured, no companies may be registered in monitored_companies, or there may be no new filings during the selected period.' if is_english else '표시할 공시가 없습니다. DART_API_KEY가 설정되지 않았거나, monitored_companies에 관심기업이 등록되지 않았거나, 해당 기간 신규 공시가 없을 수 있습니다.' }}</p>
+      <p class="empty-state">{{ 'No company filings are available for the selected filters.' if is_english else '선택한 조건에 표시할 기업 공시 자료가 없습니다.' }}</p>
     {% endif %}
   </section>
 </div>

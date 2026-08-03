@@ -359,11 +359,26 @@ def test_public_disclosures_page_shows_ir_but_not_management_controls(monkeypatc
     app_module, db_path, _ = _configure_app_db(monkeypatch, tmp_path)
     connection = schema.connect(str(db_path))
     _create_document(connection, "ir", "3" * 64)
+    queries.save_disclosure(
+        connection,
+        "20260804000001",
+        "GKL",
+        "00557508",
+        "분기보고서",
+        "A",
+        "20260804",
+        "GKL",
+        "https://dart.fss.or.kr/example",
+        False,
+    )
     connection.close()
     with app_module.app.test_client() as client:
         response = client.get("/disclosures")
     assert response.status_code == 200
     assert "ir 문서".encode() in response.data
+    assert "분기보고서".encode() in response.data
+    assert "기업 공시 자료".encode() in response.data
+    assert b'id="ir-library-title"' not in response.data
     assert b"/disclosures/ir/1/reanalyze" not in response.data
 
 

@@ -2635,12 +2635,57 @@ def _disclosures_context(connection, error=None):
     analyses = queries.list_latest_disclosure_analyses(
         connection, (item["id"] for item in disclosures)
     )
+    ir_documents = queries.list_research_documents(
+        connection,
+        company_name=selected_company or None,
+        document_type="ir",
+    )
+    cutoff_date = (now_kst() - timedelta(days=days)).date()
+
+    def ir_document_is_within_period(item):
+        raw_date = str(
+            item.get("report_date") or item.get("created_at") or ""
+        )[:10]
+        try:
+            return datetime.fromisoformat(raw_date).date() >= cutoff_date
+        except ValueError:
+            # 날짜가 없는 기존 자료를 필터 때문에 숨기지 않는다.
+            return True
+
+    ir_documents = [
+        item
+        for item in ir_documents
+        if ir_document_is_within_period(item)
+    ]
+    company_filings = [
+        {
+            "source_type": "dart",
+            "sort_date": str(item.get("rcept_dt") or "").replace("-", "")[:8],
+            "disclosure": item,
+            "ir_document": None,
+        }
+        for item in disclosures
+    ]
+    company_filings.extend(
+        {
+            "source_type": "ir",
+            "sort_date": str(
+                item.get("report_date") or item.get("created_at") or ""
+            ).replace("-", "")[:8],
+            "disclosure": None,
+            "ir_document": item,
+        }
+        for item in ir_documents
+    )
+    company_filings.sort(
+        key=lambda item: (item["sort_date"], item["source_type"] == "ir"),
+        reverse=True,
+    )
     return {
         "disclosures": disclosures,
         "analyses": analyses,
-        "ir_documents": queries.list_research_documents(
-            connection, document_type="ir"
-        ),
+        "ir_documents": ir_documents,
+        "company_filings": company_filings,
         "companies": companies,
         "selected_company": selected_company,
         "days": days,
