@@ -121,6 +121,16 @@ def test_xlsx_export_is_valid_workbook():
     assert "spreadsheetml" in mimetype
 
 
+def test_prompt_windows_use_compact_scrollable_height():
+    from pathlib import Path
+
+    css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".localization-prompt-chunk pre{width:100%;height:320px;max-height:320px" in css
+    assert ".localization-prompt-pair textarea{height:320px;min-height:320px" in css
+
+
 def test_ai_prompt_uses_glossary_style_and_splits_long_selection():
     db = connection()
     lms.save_glossary(db, "기업정보", "Company Profile", "en")
