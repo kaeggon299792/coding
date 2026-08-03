@@ -112,6 +112,7 @@ INDEXABLE_ENDPOINTS = {
     "credits_page",
     "tips.list_page",
     "tips.sites_page",
+    "tips.glossary_page",
     "tips.detail_page",
 }
 NOINDEX_ENDPOINTS = {
@@ -159,6 +160,7 @@ SITEMAP_STATIC_ENDPOINTS = {
     "research_library_page": {"changefreq": "weekly", "priority": "0.8"},
     "tips.list_page": {"changefreq": "weekly", "priority": "0.8"},
     "tips.sites_page": {"changefreq": "weekly", "priority": "0.65"},
+    "tips.glossary_page": {"changefreq": "monthly", "priority": "0.72"},
     "credits_page": {"changefreq": "weekly", "priority": "0.5"},
 }
 SEO_PAGE_COPY = {
@@ -477,6 +479,7 @@ PUBLIC_READ_ENDPOINTS = {
     "credits_page",
     "tips.list_page",
     "tips.sites_page",
+    "tips.glossary_page",
     "tips.detail_page",
     "tips.attachment_file",
     "action_items_page",
@@ -1100,6 +1103,7 @@ def _site_map_links():
             "children": [
                 {"label": "자료실", "endpoint": "tips.list_page"},
                 {"label": "관련 사이트", "endpoint": "tips.sites_page"},
+                {"label": "카지노 용어집", "endpoint": "tips.glossary_page"},
                 {
                     "label": "원천 데이터 다운",
                     "endpoint": "source_download_page",
@@ -1230,6 +1234,7 @@ def _build_sitemap_entries(connection):
         "research_library_page": _max_timestamp(connection, "research_documents", "updated_at"),
         "tips.list_page": _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
         "tips.sites_page": _max_timestamp(connection, "related_sites", "updated_at", "is_deleted=0 AND is_public=1"),
+        "tips.glossary_page": _max_timestamp(connection, "casino_glossary_terms", "updated_at", "is_deleted=0 AND is_public=1"),
         "credits_page": max(
             filter(
                 None,

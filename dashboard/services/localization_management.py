@@ -249,6 +249,9 @@ def scan_project(connection, project_root):
         ("research", "research_documents",
          ("title", "ai_summary", "industry_impact", "investment_stance"), "리서치", "Research", ""),
         ("tip", "tips_articles", ("title", "summary", "body"), "자료실", "Tips", "is_deleted=0"),
+        ("casino_glossary", "casino_glossary_terms",
+         ("term_ko", "term_en", "definition", "easy_explanation", "aliases"),
+         "카지노 용어집", "Glossary", "is_deleted=0 AND is_public=1"),
     )
     tables = {row[0] for row in connection.execute(
         "SELECT name FROM sqlite_master WHERE type='table'"

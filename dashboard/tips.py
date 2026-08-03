@@ -3,6 +3,7 @@
 import hashlib
 import mimetypes
 import os
+import sqlite3
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -65,6 +66,35 @@ def _site_categories(connection):
         ).fetchall()
     ]
     return tuple(dict.fromkeys(names))
+
+
+def _glossary_form_values():
+    category = request.form.get("category", "").strip().lower()
+    term_ko = " ".join(request.form.get("term_ko", "").split()).strip()
+    term_en = " ".join(request.form.get("term_en", "").split()).strip()
+    definition = request.form.get("definition", "").strip()
+    easy_explanation = request.form.get("easy_explanation", "").strip()
+    aliases = ", ".join(
+        part.strip() for part in request.form.get("aliases", "").split(",")
+        if part.strip()
+    )
+    if category not in {"game", "business"}:
+        raise ValueError("카테고리를 선택해주세요.")
+    if not term_ko or not definition or not easy_explanation:
+        raise ValueError("용어, 기본 의미, 쉽게 풀어쓴 설명은 필수입니다.")
+    if len(term_ko) > 100 or len(term_en) > 150:
+        raise ValueError("용어명이 너무 깁니다.")
+    if len(definition) > 2000 or len(easy_explanation) > 2000 or len(aliases) > 500:
+        raise ValueError("설명 또는 유의어가 허용 길이를 초과했습니다.")
+    return {
+        "category": category,
+        "term_ko": term_ko,
+        "term_en": term_en,
+        "definition": definition,
+        "easy_explanation": easy_explanation,
+        "aliases": aliases,
+        "is_public": request.form.get("is_public", "1") == "1",
+    }
 
 
 def _ensure_site_category(connection, category):
@@ -154,6 +184,133 @@ def list_page():
         "tips/list.html", tips=items, query=query, selected_category=category,
         categories=categories,
     )
+
+
+@tips_bp.route("/glossary", methods=["GET", "POST"])
+def glossary_page():
+    connection = dashboard_db()
+    try:
+        if request.method == "POST":
+            if not _is_admin():
+                abort(403)
+            if not validate_csrf(request.form.get("csrf_token")):
+                abort(400)
+            try:
+                values = _glossary_form_values()
+                timestamp = now_kst().isoformat(timespec="seconds")
+                connection.execute(
+                    """
+                    INSERT INTO casino_glossary_terms
+                        (category, term_ko, term_en, definition, easy_explanation,
+                         aliases, is_public, created_by, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        values["category"], values["term_ko"], values["term_en"],
+                        values["definition"], values["easy_explanation"],
+                        values["aliases"], 1 if values["is_public"] else 0,
+                        session.get("user_id"), timestamp, timestamp,
+                    ),
+                )
+                connection.commit()
+            except ValueError as exc:
+                flash(str(exc), "error")
+                return redirect(url_for("tips.glossary_page"))
+            except sqlite3.IntegrityError:
+                flash("이미 등록된 용어입니다.", "error")
+                return redirect(url_for("tips.glossary_page"))
+            flash("카지노 용어를 등록했습니다.", "success")
+            return redirect(url_for("tips.glossary_page"))
+
+        query = request.args.get("q", "").strip()
+        category = request.args.get("category", "").strip().lower()
+        if category not in {"", "game", "business"}:
+            category = ""
+        conditions = ["is_deleted=0"]
+        params = []
+        if not _is_admin():
+            conditions.append("is_public=1")
+        if category:
+            conditions.append("category=?")
+            params.append(category)
+        if query:
+            like = f"%{query}%"
+            conditions.append(
+                "(term_ko LIKE ? OR term_en LIKE ? OR definition LIKE ? "
+                "OR easy_explanation LIKE ? OR aliases LIKE ?)"
+            )
+            params.extend([like] * 5)
+        terms = [
+            dict(row) for row in connection.execute(
+                f"SELECT * FROM casino_glossary_terms WHERE {' AND '.join(conditions)} "
+                "ORDER BY CASE category WHEN 'game' THEN 0 ELSE 1 END, term_ko",
+                params,
+            ).fetchall()
+        ]
+        return render_template(
+            "tips/glossary.html", terms=terms, query=query,
+            selected_category=category,
+        )
+    finally:
+        connection.close()
+
+
+@tips_bp.post("/glossary/<int:term_id>/edit")
+@admin_required
+def edit_glossary_page(term_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    try:
+        values = _glossary_form_values()
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("tips.glossary_page"))
+    connection = dashboard_db()
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE casino_glossary_terms SET
+                category=?, term_ko=?, term_en=?, definition=?,
+                easy_explanation=?, aliases=?, is_public=?, updated_at=?
+            WHERE id=? AND is_deleted=0
+            """,
+            (
+                values["category"], values["term_ko"], values["term_en"],
+                values["definition"], values["easy_explanation"], values["aliases"],
+                1 if values["is_public"] else 0,
+                now_kst().isoformat(timespec="seconds"), term_id,
+            ),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("카지노 용어를 수정했습니다.", "success")
+    return redirect(url_for("tips.glossary_page"))
+
+
+@tips_bp.post("/glossary/<int:term_id>/delete")
+@admin_required
+def delete_glossary_page(term_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        timestamp = now_kst().isoformat(timespec="seconds")
+        cursor = connection.execute(
+            """UPDATE casino_glossary_terms
+               SET is_deleted=1, deleted_at=?, updated_at=?
+               WHERE id=? AND is_deleted=0""",
+            (timestamp, timestamp, term_id),
+        )
+        if not cursor.rowcount:
+            abort(404)
+        connection.commit()
+    finally:
+        connection.close()
+    flash("카지노 용어를 삭제했습니다.", "success")
+    return redirect(url_for("tips.glossary_page"))
 
 
 @tips_bp.route("/sites", methods=["GET", "POST"])

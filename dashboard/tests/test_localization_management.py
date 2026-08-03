@@ -212,7 +212,7 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     assert upgraded.execute(
         "SELECT COUNT(*) FROM localization_glossary"
     ).fetchone()[0] == 8
-    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080402
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080403
     upgraded.close()
 
 
@@ -291,7 +291,10 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert '<details class="panel localization-item">' in response.get_data(as_text=True)
         all_statuses = client.get("/admin/localization?status=")
         assert all_statuses.status_code == 200
-        assert "<option selected>Pending</option>" not in all_statuses.get_data(as_text=True)
+        status_filter = all_statuses.get_data(as_text=True).split(
+            '<select name="status" aria-label="상태">', 1
+        )[1].split("</select>", 1)[0]
+        assert "<option selected>Pending</option>" not in status_filter
         route_db = schema.connect(str(db_path))
         pending_id = route_db.execute(
             """SELECT s.id FROM localization_strings s

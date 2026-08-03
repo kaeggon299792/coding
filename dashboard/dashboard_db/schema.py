@@ -15,7 +15,38 @@ import config
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080402
+SCHEMA_VERSION = 2026080403
+
+CASINO_GLOSSARY_SEED_TERMS = (
+    ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
+    ("game", "플레이어", "Player", "바카라에서 두 베팅 영역 중 하나. 실제 게임 참가자를 뜻하는 것은 아님.", "사람이 아니라 바카라의 한쪽 팀 이름입니다."),
+    ("game", "뱅커", "Banker", "바카라에서 두 베팅 영역 중 하나. 규칙상 일반적으로 하우스 엣지가 더 낮음.", "바카라의 다른 한쪽 팀 이름이며, 보통 승리 확률이 조금 높습니다."),
+    ("game", "타이", "Tie", "바카라에서 플레이어와 뱅커의 점수가 같은 결과.", "양쪽 점수가 같아 무승부가 된 경우입니다."),
+    ("game", "커미션", "Commission", "특정 게임의 당첨금에서 카지노가 규칙에 따라 공제하는 금액.", "승리금에서 카지노가 정해진 비율만큼 떼는 수수료입니다."),
+    ("game", "사이드 베팅", "Side Bet", "기본 승패와 별개의 특정 조건에 거는 추가 베팅.", "본게임 외에 특정 카드 조합 등을 맞히는 추가 베팅입니다."),
+    ("game", "테이블 게임", "Table Game", "딜러가 테이블에서 카드·주사위·룰렛 등을 진행하는 게임.", "딜러와 손님이 테이블에서 하는 카지노 게임입니다."),
+    ("game", "슬롯머신", "Slot Machine", "랜덤 결과에 따라 심볼 조합의 당첨금을 지급하는 전자 게임기기.", "버튼을 눌러 같은 무늬가 맞으면 당첨금을 받는 기계입니다."),
+    ("game", "하우스 엣지", "House Edge", "게임 규칙상 카지노가 장기적으로 가지는 통계적 우위.", "많은 게임을 반복했을 때 카지노 쪽에 남도록 설계된 평균 비율입니다."),
+    ("game", "칩", "Chip", "카지노 게임 테이블에서 현금 대신 사용하는 가치 표시 토큰.", "카지노 안에서 돈처럼 사용하는 색깔 있는 토큰입니다."),
+    ("business", "드롭액", "Drop", "카지노 고객이 게임을 위해 칩으로 교환한 총액 또는 테이블에 투입된 총 베팅 기준액.", "손님이 게임을 하려고 바꾼 돈의 총액으로, 매출은 아닙니다."),
+    ("business", "홀드율", "Hold Rate", "카지노 승리금을 드롭액으로 나눈 비율. 단기적으로 변동성이 클 수 있음.", "손님이 바꾼 돈 중 결과적으로 카지노에 남은 비율입니다."),
+    ("business", "총게임매출", "GGR", "총 베팅액에서 고객에게 지급한 당첨금을 뺀 금액(Gross Gaming Revenue).", "고객에게 돌려준 당첨금을 빼고 카지노에 남은 게임 매출입니다."),
+    ("business", "콤프", "Comp", "고객의 게임 실적에 따라 제공하는 숙박·식음·교통 등의 무상 혜택.", "많이 이용한 고객에게 호텔방이나 식사 등을 서비스로 제공하는 것입니다."),
+    ("business", "롤링", "Rolling", "VIP 카지노에서 칩 구매·사용 실적을 기준으로 계산하는 거래 및 정산 방식.", "VIP 고객이 얼마나 많은 칩을 사용했는지 누적해 관리하는 방식입니다."),
+    ("business", "외국인 전용 카지노", "Foreigners-only Casino", "대한민국에서 외국인의 출입만 허용되는 카지노.", "한국인은 이용할 수 없고 외국인 관광객만 이용하는 카지노입니다."),
+    ("business", "복합리조트", "Integrated Resort", "카지노와 호텔·MICE·쇼핑·공연·식음 시설 등을 하나의 단지에 결합한 대형 리조트.", "카지노뿐 아니라 잠자리·먹거리·쇼핑·공연을 한곳에서 이용하는 복합 시설입니다."),
+    ("business", "관광진흥개발기금", "Tourism Promotion and Development Fund", "관광산업 진흥을 위해 카지노사업자 등에게 부과하거나 조성하는 법정 기금.", "카지노 매출 등을 기준으로 내고, 관광산업에 사용하는 기금입니다."),
+    ("business", "VIP", "VIP", "고액 베팅과 높은 방문 가치를 보이는 주요 카지노 고객군.", "일반 고객보다 큰 금액으로 게임하는 핵심 고객입니다."),
+    ("business", "매스", "Mass", "정킷 및 중소액 중심의 일반 카지노 고객군.", "VIP가 아닌 대부분의 일반 고객을 말합니다."),
+    ("business", "프리미엄 매스", "Premium Mass", "일반 고객군 중 베팅 규모와 소비력이 상대적으로 높은 고객군.", "VIP 전용 관리는 받지 않지만 일반 고객보다 큰 금액을 쓰는 고객입니다."),
+    ("business", "OCC", "Occupancy Rate", "호텔의 판매 가능 객실 중 실제 판매된 객실의 비율.", "오늘 팔 수 있는 방 중 몇 퍼센트가 찼는지 보여주는 수치입니다."),
+    ("business", "ADR", "Average Daily Rate", "판매된 객실 1실당 평균 숙박 단가.", "손님이 팔린 방 하나에 평균적으로 얼마를 냈는지 보여줍니다."),
+    ("business", "RevPAR", "Revenue per Available Room", "판매 가능 객실 1실당 매출. OCC와 ADR을 함께 반영함.", "빈방까지 포함해 호텔 방 하나가 평균적으로 얼마를 벌었는지 보여줍니다."),
+    ("business", "EBITDA", "EBITDA", "이자·법인세·감가상각비 차감 전 이익.", "대출이자·세금·시설 감가상각을 빼기 전의 본업 수익력을 보는 지표입니다."),
+    ("business", "CAPEX", "Capital Expenditure", "시설·장비·건물 등 장기 자산을 취득하거나 개선하는 자본적 지출.", "리조트나 카지노 시설을 짓고 고치는 데 쓰는 큰 투자금입니다."),
+    ("business", "AML", "Anti-Money Laundering", "불법 자금의 세탁을 방지·탐지·보고하는 정책과 절차.", "불법으로 만든 돈이 카지노를 통해 정상적인 돈처럼 바뀌는 것을 막는 절차입니다."),
+    ("business", "KYC", "Know Your Customer", "고객의 신원과 거래 목적, 위험 정보 등을 확인하는 절차.", "고객이 누구인지 확인하고 의심스러운 거래를 살피는 본인 확인 절차입니다."),
+)
 
 
 def is_current(connection):
@@ -1406,6 +1437,45 @@ def migrate(connection):
     )
     connection.execute(
         "INSERT OR IGNORE INTO related_site_categories (name) VALUES ('기타')"
+    )
+
+    # ---- casino glossary (public reference, admin-managed) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS casino_glossary_terms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL CHECK(category IN ('game', 'business')),
+            term_ko TEXT NOT NULL,
+            term_en TEXT NOT NULL DEFAULT '',
+            definition TEXT NOT NULL,
+            easy_explanation TEXT NOT NULL,
+            aliases TEXT NOT NULL DEFAULT '',
+            is_public INTEGER NOT NULL DEFAULT 1,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            UNIQUE(category, term_ko)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_casino_glossary_public "
+        "ON casino_glossary_terms(is_deleted, is_public, category, term_ko)"
+    )
+    glossary_timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO casino_glossary_terms
+            (category, term_ko, term_en, definition, easy_explanation,
+             created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            (*term, glossary_timestamp, glossary_timestamp)
+            for term in CASINO_GLOSSARY_SEED_TERMS
+        ),
     )
 
     connection.execute(

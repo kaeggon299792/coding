@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}카지노 용어집 · 자료실{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "tips/_subnav.html" %}
+<main class="page-container casino-glossary-page">
+  <header class="page-header glossary-hero">
+    <div>
+      <p class="page-eyebrow">RESOURCE LIBRARY / CASINO GLOSSARY</p>
+      <h1 class="page-title">카지노 용어집</h1>
+      <p class="page-description">게임 용어와 카지노 비즈니스 용어를 기본 의미와 쉽게 풀어쓴 설명으로 확인합니다.</p>
+    </div>
+    <div class="glossary-hero-count"><strong>{{ terms|length }}</strong><span>등록 용어</span></div>
+  </header>
+
+  <form class="panel glossary-filter" method="get">
+    <label><span>용어 검색</span><input type="search" name="q" value="{{ query }}" placeholder="용어·영문명·설명 검색"></label>
+    <label><span>분류</span><select name="category"><option value="">전체</option><option value="game"{% if selected_category == 'game' %} selected{% endif %}>게임 용어</option><option value="business"{% if selected_category == 'business' %} selected{% endif %}>비즈니스 용어</option></select></label>
+    <button class="btn btn-primary" type="submit">검색</button>
+    {% if query or selected_category %}<a class="btn" href="{{ url_for('tips.glossary_page') }}">초기화</a>{% endif %}
+  </form>
+
+  {% if current_role == 'admin' %}
+  <details class="panel glossary-admin-compose">
+    <summary>새 용어 등록</summary>
+    <form method="post" action="{{ url_for('tips.glossary_page') }}" class="glossary-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>분류 *</span><select name="category" required><option value="game">게임 용어</option><option value="business">비즈니스 용어</option></select></label>
+      <label><span>한국어 용어 *</span><input name="term_ko" maxlength="100" required></label>
+      <label><span>영문명</span><input name="term_en" maxlength="150"></label>
+      <label class="wide"><span>기본적인 의미 *</span><textarea name="definition" rows="3" maxlength="2000" required></textarea></label>
+      <label class="wide"><span>아주 쉽게 풀어쓴 설명 *</span><textarea name="easy_explanation" rows="3" maxlength="2000" required></textarea></label>
+      <label class="wide"><span>유의어·다른 표기</span><input name="aliases" maxlength="500" placeholder="쉼표로 구분"></label>
+      <label class="glossary-public-check"><input type="checkbox" name="is_public" value="1" checked> 전체 공개</label>
+      <div class="wide glossary-form-actions"><button class="btn btn-primary" type="submit">용어 등록</button></div>
+    </form>
+  </details>
+  {% endif %}
+
+  <div class="glossary-sections">
+    {% for category_code, category_label, category_note in (
+      ('game', '게임 용어', '테이블·슬롯 게임에서 자주 쓰는 표현'),
+      ('business', '비즈니스 용어', '매출·고객·호텔·규제·재무 분석에 쓰는 표현')
+    ) %}
+      {% set category_terms = terms|selectattr('category', 'equalto', category_code)|list %}
+      {% if category_terms %}
+      <section class="glossary-section">
+        <header class="section-heading"><div><p class="section-kicker">{{ category_code|upper }}</p><h2>{{ category_label }}</h2><p>{{ category_note }}</p></div><span>{{ category_terms|length }}개</span></header>
+        <div class="glossary-grid">
+          {% for term in category_terms %}
+          <article class="panel glossary-card">
+            <header><div><span class="glossary-category">{{ category_label }}</span><h3>{{ term.term_en if current_locale == 'en' and term.term_en else term.term_ko }}</h3>{% if term.term_en and current_locale != 'en' %}<p>{{ term.term_en }}</p>{% endif %}</div>{% if current_role == 'admin' and not term.is_public %}<span class="badge">비공개</span>{% endif %}</header>
+            <dl>
+              <div><dt>기본 의미</dt><dd>{{ term.definition }}</dd></div>
+              <div class="easy"><dt>쉽게 말하면</dt><dd>{{ term.easy_explanation }}</dd></div>
+            </dl>
+            {% if term.aliases %}<p class="glossary-aliases"><b>다른 표기</b> {{ term.aliases }}</p>{% endif %}
+            {% if current_role == 'admin' %}
+            <details class="glossary-edit"><summary>수정·삭제</summary>
+              <form method="post" action="{{ url_for('tips.edit_glossary_page', term_id=term.id) }}" class="glossary-form compact">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label><span>분류</span><select name="category"><option value="game"{% if term.category == 'game' %} selected{% endif %}>게임 용어</option><option value="business"{% if term.category == 'business' %} selected{% endif %}>비즈니스 용어</option></select></label>
+                <label><span>한국어</span><input name="term_ko" value="{{ term.term_ko }}" maxlength="100" required></label>
+                <label><span>영문명</span><input name="term_en" value="{{ term.term_en }}" maxlength="150"></label>
+                <label class="wide"><span>기본 의미</span><textarea name="definition" rows="3" maxlength="2000" required>{{ term.definition }}</textarea></label>
+                <label class="wide"><span>쉽게 풀어쓴 설명</span><textarea name="easy_explanation" rows="3" maxlength="2000" required>{{ term.easy_explanation }}</textarea></label>
+                <label class="wide"><span>다른 표기</span><input name="aliases" value="{{ term.aliases }}" maxlength="500"></label>
+                <label class="glossary-public-check"><input type="checkbox" name="is_public" value="1"{% if term.is_public %} checked{% endif %}> 전체 공개</label>
+                <div class="wide glossary-form-actions"><button class="btn btn-primary" type="submit">저장</button><button class="btn danger-button" type="submit" formaction="{{ url_for('tips.delete_glossary_page', term_id=term.id) }}" data-confirm="이 용어를 삭제할까요?">삭제</button></div>
+              </form>
+            </details>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    {% endfor %}
+    {% if not terms %}<div class="panel empty-state">조건에 맞는 카지노 용어가 없습니다.</div>{% endif %}
+  </div>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
