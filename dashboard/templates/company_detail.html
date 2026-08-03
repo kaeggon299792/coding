@@ -29,7 +29,7 @@
         <div><dt>{{ "Headquarters" if current_locale == "en" else "본사" }}</dt><dd>{{ company_research.headquarters or "-" }}</dd></div>
         <div><dt>{{ "Established" if current_locale == "en" else "설립일" }}</dt><dd>{{ company_research.established_date or "-" }}</dd></div>
         <div><dt>{{ "Fiscal month" if current_locale == "en" else "회계월" }}</dt><dd>{{ company_research.fiscal_month or "-" }}</dd></div>
-        <div><dt>IR</dt>
+        <div><dt>{{ "Website" if current_locale == "en" else "홈페이지" }}</dt>
           <dd>
             {% if company_research.website_url %}
               <a href="{{ company_research.website_url }}" target="_blank" rel="noopener noreferrer">{{ company_research.website_url }}</a>
@@ -155,18 +155,22 @@
 
   <section class="company-detail-two-columns">
     <article class="panel">
-      <h2>{{ "Recent DART filings" if current_locale == "en" else "최근 DART 공시" }}</h2>
-      {% if disclosures %}
+      <h2>{{ "Company filings & IR" if current_locale == "en" else "기업 공시·IR 자료" }}</h2>
+      {% if company_filings %}
       <ul class="compact-feed">
-        {% for disclosure in disclosures[:12] %}
+        {% for filing in company_filings[:18] %}
         <li>
-          <a href="{{ disclosure.dart_link }}" target="_blank" rel="noopener noreferrer">{{ disclosure.report_nm }}</a>
-          <small>{{ disclosure.corp_name }} · {{ disclosure.rcept_dt }}{% if disclosure.flr_nm %} · {{ disclosure.flr_nm }}{% endif %}</small>
+          {% if filing.source_type == "ir" %}
+            <a href="{{ url_for('download_ir_document', document_id=filing.document_id) }}">{{ filing.title }}</a>
+          {% else %}
+            <a href="{{ filing.dart_link }}" target="_blank" rel="noopener noreferrer">{{ filing.title }}</a>
+          {% endif %}
+          <small>{{ "IR" if filing.source_type == "ir" else "DART" }} · {{ filing.corp_name }} · {{ filing.date }}{% if filing.publisher %} · {{ filing.publisher }}{% endif %}</small>
         </li>
         {% endfor %}
       </ul>
       {% else %}
-      <p class="item-meta">{{ "No recent filings." if current_locale == "en" else "최근 공시가 없습니다." }}</p>
+      <p class="item-meta">{{ "No company filings or IR documents." if current_locale == "en" else "기업 공시·IR 자료가 없습니다." }}</p>
       {% endif %}
     </article>
 

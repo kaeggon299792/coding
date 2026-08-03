@@ -342,6 +342,52 @@ def build_company_detail_context(connection, company_name):
     research_documents = queries.list_research_documents(
         connection, company_name=profile["name"], limit=12
     )
+    ir_documents = queries.list_research_documents(
+        connection,
+        company_name=profile["name"],
+        limit=100,
+        document_type="ir",
+    )
+    company_filings = [
+        {
+            "source_type": "dart",
+            "title": item.get("report_nm") or "-",
+            "date": item.get("rcept_dt") or "",
+            "sort_date": "".join(
+                character
+                for character in str(item.get("rcept_dt") or "")
+                if character.isdigit()
+            )[:8],
+            "corp_name": item.get("corp_name") or profile["name"],
+            "publisher": item.get("flr_nm") or "",
+            "dart_link": item.get("dart_link") or "",
+            "document_id": None,
+        }
+        for item in disclosures
+    ]
+    company_filings.extend(
+        {
+            "source_type": "ir",
+            "title": item.get("title") or item.get("original_filename") or "-",
+            "date": item.get("report_date") or str(item.get("created_at") or "")[:10],
+            "sort_date": "".join(
+                character
+                for character in str(
+                    item.get("report_date") or item.get("created_at") or ""
+                )
+                if character.isdigit()
+            )[:8],
+            "corp_name": profile["name"],
+            "publisher": item.get("publisher") or "",
+            "dart_link": "",
+            "document_id": item.get("id"),
+        }
+        for item in ir_documents
+    )
+    company_filings.sort(
+        key=lambda item: (item["sort_date"], item["source_type"] == "ir"),
+        reverse=True,
+    )
 
     financial_sections = _normalize_financial_sections(research.get("financials", {}) if research else {})
     financial_statements = _build_company_financial_statements(
@@ -360,6 +406,7 @@ def build_company_detail_context(connection, company_name):
         "company": profile,
         "research": research,
         "disclosures": disclosures,
+        "company_filings": company_filings,
         "news": news_items,
         "research_documents": research_documents,
         "financial_sections": financial_sections,

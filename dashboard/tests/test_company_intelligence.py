@@ -57,3 +57,70 @@ def test_company_research_is_included_and_financials_are_formatted(db_connection
 
     assert paradise["research"]["key_assets"] == ["파라다이스시티"]
     assert paradise["research"]["financial_metrics"][0]["display"] == "11,499억원"
+
+
+def test_company_detail_combines_dart_filings_and_ir_documents(db_connection, monkeypatch):
+    queries.save_disclosure(
+        db_connection,
+        "20260801000001",
+        "파라다이스",
+        "",
+        "분기보고서",
+        "A",
+        "20260801",
+        "파라다이스",
+        "https://dart.fss.or.kr/example",
+        False,
+    )
+    ir_document_id = queries.create_research_document(
+        db_connection,
+        document_type="ir",
+        company_name="파라다이스",
+        company_names=["파라다이스"],
+        title="2026년 2분기 IR 자료",
+        publisher="IR팀",
+        report_date="2026-08-02",
+        original_filename="paradise-ir.pdf",
+        stored_filename="paradise-ir.pdf",
+        mime_type="application/pdf",
+        file_size=100,
+        sha256="a" * 64,
+        page_count=1,
+        extracted_text="IR 본문",
+        extraction_status="success",
+        uploaded_by=1,
+    )
+    queries.create_research_document(
+        db_connection,
+        document_type="research",
+        company_name="파라다이스",
+        company_names=["파라다이스"],
+        title="별도 리서치 자료",
+        report_date="2026-08-03",
+        original_filename="research.pdf",
+        stored_filename="research.pdf",
+        mime_type="application/pdf",
+        file_size=100,
+        sha256="b" * 64,
+        page_count=1,
+        extracted_text="리서치 본문",
+        extraction_status="success",
+        uploaded_by=1,
+    )
+    monkeypatch.setattr(
+        "services.company_intelligence.news_reader.articles_for_aliases",
+        lambda aliases, **kwargs: [],
+    )
+
+    context = company_intelligence.build_company_detail_context(
+        db_connection, "파라다이스"
+    )
+
+    assert [item["source_type"] for item in context["company_filings"]] == [
+        "ir",
+        "dart",
+    ]
+    assert context["company_filings"][0]["document_id"] == ir_document_id
+    assert [item["title"] for item in context["research_documents"]] == [
+        "별도 리서치 자료"
+    ]
