@@ -33,6 +33,9 @@ def connection():
         CREATE TABLE localization_events (
           id INTEGER PRIMARY KEY AUTOINCREMENT, string_id INTEGER, event_type TEXT NOT NULL,
           language_code TEXT, actor_id INTEGER, detail TEXT, created_at TEXT NOT NULL);
+        CREATE TABLE site_settings (
+          setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL,
+          updated_by INTEGER, updated_at TEXT NOT NULL);
         INSERT INTO localization_languages VALUES ('ko','한국어',1,1,'now');
         INSERT INTO localization_languages VALUES ('en','English',0,1,'now');
         """
@@ -85,6 +88,18 @@ def test_xlsx_export_is_valid_workbook():
     payload, mimetype = lms.export_file(db, "en", "xlsx")
     assert payload.startswith(b"PK")
     assert "spreadsheetml" in mimetype
+
+
+def test_hourly_scan_runs_once_per_interval(tmp_path):
+    db = connection()
+    templates = tmp_path / "templates"
+    templates.mkdir()
+    (templates / "sample.html").write_text("<button>새 메뉴</button>", encoding="utf-8")
+    first = lms.scan_if_due(db, tmp_path)
+    second = lms.scan_if_due(db, tmp_path)
+    assert first["files_scanned"] == 1
+    assert second is None
+    assert db.execute("SELECT COUNT(*) FROM localization_strings").fetchone()[0] == 1
 
 
 def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):

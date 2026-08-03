@@ -8,7 +8,7 @@ import html
 import io
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -225,6 +225,31 @@ def scan_project(connection, project_root):
         )
     connection.commit()
     return {"files_scanned": scanned, "strings_seen": registered}
+
+
+def scan_if_due(connection, project_root, interval_minutes=60):
+    """Run at most once per interval when an administrator renders the site."""
+    row = connection.execute(
+        "SELECT setting_value FROM site_settings WHERE setting_key='localization_last_scan_at'"
+    ).fetchone()
+    if row:
+        try:
+            last_scan = datetime.fromisoformat(row["setting_value"])
+            if now_kst() - last_scan < timedelta(minutes=interval_minutes):
+                return None
+        except (TypeError, ValueError):
+            pass
+    result = scan_project(connection, project_root)
+    now = _timestamp()
+    connection.execute(
+        """INSERT INTO site_settings (setting_key, setting_value, updated_by, updated_at)
+           VALUES ('localization_last_scan_at', ?, NULL, ?)
+           ON CONFLICT(setting_key) DO UPDATE SET
+             setting_value=excluded.setting_value, updated_at=excluded.updated_at""",
+        (now, now),
+    )
+    connection.commit()
+    return result
 
 
 def save_translation(connection, string_id, language_code, translated_text, actor_id=None,

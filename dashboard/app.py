@@ -49,6 +49,7 @@ from services import (
     document_library,
     economic_data,
     market_data,
+    localization_management,
     news_reader,
     overseas_news,
     official_document_manager,
@@ -860,6 +861,9 @@ def inject_globals():
                 role = current_user.get("role") or "user"
                 session["role"] = role
                 if role == "admin":
+                    localization_management.scan_if_due(
+                        connection, Path(app.root_path), interval_minutes=60,
+                    )
                     localization_pending_count = connection.execute(
                         """SELECT COUNT(*) FROM localization_strings s
                            LEFT JOIN localization_translations t
