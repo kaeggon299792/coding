@@ -29,6 +29,15 @@ MARKDOWN_RE = re.compile(r"(?:\[[^\]]+\]\([^)]+\)|[*_`#]{1,3})")
 ALLOWED_STATUS = {"Pending", "Completed", "Ignored"}
 ALLOWED_PRIORITY = {"Critical", "High", "Medium", "Low"}
 PRIORITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+TRANSLATION_STYLES = {
+    "literal": "원문의 의미와 문장 구조를 가능한 한 충실하게 번역합니다.",
+    "natural": "영어 사용자가 자연스럽게 이해하도록 번역합니다.",
+    "casino": "카지노·복합리조트 산업에서 통용되는 전문 용어를 우선합니다.",
+    "business": "간결하고 전문적인 비즈니스 문체를 사용합니다.",
+    "marketing": "정확성을 유지하면서 설득력 있는 마케팅 문체를 사용합니다.",
+}
+PROMPT_MAX_ITEMS = 50
+PROMPT_MAX_CHARS = 12000
 
 
 def _timestamp():
@@ -366,6 +375,200 @@ def references(connection, string_id):
         "SELECT * FROM localization_references WHERE string_id=? ORDER BY source_kind, source_path",
         (string_id,),
     ).fetchall()]
+
+
+def list_glossary(connection, language_code="en", *, active_only=False):
+    sql = "SELECT * FROM localization_glossary WHERE language_code=?"
+    if active_only:
+        sql += " AND is_active=1"
+    sql += " ORDER BY source_text COLLATE NOCASE, id"
+    return [dict(row) for row in connection.execute(sql, (language_code,)).fetchall()]
+
+
+def save_glossary(connection, source_text, target_text, language_code="en",
+                  actor_id=None, glossary_id=None):
+    source = _clean(source_text)
+    target = _clean(target_text)
+    if not source or len(source) > 300 or not target or len(target) > 500:
+        raise ValueError("용어는 원문 300자, 번역 500자 이내로 입력해주세요.")
+    if not connection.execute(
+        "SELECT 1 FROM localization_languages WHERE language_code=? AND is_active=1",
+        (language_code,),
+    ).fetchone():
+        raise ValueError("대상 언어를 확인해주세요.")
+    now = _timestamp()
+    if glossary_id:
+        cursor = connection.execute(
+            """UPDATE localization_glossary
+               SET source_text=?, target_text=?, is_active=1, updated_at=?, updated_by=?
+               WHERE id=? AND language_code=?""",
+            (source, target, now, actor_id, glossary_id, language_code),
+        )
+        if not cursor.rowcount:
+            raise ValueError("용어집 항목을 찾을 수 없습니다.")
+    else:
+        connection.execute(
+            """INSERT INTO localization_glossary
+                   (source_text,target_text,language_code,is_active,created_at,updated_at,updated_by)
+               VALUES (?,?,?,1,?,?,?)
+               ON CONFLICT(source_text,language_code) DO UPDATE SET
+                 target_text=excluded.target_text,is_active=1,
+                 updated_at=excluded.updated_at,updated_by=excluded.updated_by""",
+            (source, target, language_code, now, now, actor_id),
+        )
+
+
+def deactivate_glossary(connection, glossary_id, language_code="en"):
+    cursor = connection.execute(
+        "UPDATE localization_glossary SET is_active=0, updated_at=? WHERE id=? AND language_code=?",
+        (_timestamp(), glossary_id, language_code),
+    )
+    if not cursor.rowcount:
+        raise ValueError("용어집 항목을 찾을 수 없습니다.")
+
+
+def _prompt_entry(row):
+    return (
+        "--------------------------------\n\n"
+        f"ID={row['language_key']}\n\n"
+        f"TYPE={row['string_type']}\n"
+        f"PAGE={row['page_name']}\n\n"
+        "KOREAN:\n"
+        f"{row['source_text']}\n\n"
+        "EN:\n\n"
+    )
+
+
+def _prompt_instructions(style, glossary):
+    style_rule = TRANSLATION_STYLES.get(style, TRANSLATION_STYLES["natural"])
+    glossary_text = "\n".join(
+        f"- {item['source_text']} → {item['target_text']}" for item in glossary
+    ) or "- 등록된 용어 없음"
+    return f"""당신은 카지노 산업 전문 번역가입니다.
+
+다음 한국어 문자열을 자연스러운 영어로 번역하세요.
+
+번역 규칙
+
+1. 카지노 업계에서 사용하는 용어를 사용합니다.
+2. 브랜드명, 회사명, 카지노명은 임의로 번역하지 않습니다.
+3. HTML 태그를 수정하지 않습니다.
+4. Markdown 문법을 수정하지 않습니다.
+5. Placeholder(예: {{name}}, {{{{count}}}}, %s)는 그대로 유지합니다.
+6. 줄바꿈을 유지합니다.
+7. 번역되지 않은 항목만 작성합니다.
+8. 설명은 작성하지 않습니다.
+9. ID와 EN 출력 형식을 반드시 유지합니다.
+10. 선택한 번역 스타일: {style_rule}
+
+프로젝트 공통 용어집
+{glossary_text}
+
+아래 내용을 번역하세요.
+
+=========================
+
+"""
+
+
+def generate_translation_chunks(connection, language_code, string_ids, *,
+                                mode="prompt", style="natural",
+                                max_items=PROMPT_MAX_ITEMS,
+                                max_chars=PROMPT_MAX_CHARS):
+    ids = []
+    for value in string_ids:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0 and parsed not in ids:
+            ids.append(parsed)
+    if not ids:
+        raise ValueError("번역할 항목을 하나 이상 선택해주세요.")
+    if len(ids) > 500:
+        raise ValueError("한 번에 최대 500개 항목을 선택할 수 있습니다.")
+    max_items = max(1, min(int(max_items or PROMPT_MAX_ITEMS), 100))
+    max_chars = max(3000, min(int(max_chars or PROMPT_MAX_CHARS), 30000))
+    placeholders = ",".join("?" for _ in ids)
+    rows = [dict(row) for row in connection.execute(
+        f"""SELECT s.id,s.language_key,s.source_text,s.page_name,s.string_type
+            FROM localization_strings s
+            LEFT JOIN localization_translations t
+              ON t.string_id=s.id AND t.language_code=?
+            WHERE s.id IN ({placeholders}) AND s.deleted_at IS NULL
+              AND s.status<>'Ignored' AND COALESCE(t.status,'Pending')<>'Completed'
+            ORDER BY CASE s.priority WHEN 'Critical' THEN 0 WHEN 'High' THEN 1
+                     WHEN 'Medium' THEN 2 ELSE 3 END, s.id""",
+        (language_code, *ids),
+    ).fetchall()]
+    if not rows:
+        raise ValueError("선택 항목 중 미번역 대상이 없습니다.")
+    entries = [_prompt_entry(row) for row in rows]
+    groups, current, current_size = [], [], 0
+    for entry in entries:
+        if current and (len(current) >= max_items or current_size + len(entry) > max_chars):
+            groups.append(current); current, current_size = [], 0
+        current.append(entry); current_size += len(entry)
+    if current:
+        groups.append(current)
+    glossary = list_glossary(connection, language_code, active_only=True)
+    prefix = _prompt_instructions(style, glossary) if mode == "prompt" else ""
+    suffix = (
+        "=========================\n\n"
+        "위 규칙을 모두 준수하고, 출력 형식은 절대 변경하지 마십시오. "
+        "설명이나 주석은 작성하지 말고, 번역 결과만 반환하십시오."
+        if mode == "prompt" else ""
+    )
+    return [prefix + "".join(group) + suffix for group in groups]
+
+
+def import_ai_translation_text(connection, payload, language_code="en", actor_id=None):
+    text = str(payload or "")
+    if not text.strip():
+        raise ValueError("AI 번역 결과를 붙여 넣어주세요.")
+    if len(text) > 2_000_000:
+        raise ValueError("붙여넣기 내용은 2MB 이하여야 합니다.")
+    pattern = re.compile(
+        r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)"
+        r"(?=^\s*ID\s*=|\Z)"
+    )
+    matched, updated, errors, seen = 0, 0, 0, set()
+    for match in pattern.finditer(text):
+        matched += 1
+        language_key = match.group(1).strip()[:200]
+        values = {
+            item.group(1): item.group(2).strip()
+            for item in re.finditer(
+                r"(?ms)^\s*(EN|TITLE_EN|CONTENT_EN)\s*:\s*\r?\n(.*?)"
+                r"(?=^\s*(?:EN|TITLE_EN|CONTENT_EN)\s*:|\Z)",
+                match.group(2),
+            )
+        }
+        translated_value = (
+            values.get("EN") or values.get("CONTENT_EN") or values.get("TITLE_EN") or ""
+        )
+        translation = re.sub(
+            r"\n?\s*-{8,}\s*$", "", translated_value
+        ).strip()
+        if language_key in seen or not translation:
+            errors += 1; continue
+        seen.add(language_key)
+        row = connection.execute(
+            "SELECT id FROM localization_strings WHERE language_key=? AND deleted_at IS NULL",
+            (language_key,),
+        ).fetchone()
+        if not row:
+            errors += 1; continue
+        try:
+            save_translation(connection, row["id"], language_code, translation,
+                             actor_id=actor_id, status="Completed")
+            updated += 1
+        except ValueError:
+            errors += 1
+    if not matched:
+        raise ValueError("ID=... 및 EN: 형식의 번역 결과를 찾지 못했습니다.")
+    connection.commit()
+    return {"updated": updated, "errors": errors}
 
 
 def qa_report(connection, language_code="en"):

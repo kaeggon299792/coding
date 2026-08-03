@@ -36,6 +36,12 @@ def connection():
         CREATE TABLE site_settings (
           setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL,
           updated_by INTEGER, updated_at TEXT NOT NULL);
+        CREATE TABLE localization_glossary (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, source_text TEXT NOT NULL,
+          target_text TEXT NOT NULL, language_code TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL, updated_by INTEGER,
+          UNIQUE(source_text, language_code));
         INSERT INTO localization_languages VALUES ('ko','한국어',1,1,'now');
         INSERT INTO localization_languages VALUES ('en','English',0,1,'now');
         """
@@ -90,6 +96,71 @@ def test_xlsx_export_is_valid_workbook():
     assert "spreadsheetml" in mimetype
 
 
+def test_ai_prompt_uses_glossary_style_and_splits_long_selection():
+    db = connection()
+    lms.save_glossary(db, "기업정보", "Company Profile", "en")
+    ids = [
+        lms.register_string(db, f"기업정보 번역 대상 {index} " + ("긴 문장 " * 120),
+                            page="기업정보", component="Card")
+        for index in range(3)
+    ]
+    chunks = lms.generate_translation_chunks(
+        db, "en", ids, mode="prompt", style="business", max_items=1,
+        max_chars=3000,
+    )
+    assert len(chunks) >= 2
+    assert "카지노 산업 전문 번역가" in chunks[0]
+    assert "기업정보 → Company Profile" in chunks[0]
+    assert "전문적인 비즈니스 문체" in chunks[0]
+    assert "ID=" in chunks[0] and "EN:" in chunks[0]
+
+
+def test_ai_result_import_matches_language_key_and_rejects_unknown_ids():
+    db = connection()
+    first = lms.register_string(db, "홈", page="Header", component="Menu",
+                                language_key="MENU_HOME")
+    second = lms.register_string(db, "기업정보", page="Header", component="Menu",
+                                 language_key="MENU_COMPANY")
+    payload = """ID=MENU_HOME
+
+EN:
+Home
+
+--------------------------------
+
+ID=MENU_COMPANY
+
+EN:
+Company Profile
+
+--------------------------------
+
+ID=UNKNOWN
+
+EN:
+Unknown
+"""
+    result = lms.import_ai_translation_text(db, payload, "en")
+    assert result == {"updated": 2, "errors": 1}
+    assert db.execute(
+        "SELECT translated_text FROM localization_translations WHERE string_id=?", (first,)
+    ).fetchone()[0] == "Home"
+    assert db.execute(
+        "SELECT translated_text FROM localization_translations WHERE string_id=?", (second,)
+    ).fetchone()[0] == "Company Profile"
+
+
+def test_glossary_can_be_updated_and_deactivated():
+    db = connection()
+    lms.save_glossary(db, "리서치", "Research", "en")
+    term = lms.list_glossary(db, "en")[0]
+    lms.save_glossary(db, "리서치", "Industry Research", "en", glossary_id=term["id"])
+    lms.deactivate_glossary(db, term["id"], "en")
+    updated = lms.list_glossary(db, "en")[0]
+    assert updated["target_text"] == "Industry Research"
+    assert updated["is_active"] == 0
+
+
 def test_hourly_scan_runs_once_per_interval(tmp_path):
     db = connection()
     templates = tmp_path / "templates"
@@ -135,6 +206,37 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         response = client.get("/admin/localization")
         assert response.status_code == 200
         assert "Localization Management" in response.get_data(as_text=True)
+        assert "AI 번역 프롬프트 생성" in response.get_data(as_text=True)
+        route_db = schema.connect(str(db_path))
+        pending_id = route_db.execute(
+            """SELECT s.id FROM localization_strings s
+               LEFT JOIN localization_translations t
+                 ON t.string_id=s.id AND t.language_code='en'
+               WHERE s.deleted_at IS NULL AND COALESCE(t.status,'Pending')='Pending'
+               LIMIT 1"""
+        ).fetchone()[0]
+        route_db.close()
+        assert client.post("/admin/localization/prompt", data={
+            "csrf_token": "wrong", "language_code": "en",
+            "string_ids": str(pending_id), "export_mode": "prompt",
+        }).status_code == 400
+        prompt = client.post("/admin/localization/prompt", data={
+            "csrf_token": "a" * 64, "language_code": "en",
+            "string_ids": str(pending_id), "export_mode": "prompt",
+            "translation_style": "casino",
+        })
+        assert prompt.status_code == 200
+        assert "카지노 산업 전문 번역가" in prompt.get_data(as_text=True)
+        imported = client.post("/admin/localization/import-ai", data={
+            "csrf_token": "a" * 64, "language_code": "en",
+            "translation_payload": "ID=UI_" + "0" * 16 + "\n\nEN:\nIgnored",
+        })
+        assert imported.status_code == 302
+        glossary_saved = client.post("/admin/localization/glossary", data={
+            "csrf_token": "a" * 64, "language_code": "en",
+            "source_text": "복합리조트", "target_text": "Integrated Resort",
+        })
+        assert glossary_saved.status_code == 302
         assert client.post(f"/admin/localization/{string_id}", data={
             "csrf_token": "wrong", "language_code": "en",
             "translated_text": "Login", "status": "Completed",
@@ -149,4 +251,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
     assert db.execute(
         "SELECT translated_text FROM localization_translations WHERE string_id=?", (string_id,)
     ).fetchone()[0] == "Login"
+    assert db.execute(
+        "SELECT target_text FROM localization_glossary WHERE source_text='복합리조트'"
+    ).fetchone()[0] == "Integrated Resort"
     db.close()

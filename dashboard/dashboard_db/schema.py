@@ -1526,6 +1526,22 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_localization_events_created "
         "ON localization_events(created_at DESC)"
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_glossary (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_text TEXT NOT NULL,
+            target_text TEXT NOT NULL,
+            language_code TEXT NOT NULL DEFAULT 'en'
+                REFERENCES localization_languages(language_code),
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by INTEGER REFERENCES dashboard_users(id),
+            UNIQUE(source_text, language_code)
+        )
+        """
+    )
     localization_now = datetime.now(timezone.utc).isoformat()
     for language_code, display_name, is_source in (
         ('ko', '한국어', 1), ('en', 'English', 0),
@@ -1535,6 +1551,22 @@ def migrate(connection):
                    (language_code, display_name, is_source, is_active, created_at)
                VALUES (?, ?, ?, 1, ?)""",
             (language_code, display_name, is_source, localization_now),
+        )
+    for source_text, target_text in (
+        ('카지노 인텔리전스', 'Casino Intelligence'),
+        ('AI 의견', 'AI Opinion'),
+        ('기업정보', 'Company Profile'),
+        ('리서치', 'Research'),
+        ('기업 360°', 'Company 360°'),
+        ('파라다이스', 'Paradise'),
+        ('강원랜드', 'Kangwon Land'),
+        ('인스파이어', 'INSPIRE'),
+    ):
+        connection.execute(
+            """INSERT OR IGNORE INTO localization_glossary
+                   (source_text, target_text, language_code, created_at, updated_at)
+               VALUES (?, ?, 'en', ?, ?)""",
+            (source_text, target_text, localization_now, localization_now),
         )
 
     # ---- overseas casino news (Macau / Japan) ----

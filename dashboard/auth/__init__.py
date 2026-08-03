@@ -1464,6 +1464,7 @@ def localization_dashboard():
         )
         for item in rows:
             item["references"] = localization_management.references(connection, item["id"])
+        glossary = localization_management.list_glossary(connection, language_code)
         return render_template(
             "localization_admin.html", summary=summary, items=rows, total=total,
             languages=languages, language_code=language_code, query=query,
@@ -1471,6 +1472,7 @@ def localization_dashboard():
             page=page, pages=max(1, (total + 49) // 50),
             csrf_token=get_csrf_token(), scan_result=request.args.get("scan"),
             import_result=request.args.get("imported"),
+            glossary=glossary,
         )
     finally:
         connection.close()
@@ -1578,6 +1580,110 @@ def localization_import():
         "auth.localization_dashboard", language=language_code,
         imported=f"{result['updated']}건 반영 · {result['errors']}건 제외",
     ))
+
+
+@auth_bp.post("/admin/localization/prompt")
+@admin_required
+def localization_prompt():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    mode = (request.form.get("export_mode") or "prompt").strip()
+    if mode not in {"data", "prompt"}:
+        abort(400)
+    style = (request.form.get("translation_style") or "natural").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            chunks = localization_management.generate_translation_chunks(
+                connection, language_code, request.form.getlist("string_ids"),
+                mode=mode, style=style,
+            )
+        except ValueError as exc:
+            return redirect(url_for(
+                "auth.localization_dashboard", language=language_code, error=str(exc)
+            ))
+        return render_template(
+            "localization_prompt.html", chunks=chunks, language_code=language_code,
+            mode=mode, style=style, csrf_token=get_csrf_token(),
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.post("/admin/localization/import-ai")
+@admin_required
+def localization_import_ai():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            result = localization_management.import_ai_translation_text(
+                connection, request.form.get("translation_payload") or "",
+                language_code, session.get("user_id"),
+            )
+        except ValueError as exc:
+            connection.rollback()
+            return redirect(url_for(
+                "auth.localization_dashboard", language=language_code, error=str(exc)
+            ))
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.localization_dashboard", language=language_code,
+        imported=f"AI 번역 {result['updated']}건 반영 · {result['errors']}건 제외",
+    ))
+
+
+@auth_bp.post("/admin/localization/glossary")
+@admin_required
+def localization_glossary_save():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            glossary_id = request.form.get("glossary_id")
+            localization_management.save_glossary(
+                connection, request.form.get("source_text"),
+                request.form.get("target_text"), language_code,
+                session.get("user_id"), int(glossary_id) if glossary_id else None,
+            )
+            connection.commit()
+        except (TypeError, ValueError, sqlite3.IntegrityError) as exc:
+            connection.rollback()
+            return redirect(url_for(
+                "auth.localization_dashboard", language=language_code, error=str(exc)
+            ))
+    finally:
+        connection.close()
+    return redirect(url_for("auth.localization_dashboard", language=language_code))
+
+
+@auth_bp.post("/admin/localization/glossary/<int:glossary_id>/delete")
+@admin_required
+def localization_glossary_delete(glossary_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            localization_management.deactivate_glossary(
+                connection, glossary_id, language_code
+            )
+            connection.commit()
+        except ValueError as exc:
+            connection.rollback()
+            return redirect(url_for(
+                "auth.localization_dashboard", language=language_code, error=str(exc)
+            ))
+    finally:
+        connection.close()
+    return redirect(url_for("auth.localization_dashboard", language=language_code))
 
 
 @auth_bp.post("/admin/localization/languages")
