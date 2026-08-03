@@ -2242,7 +2242,7 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
   min-height:30px;
   padding:0;
   border:1px solid var(--brand-border-strong);
-  border-radius:999px;
+  border-radius:8px;
   background:color-mix(in srgb,var(--brand-surface) 94%,transparent);
   color:var(--brand-text-muted);
   font:700 10px/1 var(--font-mono);
@@ -2251,21 +2251,24 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
   backdrop-filter:blur(8px);
 }
 .global-language-switch.is-embedded{
-  position:static;
+  position:relative;
   flex:0 0 auto;
   margin:0;
 }
-.global-language-switch summary{display:flex;align-items:center;gap:5px;min-height:30px;padding:5px 10px;cursor:pointer;list-style:none;color:var(--brand-text-primary)}
+.global-language-switch summary{display:flex;align-items:center;justify-content:center;gap:8px;min-width:52px;min-height:32px;padding:6px 10px;cursor:pointer;list-style:none;color:var(--brand-text-primary);outline:none}
 .global-language-switch summary::-webkit-details-marker{display:none}
-.global-language-switch summary span{font-size:9px;transition:transform .15s}
-.global-language-switch[open] summary span{transform:rotate(180deg)}
-.global-language-switch nav{position:absolute;top:calc(100% + 7px);right:0;display:grid;min-width:145px;padding:5px;border:1px solid var(--brand-border-strong);border-radius:12px;background:var(--brand-surface);box-shadow:0 12px 32px rgba(0,0,0,.18)}
-.global-language-switch a{display:grid;grid-template-columns:36px 1fr;align-items:center;gap:5px;padding:8px 9px;border-radius:8px;color:var(--brand-text-muted);text-decoration:none}
+.global-language-switch summary:hover,.global-language-switch summary:focus-visible{background:var(--brand-surface-muted)}
+.language-switch-chevron{width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .15s ease}
+.global-language-switch[open] .language-switch-chevron{transform:translateY(2px) rotate(225deg)}
+.global-language-switch nav{position:absolute;z-index:1300;top:calc(100% + 8px);right:0;display:grid;min-width:154px;padding:6px;border:1px solid var(--brand-border-strong);border-radius:10px;background:var(--brand-surface);box-shadow:0 16px 38px rgba(0,0,0,.24)}
+.global-language-switch nav::before{content:"";position:absolute;right:16px;top:-5px;width:8px;height:8px;border-top:1px solid var(--brand-border-strong);border-left:1px solid var(--brand-border-strong);background:var(--brand-surface);transform:rotate(45deg)}
+.global-language-switch a{position:relative;display:grid;grid-template-columns:38px 1fr;align-items:center;gap:7px;padding:9px 10px;border-radius:7px;color:var(--brand-text-muted);text-decoration:none}
 .global-language-switch a b{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em}
 .global-language-switch a span{font-size:11px;white-space:nowrap}
 .global-language-switch a:hover,
 .global-language-switch a.active{background:var(--brand-bg);color:var(--brand-text-primary);text-decoration:none}
 .global-language-switch a.active{cursor:default}
+.public-header .global-language-switch.is-embedded{margin-left:auto;margin-right:10px}
 html[lang="en"] body,
 html[lang="en"] button,
 html[lang="en"] input,
@@ -2287,7 +2290,8 @@ html[lang="en"] .table-scroll:before{content:"Swipe horizontally to view all col
 }
 @media(max-width:768px){
   .global-language-switch{top:12px;right:12px}
-  .global-language-switch nav{min-width:138px}
+  .global-language-switch summary{min-width:48px;padding:5px 8px}
+  .global-language-switch nav{right:-4px;min-width:148px}
   html[lang="en"] .topbar{display:grid}
   html[lang="en"] .topbar-nav{order:initial}
 }
