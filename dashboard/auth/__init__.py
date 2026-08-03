@@ -1441,6 +1441,7 @@ def admin_logs():
 @auth_bp.get("/admin/localization")
 @admin_required
 def localization_dashboard():
+    page_size = 500
     language_code = (request.args.get("language") or "en").strip()
     query = (request.args.get("q") or "").strip()
     status = (
@@ -1464,7 +1465,7 @@ def localization_dashboard():
         summary = localization_management.dashboard_summary(connection, language_code)
         rows, total = localization_management.list_strings(
             connection, language_code=language_code, query=query, status=status,
-            priority=priority, sort=sort, page=page,
+            priority=priority, sort=sort, page=page, per_page=page_size,
         )
         for item in rows:
             item["references"] = localization_management.references(connection, item["id"])
@@ -1473,7 +1474,7 @@ def localization_dashboard():
             "localization_admin.html", summary=summary, items=rows, total=total,
             languages=languages, language_code=language_code, query=query,
             selected_status=status, selected_priority=priority, selected_sort=sort,
-            page=page, pages=max(1, (total + 49) // 50),
+            page=page, pages=max(1, (total + page_size - 1) // page_size),
             csrf_token=get_csrf_token(), scan_result=request.args.get("scan"),
             import_result=request.args.get("imported"),
             glossary=glossary,

@@ -47,7 +47,7 @@
     {% for item in items %}
     <article class="panel localization-item">
       <header><div><span class="localization-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span><span class="status-{{ item.effective_status|lower }}">{{ item.effective_status }}</span><code>{{ item.language_key }}</code></div><small>{{ item.page_name }} / {{ item.component }} / {{ item.string_type }} · 참조 {{ item.reference_count }}곳</small></header>
-      {% if item.effective_status == 'Pending' %}<label class="localization-prompt-check"><input form="localization-prompt-form" type="checkbox" name="string_ids" value="{{ item.id }}"> AI 번역 대상 선택</label>{% endif %}
+      {% if item.effective_status == 'Pending' %}<label class="localization-prompt-check"><input form="localization-prompt-form" type="checkbox" name="string_ids" value="{{ item.id }}" checked> AI 번역 대상 선택</label>{% endif %}
       <div class="localization-columns">
         <div><b>KOREAN</b><pre>{{ item.source_text }}</pre></div>
         <form method="post" action="{{ url_for('auth.localization_update', string_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><label>TRANSLATION<textarea name="translated_text" rows="5">{{ item.translated_text or '' }}</textarea></label><div><select name="status"><option{% if item.effective_status == 'Completed' %} selected{% endif %}>Completed</option><option{% if item.effective_status == 'Pending' %} selected{% endif %}>Pending</option><option{% if item.effective_status == 'Ignored' %} selected{% endif %}>Ignored</option></select><button class="btn btn-primary" type="submit">저장</button></div></form>
