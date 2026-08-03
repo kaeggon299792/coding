@@ -843,6 +843,7 @@ def inject_globals():
     role = session.get("role")
     current_user = None
     account_active = not bool(session.get("user_id"))
+    localization_pending_count = 0
     if session.get("user_id"):
         connection = dashboard_db()
         try:
@@ -858,6 +859,15 @@ def inject_globals():
                 current_user = dict(row)
                 role = current_user.get("role") or "user"
                 session["role"] = role
+                if role == "admin":
+                    localization_pending_count = connection.execute(
+                        """SELECT COUNT(*) FROM localization_strings s
+                           LEFT JOIN localization_translations t
+                             ON t.string_id=s.id AND t.language_code='en'
+                           WHERE s.deleted_at IS NULL
+                             AND (CASE WHEN s.status='Ignored' THEN 'Ignored'
+                                  ELSE COALESCE(t.status, 'Pending') END)='Pending'"""
+                    ).fetchone()[0]
             elif app.testing and not row:
                 # A few legacy unit tests use a session-only fixture.  Never
                 # apply this compatibility path in the deployed app.
@@ -922,6 +932,8 @@ def inject_globals():
         "auth.register": "가입 신청",
         "auth.user_management": "관리자 페이지",
         "auth.admin_logs": "관리자 로그",
+        "auth.localization_dashboard": "Localization",
+        "auth.localization_qa": "Localization QA",
     }
     if request.blueprint == "official_docs":
         current_menu_name = "공문·자료관리"
@@ -947,6 +959,7 @@ def inject_globals():
         "site_font": site_font,
         "number_font": number_font,
         "menu_permissions": current_menu_permissions(),
+        "localization_pending_count": localization_pending_count,
         "csp_nonce": getattr(g, "csp_nonce", ""),
         "global_csrf_token": get_csrf_token(),
         "current_menu_name": current_menu_name,
@@ -1090,6 +1103,7 @@ def _site_map_links():
             "children": [
                 {"label": "관리자 페이지", "endpoint": "auth.user_management"},
                 {"label": "로그", "endpoint": "auth.admin_logs"},
+                {"label": "Localization", "endpoint": "auth.localization_dashboard"},
                 {"label": "미처리 과제", "endpoint": "admin_action_items_page"},
                 {"label": "공문·자료관리", "endpoint": "official_docs.dashboard"},
                 {"label": "경영 실적", "endpoint": "performance_page"},

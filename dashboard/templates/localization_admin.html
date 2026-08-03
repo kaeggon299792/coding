@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Localization Management{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container localization-admin">
+  <header class="page-header localization-heading">
+    <div><p class="page-eyebrow">ADMINISTRATION / LOCALIZATION</p><h1 class="page-title">Localization Management</h1><p class="page-description">사용자 노출 문자열의 번역 상태와 참조 위치를 중앙에서 관리합니다. 외부 번역 API는 호출하지 않습니다.</p></div>
+    <div class="localization-actions">
+      <form method="post" action="{{ url_for('auth.localization_scan') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">Translation Scan</button></form>
+      <a class="btn" href="{{ url_for('auth.localization_qa', language=language_code) }}">Localization QA</a>
+    </div>
+  </header>
+  {% if summary.pending %}<div class="localization-alert" role="status">🔴 번역이 필요한 항목이 {{ summary.pending }}건 있습니다.</div>{% endif %}
+  {% if scan_result or import_result or request.args.get('saved') %}<div class="localization-notice">{{ scan_result or import_result or '번역을 저장했습니다.' }}</div>{% endif %}
+  {% if request.args.get('error') %}<div class="localization-alert">{{ request.args.get('error') }}</div>{% endif %}
+  <section class="localization-stats">
+    <article><span>Pending</span><strong>{{ summary.pending }}</strong></article>
+    <article><span>Completed</span><strong>{{ summary.completed }}</strong></article>
+    <article><span>Ignored</span><strong>{{ summary.ignored }}</strong></article>
+    <article><span>Translation Coverage</span><strong>{{ '%.2f'|format(summary.coverage) }}%</strong><div class="localization-progress"><i style="width:{{ summary.coverage }}%"></i></div></article>
+    <article><span>Localization Health</span><strong>{{ summary.health }}</strong></article>
+  </section>
+  <section class="panel localization-toolbar">
+    <form method="get" class="localization-filter">
+      <input name="q" value="{{ query }}" placeholder="문자열·기업명·메뉴명·Page·Type 검색" aria-label="Localization 검색">
+      <select name="language" aria-label="대상 언어">{% for language in languages if not language.is_source %}<option value="{{ language.language_code }}"{% if language.language_code == language_code %} selected{% endif %}>{{ language.display_name }} ({{ language.language_code }})</option>{% endfor %}</select>
+      <select name="status" aria-label="상태"><option value="">전체 상태</option>{% for value in ('Pending','Completed','Ignored') %}<option{% if selected_status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+      <select name="priority" aria-label="우선순위"><option value="">전체 우선순위</option>{% for value in ('Critical','High','Medium','Low') %}<option{% if selected_priority == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+      <select name="sort" aria-label="정렬">{% for value, label in (('newest','최신'),('oldest','오래된순'),('page','페이지'),('type','타입'),('priority','우선순위')) %}<option value="{{ value }}"{% if selected_sort == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <button class="btn" type="submit">적용</button>
+    </form>
+    <div class="localization-bulk">
+      <a class="btn" href="{{ url_for('auth.localization_export', file_type='csv', language=language_code) }}">CSV 내보내기</a><a class="btn" href="{{ url_for('auth.localization_export', file_type='xlsx', language=language_code) }}">Excel 내보내기</a>
+      <form method="post" action="{{ url_for('auth.localization_import') }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><input type="file" name="file" accept=".csv,.xlsx" required><button class="btn" type="submit">가져오기</button></form>
+      <form method="post" action="{{ url_for('auth.localization_add_language') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="language_code" placeholder="ja" aria-label="추가할 언어 코드" required><input name="display_name" placeholder="日本語" aria-label="추가할 언어 이름" required><button class="btn" type="submit">언어 추가</button></form>
+    </div>
+  </section>
+  <p class="localization-result-count">전체 {{ total }}개 · 페이지 {{ page }} / {{ pages }}</p>
+  <section class="localization-list">
+    {% for item in items %}
+    <article class="panel localization-item">
+      <header><div><span class="localization-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span><span class="status-{{ item.effective_status|lower }}">{{ item.effective_status }}</span><code>{{ item.language_key }}</code></div><small>{{ item.page_name }} / {{ item.component }} / {{ item.string_type }} · 참조 {{ item.reference_count }}곳</small></header>
+      <div class="localization-columns">
+        <div><b>KOREAN</b><pre>{{ item.source_text }}</pre></div>
+        <form method="post" action="{{ url_for('auth.localization_update', string_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><label>TRANSLATION<textarea name="translated_text" rows="5">{{ item.translated_text or '' }}</textarea></label><div><select name="status"><option{% if item.effective_status == 'Completed' %} selected{% endif %}>Completed</option><option{% if item.effective_status == 'Pending' %} selected{% endif %}>Pending</option><option{% if item.effective_status == 'Ignored' %} selected{% endif %}>Ignored</option></select><button class="btn btn-primary" type="submit">저장</button></div></form>
+      </div>
+      <details><summary>AI 번역용 코드블록 및 참조 위치</summary><div class="localization-copy-row"><pre class="translation-prompt" id="prompt-{{ item.id }}">ID
+{{ item.language_key }}
+
+TYPE
+{{ item.string_type }}
+
+PAGE
+{{ item.page_name }}
+
+KOREAN
+{{ item.source_text }}</pre><button class="btn" type="button" data-copy-target="prompt-{{ item.id }}">복사</button></div><ul>{% for ref in item.references %}<li><code>{{ ref.source_path }}{% if ref.locator %}:{{ ref.locator }}{% endif %}</code></li>{% endfor %}</ul></details>
+    </article>
+    {% else %}<div class="panel empty-state">조건에 맞는 문자열이 없습니다. Translation Scan을 실행해 프로젝트를 검사하세요.</div>{% endfor %}
+  </section>
+  <nav class="news-pagination" aria-label="Localization 페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('auth.localization_dashboard', page=page-1, language=language_code, q=query, status=selected_status, priority=selected_priority, sort=selected_sort) }}">이전</a>{% endif %}<span>{{ page }} / {{ pages }}</span>{% if page < pages %}<a class="btn" href="{{ url_for('auth.localization_dashboard', page=page+1, language=language_code, q=query, status=selected_status, priority=selected_priority, sort=selected_sort) }}">다음</a>{% endif %}</nav>
+  <section class="panel localization-timeline"><h2>최근 24시간</h2><div class="localization-timeline-counts"><span>신규 Pending {{ summary.recent_counts.get('pending_created', 0) }}</span><span>번역 완료 {{ summary.recent_counts.get('translation_completed', 0) }}</span><span>상태 수정 {{ summary.recent_counts.get('status_changed', 0) }}</span><span>삭제 {{ summary.recent_counts.get('deleted', 0) }}</span></div>{% for event in summary.events %}<p><time>{{ event.created_at|replace('T',' ') }}</time> · {{ event.event_type }} · <code>{{ event.language_key or '-' }}</code></p>{% else %}<p>최근 변경사항이 없습니다.</p>{% endfor %}</section>
+</main>
+<script nonce="{{ csp_nonce }}">document.querySelectorAll('[data-copy-target]').forEach((button)=>button.addEventListener('click',async()=>{const target=document.getElementById(button.dataset.copyTarget);await navigator.clipboard.writeText(target.textContent);button.textContent='복사됨';}));</script>
+{% include "_footer.html" %}
+{% endblock %}

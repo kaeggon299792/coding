@@ -25,7 +25,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from dashboard_db import queries
 from extensions import dashboard_db
-from services import gemini_usage, security_audit, site_preferences, telegram_alert
+from services import (
+    gemini_usage, localization_management, security_audit, site_preferences,
+    telegram_alert,
+)
 import config
 from utils import now_kst
 
@@ -1410,6 +1413,175 @@ def admin_logs():
         )
     finally:
         connection.close()
+
+
+@auth_bp.get("/admin/localization")
+@admin_required
+def localization_dashboard():
+    language_code = (request.args.get("language") or "en").strip()
+    query = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    priority = (request.args.get("priority") or "").strip()
+    sort = (request.args.get("sort") or "newest").strip()
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    connection = dashboard_db()
+    try:
+        languages = [dict(row) for row in connection.execute(
+            "SELECT * FROM localization_languages WHERE is_active=1 ORDER BY is_source DESC, language_code"
+        ).fetchall()]
+        if language_code not in {item["language_code"] for item in languages} or language_code == "ko":
+            language_code = "en"
+        summary = localization_management.dashboard_summary(connection, language_code)
+        rows, total = localization_management.list_strings(
+            connection, language_code=language_code, query=query, status=status,
+            priority=priority, sort=sort, page=page,
+        )
+        for item in rows:
+            item["references"] = localization_management.references(connection, item["id"])
+        return render_template(
+            "localization_admin.html", summary=summary, items=rows, total=total,
+            languages=languages, language_code=language_code, query=query,
+            selected_status=status, selected_priority=priority, selected_sort=sort,
+            page=page, pages=max(1, (total + 49) // 50),
+            csrf_token=get_csrf_token(), scan_result=request.args.get("scan"),
+            import_result=request.args.get("imported"),
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.post("/admin/localization/<int:string_id>")
+@admin_required
+def localization_update(string_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    status = (request.form.get("status") or "Completed").strip()
+    connection = dashboard_db()
+    try:
+        if not connection.execute(
+            "SELECT 1 FROM localization_strings WHERE id=? AND deleted_at IS NULL", (string_id,)
+        ).fetchone():
+            abort(404)
+        localization_management.save_translation(
+            connection, string_id, language_code,
+            request.form.get("translated_text") or "", session.get("user_id"), status=status,
+        )
+        connection.commit()
+    except ValueError as exc:
+        connection.rollback()
+        return redirect(url_for("auth.localization_dashboard", language=language_code, error=str(exc)))
+    finally:
+        connection.close()
+    return redirect(url_for("auth.localization_dashboard", language=language_code, saved="1"))
+
+
+@auth_bp.post("/admin/localization/scan")
+@admin_required
+def localization_scan():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        project_root = Path(current_app.root_path)
+        result = localization_management.scan_project(connection, project_root)
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.localization_dashboard",
+        scan=f"{result['files_scanned']}개 파일 · {result['strings_seen']}개 문자열 확인",
+    ))
+
+
+@auth_bp.get("/admin/localization/qa")
+@admin_required
+def localization_qa():
+    language_code = (request.args.get("language") or "en").strip()
+    connection = dashboard_db()
+    try:
+        findings = localization_management.qa_report(connection, language_code)
+        return render_template(
+            "localization_qa.html", findings=findings, language_code=language_code,
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.get("/admin/localization/export.<file_type>")
+@admin_required
+def localization_export(file_type):
+    if file_type not in {"csv", "xlsx"}:
+        abort(404)
+    language_code = (request.args.get("language") or "en").strip()
+    connection = dashboard_db()
+    try:
+        payload, mimetype = localization_management.export_file(
+            connection, language_code, file_type,
+        )
+    finally:
+        connection.close()
+    response = make_response(payload)
+    response.headers["Content-Type"] = mimetype
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="casino-in-localization-{language_code}.{file_type}"'
+    )
+    return response
+
+
+@auth_bp.post("/admin/localization/import")
+@admin_required
+def localization_import():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        abort(400)
+    language_code = (request.form.get("language_code") or "en").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            result = localization_management.import_file(
+                connection, upload, language_code, session.get("user_id"),
+            )
+        except ValueError as exc:
+            connection.rollback()
+            return redirect(url_for("auth.localization_dashboard", error=str(exc)))
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.localization_dashboard", language=language_code,
+        imported=f"{result['updated']}건 반영 · {result['errors']}건 제외",
+    ))
+
+
+@auth_bp.post("/admin/localization/languages")
+@admin_required
+def localization_add_language():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "").strip()
+    display_name = (request.form.get("display_name") or "").strip()
+    if not re.fullmatch(r"[a-z]{2,3}(?:-[A-Z][A-Za-z0-9]{1,7})?", language_code):
+        return redirect(url_for("auth.localization_dashboard", error="언어 코드를 확인해주세요."))
+    if not display_name or len(display_name) > 80:
+        return redirect(url_for("auth.localization_dashboard", error="언어 이름을 확인해주세요."))
+    connection = dashboard_db()
+    try:
+        connection.execute(
+            """INSERT INTO localization_languages
+                   (language_code, display_name, is_source, is_active, created_at)
+               VALUES (?, ?, 0, 1, ?)
+               ON CONFLICT(language_code) DO UPDATE SET
+                   display_name=excluded.display_name, is_active=1""",
+            (language_code, display_name, now_kst().isoformat(timespec="seconds")),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("auth.localization_dashboard", language=language_code))
 
 
 @auth_bp.post("/admin/site-settings/font")

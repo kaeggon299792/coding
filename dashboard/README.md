@@ -192,3 +192,20 @@ python manage.py seed-default-laws
 **네이버 이메일 비밀번호가 코드에 평문으로 하드코딩**되어 있는 것을 발견했습니다. 반드시
 해당 비밀번호를 재발급하고 코드를 환경변수 방식으로 수정해주세요(이 저장소 범위 밖의
 별도 프로젝트입니다).
+# Localization Management System
+
+관리자는 `/admin/localization`에서 프로젝트의 한국어 원문, 언어별 번역,
+상태(`Pending`/`Completed`/`Ignored`), 우선순위와 사용 위치를 관리한다. 번역은
+외부 API를 호출하지 않으며 코드블록을 원하는 AI에 복사한 뒤 결과를 붙여넣거나
+CSV/XLSX로 일괄 반영한다. 새 언어는 관리 화면에서 `language_code`를 추가한다.
+
+정적 UI와 동적 콘텐츠 자동 인벤토리는 다음 명령을 매시간 실행하도록
+PythonAnywhere Scheduled Task에 등록한다. 작업은 번역 API를 호출하지 않는다.
+
+```bash
+/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python \
+  /home/kaekun/coding-dashboard/dashboard/scheduler/sync_localization.py
+```
+
+관리 화면의 `Translation Scan`도 같은 비파괴 스캔을 즉시 실행한다. 스캔에서
+사라진 참조는 원문을 삭제하지 않고 `deleted_at`으로 보관한다.

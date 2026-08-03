@@ -8,13 +8,14 @@
 """
 
 import sqlite3
+from datetime import datetime, timezone
 
 import config
 
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080301
+SCHEMA_VERSION = 2026080401
 
 
 def is_current(connection):
@@ -1439,6 +1440,103 @@ def migrate(connection):
         "ON content_translations(locale, status, updated_at)"
     )
 
+    # ---- localization management system ----
+    # Source strings are deduplicated by their Korean source hash. Languages and
+    # translations live in separate rows, so adding a locale never alters schema.
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_strings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            language_key TEXT NOT NULL UNIQUE,
+            source_text TEXT NOT NULL,
+            source_hash TEXT NOT NULL UNIQUE,
+            page_name TEXT NOT NULL DEFAULT 'Unknown',
+            component TEXT NOT NULL DEFAULT 'Content',
+            string_type TEXT NOT NULL DEFAULT 'UI',
+            priority TEXT NOT NULL DEFAULT 'Medium',
+            status TEXT NOT NULL DEFAULT 'Pending',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_languages (
+            language_code TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL,
+            is_source INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_translations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            string_id INTEGER NOT NULL REFERENCES localization_strings(id) ON DELETE CASCADE,
+            language_code TEXT NOT NULL REFERENCES localization_languages(language_code),
+            translated_text TEXT,
+            status TEXT NOT NULL DEFAULT 'Pending',
+            translated_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_translated_at TEXT,
+            UNIQUE(string_id, language_code)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_references (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            string_id INTEGER NOT NULL REFERENCES localization_strings(id) ON DELETE CASCADE,
+            source_kind TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            locator TEXT NOT NULL DEFAULT '',
+            last_seen_at TEXT NOT NULL,
+            UNIQUE(string_id, source_kind, source_path, locator)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS localization_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            string_id INTEGER REFERENCES localization_strings(id) ON DELETE SET NULL,
+            event_type TEXT NOT NULL,
+            language_code TEXT,
+            actor_id INTEGER REFERENCES dashboard_users(id),
+            detail TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_localization_strings_status "
+        "ON localization_strings(status, priority, updated_at DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_localization_translation_status "
+        "ON localization_translations(language_code, status, updated_at DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_localization_events_created "
+        "ON localization_events(created_at DESC)"
+    )
+    localization_now = datetime.now(timezone.utc).isoformat()
+    for language_code, display_name, is_source in (
+        ('ko', '한국어', 1), ('en', 'English', 0),
+    ):
+        connection.execute(
+            """INSERT OR IGNORE INTO localization_languages
+                   (language_code, display_name, is_source, is_active, created_at)
+               VALUES (?, ?, ?, 1, ?)""",
+            (language_code, display_name, is_source, localization_now),
+        )
+
     # ---- overseas casino news (Macau / Japan) ----
     connection.execute(
         """
@@ -1546,7 +1644,6 @@ def migrate(connection):
             ("078", "078. 기타"), ("079", "079. 직원"),
         ],
     }
-    from datetime import datetime, timezone
     now_iso = datetime.now(timezone.utc).isoformat()
     for kind, values in defaults.items():
         for order, (code, label) in enumerate(values, 1):

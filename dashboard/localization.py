@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
+import time
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -24,6 +26,7 @@ from urllib.parse import parse_qsl, urlencode
 SUPPORTED_LOCALES = ("ko", "en")
 DEFAULT_LOCALE = "ko"
 CATALOG_FILE = Path(__file__).resolve().parent / "translations" / "catalog.json"
+_LMS_CACHE = {"expires": 0.0, "db_path": "", "text": {}}
 
 _PROTECTED_HTML_RE = re.compile(
     r"(<(?:pre|code|textarea)\b[^>]*>.*?</(?:pre|code|textarea)\s*>|<[^>]+>)",
@@ -130,10 +133,44 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     if not match:
         return value
     leading, core, trailing = match.groups()
-    translated = catalog["text"].get(core)
+    translated = _lms_text_map(locale).get(core)
+    if translated is None:
+        translated = catalog["text"].get(core)
     if translated is None:
         translated = _apply_patterns(core, catalog.get("patterns", {}).items())
     return f"{leading}{translated}{trailing}"
+
+
+def _lms_text_map(locale: str) -> dict[str, str]:
+    """Return completed manual LMS translations with a short process cache."""
+    if locale == DEFAULT_LOCALE:
+        return {}
+    now = time.monotonic()
+    translations: dict[str, dict[str, str]] = {}
+    try:
+        import config
+        db_path = str(config.DASHBOARD_DB_FILE)
+        if db_path == _LMS_CACHE["db_path"] and now < _LMS_CACHE["expires"]:
+            return _LMS_CACHE["text"].get(locale, {})
+        connection = sqlite3.connect(db_path)
+        try:
+            rows = connection.execute(
+                """SELECT s.source_text, t.language_code, t.translated_text
+                   FROM localization_strings s JOIN localization_translations t
+                     ON t.string_id=s.id
+                   WHERE s.deleted_at IS NULL AND t.status='Completed'
+                     AND t.translated_text IS NOT NULL"""
+            ).fetchall()
+            for source, language_code, target in rows:
+                translations.setdefault(language_code, {})[source] = target
+        finally:
+            connection.close()
+    except (ImportError, OSError, sqlite3.Error):
+        translations = {}
+    _LMS_CACHE["text"] = translations
+    _LMS_CACHE["db_path"] = str(getattr(config, "DASHBOARD_DB_FILE", ""))
+    _LMS_CACHE["expires"] = now + 60.0
+    return translations.get(locale, {})
 
 
 def translate_structure(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
