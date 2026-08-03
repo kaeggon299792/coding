@@ -88,6 +88,31 @@ def test_csv_export_and_import_round_trip():
     assert db.execute("SELECT translated_text FROM localization_translations").fetchone()[0] == "Home"
 
 
+def test_file_import_promotes_translated_pending_rows_and_skips_empty_rows():
+    db = connection()
+    translated_id = lms.register_string(db, "기업정보", language_key="MENU_COMPANY")
+    empty_id = lms.register_string(db, "뉴스", language_key="MENU_NEWS")
+    csv_payload = (
+        "id,language_key,en,status\n"
+        f"{translated_id},MENU_COMPANY,Company Profile,Pending\n"
+        f"{empty_id},MENU_NEWS,,Pending\n"
+    ).encode()
+    upload = type("Upload", (), {
+        "filename": "translations.csv",
+        "read": lambda self, size: csv_payload,
+    })()
+    result = lms.import_file(db, upload, "en")
+    assert result == {"updated": 1, "errors": 1}
+    row = db.execute(
+        "SELECT translated_text,status FROM localization_translations WHERE string_id=?",
+        (translated_id,),
+    ).fetchone()
+    assert tuple(row) == ("Company Profile", "Completed")
+    assert db.execute(
+        "SELECT 1 FROM localization_translations WHERE string_id=?", (empty_id,)
+    ).fetchone() is None
+
+
 def test_xlsx_export_is_valid_workbook():
     db = connection()
     lms.register_string(db, "로그인", page="Login", component="Button")

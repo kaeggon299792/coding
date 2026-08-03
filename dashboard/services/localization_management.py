@@ -36,7 +36,7 @@ TRANSLATION_STYLES = {
     "business": "간결하고 전문적인 비즈니스 문체를 사용합니다.",
     "marketing": "정확성을 유지하면서 설득력 있는 마케팅 문체를 사용합니다.",
 }
-PROMPT_MAX_ITEMS = 200
+PROMPT_MAX_ITEMS = 150
 PROMPT_MAX_CHARS = 60000
 
 
@@ -656,10 +656,18 @@ def import_file(connection, file_storage, language_code, actor_id=None):
     for row in rows:
         try:
             string_id = int(row.get("id") or 0)
-            translation = str(row.get("translation") or "").strip()
+            translation = str(
+                row.get("translation") or row.get(language_code)
+                or row.get(language_code.upper()) or row.get("English")
+                or row.get("english") or ""
+            ).strip()
             status = str(row.get("status") or ("Completed" if translation else "Pending")).strip()
             if not connection.execute("SELECT 1 FROM localization_strings WHERE id=?", (string_id,)).fetchone():
                 raise ValueError("unknown id")
+            if translation and status == "Pending":
+                status = "Completed"
+            if not translation and status == "Pending":
+                raise ValueError("empty pending translation")
             save_translation(connection, string_id, language_code, translation,
                              actor_id=actor_id, status=status)
             updated += 1
