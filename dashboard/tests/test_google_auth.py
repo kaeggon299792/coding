@@ -19,6 +19,10 @@ def google_client(monkeypatch, tmp_path):
     import app as app_module
     import auth
 
+    monkeypatch.setattr(
+        auth.telegram_alert, "send_alert", lambda message, force=False: True
+    )
+
     app_module.app.config.update(TESTING=True, SERVER_NAME=None)
     with app_module.app.test_client() as client:
         yield client, auth, db_path
@@ -66,31 +70,37 @@ def test_google_login_redirects_to_provider(google_client, monkeypatch):
     assert response.headers["Location"].startswith("https://accounts.google.com/")
 
 
-def test_google_callback_creates_user_and_stores_only_internal_session(
+def test_google_callback_creates_pending_user_without_starting_session(
     google_client, monkeypatch
 ):
     client, auth_module, db_path = google_client
+    alerts = []
+    monkeypatch.setattr(
+        auth_module.telegram_alert, "send_alert", lambda message, force=False: alerts.append(message) or True
+    )
     _mock_callback(monkeypatch, auth_module, _userinfo())
 
     response = client.get("/auth/google/callback", follow_redirects=False)
-    assert response.status_code == 302
+    assert response.status_code == 403
     with client.session_transaction() as flask_session:
-        assert flask_session["user_id"]
+        assert "user_id" not in flask_session
         assert "access_token" not in flask_session
         assert "id_token" not in flask_session
-        user_id = flask_session["user_id"]
 
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
     row = connection.execute(
-        "SELECT * FROM dashboard_users WHERE id=?", (user_id,)
+        "SELECT * FROM dashboard_users WHERE google_sub=?", ("google-sub-123",)
     ).fetchone()
     connection.close()
     assert row["google_sub"] == "google-sub-123"
     assert row["email"] == "google.user@example.com"
-    assert row["is_active"] == 1
-    assert row["approval_status"] == "approved"
-    assert row["last_login_at"]
+    assert row["is_active"] == 0
+    assert row["approval_status"] == "pending"
+    assert row["last_login_at"] is None
+    assert len(alerts) == 1
+    assert "Google" in alerts[0]
+    assert f"pending_user={row['id']}" in alerts[0]
 
 
 def test_google_callback_rejects_unverified_email(google_client, monkeypatch):
@@ -150,11 +160,55 @@ def test_existing_verified_email_is_linked_without_duplicate(
 
 def test_existing_google_sub_does_not_create_duplicate(google_client, monkeypatch):
     client, auth_module, db_path = google_client
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """
+        INSERT INTO dashboard_users
+            (username, password_hash, created_at, role, is_active, email,
+             approval_status, google_sub)
+        VALUES (?, ?, ?, 'user', 1, ?, 'approved', ?)
+        """,
+        (
+            "existing-google-user",
+            generate_password_hash("existing-password", method="scrypt"),
+            "2026-08-01T00:00:00+09:00",
+            "google.user@example.com",
+            "google-sub-123",
+        ),
+    )
+    connection.commit()
+    connection.close()
+
     _mock_callback(monkeypatch, auth_module, _userinfo())
     assert client.get("/auth/google/callback").status_code == 302
     with client.session_transaction() as flask_session:
         flask_session.clear()
     assert client.get("/auth/google/callback").status_code == 302
+
+    connection = sqlite3.connect(db_path)
+    count = connection.execute("SELECT COUNT(*) FROM dashboard_users").fetchone()[0]
+    connection.close()
+    assert count == 1
+
+
+def test_existing_pending_google_account_cannot_login_or_repeat_alert(
+    google_client, monkeypatch
+):
+    client, auth_module, db_path = google_client
+    alerts = []
+    monkeypatch.setattr(
+        auth_module.telegram_alert, "send_alert", lambda message, force=False: alerts.append(message) or True
+    )
+    _mock_callback(monkeypatch, auth_module, _userinfo())
+    assert client.get("/auth/google/callback").status_code == 403
+    assert len(alerts) == 1
+
+    assert client.get("/auth/google/callback").status_code == 403
+    assert len(alerts) == 1
+    with client.session_transaction() as flask_session:
+        assert "user_id" not in flask_session
 
     connection = sqlite3.connect(db_path)
     count = connection.execute("SELECT COUNT(*) FROM dashboard_users").fetchone()[0]
@@ -178,7 +232,27 @@ def test_logout_clears_google_session(google_client, monkeypatch):
 
 
 def test_google_callback_rejects_external_next_url(google_client, monkeypatch):
-    client, auth_module, _ = google_client
+    client, auth_module, db_path = google_client
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """
+        INSERT INTO dashboard_users
+            (username, password_hash, created_at, role, is_active, email,
+             approval_status, google_sub)
+        VALUES (?, ?, ?, 'user', 1, ?, 'approved', ?)
+        """,
+        (
+            "approved-google-user",
+            generate_password_hash("existing-password", method="scrypt"),
+            "2026-08-01T00:00:00+09:00",
+            "google.user@example.com",
+            "google-sub-123",
+        ),
+    )
+    connection.commit()
+    connection.close()
     _mock_callback(monkeypatch, auth_module, _userinfo())
     with client.session_transaction() as flask_session:
         flask_session["oauth_next"] = "https://evil.example/steal"

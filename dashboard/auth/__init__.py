@@ -631,7 +631,7 @@ def _upsert_google_user(connection, userinfo):
             INSERT INTO dashboard_users
                 (username, password_hash, role, is_active, created_at, updated_at,
                  landing_page, email, approval_status, google_sub, name, picture_url)
-            VALUES (?, ?, 'user', 1, ?, ?, 'dashboard', ?, 'approved', ?, ?, ?)
+            VALUES (?, ?, 'user', 0, ?, ?, 'dashboard', ?, 'pending', ?, ?, ?)
             """,
             (
                 username, unusable_password, now_iso, now_iso, email,
@@ -671,6 +671,30 @@ def _upsert_google_user(connection, userinfo):
         ).fetchone()
 
     return dict(row), created, linked_existing_account
+
+
+def _send_registration_review_alert(user_id, username, email, provider="local"):
+    review_path = url_for("auth.user_management", pending_user=user_id)
+    review_url = (
+        f"{config.DASHBOARD_PUBLIC_URL.rstrip('/')}{review_path}#user-{user_id}"
+    )
+    provider_label = "Google" if provider == "google" else "아이디·비밀번호"
+    alert_message = (
+        "👤 <b>CASINO IN 가입 신청</b>\n\n"
+        f"• 아이디: {html.escape(username)}\n"
+        f"• 이메일: {html.escape(email)}\n"
+        f"• 가입 방식: {provider_label}\n"
+        f"• 신청 시각: {now_kst().strftime('%Y-%m-%d %H:%M:%S KST')}\n"
+        "• 상태: 관리자 승인 대기\n\n"
+        f'<a href="{html.escape(review_url, quote=True)}">가입 신청 검토·승인</a>\n'
+        "※ 관리자 로그인 후 검토 화면이 열리며, 실제 승인은 CSRF 보호 버튼으로 처리됩니다."
+    )
+    if not telegram_alert.send_alert(alert_message, force=True):
+        current_app.logger.error(
+            "가입 신청 텔레그램 알림 전송 실패 user_id=%s provider=%s",
+            user_id,
+            provider,
+        )
 
 
 def _google_login_error(message, status=400):
@@ -760,7 +784,23 @@ def google_callback():
     connection = dashboard_db()
     try:
         user, created, linked = _upsert_google_user(connection, userinfo)
-        if not user.get("is_active", 1) or user.get("approval_status") == "blocked":
+        if created:
+            security_audit.log_event(
+                connection,
+                "GOOGLE_REGISTRATION_PENDING",
+                "dashboard_user",
+                user["id"],
+                {"username": user["username"], "approval_status": "pending"},
+            )
+            connection.commit()
+            _send_registration_review_alert(
+                user["id"], user["username"], user["email"], provider="google"
+            )
+            return _google_login_error(
+                "가입 신청이 접수되었습니다. 관리자가 승인하면 Google 계정으로 로그인할 수 있습니다.",
+                403,
+            )
+        if not user.get("is_active", 1) or user.get("approval_status") != "approved":
             connection.rollback()
             current_app.logger.warning(
                 "Google OAuth callback failed type=account_inactive user_id=%s", user["id"]
@@ -878,26 +918,9 @@ def register():
             {"username": username, "approval_status": "pending"},
         )
         connection.commit()
-        review_path = url_for(
-            "auth.user_management", pending_user=cursor.lastrowid
+        _send_registration_review_alert(
+            cursor.lastrowid, username, email, provider="local"
         )
-        review_url = (
-            f"{config.DASHBOARD_PUBLIC_URL.rstrip('/')}{review_path}"
-            f"#user-{cursor.lastrowid}"
-        )
-        alert_message = (
-            "👤 <b>CASINO IN 가입 신청</b>\n\n"
-            f"• 아이디: {html.escape(username)}\n"
-            f"• 이메일: {html.escape(email)}\n"
-            f"• 신청 시각: {now_kst().strftime('%Y-%m-%d %H:%M:%S KST')}\n"
-            "• 상태: 관리자 승인 대기\n\n"
-            f'<a href="{html.escape(review_url, quote=True)}">가입 신청 검토·승인</a>\n'
-            "※ 관리자 로그인 후 검토 화면이 열리며, 실제 승인은 CSRF 보호 버튼으로 처리됩니다."
-        )
-        if not telegram_alert.send_alert(alert_message, force=True):
-            current_app.logger.error(
-                "가입 신청 텔레그램 알림 전송 실패 user_id=%s", cursor.lastrowid
-            )
         return redirect(url_for("auth.login", registered="1"))
     except sqlite3.IntegrityError:
         connection.rollback()
