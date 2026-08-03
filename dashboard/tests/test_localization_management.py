@@ -161,6 +161,24 @@ def test_glossary_can_be_updated_and_deactivated():
     assert updated["is_active"] == 0
 
 
+def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path):
+    from dashboard_db import schema
+
+    db_path = tmp_path / "existing.db"
+    db = schema.connect(str(db_path))
+    db.execute("DROP TABLE localization_glossary")
+    db.execute("PRAGMA user_version = 2026080401")
+    db.commit(); db.close()
+
+    upgraded = schema.connect(str(db_path))
+    assert upgraded.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert upgraded.execute(
+        "SELECT COUNT(*) FROM localization_glossary"
+    ).fetchone()[0] == 8
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080402
+    upgraded.close()
+
+
 def test_hourly_scan_runs_once_per_interval(tmp_path):
     db = connection()
     templates = tmp_path / "templates"

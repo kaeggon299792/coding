@@ -15,7 +15,7 @@ import config
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080401
+SCHEMA_VERSION = 2026080402
 
 
 def is_current(connection):
