@@ -27,7 +27,7 @@ def _with_share(items, key):
     ]
 
 
-def build_dashboard(connection, selected_year=None):
+def build_dashboard(connection, selected_year=None, exclude_kangwon=False):
     years = [2023, 2024, 2025]
     try:
         selected_year = int(selected_year)
@@ -86,6 +86,9 @@ def build_dashboard(connection, selected_year=None):
         if any(point["revenue"] is not None for point in points):
             trend.append({"name": label, "points": points})
 
+    if exclude_kangwon:
+        trend = [item for item in trend if item["name"] != "강원랜드"]
+
     for metric in ("revenue", "operating_profit"):
         present = [point[metric] for item in trend for point in item["points"] if point[metric] is not None]
         low, high = min(present or [0]), max(present or [1])
@@ -103,5 +106,6 @@ def build_dashboard(connection, selected_year=None):
         "comparisons": comparisons,
         "trend_years": trend_years,
         "trend": trend,
+        "exclude_kangwon": bool(exclude_kangwon),
         "source_note": "중앙 DB의 VALUESearch 법인별 손익계산서(연간, 억원). 카지노 사업장 단독 실적이 아닌 운영 법인 전체 실적 기준입니다.",
     }

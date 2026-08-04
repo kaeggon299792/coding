@@ -2622,7 +2622,9 @@ def casino_market_share_page():
         return render_template(
             "casino_market_share.html",
             market_share=casino_market_share.build_dashboard(
-                connection, request.args.get("year")
+                connection,
+                request.args.get("year"),
+                request.args.get("exclude_kangwon") == "1",
             ),
         )
     finally:

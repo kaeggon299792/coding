@@ -45,7 +45,13 @@ def test_casino_market_share_page_is_public(client):
     assert response.status_code == 200
     assert b"casino-ms-page" in response.data
     assert b'<option value="2024" selected>' in response.data
-    assert b"20260805-market-share1" in response.data
+    assert b"20260805-market-share2" in response.data
+
+    excluded = client.get(
+        "/market/casino-industry/market-share?year=2024&exclude_kangwon=1"
+    )
+    assert excluded.status_code == 200
+    assert b'name="exclude_kangwon" value="1" checked' in excluded.data
 
 
 def test_market_share_uses_central_financial_values(monkeypatch):
@@ -63,6 +69,10 @@ def test_market_share_uses_central_financial_values(monkeypatch):
     assert result["selected_year"] == 2025
     assert result["comparisons"][0]["revenue_items"][0]["name"] == "외래객"
     assert result["comparisons"][0]["revenue_items"][0]["share"] == 33.3
+
+    excluded = casino_market_share.build_dashboard(object(), 2025, True)
+    assert excluded["exclude_kangwon"] is True
+    assert all(item["name"] != "강원랜드" for item in excluded["trend"])
 
 
 def test_casino_history_latest_values_match_report():
