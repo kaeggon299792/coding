@@ -76,7 +76,7 @@ def test_number_validation_allows_translated_units_but_not_changed_values():
     assert auto._validation_error("방문객 100명", "訪問客 101人", "ja") == "number or date mismatch"
 
 
-def test_manual_translation_runs_one_bounded_batch_and_tracks_remaining(
+def test_manual_translation_runs_all_pending_rows_in_batches(
     db_connection, monkeypatch
 ):
     for text in ("기업 정보", "기업정보", "정보 기업"):
@@ -94,10 +94,10 @@ def test_manual_translation_runs_one_bounded_batch_and_tracks_remaining(
         db_connection, ".", "ja", call_openai=_fake_translator
     )
 
-    assert result["pending"] == 2
-    assert result["saved"] == 2
+    assert result["pending"] == 3
+    assert result["saved"] == 3
     assert result["rejected"] == 0
-    assert result["remaining"] == 1
+    assert result["remaining"] == 0
     run = db_connection.execute(
         """SELECT status, prompt_version FROM dashboard_analysis_runs
            WHERE run_type=? ORDER BY id DESC LIMIT 1""",

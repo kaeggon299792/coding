@@ -72,10 +72,8 @@ def configured_languages():
     return [value for value in values if value in TARGETS]
 
 
-def pending_rows(connection, language_code, limit=None):
-    limit = max(1, int(limit or config.LOCALIZATION_TRANSLATION_MAX_ITEMS_PER_RUN))
-    rows = connection.execute(
-        """SELECT s.id, s.language_key, s.source_text, s.page_name, s.string_type
+def pending_rows(connection, language_code, limit=None, *, all_rows=False):
+    query = """SELECT s.id, s.language_key, s.source_text, s.page_name, s.string_type
            FROM localization_strings s
            LEFT JOIN localization_translations t
              ON t.string_id=s.id AND t.language_code=?
@@ -85,10 +83,15 @@ def pending_rows(connection, language_code, limit=None):
              AND COALESCE(t.status,'Pending')<>'Completed'
            ORDER BY CASE s.priority WHEN 'Critical' THEN 0 WHEN 'High' THEN 1
                     WHEN 'Medium' THEN 2 ELSE 3 END,
-                    s.created_at, s.id
-           LIMIT ?""",
-        (language_code, language_code, limit),
-    ).fetchall()
+                    s.created_at, s.id"""
+    params = (language_code, language_code)
+
+    if not all_rows:
+        limit = max(1, int(limit or config.LOCALIZATION_TRANSLATION_MAX_ITEMS_PER_RUN))
+        query += " LIMIT ?"
+        params = (language_code, language_code, limit)
+
+    rows = connection.execute(query, params).fetchall()
     return [dict(row) for row in rows]
 
 
@@ -275,7 +278,7 @@ def _finish_run(connection, run_id, status, error=None):
 def run_manual_batch(
     connection, project_root, language_code, *, actor_id=None, call_openai=None
 ):
-    """Scan and immediately translate one bounded batch for an admin request."""
+    """Scan and immediately translate all pending rows for an admin request."""
     if language_code not in configured_languages():
         raise ValueError("자동 번역이 설정된 일본어 또는 광둥어를 선택해주세요.")
     if not config.OPENAI_API_KEY:
@@ -285,8 +288,7 @@ def run_manual_batch(
     run_id = _claim_run(connection, f"manual:{language_code}")
     try:
         scan = localization_management.scan_project(connection, project_root)
-        limit = max(1, config.LOCALIZATION_TRANSLATION_BATCH_SIZE)
-        rows = pending_rows(connection, language_code, limit=limit)
+        rows = pending_rows(connection, language_code, all_rows=True)
         result = {
             "language_code": language_code,
             "pending": len(rows),
@@ -296,12 +298,16 @@ def run_manual_batch(
             "scan": scan,
             "error": None,
         }
-        if rows:
+        for batch in _batches(rows):
             translated = translate_batch(
-                connection, language_code, rows, call_openai=call_openai,
+                connection, language_code, batch, call_openai=call_openai,
                 actor_id=actor_id,
             )
-            result.update(translated)
+            result["saved"] += translated["saved"]
+            result["rejected"] += translated["rejected"]
+            if translated["error"]:
+                result["error"] = translated["error"]
+                break
         result["remaining"] = pending_count(connection, language_code)
         status = "failed" if result["error"] else "success"
         _finish_run(connection, run_id, status, result["error"])
