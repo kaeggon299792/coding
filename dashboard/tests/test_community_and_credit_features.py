@@ -202,6 +202,8 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
         ).status_code == 404
         board_html = client.get("/board").get_data(as_text=True)
         notice_html = client.get("/board/notices").get_data(as_text=True)
+        assert "LATEST" not in board_html
+        assert "LATEST" not in notice_html
         assert "자유게시판 고정글" in board_html
         assert "PINNED" in board_html
         assert "공지사항 전용 글" not in board_html
