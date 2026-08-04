@@ -34,7 +34,7 @@
       <div class="casino-korea-map" role="img" aria-label="{% if current_locale == 'en' %}17 casino properties in Seoul, Incheon, Gangwon and Pyeongchang, Daegu, Busan, and Jeju{% else %}서울, 인천, 강원 평창, 대구, 부산, 제주에 있는 17개 카지노 사업장{% endif %}">
         <img src="{{ url_for('static', filename='img/kr.svg') }}?v=20260730-2" alt="" aria-hidden="true">
         {% for marker in casino_industry.markers %}
-        <a class="casino-map-marker{% if marker.selected %} is-selected{% endif %}" style="left:{{ marker.x }}%;top:{{ marker.y }}%" href="{{ url_for('casino_industry_page', region=marker.region) }}" aria-label="{% if current_locale == 'en' %}{{ region_label(marker.region) }}: {{ marker.count }} casino {{ 'property' if marker.count == 1 else 'properties' }}{% else %}{{ marker.region }} {{ marker.count }}개 사업장{% endif %}">
+        <a class="casino-map-marker{% if marker.region == '인천' %} is-incheon{% endif %}{% if marker.selected %} is-selected{% endif %}" style="left:{{ marker.x }}%;top:{{ marker.y }}%" href="{{ url_for('casino_industry_page', region=marker.region) }}" aria-label="{% if current_locale == 'en' %}{{ region_label(marker.region) }}: {{ marker.count }} casino {{ 'property' if marker.count == 1 else 'properties' }}{% else %}{{ marker.region }} {{ marker.count }}개 사업장{% endif %}">
           <i></i><span><b>{{ region_label(marker.region) }}</b><small>{% if current_locale == 'en' %}{{ marker.count }} {{ 'property' if marker.count == 1 else 'properties' }} · KRW {{ "{:,.0f}".format(marker.revenue) }} million{% else %}{{ marker.count }}개 · {{ "{:,.0f}".format(marker.revenue) }}백만{% endif %}</small></span>
         </a>
         {% endfor %}

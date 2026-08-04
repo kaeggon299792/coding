@@ -34,6 +34,7 @@ def test_casino_industry_region_filter():
 def test_casino_industry_page_is_public(client):
     response = client.get("/market/casino-industry")
     assert response.status_code == 200
+    assert b"casino-map-marker is-incheon" in response.data
     assert "국내 카지노 산업".encode() in response.data
     assert "파라다이스카지노 워커힐점".encode() in response.data
     assert "2,263,762".encode() in response.data
