@@ -33,7 +33,7 @@ DEFAULT_COMPANIES = [
     {
         "name": "인스파이어",
         "aliases": ["인스파이어", "인스파이어 리조트", "인스파이어인티그레이티드리조트"],
-        "dart_corp_code": None,
+        "dart_corp_code": "01144125",
     },
     {
         "name": "파라다이스세가사미",
@@ -163,7 +163,10 @@ def _company_profiles(connection):
         profiles.append(_with_company_slug({
             "name": default["name"],
             "aliases": list(dict.fromkeys(aliases)),
-            "dart_corp_code": (row or {}).get("dart_corp_code"),
+            "dart_corp_code": (
+                row.get("dart_corp_code") if row and row.get("dart_corp_code")
+                else default.get("dart_corp_code")
+            ),
         }))
     known = {profile["name"].casefold() for profile in profiles}
     for row in registered:

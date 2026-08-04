@@ -36,6 +36,16 @@ def test_registered_company_dart_code_enriches_default(db_connection, monkeypatc
     assert "세븐럭카지노" in gkl["aliases"]
 
 
+def test_inspire_uses_verified_dart_corp_code_without_database_override(db_connection):
+    profile = next(
+        item
+        for item in company_intelligence.list_company_options(db_connection)
+        if item["dart_corp_code"] == "01144125"
+    )
+
+    assert profile["dart_corp_code"] == "01144125"
+
+
 def test_company_research_is_included_and_financials_are_formatted(db_connection, monkeypatch):
     queries.upsert_company_research(
         db_connection,
