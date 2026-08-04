@@ -47,7 +47,7 @@
         <h3>{{ label }}</h3>
         <svg viewBox="0 0 800 250" role="img" aria-label="{{ label }} 선그래프">
           {% for x in [24,212,400,588,776] %}<line x1="{{ x }}" y1="24" x2="{{ x }}" y2="220" class="casino-ms-gridline"/>{% endfor %}
-          {% for item in market_share.trend %}<polyline class="casino-ms-line line-{{ loop.index }}" points="{{ item[metric ~ '_polyline'] }}"/>{% endfor %}
+          {% for item in market_share.trend %}<polyline class="casino-ms-line line-{{ loop.index }}" fill="none" vector-effect="non-scaling-stroke" points="{{ item[metric ~ '_polyline'] }}"/>{% endfor %}
           {% for year in market_share.trend_years %}<text x="{{ 24 + loop.index0 * 188 }}" y="244" text-anchor="middle">{{ year }}</text>{% endfor %}
         </svg>
         <div class="casino-ms-legend">{% for item in market_share.trend %}<span class="legend-{{ loop.index }}">{{ item.name }}</span>{% endfor %}</div>
