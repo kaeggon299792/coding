@@ -463,15 +463,17 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
                                    csrf_token="a" * 64)
         response = client.get("/admin/localization")
         assert response.status_code == 200
-        assert "Localization Management" in response.get_data(as_text=True)
-        assert "AI 번역 프롬프트 생성" in response.get_data(as_text=True)
-        assert '<option value="all" selected>전체 언어 한 번에</option>' in response.get_data(as_text=True)
-        assert "<option selected>Pending</option>" in response.get_data(as_text=True)
-        assert 'name="string_ids"' in response.get_data(as_text=True)
-        assert 'name="string_ids" value=' in response.get_data(as_text=True)
-        assert ' checked> AI 번역 대상 선택' in response.get_data(as_text=True)
-        assert '<details class="localization-results">' in response.get_data(as_text=True)
-        assert '<details class="panel localization-item">' in response.get_data(as_text=True)
+        page_html = response.get_data(as_text=True)
+        assert "Localization Management" in page_html
+        assert '<option value="ja" selected' in page_html
+        assert "AI 번역 프롬프트 생성" in page_html
+        assert '<option value="all" selected>전체 언어 한 번에</option>' in page_html
+        assert "<option selected>Pending</option>" in page_html
+        assert 'name="string_ids"' in page_html
+        assert 'name="string_ids" value=' in page_html
+        assert ' checked> AI 번역 대상 선택' in page_html
+        assert '<details class="localization-results">' in page_html
+        assert '<details class="panel localization-item">' in page_html
         all_statuses = client.get("/admin/localization?status=")
         assert all_statuses.status_code == 200
         status_filter = all_statuses.get_data(as_text=True).split(

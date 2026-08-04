@@ -1473,7 +1473,9 @@ def admin_tasks():
 @admin_required
 def localization_dashboard():
     page_size = 500
-    language_code = (request.args.get("language") or "en").strip()
+    configured_languages = localization_auto_translation.configured_languages()
+    default_language = configured_languages[0] if configured_languages else "en"
+    language_code = (request.args.get("language") or default_language).strip()
     query = (request.args.get("q") or "").strip()
     status = (
         (request.args.get("status") or "").strip()
