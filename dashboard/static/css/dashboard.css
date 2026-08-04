@@ -2488,6 +2488,39 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 
 /* Immediate localization API action */
 .news-stat-grid .is-alert strong{color:var(--brand-danger)}
+.impact-badge.is-negative,
+.company-news-kpis .is-negative strong,
+.market-fetch-warning b,
+.community-delete-button:hover,
+.image-paste-status.is-error,
+.task-error dd,
+.task-status-grid>.task-error dd,
+.task-failure b,
+.localization-alert:before{color:var(--brand-danger)}
+.global-market-card.has-fetch-error,
+.market-fetch-warning{border-color:color-mix(in srgb,var(--brand-danger) 45%,transparent)}
+.market-fetch-warning,
+.task-failure{background:color-mix(in srgb,var(--brand-danger) 6%,var(--brand-surface))}
+.localization-global-alert{border-left-color:var(--brand-danger)}
+.localization-global-alert:before{background:var(--brand-danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-danger) 13%,transparent)}
+.industry-impact.impact-긍정,
+.market-change.is-up,
+.market-sparkline.is-up,
+.economic-change.is-up,
+.economic-chart.is-up,
+.performance-change.is-negative,
+.performance-bar-label strong.is-negative,
+.tourism-rate.is-negative,
+.tourism-country-card footer strong.is-negative,
+.walkerhill-latest.is-negative strong,
+.walkerhill-trend-stats strong.is-negative,
+.casino-history-kpis .is-up,
+.casino-history-table .is-up{color:var(--brand-danger)}
+.performance-change.is-negative,
+.walkerhill-latest.is-negative{background:color-mix(in srgb,var(--brand-danger) 8%,transparent)}
+.walkerhill-latest.is-negative{border-color:var(--brand-danger)}
+.localization-alert{border-color:color-mix(in srgb,var(--brand-danger) 48%,transparent);background:linear-gradient(90deg,color-mix(in srgb,var(--brand-danger) 12%,transparent),color-mix(in srgb,var(--brand-danger) 3.5%,transparent))}
+.localization-alert:before{border-color:color-mix(in srgb,var(--brand-danger) 55%,transparent)}
 .localization-api-run{display:flex;align-items:center;gap:8px}.localization-api-run select{min-height:40px;padding:8px 10px;border:1px solid var(--brand-border-strong);background:var(--brand-bg);color:var(--brand-text-primary)}
 @media(max-width:560px){.localization-api-run,.localization-api-run select,.localization-api-run .btn{width:100%}}
 
