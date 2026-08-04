@@ -76,6 +76,15 @@ def test_number_validation_allows_translated_units_but_not_changed_values():
     assert auto._validation_error("방문객 100명", "訪問客 101人", "ja") == "number or date mismatch"
 
 
+def test_validation_accepts_numbers_next_to_translated_unit_characters():
+    assert auto._validation_error(
+        "예: 복지카드 연 120만원",
+        "例：福利カード 年120万ウォン",
+        "ja",
+    ) is None
+    assert auto._validation_error("최근 14일", "最近14日", "ja") is None
+
+
 def test_manual_translation_runs_all_pending_rows_in_batches(
     db_connection, monkeypatch
 ):

@@ -30,7 +30,7 @@ TARGETS = {
 }
 
 URL_RE = re.compile(r"https?://[^\s<>'\"]+")
-NUMBER_RE = re.compile(r"(?<![\w])[-+]?\d[\d,.]*%?")
+NUMBER_RE = re.compile(r"[-+]?\d[\d,.]*%?")
 TARGET_SCRIPT_RE = {
     "ja": re.compile(r"[ぁ-ゖァ-ヺ一-龯]"),
     "yue-HK": re.compile(r"[一-龯]"),
