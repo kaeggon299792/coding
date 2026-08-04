@@ -10,7 +10,7 @@
     <header class="community-detail-header">
       <p class="page-eyebrow">{{ 'COMMUNITY / NOTICE' if post.board_type == 'notice' else 'COMMUNITY / POST' }} #{{ post.id }}</p>
       <h1>{{ post.title }}</h1>
-      <div class="community-post-meta"><strong>{{ post.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:16]|replace('T', ' ') }}</time></div>
+      <div class="community-post-meta"><strong>{{ post.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:16]|replace('T', ' ') }}</time><span>조회 {{ post.view_count or 0 }}</span></div>
     </header>
     <div class="community-post-content community-markdown">{{ post_html }}</div>
     {% if post.image_url or post.pdf_url %}
@@ -29,7 +29,8 @@
       <a class="btn community-recommend-button" href="{{ url_for('auth.login', next=request.path) }}">↑ 추천 <strong>{{ post.recommendation_count }}</strong></a>
       {% endif %}
       <button class="btn community-share-button" type="button" data-community-share data-share-title="{{ post.title }}">공유</button>
-      {% if current_user_role == 'admin' or (current_user and current_user.id == post.author_id) %}
+      {% if current_user_role == 'admin' or (post.board_type == 'community' and current_user and current_user.id == post.author_id) %}
+      <a class="btn community-share-button" href="{{ url_for('edit_community_post_route', post_id=post.id) }}">수정</a>
       <form class="community-post-delete-form" method="post" action="{{ url_for('delete_community_post_route', post_id=post.id) }}" onsubmit="return confirm('게시글을 삭제할까요? 삭제 후 목록에서 보이지 않습니다.');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="btn community-post-delete-button" type="submit">삭제</button>

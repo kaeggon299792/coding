@@ -38,13 +38,14 @@
     </div>
     {% if items %}
     <div class="table-scroll"><table class="data-table bug-board-table">
-      <thead><tr><th>번호</th><th>유형</th><th>제목</th><th>중요도</th><th>작성자</th><th>담당</th><th>상태</th><th>등록일</th></tr></thead>
+      <thead><tr><th>번호</th><th>유형</th><th>제목</th><th>중요도</th><th>작성자</th><th>조회</th><th>담당</th><th>상태</th><th>등록일</th></tr></thead>
       <tbody>{% for item in items %}<tr>
         <td>{{ item.id }}</td>
         <td><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span></td>
         <td><a class="bug-board-title" href="{{ url_for('action_item_detail', item_id=item.id) }}">{{ item.title }}</a>{% if item.bug_page %}<small>{{ item.bug_page }}</small>{% endif %}</td>
         <td><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span></td>
         <td>{{ item.reported_by or ('AI/기존 기록' if item.ai_suggested else '-') }}</td>
+        <td>{{ item.view_count or 0 }}</td>
         <td>{{ item.owner or '-' }}</td>
         <td>{{ item.status }}</td>
         <td>{{ item.created_at|replace('T',' ')|truncate(17, true, '') }}</td>

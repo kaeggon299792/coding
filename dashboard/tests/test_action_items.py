@@ -38,6 +38,21 @@ def test_update_and_delete_action_item(db_connection):
     assert queries.get_action_item(db_connection, item_id) is None
 
 
+def test_action_item_view_count_is_unique_per_viewer(db_connection):
+    item_id = queries.create_action_item(db_connection, title="조회수 테스트")
+
+    assert queries.record_unique_action_item_view(
+        db_connection, item_id, "viewer-a"
+    ) is True
+    assert queries.record_unique_action_item_view(
+        db_connection, item_id, "viewer-a"
+    ) is False
+    assert queries.record_unique_action_item_view(
+        db_connection, item_id, "viewer-b"
+    ) is True
+    assert queries.get_action_item(db_connection, item_id)["view_count"] == 2
+
+
 def test_count_action_items_excludes_completed(db_connection):
     queries.create_action_item(db_connection, title="진행 중 과제")
     done_id = queries.create_action_item(db_connection, title="완료된 과제")

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} 수정{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container community-page">
+  <header class="page-header community-hero">
+    <div>
+      <p class="page-eyebrow">{{ 'COMMUNITY / NOTICE EDIT' if post.board_type == 'notice' else 'COMMUNITY / POST EDIT' }}</p>
+      <h1 class="page-title">{{ '공지사항 수정' if post.board_type == 'notice' else '게시글 수정' }}</h1>
+      <p class="page-description">작성한 제목·내용·첨부 링크를 수정합니다.</p>
+    </div>
+  </header>
+  {% if error %}<div class="flash error community-flash" role="alert">{{ error }}</div>{% endif %}
+  <section class="panel community-compose-panel">
+    <form class="community-compose-form" method="post" action="{{ url_for('edit_community_post_route', post_id=post.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="community-field"><span>제목 <em>필수</em></span><input type="text" name="title" maxlength="150" value="{{ form_data.title }}" required></label>
+      <label class="community-field">
+        <span>내용 <em>필수</em></span>
+        <textarea id="community-post-edit-content" name="content" maxlength="5000" rows="12" required data-image-paste data-image-paste-scope="{{ 'notice' if post.board_type == 'notice' else 'community' }}" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ csrf_token }}">{{ form_data.content }}</textarea>
+        <small>Markdown·이미지 붙여넣기·링크를 지원합니다.</small>
+        <small class="image-paste-status" data-image-paste-status="community-post-edit-content" role="status" aria-live="polite"></small>
+      </label>
+      <div class="community-attachment-fields">
+        <label class="community-field"><span>이미지 링크</span><input type="url" name="image_url" maxlength="2048" value="{{ form_data.image_url }}" placeholder="https://example.com/image.png"></label>
+        <label class="community-field"><span>PDF 링크</span><input type="url" name="pdf_url" maxlength="2048" value="{{ form_data.pdf_url }}" placeholder="https://example.com/document.pdf"></label>
+      </div>
+      {% if current_user_role == 'admin' and post.board_type == 'community' %}<label class="community-notice-check"><input type="checkbox" name="is_pinned" value="1"{% if form_data.is_pinned %} checked{% endif %}><span><b>자유게시판 상단 고정</b></span></label>{% endif %}
+      <div class="community-form-footer">
+        <a class="btn" href="{{ url_for('community_post_page', post_id=post.id) }}">취소</a>
+        <button class="btn btn-primary" type="submit">수정 저장</button>
+      </div>
+    </form>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/community-board.js') }}?v=20260803-1" defer></script>{% endblock %}

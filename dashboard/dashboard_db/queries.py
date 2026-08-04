@@ -446,6 +446,65 @@ def get_community_post(connection, post_id, user_id=None):
     return dict(row) if row else None
 
 
+def record_unique_action_item_view(connection, item_id, viewer_hash):
+    cursor = connection.execute(
+        """INSERT OR IGNORE INTO action_item_views(action_item_id,viewer_hash,created_at)
+           SELECT id,?,? FROM action_items WHERE id=?""",
+        (str(viewer_hash)[:64], now_kst().isoformat(timespec="seconds"), item_id),
+    )
+    if cursor.rowcount:
+        connection.execute(
+            "UPDATE action_items SET view_count=view_count+1 WHERE id=?", (item_id,)
+        )
+        connection.commit()
+        return True
+    return False
+
+
+def update_community_post(
+    connection, post_id, title, content, image_url=None, pdf_url=None,
+    is_pinned=None,
+):
+    title = (title or "").strip()
+    content = (content or "").strip()
+    if not title or len(title) > 150:
+        raise ValueError("제목은 1~150자로 입력해주세요.")
+    if not content or len(content) > 5000:
+        raise ValueError("내용은 1~5,000자로 입력해주세요.")
+    post = get_community_post(connection, post_id)
+    if not post:
+        raise ValueError("게시글을 찾을 수 없습니다.")
+    pinned = post["is_pinned"]
+    if is_pinned is not None and post["board_type"] == "community":
+        pinned = 1 if is_pinned else 0
+    connection.execute(
+        """UPDATE community_posts
+           SET title=?,content=?,image_url=?,pdf_url=?,is_pinned=?,updated_at=?
+           WHERE id=? AND is_deleted=0""",
+        (
+            title, content, image_url or None, pdf_url or None, pinned,
+            now_kst().isoformat(timespec="seconds"), post_id,
+        ),
+    )
+    connection.commit()
+
+
+def record_unique_community_post_view(connection, post_id, viewer_hash):
+    cursor = connection.execute(
+        """INSERT OR IGNORE INTO community_post_views(post_id,viewer_hash,created_at)
+           SELECT id,?,? FROM community_posts WHERE id=? AND is_deleted=0""",
+        (str(viewer_hash)[:64], now_kst().isoformat(timespec="seconds"), post_id),
+    )
+    if cursor.rowcount:
+        connection.execute(
+            "UPDATE community_posts SET view_count=view_count+1 WHERE id=?",
+            (post_id,),
+        )
+        connection.commit()
+        return True
+    return False
+
+
 def toggle_community_post_recommendation(connection, post_id, user_id):
     if not get_community_post(connection, post_id):
         raise ValueError("게시글을 찾을 수 없습니다.")

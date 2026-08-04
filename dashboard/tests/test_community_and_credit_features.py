@@ -87,6 +87,17 @@ def test_board_types_and_recommendation_toggle(db_connection):
     assert queries.toggle_community_post_recommendation(
         db_connection, community_id, user_id
     ) == (False, 0)
+    assert queries.record_unique_community_post_view(
+        db_connection, community_id, "viewer-a"
+    ) is True
+    assert queries.record_unique_community_post_view(
+        db_connection, community_id, "viewer-a"
+    ) is False
+    assert queries.get_community_post(db_connection, community_id)["view_count"] == 1
+    queries.update_community_post(
+        db_connection, community_id, "수정된 제목", "수정된 본문"
+    )
+    assert queries.get_community_post(db_connection, community_id)["title"] == "수정된 제목"
 
     queries.soft_delete_community_post(db_connection, community_id, user_id)
     assert queries.get_community_post(db_connection, community_id) is None
@@ -133,6 +144,15 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
         owner_post_id = int(created.headers["Location"].rstrip("/").split("/")[-1])
         owner_page = client.get(f"/board/{owner_post_id}")
         assert "community-post-delete-button" in owner_page.get_data(as_text=True)
+        assert f'/board/{owner_post_id}/edit' in owner_page.get_data(as_text=True)
+        edited = client.post(
+            f"/board/{owner_post_id}/edit",
+            data={
+                "csrf_token": "c" * 64, "title": "수정된 자유 글",
+                "content": "수정된 본문",
+            },
+        )
+        assert edited.status_code == 302
         assert client.post(
             f"/board/{owner_post_id}/pin",
             data={"csrf_token": "c" * 64, "is_pinned": "1"},
@@ -168,6 +188,14 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
         )
         assert notice.status_code == 302
         notice_id = int(notice.headers["Location"].rstrip("/").split("/")[-1])
+        notice_edited = client.post(
+            f"/board/{notice_id}/edit",
+            data={
+                "csrf_token": "a" * 64, "title": "수정된 공지",
+                "content": "수정된 공지 본문",
+            },
+        )
+        assert notice_edited.status_code == 302
         assert client.post(
             f"/board/{notice_id}/pin",
             data={"csrf_token": "a" * 64, "is_pinned": "1"},
@@ -177,7 +205,7 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
         assert "자유게시판 고정글" in board_html
         assert "PINNED" in board_html
         assert "공지사항 전용 글" not in board_html
-        assert "공지사항 전용 글" in notice_html
+        assert "수정된 공지" in notice_html
         assert "자유게시판 고정글" not in notice_html
 
         unpinned = client.post(

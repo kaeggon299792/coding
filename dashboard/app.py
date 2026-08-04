@@ -2302,6 +2302,10 @@ def action_item_detail(item_id):
             abort(404)
         if not can_access_bug_report(item):
             abort(403)
+        queries.record_unique_action_item_view(
+            connection, item_id, _community_viewer_hash()
+        )
+        item = queries.get_action_item(connection, item_id)
         comments = queries.list_action_item_comments(connection, item_id)
         return render_template(
             "action_item_detail.html",
@@ -4179,6 +4183,18 @@ def _render_community_markdown(value):
     return Markup(cleaned)
 
 
+def _community_viewer_hash():
+    if session.get("user_id"):
+        identity = f"user:{session['user_id']}"
+    else:
+        identity = (
+            f"anonymous:{request.remote_addr or ''}:"
+            f"{(request.headers.get('User-Agent') or '')[:500]}"
+        )
+    secret = str(app.secret_key or config.FLASK_SECRET_KEY).encode("utf-8")
+    return hmac.new(secret, identity.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
 @app.post("/editor/images")
 @login_required
 def upload_editor_image_route():
@@ -4383,6 +4399,12 @@ def community_post_page(post_id):
         )
         if not post:
             abort(404)
+        queries.record_unique_community_post_view(
+            connection, post_id, _community_viewer_hash()
+        )
+        post = queries.get_community_post(
+            connection, post_id, user_id=session.get("user_id")
+        )
         return render_template(
             "community_post.html",
             post=post,
@@ -4392,6 +4414,69 @@ def community_post_page(post_id):
             comment_error=None,
             comment_content="",
         )
+    finally:
+        connection.close()
+
+
+@app.route("/board/<int:post_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_community_post_route(post_id):
+    connection = dashboard_db()
+    try:
+        post = queries.get_community_post(connection, post_id)
+        if not post:
+            abort(404)
+        is_admin = session.get("role") == "admin"
+        is_owner = int(post["author_id"]) == int(session["user_id"])
+        if (post["board_type"] == "notice" and not is_admin) or (
+            post["board_type"] == "community" and not (is_admin or is_owner)
+        ):
+            abort(403)
+        form_data = {
+            "title": post["title"], "content": post["content"],
+            "image_url": post.get("image_url") or "",
+            "pdf_url": post.get("pdf_url") or "",
+            "is_pinned": bool(post.get("is_pinned")),
+        }
+        error = None
+        status = 200
+        if request.method == "POST":
+            form_data = {
+                "title": (request.form.get("title") or "").strip(),
+                "content": (request.form.get("content") or "").strip(),
+                "image_url": (request.form.get("image_url") or "").strip(),
+                "pdf_url": (request.form.get("pdf_url") or "").strip(),
+                "is_pinned": request.form.get("is_pinned") == "1",
+            }
+            if not validate_csrf(request.form.get("csrf_token", "")):
+                error = "요청이 만료되었습니다. 다시 시도해주세요."
+                status = 400
+            else:
+                try:
+                    image_url = _community_attachment_url(form_data["image_url"], "image")
+                    pdf_url = _community_attachment_url(form_data["pdf_url"], "pdf")
+                    queries.update_community_post(
+                        connection, post_id, form_data["title"], form_data["content"],
+                        image_url=image_url, pdf_url=pdf_url,
+                        is_pinned=(form_data["is_pinned"] if is_admin else None),
+                    )
+                except ValueError as exc:
+                    error = str(exc)
+                    status = 400
+                else:
+                    security_audit.log_event(
+                        connection,
+                        "NOTICE_POST_UPDATE" if post["board_type"] == "notice"
+                        else "COMMUNITY_POST_UPDATE",
+                        "community_post", post_id,
+                        {"board_type": post["board_type"], "owner_edit": is_owner},
+                    )
+                    connection.commit()
+                    return redirect(url_for("community_post_page", post_id=post_id))
+        return render_template(
+            "community_post_edit.html", post=post, form_data=form_data,
+            error=error, csrf_token=get_csrf_token(),
+        ), status
     finally:
         connection.close()
 

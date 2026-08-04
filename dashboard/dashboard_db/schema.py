@@ -425,6 +425,7 @@ def migrate(connection):
     _ensure_column(connection, "action_items", "bug_page", "TEXT")
     _ensure_column(connection, "action_items", "environment", "TEXT")
     _ensure_column(connection, "action_items", "feedback_type", "TEXT NOT NULL DEFAULT '일반 의견'")
+    _ensure_column(connection, "action_items", "view_count", "INTEGER NOT NULL DEFAULT 0")
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_action_items_report_rate "
         "ON action_items(source_type, reported_by, created_at DESC)"
@@ -447,6 +448,14 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_action_item_comments_item "
         "ON action_item_comments(action_item_id, is_deleted, created_at)"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS action_item_views (
+               action_item_id INTEGER NOT NULL REFERENCES action_items(id) ON DELETE CASCADE,
+               viewer_hash TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               PRIMARY KEY (action_item_id, viewer_hash)
+           )"""
     )
 
     # ---- community_posts ----
@@ -488,6 +497,10 @@ def migrate(connection):
     _ensure_column(
         connection, "community_posts", "board_type",
         "TEXT NOT NULL DEFAULT 'community'",
+    )
+    _ensure_column(
+        connection, "community_posts", "view_count",
+        "INTEGER NOT NULL DEFAULT 0",
     )
     connection.execute(
         "UPDATE community_posts SET board_type='community' "
@@ -548,6 +561,14 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_recommendations_user "
         "ON community_post_recommendations(user_id, created_at DESC)"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS community_post_views (
+               post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+               viewer_hash TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               PRIMARY KEY (post_id, viewer_hash)
+           )"""
     )
 
     # ---- executive_insights ----
