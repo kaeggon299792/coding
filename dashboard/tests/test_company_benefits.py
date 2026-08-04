@@ -125,3 +125,12 @@ def test_company_benefits_navigation_and_template_contract():
     assert 'html[data-sticky-nav="true"] .data-subnav' in css
     assert 'casino-in-sticky-nav' in base
     app_module.app.jinja_env.get_template("company_benefits.html")
+
+
+def test_sticky_navigation_is_not_limited_to_one_viewport():
+    root = Path(__file__).parents[1]
+    css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+
+    assert "html { height: 100%; }" in css
+    assert "body { min-height: 100%; }" in css
+    assert "html, body { height: 100%; }" not in css
