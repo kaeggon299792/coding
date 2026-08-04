@@ -125,12 +125,13 @@ def test_kangwonland_credit_history_keeps_all_data_but_displays_five_years(tmp_p
     connection.close()
 
 
-def test_company_rating_badge_matches_company_title_size():
+def test_company_rating_badge_is_prominent_and_responsive():
     css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
         encoding="utf-8"
     )
     rule = css.split(".company-rating-badge strong {", 1)[1].split("}", 1)[0]
-    assert "font-size: var(--text-xl);" in rule
+    assert "font-size: clamp(28px, 2.2vw, 32px);" in rule
+    assert "font-weight: 800;" in rule
 
 
 def test_company_executive_profiles_support_single_and_joint_representatives(tmp_path):

@@ -821,8 +821,10 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .company-rating-badge strong {
   color: var(--brand-accent);
   font-family: var(--font-display);
-  font-size: var(--text-xl);
-  line-height: 1.1;
+  font-size: clamp(28px, 2.2vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 .company-rating-badge small {
   margin-left: 2px;
