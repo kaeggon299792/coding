@@ -9,7 +9,7 @@
     <div><p class="page-eyebrow">DATA / CASINO INDUSTRY / MARKET SHARE</p><h1 class="page-title">산업 M/S</h1><p class="page-description">카지노 운영 법인의 매출액과 영업이익을 시장 구간별로 비교합니다.</p></div>
     <form method="get" class="casino-ms-year" aria-label="기준 연도 선택">
       <label for="market-share-year">기준 연도</label>
-      <select id="market-share-year" name="year">
+      <select id="market-share-year" name="year" onchange="this.form.submit()">
         {% for year in market_share.years %}<option value="{{ year }}"{% if year == market_share.selected_year %} selected{% endif %}>{{ year }}년</option>{% endfor %}
       </select>
       <label class="casino-ms-toggle"><input type="checkbox" name="exclude_kangwon" value="1"{% if market_share.exclude_kangwon %} checked{% endif %}> 강원랜드 제외</label>

@@ -45,6 +45,7 @@ def test_casino_market_share_page_is_public(client):
     assert response.status_code == 200
     assert b"casino-ms-page" in response.data
     assert b'<option value="2024" selected>' in response.data
+    assert b'onchange="this.form.submit()"' in response.data
     assert b"20260805-market-share2" in response.data
 
     excluded = client.get(
