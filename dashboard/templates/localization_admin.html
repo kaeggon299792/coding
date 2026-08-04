@@ -4,14 +4,19 @@
 {% include "_topbar.html" %}
 <main class="page-container localization-admin">
   <header class="page-header localization-heading">
-    <div><p class="page-eyebrow">ADMINISTRATION / LOCALIZATION</p><h1 class="page-title">Localization Management</h1><p class="page-description">사용자 노출 문자열의 번역 상태와 참조 위치를 중앙에서 관리합니다. 외부 번역 API는 호출하지 않습니다.</p></div>
+    <div><p class="page-eyebrow">ADMINISTRATION / LOCALIZATION</p><h1 class="page-title">Localization Management</h1><p class="page-description">사용자 노출 문자열의 번역 상태와 참조 위치를 관리하고, 일본어·광둥어 미번역 항목을 API로 즉시 번역합니다.</p></div>
     <div class="localization-actions">
+      <form class="localization-api-run" method="post" action="{{ url_for('auth.localization_api_translate') }}" data-api-translation-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <select name="language_code" aria-label="API 번역 대상 언어" required>{% for language in api_translation_languages %}<option value="{{ language.language_code }}"{% if language.language_code == language_code %} selected{% endif %}>{{ language.display_name }}</option>{% endfor %}</select>
+        <button class="btn btn-primary" type="submit"{% if not api_translation_languages %} disabled{% endif %}>API 번역 시작하기</button>
+      </form>
       <form method="post" action="{{ url_for('auth.localization_scan') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">Translation Scan</button></form>
       <a class="btn" href="{{ url_for('auth.localization_qa', language=language_code) }}">Localization QA</a>
     </div>
   </header>
   {% if summary.pending %}<div class="localization-alert" role="status">🔴 번역이 필요한 항목이 {{ summary.pending }}건 있습니다.</div>{% endif %}
-  {% if scan_result or import_result or request.args.get('saved') %}<div class="localization-notice">{{ scan_result or import_result or '번역을 저장했습니다.' }}</div>{% endif %}
+  {% if scan_result or import_result or request.args.get('api_result') or request.args.get('saved') %}<div class="localization-notice">{{ scan_result or import_result or request.args.get('api_result') or '번역을 저장했습니다.' }}</div>{% endif %}
   {% if request.args.get('error') %}<div class="localization-alert">{{ request.args.get('error') }}</div>{% endif %}
   <section class="localization-stats">
     <article><span>Pending</span><strong>{{ summary.pending }}</strong></article>
@@ -77,6 +82,6 @@ KOREAN
   <section class="panel localization-glossary"><header><div><h2>프로젝트 공통 용어집</h2><p>활성 용어는 AI 번역 프롬프트에 자동 포함됩니다.</p></div></header><form class="localization-glossary-add" method="post" action="{{ url_for('auth.localization_glossary_save') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><input name="source_text" maxlength="300" placeholder="한국어 용어" required><input name="target_text" maxlength="500" placeholder="{{ language_code }} 번역" required><button class="btn btn-primary" type="submit">용어 추가</button></form><div class="localization-glossary-list">{% for term in glossary %}<form method="post" action="{{ url_for('auth.localization_glossary_save') }}" class="{% if not term.is_active %}is-inactive{% endif %}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}"><input type="hidden" name="glossary_id" value="{{ term.id }}"><input name="source_text" value="{{ term.source_text }}" maxlength="300" required><input name="target_text" value="{{ term.target_text }}" maxlength="500" required><button class="btn" type="submit">저장</button>{% if term.is_active %}<button class="btn danger-button" type="submit" formaction="{{ url_for('auth.localization_glossary_delete', glossary_id=term.id) }}">비활성</button>{% else %}<span>비활성</span>{% endif %}</form>{% else %}<p>등록된 용어가 없습니다.</p>{% endfor %}</div></section>
   <section class="panel localization-timeline"><h2>최근 24시간</h2><div class="localization-timeline-counts"><span>신규 Pending {{ summary.recent_counts.get('pending_created', 0) }}</span><span>번역 완료 {{ summary.recent_counts.get('translation_completed', 0) }}</span><span>상태 수정 {{ summary.recent_counts.get('status_changed', 0) }}</span><span>삭제 {{ summary.recent_counts.get('deleted', 0) }}</span></div>{% for event in summary.events %}<p><time>{{ event.created_at|replace('T',' ') }}</time> · {{ event.event_type }} · <code>{{ event.language_key or '-' }}</code></p>{% else %}<p>최근 변경사항이 없습니다.</p>{% endfor %}</section>
 </main>
-<script nonce="{{ csp_nonce }}">document.querySelectorAll('[data-copy-target]').forEach((button)=>button.addEventListener('click',async()=>{const target=document.getElementById(button.dataset.copyTarget);await navigator.clipboard.writeText(target.textContent);button.textContent='복사됨';}));const selectPending=document.querySelector('[data-select-pending]');if(selectPending)selectPending.addEventListener('click',()=>{document.querySelectorAll('input[name="string_ids"]').forEach((input)=>input.checked=true);});</script>
+<script nonce="{{ csp_nonce }}">document.querySelectorAll('[data-copy-target]').forEach((button)=>button.addEventListener('click',async()=>{const target=document.getElementById(button.dataset.copyTarget);await navigator.clipboard.writeText(target.textContent);button.textContent='복사됨';}));const selectPending=document.querySelector('[data-select-pending]');if(selectPending)selectPending.addEventListener('click',()=>{document.querySelectorAll('input[name="string_ids"]').forEach((input)=>input.checked=true);});const apiForm=document.querySelector('[data-api-translation-form]');apiForm?.addEventListener('submit',()=>{const button=apiForm.querySelector('button');button.disabled=true;button.textContent='API 번역 진행 중…';});</script>
 {% include "_footer.html" %}
 {% endblock %}

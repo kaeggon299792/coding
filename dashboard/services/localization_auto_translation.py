@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta
 
 import config
 from dashboard_db import queries
 from services import ai_insights, localization_management
+from utils import now_kst
 
 
 TARGETS = {
@@ -33,6 +35,12 @@ TARGET_SCRIPT_RE = {
     "ja": re.compile(r"[ぁ-ゖァ-ヺ一-龯]"),
     "yue-HK": re.compile(r"[一-龯]"),
 }
+RUN_TYPE = "localization_auto_translation"
+RUN_LOCK_TIMEOUT = timedelta(hours=2)
+
+
+class TranslationRunInProgress(RuntimeError):
+    pass
 
 TRANSLATION_SCHEMA = {
     "type": "object",
@@ -82,6 +90,21 @@ def pending_rows(connection, language_code, limit=None):
         (language_code, language_code, limit),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def pending_count(connection, language_code):
+    row = connection.execute(
+        """SELECT COUNT(*)
+           FROM localization_strings s
+           LEFT JOIN localization_translations t
+             ON t.string_id=s.id AND t.language_code=?
+           JOIN localization_languages l
+             ON l.language_code=? AND l.is_active=1 AND l.is_source=0
+           WHERE s.deleted_at IS NULL AND s.status<>'Ignored'
+             AND COALESCE(t.status,'Pending')<>'Completed'""",
+        (language_code, language_code),
+    ).fetchone()
+    return int(row[0])
 
 
 def _batches(rows):
@@ -164,7 +187,9 @@ def _validation_error(source, target, language_code):
     return None
 
 
-def translate_batch(connection, language_code, rows, call_openai=None):
+def translate_batch(
+    connection, language_code, rows, call_openai=None, actor_id=None
+):
     glossary = localization_management.list_glossary(
         connection, language_code, active_only=True
     )
@@ -194,13 +219,111 @@ def translate_batch(connection, language_code, rows, call_openai=None):
             string_id,
             language_code,
             translated_text,
-            actor_id=None,
+            actor_id=actor_id,
             status="Completed",
         )
         saved += 1
     rejected += len(expected) - len(seen)
     connection.commit()
     return {"saved": saved, "rejected": rejected, "error": None}
+
+
+def _claim_run(connection, source):
+    """Claim the shared scheduled/manual translation slot transactionally."""
+    now = now_kst()
+    connection.execute("BEGIN IMMEDIATE")
+    running = connection.execute(
+        """SELECT id, started_at FROM dashboard_analysis_runs
+           WHERE run_type=? AND status='running'
+           ORDER BY id DESC LIMIT 1""",
+        (RUN_TYPE,),
+    ).fetchone()
+    if running:
+        try:
+            started_at = datetime.fromisoformat(running["started_at"])
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=now.tzinfo)
+        except (TypeError, ValueError):
+            started_at = now - RUN_LOCK_TIMEOUT
+        if now - started_at < RUN_LOCK_TIMEOUT:
+            connection.rollback()
+            raise TranslationRunInProgress("이미 API 번역 작업이 실행 중입니다.")
+        connection.execute(
+            """UPDATE dashboard_analysis_runs
+               SET status='failed', finished_at=?, error_message=? WHERE id=?""",
+            (now.isoformat(), "stale translation lock released", running["id"]),
+        )
+    cursor = connection.execute(
+        """INSERT INTO dashboard_analysis_runs
+           (run_type, started_at, status, prompt_version)
+           VALUES (?, ?, 'running', ?)""",
+        (RUN_TYPE, now.isoformat(), source),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def _finish_run(connection, run_id, status, error=None):
+    connection.execute(
+        """UPDATE dashboard_analysis_runs
+           SET status=?, finished_at=?, error_message=? WHERE id=?""",
+        (status, now_kst().isoformat(), error, run_id),
+    )
+    connection.commit()
+
+
+def run_manual_batch(
+    connection, project_root, language_code, *, actor_id=None, call_openai=None
+):
+    """Scan and immediately translate one bounded batch for an admin request."""
+    if language_code not in configured_languages():
+        raise ValueError("자동 번역이 설정된 일본어 또는 광둥어를 선택해주세요.")
+    if not config.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다.")
+    if not config.OPENAI_TRANSLATION_MODEL:
+        raise RuntimeError("번역 API 모델이 설정되지 않았습니다.")
+    run_id = _claim_run(connection, f"manual:{language_code}")
+    try:
+        scan = localization_management.scan_project(connection, project_root)
+        limit = max(1, config.LOCALIZATION_TRANSLATION_BATCH_SIZE)
+        rows = pending_rows(connection, language_code, limit=limit)
+        result = {
+            "language_code": language_code,
+            "pending": len(rows),
+            "saved": 0,
+            "rejected": 0,
+            "remaining": 0,
+            "scan": scan,
+            "error": None,
+        }
+        if rows:
+            translated = translate_batch(
+                connection, language_code, rows, call_openai=call_openai,
+                actor_id=actor_id,
+            )
+            result.update(translated)
+        result["remaining"] = pending_count(connection, language_code)
+        status = "failed" if result["error"] else "success"
+        _finish_run(connection, run_id, status, result["error"])
+        return result
+    except Exception as error:
+        _finish_run(connection, run_id, "failed", str(error)[:500])
+        raise
+
+
+def run_tracked_daily(connection, project_root, *, call_openai=None):
+    """Run the scheduled full translation while sharing the manual-run lock."""
+    run_id = _claim_run(connection, "scheduled")
+    try:
+        summary = run_daily(
+            connection, project_root, scan=True, call_openai=call_openai
+        )
+        status = "failed" if summary.get("stopped_reason") else "success"
+        _finish_run(connection, run_id, status, summary.get("stopped_reason"))
+        return summary
+    except Exception as error:
+        _finish_run(connection, run_id, "failed", str(error)[:500])
+        raise
 
 
 def run_daily(connection, project_root, *, scan=True, call_openai=None):

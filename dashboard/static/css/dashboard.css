@@ -2485,6 +2485,13 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 .company-benefit-card>header span{font-size:11px}.company-benefit-card h3{font-size:24px;line-height:1.35}.benefit-active-badge,.benefit-ended-badge{font-size:10px;font-weight:700}.company-benefit-card dt{font-size:10px;letter-spacing:.06em}.company-benefit-card dd{font-size:14px;line-height:1.55}.company-benefit-card>footer{font-size:11px}.company-benefit-edit>summary{font-size:12px}
 @media(max-width:620px){.company-benefit-card h3{font-size:22px}.company-benefit-card dd{font-size:13px}}
 
+/* Immediate localization API action */
+.localization-api-run{display:flex;align-items:center;gap:8px}.localization-api-run select{min-height:40px;padding:8px 10px;border:1px solid var(--brand-border-strong);background:var(--brand-bg);color:var(--brand-text-primary)}
+@media(max-width:560px){.localization-api-run,.localization-api-run select,.localization-api-run .btn{width:100%}}
+
+/* Keep the home language dropdown above the following cinematic hero. */
+body.cinematic-home .topbar,body.cinematic-home .public-header{position:relative;z-index:60}
+
 /* Markdown clipboard image upload */
 .image-paste-status{min-height:1.2em;color:var(--brand-accent)}.image-paste-status.is-error{color:#e65d68}.community-markdown img{display:block;max-width:100%;height:auto;margin:18px 0;border:1px solid var(--brand-border)}
 

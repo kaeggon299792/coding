@@ -25,6 +25,10 @@ def test_mobile_navigation_and_company_filters_are_present():
     assert ".topbar-nav { display: flex" in css
     assert "overflow-x: auto" in css
     assert "white-space: nowrap" in css
+    assert (
+        "body.cinematic-home .topbar,body.cinematic-home .public-header"
+        "{position:relative;z-index:60}" in css
+    )
     assert 'class="company-news-filter"' in company_news
     for field in ("q", "company", "category", "importance", "analysis", "impact", "days"):
         assert f'name="{field}"' in company_news

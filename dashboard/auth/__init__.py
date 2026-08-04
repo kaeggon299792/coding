@@ -26,8 +26,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
-    gemini_usage, localization_management, security_audit, site_preferences,
-    task_registry, telegram_alert,
+    gemini_usage, localization_auto_translation, localization_management,
+    security_audit, site_preferences, task_registry, telegram_alert,
 )
 import config
 from utils import now_kst
@@ -1482,6 +1482,11 @@ def localization_dashboard():
         for item in rows:
             item["references"] = localization_management.references(connection, item["id"])
         glossary = localization_management.list_glossary(connection, language_code)
+        api_translation_languages = [
+            language for language in languages
+            if language["language_code"]
+            in localization_auto_translation.configured_languages()
+        ]
         return render_template(
             "localization_admin.html", summary=summary, items=rows, total=total,
             languages=languages, language_code=language_code, query=query,
@@ -1490,6 +1495,7 @@ def localization_dashboard():
             csrf_token=get_csrf_token(), scan_result=request.args.get("scan"),
             import_result=request.args.get("imported"),
             glossary=glossary,
+            api_translation_languages=api_translation_languages,
         )
     finally:
         connection.close()
@@ -1535,6 +1541,49 @@ def localization_scan():
     return redirect(url_for(
         "auth.localization_dashboard",
         scan=f"{result['files_scanned']}개 파일 · {result['strings_seen']}개 문자열 확인",
+    ))
+
+
+@auth_bp.post("/admin/localization/api-translate")
+@admin_required
+def localization_api_translate():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    language_code = (request.form.get("language_code") or "").strip()
+    connection = dashboard_db()
+    try:
+        try:
+            result = localization_auto_translation.run_manual_batch(
+                connection, Path(current_app.root_path), language_code,
+                actor_id=session.get("user_id"),
+            )
+        except (ValueError, RuntimeError) as error:
+            return redirect(url_for(
+                "auth.localization_dashboard", language=language_code,
+                error=str(error),
+            ))
+        security_audit.log_event(
+            connection, "LOCALIZATION_API_TRANSLATION", "localization",
+            language_code, detail={
+                "pending": result["pending"], "saved": result["saved"],
+                "rejected": result["rejected"], "remaining": result["remaining"],
+            }, success=not bool(result["error"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    if result["error"]:
+        return redirect(url_for(
+            "auth.localization_dashboard", language=language_code,
+            error=result["error"],
+        ))
+    message = (
+        f"API 번역 완료 · 대상 {result['pending']}건 · 저장 {result['saved']}건 · "
+        f"검증 제외 {result['rejected']}건 · 남은 항목 {result['remaining']}건"
+    )
+    return redirect(url_for(
+        "auth.localization_dashboard", language=language_code,
+        api_result=message,
     ))
 
 
