@@ -51,7 +51,6 @@ from services import (
     economic_data,
     editor_images,
     market_data,
-    localization_auto_translation,
     localization_management,
     news_reader,
     overseas_news,
@@ -1110,21 +1109,15 @@ def inject_globals():
                     localization_management.scan_if_due(
                         connection, Path(app.root_path), interval_minutes=60,
                     )
-                    pending_language = "en"
-                    if request.endpoint == "auth.localization_dashboard":
-                        configured_languages = localization_auto_translation.configured_languages()
-                        pending_language = (
-                            request.args.get("language")
-                            or (configured_languages[0] if configured_languages else "en")
-                        ).strip()
                     localization_pending_count = connection.execute(
                         """SELECT COUNT(*) FROM localization_strings s
+                           JOIN localization_languages l
+                             ON l.is_active=1 AND l.is_source=0
                            LEFT JOIN localization_translations t
-                             ON t.string_id=s.id AND t.language_code=?
+                             ON t.string_id=s.id AND t.language_code=l.language_code
                            WHERE s.deleted_at IS NULL
                              AND (CASE WHEN s.status='Ignored' THEN 'Ignored'
                                   ELSE COALESCE(t.status, 'Pending') END)='Pending'"""
-                        , (pending_language,)
                     ).fetchone()[0]
             elif app.testing and not row:
                 # A few legacy unit tests use a session-only fixture.  Never

@@ -51,5 +51,5 @@
   </div>
 </div>
 {% if current_user_role == 'admin' and localization_pending_count %}
-<a class="localization-global-alert" data-i18n-ignore href="{{ url_for('auth.localization_dashboard', status='Pending') }}" aria-label="번역이 필요한 항목 {{ localization_pending_count }}건">🔴 번역 필요 {{ localization_pending_count }}건</a>
+<a class="localization-global-alert" data-i18n-ignore href="{{ url_for('auth.localization_dashboard', status='Pending') }}" aria-label="전체 언어 번역이 필요한 항목 {{ localization_pending_count }}건">🔴 전체 번역 필요 {{ localization_pending_count }}건</a>
 {% endif %}
