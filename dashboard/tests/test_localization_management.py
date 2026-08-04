@@ -1,9 +1,17 @@
 import io
 import sqlite3
+import sys
+from pathlib import Path
 
 import pytest
 
 from services import localization_management as lms
+
+SCRIPTS_DIR = Path(__file__).parents[1] / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from import_localization_translations import FileUpload
 
 
 def connection():
@@ -113,6 +121,14 @@ def test_file_import_promotes_translated_pending_rows_and_skips_empty_rows():
     assert db.execute(
         "SELECT 1 FROM localization_translations WHERE string_id=?", (empty_id,)
     ).fetchone() is None
+
+
+def test_localization_import_file_upload_obeys_read_limit(tmp_path):
+    csv_path = tmp_path / "translations.csv"
+    csv_path.write_bytes(b"abcdef")
+    upload = FileUpload(csv_path)
+    assert upload.filename == "translations.csv"
+    assert upload.read(3) == b"abc"
 
 
 def test_xlsx_export_is_valid_workbook():
@@ -261,7 +277,7 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     assert upgraded.execute(
         "SELECT COUNT(*) FROM localization_glossary"
     ).fetchone()[0] == 8
-    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080404
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080406
     upgraded.close()
 
 

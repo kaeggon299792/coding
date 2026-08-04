@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "company_name": "GKL",
+      "profile_as_of": "2024-12-02",
+      "executive_name": "윤두현",
+      "title": "대표이사",
+      "appointed_on": "2024-12-02",
+      "workplace_address": "(06086) 서울 강남구 삼성로 610",
+      "birth_date": "1961-05-12",
+      "high_school": "심인고등학교",
+      "university": "경북대학교",
+      "major": "영어영문학",
+      "source_label": "사용자 제공 대표자 프로필"
+    },
+    {
+      "company_name": "롯데관광개발",
+      "profile_as_of": "2022-08-02",
+      "executive_name": "김기병",
+      "title": "각자대표이사회장",
+      "appointed_on": null,
+      "workplace_address": "(63082) 제주 제주시 노연로 12",
+      "birth_date": "1938-03-22",
+      "high_school": "경기고등학교",
+      "university": "한국외국어대학교",
+      "major": "영어과",
+      "source_label": "사용자 제공 대표자 프로필"
+    },
+    {
+      "company_name": "롯데관광개발",
+      "profile_as_of": "2022-08-02",
+      "executive_name": "백현",
+      "title": "각자대표이사사장",
+      "appointed_on": "2015-03-27",
+      "workplace_address": "(63082) 제주 제주시 노연로 12",
+      "birth_date": "1963-08-15",
+      "high_school": null,
+      "university": "인하대학교",
+      "major": "경영학",
+      "source_label": "사용자 제공 대표자 프로필"
+    },
+    {
+      "company_name": "롯데관광개발",
+      "profile_as_of": "2022-08-02",
+      "executive_name": "김한준",
+      "title": "각자대표이사사장",
+      "appointed_on": "2020-09-21",
+      "workplace_address": "(63082) 제주 제주시 노연로 12",
+      "birth_date": "1971-08-21",
+      "high_school": null,
+      "university": null,
+      "major": null,
+      "source_label": "사용자 제공 대표자 프로필"
+    }
+  ]
+}

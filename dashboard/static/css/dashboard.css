@@ -821,7 +821,8 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .company-rating-badge strong {
   color: var(--brand-accent);
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--text-xl);
+  line-height: 1.1;
 }
 .company-rating-badge small {
   margin-left: 2px;
@@ -1009,6 +1010,26 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .company-current-credit dl div { min-width: 0; }
 .company-current-credit dd { margin: 3px 0 0; }
+.company-executive-section { margin-top: var(--space-5); }
+.company-executive-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.company-executive-card {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: var(--brand-bg);
+}
+.company-executive-card header { margin-bottom: var(--space-4); }
+.company-executive-card h3 { margin: 0; font-size: var(--text-xl); }
+.company-executive-card header p {
+  margin: 4px 0 0;
+  color: var(--brand-text-muted);
+  font-size: var(--text-sm);
+}
 .company-credit-table-wrap {
   max-height: 520px;
   overflow: auto;
@@ -1415,7 +1436,8 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   .company-detail-grid { grid-template-columns: 1fr; }
   .company-key-matrix { grid-template-columns: 1fr; }
   .financial-sections-grid { grid-template-columns: 1fr; }
-  .company-detail-two-columns { grid-template-columns: 1fr; }
+  .company-detail-two-columns,
+  .company-executive-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {

@@ -310,6 +310,22 @@ def _build_company_financial_statements(connection, company_name, period_limit=5
     return statements
 
 
+def _latest_five_years(rows):
+    """Keep the latest rating year and the preceding four calendar years."""
+    if not rows:
+        return []
+    try:
+        latest_year = int(str(rows[0].get("evaluated_on") or "")[:4])
+    except (TypeError, ValueError):
+        return rows
+    earliest_year = latest_year - 4
+    return [
+        row for row in rows
+        if str(row.get("evaluated_on") or "")[:4].isdigit()
+        and int(str(row["evaluated_on"])[:4]) >= earliest_year
+    ]
+
+
 def build_company_detail_context(connection, company_name):
     profile = get_company_profile_by_slug(connection, company_name)
     if not profile:
@@ -397,6 +413,10 @@ def build_company_detail_context(connection, company_name):
         connection, profile["name"]
     )
     latest_credit_rating = credit_ratings[0] if credit_ratings else None
+    credit_ratings = _latest_five_years(credit_ratings)
+    executive_profiles = queries.list_latest_company_executive_profiles(
+        connection, profile["name"]
+    )
     credit_data = None
     if research:
         credit_data = research.get("credit")
@@ -414,6 +434,7 @@ def build_company_detail_context(connection, company_name):
         "credit_data": credit_data,
         "credit_rating": latest_credit_rating,
         "credit_ratings": credit_ratings,
+        "executive_profiles": executive_profiles,
     }
 
 

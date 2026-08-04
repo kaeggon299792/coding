@@ -1134,6 +1134,25 @@ def list_company_research(connection):
     return results
 
 
+def list_latest_company_executive_profiles(connection, company_name):
+    """Return every representative from the company's latest profile date."""
+    rows = connection.execute(
+        """
+        SELECT *
+        FROM company_executive_profiles
+        WHERE company_name = ?
+          AND profile_as_of = (
+              SELECT MAX(profile_as_of)
+              FROM company_executive_profiles
+              WHERE company_name = ?
+          )
+        ORDER BY id
+        """,
+        (company_name, company_name),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def list_latest_company_financial_reports(connection, company_name):
     """회사·제표별 가장 최근에 반영된 원본 보고서 메타데이터를 반환한다."""
 

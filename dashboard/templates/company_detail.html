@@ -71,6 +71,29 @@
     </section>
   </div>
 
+  {% if executive_profiles %}
+  <section class="panel company-executive-section">
+    <div class="company-financial-heading">
+      <div><p class="page-eyebrow">EXECUTIVE PROFILE</p><h2>{{ "Representative profiles" if current_locale == "en" else "대표자 프로파일" }}</h2></div>
+      <p class="item-meta">{{ "As of" if current_locale == "en" else "기준일자" }} {{ executive_profiles[0].profile_as_of }}</p>
+    </div>
+    <div class="company-executive-grid">
+      {% for executive in executive_profiles %}
+      <article class="company-executive-card">
+        <header><h3>{{ executive.executive_name }}</h3><p>{{ executive.title }}{% if executive.appointed_on %} · {{ "Appointed" if current_locale == "en" else "취임" }} {{ executive.appointed_on }}{% endif %}</p></header>
+        <dl class="company-key-matrix">
+          <div><dt>{{ "Office address" if current_locale == "en" else "직장주소" }}</dt><dd>{{ executive.workplace_address or "-" }}</dd></div>
+          <div><dt>{{ "Date of birth" if current_locale == "en" else "생년월일" }}</dt><dd>{{ executive.birth_date or "-" }}</dd></div>
+          <div><dt>{{ "High school" if current_locale == "en" else "출신고교" }}</dt><dd>{{ executive.high_school or "-" }}</dd></div>
+          <div><dt>{{ "University" if current_locale == "en" else "출신대학" }}</dt><dd>{{ executive.university or "-" }}</dd></div>
+          <div><dt>{{ "Major" if current_locale == "en" else "전공" }}</dt><dd>{{ executive.major or "-" }}</dd></div>
+        </dl>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   {% if credit_ratings %}
   <section class="panel company-credit-history" id="credit-rating-history">
     <div class="company-financial-heading">

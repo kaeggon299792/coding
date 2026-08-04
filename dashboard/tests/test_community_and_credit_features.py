@@ -1,10 +1,12 @@
 import json
+from pathlib import Path
 
 import pytest
 
 import app as app_module
 from dashboard_db import queries
 from scripts.import_company_credit_ratings import import_ratings
+from scripts.import_company_executive_profiles import import_profiles
 from scripts.backfill_dart_disclosures import _date_windows
 from services import company_intelligence
 
@@ -98,6 +100,67 @@ def test_credit_rating_import_and_latest_lookup(tmp_path):
         connection, "파라다이스"
     )["rating"] == "A+"
     connection.close()
+
+
+def test_kangwonland_credit_history_keeps_all_data_but_displays_five_years(tmp_path):
+    db_path = tmp_path / "dashboard.db"
+    data_path = (
+        Path(__file__).parents[1]
+        / "data"
+        / "company_credit_ratings_kangwonland_20260804.json"
+    )
+    result = import_ratings(db_path, data_path)
+    assert result == {"companies": 1, "ratings": 40, "integrity": "ok"}
+
+    from dashboard_db import schema
+    connection = schema.connect(str(db_path))
+    rows = queries.list_company_credit_ratings(connection, "강원랜드")
+    assert rows[0]["rating"] == "A0"
+    visible = company_intelligence._latest_five_years(rows)
+    assert len(visible) == 7
+    assert {row["evaluated_on"][:4] for row in visible} == {
+        "2016", "2017", "2018", "2019", "2020"
+    }
+    assert len(rows) == 40
+    connection.close()
+
+
+def test_company_rating_badge_matches_company_title_size():
+    css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+    rule = css.split(".company-rating-badge strong {", 1)[1].split("}", 1)[0]
+    assert "font-size: var(--text-xl);" in rule
+
+
+def test_company_executive_profiles_support_single_and_joint_representatives(tmp_path):
+    db_path = tmp_path / "dashboard.db"
+    data_path = (
+        Path(__file__).parents[1] / "data" / "company_executive_profiles_20260804.json"
+    )
+    first = import_profiles(db_path, data_path)
+    second = import_profiles(db_path, data_path)
+    assert first == second == {"companies": 2, "profiles": 4, "integrity": "ok"}
+
+    from dashboard_db import schema
+    connection = schema.connect(str(db_path))
+    gkl = queries.list_latest_company_executive_profiles(connection, "GKL")
+    lotte = queries.list_latest_company_executive_profiles(connection, "롯데관광개발")
+    assert [(row["executive_name"], row["appointed_on"]) for row in gkl] == [
+        ("윤두현", "2024-12-02")
+    ]
+    assert [row["executive_name"] for row in lotte] == ["김기병", "백현", "김한준"]
+    assert lotte[0]["appointed_on"] is None
+    connection.close()
+
+
+def test_company_detail_template_renders_responsive_executive_profiles():
+    root = Path(__file__).parents[1]
+    template = (root / "templates" / "company_detail.html").read_text(encoding="utf-8")
+    css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    assert "company-executive-grid" in template
+    assert "executive.birth_date" in template
+    assert ".company-executive-grid { grid-template-columns: 1fr; }" in css
 
 
 def test_company_news_flags_are_derived_from_ai_fields():

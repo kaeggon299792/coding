@@ -8,6 +8,21 @@ def test_glossary_schema_seeds_game_and_business_terms(tmp_path):
     ).fetchall()
     assert {row["category"] for row in rows} == {"game", "business"}
     assert sum(row["count"] for row in rows) >= 20
+    assert connection.execute(
+        "SELECT category FROM casino_glossary_terms WHERE term_en='Electronic Table Game'"
+    ).fetchone()["category"] == "game"
+    assert connection.execute(
+        "SELECT category FROM casino_glossary_terms WHERE term_en='Casino Host'"
+    ).fetchone()["category"] == "business"
+    assert connection.execute(
+        "SELECT COUNT(*) FROM casino_glossary_terms WHERE term_en='Chip'"
+    ).fetchone()[0] == 1
+    assert connection.execute(
+        "SELECT category FROM casino_glossary_terms WHERE term_en='Customer Acquisition Cost, CAC'"
+    ).fetchone()["category"] == "business"
+    assert connection.execute(
+        "SELECT easy_explanation FROM casino_glossary_terms WHERE term_ko='일평균 이론승액'"
+    ).fetchone()[0] == "고객 하루 이용 기준 예상수익입니다."
     assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     connection.close()
 
