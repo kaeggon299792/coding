@@ -465,7 +465,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert response.status_code == 200
         page_html = response.get_data(as_text=True)
         assert "Localization Management" in page_html
-        assert '<option value="ja" selected' in page_html
+        assert '<option value="en" selected' in page_html
         assert "AI 번역 프롬프트 생성" in page_html
         assert '<option value="all" selected>전체 언어 한 번에</option>' in page_html
         assert "<option selected>Pending</option>" in page_html

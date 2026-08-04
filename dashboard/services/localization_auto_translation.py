@@ -13,6 +13,13 @@ from utils import now_kst
 
 
 TARGETS = {
+    "en": {
+        "name": "English",
+        "rule": (
+            "Use concise, natural professional English for a casino-industry website. "
+            "Use established English names for companies, brands, laws, and places."
+        ),
+    },
     "ja": {
         "name": "Japanese",
         "rule": (
@@ -32,6 +39,7 @@ TARGETS = {
 URL_RE = re.compile(r"https?://[^\s<>'\"]+")
 NUMBER_RE = re.compile(r"[-+]?\d[\d,.]*%?")
 TARGET_SCRIPT_RE = {
+    "en": re.compile(r"[A-Za-z]"),
     "ja": re.compile(r"[ぁ-ゖァ-ヺ一-龯]"),
     "yue-HK": re.compile(r"[一-龯]"),
 }

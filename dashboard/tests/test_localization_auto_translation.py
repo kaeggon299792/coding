@@ -93,6 +93,16 @@ def test_translation_prompt_requires_literal_numeric_preservation():
     assert "must contain zero Hangul characters" in prompt
 
 
+def test_english_is_supported_and_rejects_untranslated_hangul(monkeypatch):
+    monkeypatch.setattr(
+        auto.config, "LOCALIZATION_TRANSLATION_LANGUAGES", "en,ja,yue-HK"
+    )
+
+    assert auto.configured_languages() == ["en", "ja", "yue-HK"]
+    assert auto._validation_error("홈", "Home", "en") is None
+    assert auto._validation_error("홈", "홈", "en") == "Korean text remains"
+
+
 def test_manual_translation_runs_all_pending_rows_in_batches(
     db_connection, monkeypatch
 ):
