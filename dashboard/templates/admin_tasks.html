@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}자동화 작업 현황{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container task-admin-page" data-i18n-ignore>
+  <header class="page-header">
+    <p class="page-eyebrow">ADMINISTRATION / AUTOMATION MAP</p>
+    <h1 class="page-title">자동화 작업 현황</h1>
+    <p class="page-description">PythonAnywhere와 로컬 PC에서 무엇이 언제 실행되고, 어디서 정보를 가져와 어디에 저장하는지 쉽게 설명합니다.</p>
+    <p class="task-verified-note">등록 상태 확인 기준: {{ registry.verified_at }} · 표시 시각은 모두 한국시간(KST)</p>
+  </header>
+
+  <section class="task-summary-grid" aria-label="자동화 작업 요약">
+    <article><span>PythonAnywhere 예약</span><strong>{{ registry.counts.pythonanywhere_scheduled }}</strong><small>번역 작업 포함</small></article>
+    <article><span>PythonAnywhere 상시</span><strong>{{ registry.counts.pythonanywhere_always_on }}</strong><small>중단 시 자동 재시작</small></article>
+    <article><span>로컬 Windows 등록</span><strong>{{ registry.counts.windows_registered }}</strong><small>게시판 17 + 데이터랩 10</small></article>
+  </section>
+
+  <section class="panel task-explainer">
+    <div class="section-heading"><div><p class="section-kicker">HOW TO READ</p><h2>이 화면의 상태를 읽는 방법</h2></div></div>
+    <ol>
+      <li><b>등록 확인</b>은 실제 PythonAnywhere Tasks와 Windows 작업 스케줄러에서 작업이 존재하는지 확인한 값입니다.</li>
+      <li><b>마지막 실행</b>은 CASINO IN DB의 실행이력 또는 해당 작업 로그의 마지막 기록입니다.</li>
+      <li><b>마지막 데이터 신호</b>는 뉴스·이메일·실적처럼 별도 프로그램이 만든 데이터가 마지막으로 도착한 시각입니다.</li>
+      <li>로컬 PC는 서버가 Windows 상태를 직접 읽을 수 없습니다. 따라서 등록 확인값과 서버에 도착한 데이터 신호를 구분합니다.</li>
+    </ol>
+  </section>
+
+  {% for section_title, tasks in [('PythonAnywhere', registry.pythonanywhere), ('로컬 PC', registry.local)] %}
+  <section class="task-section">
+    <header class="section-heading"><div><p class="section-kicker">{{ 'SERVER AUTOMATION' if section_title == 'PythonAnywhere' else 'WINDOWS AUTOMATION' }}</p><h2>{{ section_title }}</h2></div><span>{{ tasks|length }}개 작업 그룹</span></header>
+    <div class="task-card-grid">
+      {% for task in tasks %}
+      <article class="task-card">
+        <header>
+          <div><span class="task-location">{{ task.location }}</span><span class="task-kind">{{ task.kind }}</span></div>
+          <h3>{{ task.title }}</h3>
+          <p class="task-schedule">{{ task.schedule }}</p>
+          <small>플랫폼 등록값: {{ task.platform_schedule }}</small>
+        </header>
+        <dl class="task-status-list">
+          <div><dt>실행 플랫폼</dt><dd><b>{{ task.platform }}</b></dd></div>
+          <div><dt>실행 방식</dt><dd>{{ task.mode }}</dd></div>
+          <div><dt>등록 상태</dt><dd><span class="status-dot is-ok"></span>{{ task.verified_at }} 확인</dd></div>
+          <div><dt>마지막 실행</dt><dd>{{ (task.last_run_at or task.last_log_at or '-')|replace('T', ' ')|truncate(20, true, '') }}{% if task.last_status %} · {{ task.last_status }}{% endif %}</dd></div>
+          <div><dt>마지막 데이터 신호</dt><dd>{{ (task.last_signal_at or '-')|replace('T', ' ')|truncate(20, true, '') }}</dd></div>
+          {% if task.last_error %}<div class="task-error"><dt>최근 오류</dt><dd>{{ task.last_error }}</dd></div>{% endif %}
+        </dl>
+        <div class="task-bundle{% if task.mode == '묶음 실행' %} is-bundle{% endif %}">
+          <b>{{ '한 번의 예약으로 함께 실행되는 작업' if task.mode == '묶음 실행' else '이 예약이 실행하는 작업' }}</b>
+          <ol>{% for step in task.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+        </div>
+        {% if task.connection_note %}<p class="task-connection-note">{{ task.connection_note }}</p>{% endif %}
+        <div class="task-flow">
+          <div><b>① 어디서 가져오나</b><p>{{ task.source }}</p></div>
+          <div><b>② 어떻게 처리하나</b><p>{{ task.process }}</p></div>
+          <div><b>③ 어디에 반영되나</b><p>{{ task.destination }}</p></div>
+          <div><b>오류가 나면</b><p>{{ task.failure }}</p></div>
+        </div>
+        <details><summary>실행 파일 보기</summary><code>{{ task.command }}</code></details>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</main>
+{% include "_footer.html" %}
+{% endblock %}

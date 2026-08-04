@@ -82,6 +82,9 @@ def _estimate_cost(input_tokens, output_tokens, model=None, web_search=False):
     if model == config.OPENAI_NEWS_MODEL:
         input_rate = config.OPENAI_NEWS_INPUT_COST_PER_1M
         output_rate = config.OPENAI_NEWS_OUTPUT_COST_PER_1M
+    elif model == config.OPENAI_TRANSLATION_MODEL:
+        input_rate = config.OPENAI_TRANSLATION_INPUT_COST_PER_1M
+        output_rate = config.OPENAI_TRANSLATION_OUTPUT_COST_PER_1M
     else:
         input_rate = config.OPENAI_INPUT_COST_PER_1M
         output_rate = config.OPENAI_OUTPUT_COST_PER_1M

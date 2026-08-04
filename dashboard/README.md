@@ -207,5 +207,15 @@ PythonAnywhere Scheduled Task에 등록한다. 작업은 번역 API를 호출하
   /home/kaekun/coding-dashboard/dashboard/scheduler/sync_localization.py
 ```
 
+일본어·광둥어 미번역 항목은 매일 23:30(KST)에 다음 Scheduled Task로 증분 번역한다.
+기존 완료 번역은 다시 호출하지 않으며, 숫자·날짜·URL·HTML·placeholder 검증을 통과한
+결과만 저장한다. 호출 횟수와 비용은 공통 `MAX_GPT_CALLS_PER_DAY` 및
+`DAILY_OPENAI_BUDGET_USD` 한도를 적용한다.
+
+```bash
+/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python \
+  /home/kaekun/coding-dashboard/dashboard/scheduler/translate_localization.py
+```
+
 관리 화면의 `Translation Scan`도 같은 비파괴 스캔을 즉시 실행한다. 스캔에서
 사라진 참조는 원문을 삭제하지 않고 `deleted_at`으로 보관한다.

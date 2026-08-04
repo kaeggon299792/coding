@@ -27,7 +27,7 @@ from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
     gemini_usage, localization_management, security_audit, site_preferences,
-    telegram_alert,
+    task_registry, telegram_alert,
 )
 import config
 from utils import now_kst
@@ -1434,6 +1434,18 @@ def admin_logs():
             activity_pages=activity_pages,
             activity_total=activity_total,
         )
+    finally:
+        connection.close()
+
+
+@auth_bp.get("/admin/tasks")
+@admin_required
+def admin_tasks():
+    """Explain registered server/local tasks and show their latest evidence."""
+
+    connection = dashboard_db()
+    try:
+        return render_template("admin_tasks.html", registry=task_registry.dashboard(connection))
     finally:
         connection.close()
 

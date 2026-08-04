@@ -125,6 +125,7 @@ NOINDEX_ENDPOINTS = {
     "auth.register",
     "auth.user_management",
     "auth.admin_logs",
+    "auth.admin_tasks",
     "dashboard_home",
     "paradian_portal_page",
     "performance_page",
@@ -1024,6 +1025,7 @@ def inject_globals():
         "auth.register": "가입 신청",
         "auth.user_management": "관리자 페이지",
         "auth.admin_logs": "관리자 로그",
+        "auth.admin_tasks": "자동화 작업 현황",
         "auth.localization_dashboard": "Localization",
         "auth.localization_qa": "Localization QA",
     }
@@ -1201,6 +1203,7 @@ def _site_map_links():
             "children": [
                 {"label": "관리자 페이지", "endpoint": "auth.user_management"},
                 {"label": "로그", "endpoint": "auth.admin_logs"},
+                {"label": "자동화 작업", "endpoint": "auth.admin_tasks"},
                 {"label": "Localization", "endpoint": "auth.localization_dashboard"},
                 {"label": "미처리 과제", "endpoint": "admin_action_items_page"},
                 {"label": "공문·자료관리", "endpoint": "official_docs.dashboard"},
