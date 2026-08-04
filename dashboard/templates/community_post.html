@@ -29,6 +29,12 @@
       <a class="btn community-recommend-button" href="{{ url_for('auth.login', next=request.path) }}">↑ 추천 <strong>{{ post.recommendation_count }}</strong></a>
       {% endif %}
       <button class="btn community-share-button" type="button" data-community-share data-share-title="{{ post.title }}">공유</button>
+      {% if current_user_role == 'admin' or (current_user and current_user.id == post.author_id) %}
+      <form class="community-post-delete-form" method="post" action="{{ url_for('delete_community_post_route', post_id=post.id) }}" onsubmit="return confirm('게시글을 삭제할까요? 삭제 후 목록에서 보이지 않습니다.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn community-post-delete-button" type="submit">삭제</button>
+      </form>
+      {% endif %}
       <span class="community-share-status" data-community-share-status role="status" aria-live="polite"></span>
     </div>
   </article>

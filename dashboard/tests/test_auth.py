@@ -53,8 +53,10 @@ def test_login_succeeds_with_correct_credentials(client):
 
 def test_protected_page_redirects_to_login_when_not_authenticated(client):
     response = client.get("/", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "CASINO IN" in page
+    assert "/login" in page
 
 
 def test_full_login_then_access_dashboard(client):

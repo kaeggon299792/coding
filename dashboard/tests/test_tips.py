@@ -211,7 +211,7 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
         listing = client.get("/tips/sites?q=법령")
 
     assert public_page.status_code == 200
-    assert "자료 게시판" in public_page.get_data(as_text=True)
+    assert "관련 사이트" in public_page.get_data(as_text=True)
     assert anonymous_create.status_code == 403
     assert category_created.status_code == 302
     assert created.status_code == 302

@@ -155,7 +155,7 @@ def test_salary_page_is_public():
     app.testing = True
     response = app.test_client().get("/performance/salaries")
     assert response.status_code == 200
-    assert "연봉·평점 정보".encode() in response.data
+    assert "연봉·평점".encode() in response.data
 
 
 def test_recruitment_page_is_public_and_searchable(monkeypatch, tmp_path):

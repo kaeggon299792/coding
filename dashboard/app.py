@@ -885,6 +885,36 @@ def purge_expired_account_withdrawals():
 def enforce_menu_permission():
     if not session.get("user_id"):
         return None
+    approved_download_endpoints = {
+        "official_docs.import_excel_template",
+        "official_docs.export_excel",
+    }
+    if request.endpoint in approved_download_endpoints:
+        connection = dashboard_db()
+        try:
+            account = connection.execute(
+                """SELECT role, is_active, approval_status
+                   FROM dashboard_users WHERE id=?""",
+                (session["user_id"],),
+            ).fetchone()
+            allowed = bool(
+                account
+                and account["is_active"]
+                and (
+                    account["role"] == "admin"
+                    or (
+                        account["approval_status"] == "approved"
+                        and queries.get_user_permissions(
+                            connection, session["user_id"], ("official_docs",)
+                        ).get("official_docs", False)
+                    )
+                )
+            )
+        finally:
+            connection.close()
+        if not allowed:
+            abort(403)
+        return None
     admin_area = (
         request.endpoint in {"paradian_portal_page", "performance_page"}
         or request.blueprint == "official_docs"
@@ -902,7 +932,8 @@ def enforce_menu_permission():
             abort(403)
     if request.method in {"GET", "HEAD"} and request.endpoint in PUBLIC_READ_ENDPOINTS:
         return None
-    # 공문·자료관리는 관리자 전용이며 Blueprint 내부에서 세부 작업 권한을 추가 확인한다.
+    # 공문·자료관리 화면과 변경 작업은 관리자 전용이다. 위에서 명시한
+    # 다운로드만 DB 승인 상태와 official_docs 권한을 확인해 일반 사용자에게 허용한다.
     if request.blueprint == "official_docs":
         return None
     permission = (
@@ -3938,13 +3969,16 @@ def _community_board_context(
     connection, page=1, error=None, form_data=None, board_type="community",
 ):
     page_size = 20
-    total = queries.count_community_posts(connection, board_type=board_type)
+    include_notices = board_type == "community"
+    total = queries.count_community_posts(
+        connection, board_type=board_type, include_notices=include_notices
+    )
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page), total_pages))
     return {
         "posts": queries.list_community_posts(
             connection, limit=page_size, offset=(page - 1) * page_size,
-            board_type=board_type,
+            board_type=board_type, include_notices=include_notices,
         ),
         "total": total,
         "page": page,
@@ -4056,6 +4090,7 @@ def create_community_post_route():
             "content": (request.form.get("content") or "").strip(),
             "image_url": (request.form.get("image_url") or "").strip(),
             "pdf_url": (request.form.get("pdf_url") or "").strip(),
+            "is_notice": request.form.get("is_notice") == "1",
         }
         if not validate_csrf(request.form.get("csrf_token", "")):
             return render_template(
@@ -4077,6 +4112,11 @@ def create_community_post_route():
                 content=form_data["content"],
                 image_url=image_url,
                 pdf_url=pdf_url,
+                board_type=(
+                    "notice"
+                    if session.get("role") == "admin" and form_data["is_notice"]
+                    else "community"
+                ),
             )
         except ValueError as error:
             return render_template(
@@ -4087,7 +4127,7 @@ def create_community_post_route():
             ), 400
         security_audit.log_event(
             connection,
-            "COMMUNITY_POST_CREATE",
+            "NOTICE_POST_CREATE" if form_data["is_notice"] and session.get("role") == "admin" else "COMMUNITY_POST_CREATE",
             "community_post",
             post_id,
             {"title_length": len(form_data["title"])},
@@ -4269,6 +4309,37 @@ def delete_community_comment_route(post_id, comment_id):
         )
         connection.commit()
         return redirect(url_for("community_post_page", post_id=post_id) + "#comments")
+    finally:
+        connection.close()
+
+
+@app.post("/board/<int:post_id>/delete")
+@login_required
+def delete_community_post_route(post_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        post = queries.get_community_post(connection, post_id)
+        if not post:
+            abort(404)
+        is_owner = int(post["author_id"]) == int(session["user_id"])
+        if session.get("role") != "admin" and not is_owner:
+            abort(403)
+        queries.soft_delete_community_post(connection, post_id, session["user_id"])
+        security_audit.log_event(
+            connection,
+            "COMMUNITY_POST_DELETE",
+            "community_post",
+            post_id,
+            {"board_type": post["board_type"], "owner_delete": is_owner},
+        )
+        connection.commit()
+        return redirect(url_for(
+            "notice_board_page"
+            if post["board_type"] == "notice"
+            else "community_board_page"
+        ))
     finally:
         connection.close()
 

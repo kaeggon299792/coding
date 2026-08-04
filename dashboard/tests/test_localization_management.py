@@ -343,7 +343,7 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     assert upgraded.execute(
         "SELECT COUNT(*) FROM localization_glossary"
     ).fetchone()[0] == 8
-    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080409
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == schema.SCHEMA_VERSION
     upgraded.close()
 
 

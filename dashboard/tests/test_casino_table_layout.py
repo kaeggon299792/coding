@@ -38,9 +38,12 @@ def test_casino_overview_grid_keeps_summary_inside_page():
         encoding="utf-8"
     )
 
-    assert "grid-template-columns:minmax(0,1.2fr) minmax(420px,.8fr)" in css
-    assert ".casino-industry-summary{display:grid;min-width:0" in css
-    base = (Path(__file__).parents[1] / "templates" / "base.html").read_text(
+    template = (Path(__file__).parents[1] / "templates" / "casino_industry.html").read_text(
         encoding="utf-8"
     )
-    assert "v=20260801-casino-layout" in base
+    assert 'class="casino-industry-hero"' in template
+    assert 'class="casino-industry-summary"' in template
+    assert 'class="table-wrap casino-table-desktop"' in template
+    assert 'class="casino-mobile-list"' in template
+    assert "@media(max-width:980px){.casino-industry-hero{grid-template-columns:1fr}" in css
+    assert ".casino-table-desktop{display:none}.casino-mobile-list{display:grid" in css

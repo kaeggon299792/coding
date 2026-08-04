@@ -9,6 +9,7 @@ from scripts.import_company_credit_ratings import import_ratings
 from scripts.import_company_executive_profiles import import_profiles
 from scripts.backfill_dart_disclosures import _date_windows
 from services import company_intelligence
+from dashboard_db import schema
 
 
 def _user(connection, username="member"):
@@ -69,6 +70,12 @@ def test_board_types_and_recommendation_toggle(db_connection):
     assert [row["id"] for row in queries.list_community_posts(
         db_connection, board_type="notice"
     )] == [notice_id]
+    assert [row["id"] for row in queries.list_community_posts(
+        db_connection, board_type="community", include_notices=True
+    )] == [notice_id, community_id]
+    assert queries.count_community_posts(
+        db_connection, board_type="community", include_notices=True
+    ) == 2
 
     assert queries.toggle_community_post_recommendation(
         db_connection, community_id, user_id
@@ -79,6 +86,94 @@ def test_board_types_and_recommendation_toggle(db_connection):
     assert queries.toggle_community_post_recommendation(
         db_connection, community_id, user_id
     ) == (False, 0)
+
+    queries.soft_delete_community_post(db_connection, community_id, user_id)
+    assert queries.get_community_post(db_connection, community_id) is None
+    assert queries.count_community_posts(
+        db_connection, board_type="community", include_notices=True
+    ) == 1
+    deleted = db_connection.execute(
+        "SELECT is_deleted, deleted_by, deleted_at FROM community_posts WHERE id=?",
+        (community_id,),
+    ).fetchone()
+    assert deleted["is_deleted"] == 1
+    assert deleted["deleted_by"] == user_id
+    assert deleted["deleted_at"]
+
+
+def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_path):
+    db_path = tmp_path / "community-routes.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    connection = schema.connect(str(db_path))
+    owner_id = _user(connection, "post-owner")
+    admin_id = connection.execute(
+        """INSERT INTO dashboard_users
+               (username, password_hash, role, is_active, created_at, updated_at)
+           VALUES ('board-admin', 'hash', 'admin', 1, '2026-08-04', '2026-08-04')"""
+    ).lastrowid
+    connection.commit()
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as browser_session:
+            browser_session["user_id"] = owner_id
+            browser_session["username"] = "post-owner"
+            browser_session["role"] = "user"
+            browser_session["csrf_token"] = "c" * 64
+        created = client.post(
+            "/board",
+            data={
+                "csrf_token": "c" * 64,
+                "title": "일반 사용자의 글",
+                "content": "일반 본문",
+                "is_notice": "1",
+            },
+        )
+        assert created.status_code == 302
+        owner_post_id = int(created.headers["Location"].rstrip("/").split("/")[-1])
+        owner_page = client.get(f"/board/{owner_post_id}")
+        assert "community-post-delete-button" in owner_page.get_data(as_text=True)
+        assert client.post(
+            f"/board/{owner_post_id}/delete",
+            data={"csrf_token": "invalid"},
+        ).status_code == 400
+
+        with client.session_transaction() as browser_session:
+            browser_session["user_id"] = admin_id
+            browser_session["username"] = "board-admin"
+            browser_session["role"] = "admin"
+            browser_session["csrf_token"] = "a" * 64
+        notice = client.post(
+            "/board",
+            data={
+                "csrf_token": "a" * 64,
+                "title": "상단 고정 공지",
+                "content": "공지 본문",
+                "is_notice": "1",
+            },
+        )
+        assert notice.status_code == 302
+        notice_id = int(notice.headers["Location"].rstrip("/").split("/")[-1])
+        board_html = client.get("/board").get_data(as_text=True)
+        assert "상단 고정 공지" in board_html
+        assert "NOTICE" in board_html
+
+        deleted = client.post(
+            f"/board/{owner_post_id}/delete",
+            data={"csrf_token": "a" * 64},
+        )
+        assert deleted.status_code == 302
+        assert client.get(f"/board/{owner_post_id}").status_code == 404
+
+    connection = schema.connect(str(db_path))
+    assert connection.execute(
+        "SELECT board_type FROM community_posts WHERE id=?", (owner_post_id,)
+    ).fetchone()["board_type"] == "community"
+    assert connection.execute(
+        "SELECT board_type FROM community_posts WHERE id=?", (notice_id,)
+    ).fetchone()["board_type"] == "notice"
+    connection.close()
 
 
 def test_credit_rating_import_and_latest_lookup(tmp_path):
@@ -247,6 +342,21 @@ def test_board_error_and_changed_templates_render():
         "company_news.html", "error.html",
     ):
         app_module.app.jinja_env.get_template(template)
+
+
+def test_board_templates_expose_admin_notice_and_owner_delete_controls():
+    root = Path(__file__).parents[1]
+    board_template = (root / "templates" / "community_board.html").read_text(
+        encoding="utf-8"
+    )
+    post_template = (root / "templates" / "community_post.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'name="is_notice"' in board_template
+    assert "current_user_role == 'admin'" in board_template
+    assert "post.board_type == 'notice'" in board_template
+    assert "delete_community_post_route" in post_template
+    assert "current_user.id == post.author_id" in post_template
 
 
 def test_community_table_keeps_metadata_columns_on_one_line():

@@ -357,11 +357,11 @@ def create_community_post(
     ten_minutes_ago = (now - timedelta(minutes=10)).isoformat(timespec="seconds")
     day_ago = (now - timedelta(days=1)).isoformat(timespec="seconds")
     recent_count = connection.execute(
-        "SELECT COUNT(*) FROM community_posts WHERE author_id=? AND created_at>=?",
+        "SELECT COUNT(*) FROM community_posts WHERE author_id=? AND is_deleted=0 AND created_at>=?",
         (author_id, ten_minutes_ago),
     ).fetchone()[0]
     daily_count = connection.execute(
-        "SELECT COUNT(*) FROM community_posts WHERE author_id=? AND created_at>=?",
+        "SELECT COUNT(*) FROM community_posts WHERE author_id=? AND is_deleted=0 AND created_at>=?",
         (author_id, day_ago),
     ).fetchone()[0]
     if recent_count >= 5 or daily_count >= 30:
@@ -384,26 +384,42 @@ def create_community_post(
     return cursor.lastrowid
 
 
-def list_community_posts(connection, limit=20, offset=0, board_type="community"):
+def list_community_posts(
+    connection, limit=20, offset=0, board_type="community",
+    include_notices=False,
+):
+    board_condition = (
+        "post.board_type IN ('notice', 'community')"
+        if include_notices and board_type == "community"
+        else "post.board_type = ?"
+    )
+    params = [] if "IN" in board_condition else [board_type]
     rows = connection.execute(
-        """
+        f"""
         SELECT post.*,
                (SELECT COUNT(1) FROM community_post_recommendations AS recommendation
                 WHERE recommendation.post_id = post.id) AS recommendation_count,
                (SELECT COUNT(1) FROM community_comments AS comment
                 WHERE comment.post_id = post.id AND comment.is_deleted = 0) AS comment_count
         FROM community_posts AS post
-        WHERE post.board_type = ?
-        ORDER BY post.created_at DESC, post.id DESC LIMIT ? OFFSET ?
+        WHERE post.is_deleted = 0 AND {board_condition}
+        ORDER BY CASE WHEN post.board_type='notice' THEN 0 ELSE 1 END,
+                 post.created_at DESC, post.id DESC LIMIT ? OFFSET ?
         """,
-        (board_type, max(1, min(int(limit), 100)), max(0, int(offset))),
+        (*params, max(1, min(int(limit), 100)), max(0, int(offset))),
     ).fetchall()
     return [dict(row) for row in rows]
 
 
-def count_community_posts(connection, board_type="community"):
+def count_community_posts(connection, board_type="community", include_notices=False):
+    if include_notices and board_type == "community":
+        return connection.execute(
+            "SELECT COUNT(*) FROM community_posts "
+            "WHERE is_deleted=0 AND board_type IN ('notice', 'community')"
+        ).fetchone()[0]
     return connection.execute(
-        "SELECT COUNT(*) FROM community_posts WHERE board_type=?", (board_type,)
+        "SELECT COUNT(*) FROM community_posts WHERE is_deleted=0 AND board_type=?",
+        (board_type,),
     ).fetchone()[0]
 
 
@@ -418,7 +434,7 @@ def get_community_post(connection, post_id, user_id=None):
                    WHERE mine.post_id = post.id AND mine.user_id = ?
                ) END AS recommended_by_current_user
         FROM community_posts AS post
-        WHERE post.id = ?
+        WHERE post.id = ? AND post.is_deleted = 0
         """,
         (user_id, user_id, post_id),
     ).fetchone()
@@ -1171,6 +1187,21 @@ def get_company_benefit(connection, benefit_id):
         "SELECT * FROM company_benefits WHERE id=?", (benefit_id,)
     ).fetchone()
     return dict(row) if row else None
+
+
+def soft_delete_community_post(connection, post_id, user_id):
+    now_iso = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        UPDATE community_posts
+        SET is_deleted=1, deleted_at=?, deleted_by=?, updated_at=?
+        WHERE id=? AND is_deleted=0
+        """,
+        (now_iso, user_id, now_iso, post_id),
+    )
+    if not cursor.rowcount:
+        raise ValueError("게시글을 찾을 수 없습니다.")
+    connection.commit()
 
 
 def create_company_benefit(connection, values, actor_id=None):

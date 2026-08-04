@@ -24,7 +24,7 @@
   <details class="panel glossary-admin-compose">
     <summary>새 용어 등록</summary>
     <form method="post" action="{{ url_for('tips.glossary_page') }}" class="glossary-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <label><span>분류 *</span><select name="category" required><option value="game">게임 용어</option><option value="business">비즈니스 용어</option></select></label>
       <label><span>한국어 용어 *</span><input name="term_ko" maxlength="100" required></label>
       <label><span>영문명</span><input name="term_en" maxlength="150"></label>
@@ -58,7 +58,7 @@
             {% if current_user_role == 'admin' %}
             <details class="glossary-edit"><summary>수정·삭제</summary>
               <form method="post" action="{{ url_for('tips.edit_glossary_page', term_id=term.id) }}" class="glossary-form compact">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
                 <label><span>분류</span><select name="category"><option value="game"{% if term.category == 'game' %} selected{% endif %}>게임 용어</option><option value="business"{% if term.category == 'business' %} selected{% endif %}>비즈니스 용어</option></select></label>
                 <label><span>한국어</span><input name="term_ko" value="{{ term.term_ko }}" maxlength="100" required></label>
                 <label><span>영문명</span><input name="term_en" value="{{ term.term_en }}" maxlength="150"></label>

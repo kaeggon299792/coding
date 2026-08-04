@@ -11,11 +11,12 @@ import sqlite3
 from datetime import datetime, timezone
 
 import config
+from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TERMS
 
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080409
+SCHEMA_VERSION = 2026080410
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -182,6 +183,21 @@ CASINO_GLOSSARY_SEED_TERMS += (
     ("business", "휴면고객", "Dormant Player", "일정 기간 방문이나 게임이 없는 고객.", "한동안 오지 않은 고객입니다."),
     ("business", "이탈고객", "Churned Player", "장기간 방문하지 않아 이탈한 것으로 판단되는 고객.", "사실상 떠난 고객입니다."),
     ("business", "고객이탈률", "Churn Rate", "기존 고객 중 이탈한 고객의 비율.", "고객이 빠져나가는 비율입니다."),
+)
+
+# ETG terminology supplied by the operator. These rows are also updated during
+# this migration so the two previously seeded terms receive the new wording
+# without creating duplicates.
+CASINO_GLOSSARY_ETG_TERMS = (
+    ("game", "전자 테이블 게임", "Electronic Table Game, ETG", "전통적인 테이블 게임을 전자 단말기와 자동화 시스템으로 제공하는 게임 형태.", "딜러 대신 화면과 기계로 하는 바카라·룰렛·식보입니다."),
+    ("business", "ETG 드롭", "ETG Drop", "고객이 ETG 게임을 이용하기 위해 투입한 자금.", "고객이 ETG 게임을 위해 투입한 자금입니다."),
+    ("business", "ETG 턴오버", "ETG Turnover", "ETG에서 반복적으로 베팅된 금액을 누적한 총액.", "ETG에서 반복 베팅된 누적 금액입니다."),
+    ("business", "ETG 승액", "ETG Win", "ETG 게임 결과로 카지노가 획득한 금액.", "ETG에서 카지노가 번 금액입니다."),
+    ("business", "ETG 홀드율", "ETG Hold Percentage", "ETG 베팅액 대비 카지노 승액의 비율.", "ETG 베팅액 중 카지노에 남은 비율입니다."),
+    ("business", "단말기당 승액", "Win per Terminal", "ETG 단말기 한 대당 발생한 평균 카지노 승액.", "ETG 기기 한 대가 벌어들인 금액입니다."),
+    ("business", "단말기 가동률", "Terminal Utilization", "전체 ETG 단말기 또는 좌석 중 실제 게임에 이용된 비율.", "전체 ETG 좌석 중 실제 이용된 비율입니다."),
+    ("business", "좌석 점유율", "Seat Occupancy", "운영 중인 ETG 좌석 가운데 고객이 실제 사용한 좌석의 비율.", "운영 좌석 중 고객이 사용한 비율입니다."),
+    ("game", "시간당 게임 수", "Decisions per Hour", "한 시간 동안 완료된 게임의 횟수.", "한 시간 동안 진행된 게임 횟수입니다."),
 )
 
 
@@ -455,6 +471,12 @@ def migrate(connection):
     _ensure_column(connection, "community_posts", "image_url", "TEXT")
     _ensure_column(connection, "community_posts", "pdf_url", "TEXT")
     _ensure_column(
+        connection, "community_posts", "is_deleted",
+        "INTEGER NOT NULL DEFAULT 0",
+    )
+    _ensure_column(connection, "community_posts", "deleted_at", "TEXT")
+    _ensure_column(connection, "community_posts", "deleted_by", "INTEGER")
+    _ensure_column(
         connection, "community_posts", "board_type",
         "TEXT NOT NULL DEFAULT 'community'",
     )
@@ -465,6 +487,10 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_posts_board_created "
         "ON community_posts(board_type, created_at DESC, id DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_community_posts_visible "
+        "ON community_posts(is_deleted, board_type, created_at DESC, id DESC)"
     )
 
     # ---- community_comments ----
@@ -1741,6 +1767,37 @@ def migrate(connection):
         (
             (*term, glossary_timestamp, glossary_timestamp)
             for term in CASINO_GLOSSARY_SEED_TERMS
+        ),
+    )
+    supplied_glossary_terms = (
+        CASINO_GLOSSARY_ETG_TERMS + CASINO_GLOSSARY_OPERATIONS_TERMS
+    )
+    connection.executemany(
+        """
+        INSERT INTO casino_glossary_terms
+            (category, term_ko, term_en, definition, easy_explanation,
+             created_at, updated_at)
+        SELECT ?, ?, ?, ?, ?, ?, ?
+        WHERE NOT EXISTS (
+            SELECT 1 FROM casino_glossary_terms
+            WHERE term_ko=? AND is_deleted=0
+        )
+        """,
+        (
+            (*term, glossary_timestamp, glossary_timestamp, term[1])
+            for term in supplied_glossary_terms
+        ),
+    )
+    connection.executemany(
+        """
+        UPDATE casino_glossary_terms
+        SET term_en=?, definition=?, easy_explanation=?, updated_at=?
+        WHERE term_ko=? AND is_deleted=0
+        """,
+        (
+            (term_en, definition, easy_explanation, glossary_timestamp, term_ko)
+            for category, term_ko, term_en, definition, easy_explanation
+            in supplied_glossary_terms
         ),
     )
 

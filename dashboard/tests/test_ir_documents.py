@@ -421,7 +421,7 @@ def test_admin_sees_paradian_and_ir_management(monkeypatch, tmp_path):
         disclosures = client.get("/disclosures").get_data(as_text=True)
         companies = client.get("/companies").get_data(as_text=True)
     assert "기업 IR 자료 등록" in disclosures
-    assert "파라디안 전용" in companies
+    assert "관리자 전용" in companies
 
 
 def test_non_admin_cannot_access_paradian_or_official_documents(monkeypatch, tmp_path):
