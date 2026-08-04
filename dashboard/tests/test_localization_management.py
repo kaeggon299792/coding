@@ -44,6 +44,8 @@ def connection():
           UNIQUE(source_text, language_code));
         INSERT INTO localization_languages VALUES ('ko','한국어',1,1,'now');
         INSERT INTO localization_languages VALUES ('en','English',0,1,'now');
+        INSERT INTO localization_languages VALUES ('ja','日本語',0,1,'now');
+        INSERT INTO localization_languages VALUES ('yue-HK','廣東話',0,1,'now');
         """
     )
     return db
@@ -185,6 +187,53 @@ Unknown
     assert db.execute(
         "SELECT translated_text FROM localization_translations WHERE string_id=?", (second,)
     ).fetchone()[0] == "Company Profile"
+
+
+@pytest.mark.parametrize(
+    ("language_code", "target_name", "output_label", "translated"),
+    (
+        ("ja", "일본어", "JA", "ホーム"),
+        ("yue-HK", "광둥어(홍콩 번체)", "YUE", "首頁"),
+    ),
+)
+def test_prompt_and_import_use_selected_target_language(
+    language_code, target_name, output_label, translated
+):
+    db = connection()
+    string_id = lms.register_string(
+        db, "홈", page="Header", component="Menu", language_key="MENU_HOME"
+    )
+    chunks = lms.generate_translation_chunks(
+        db, language_code, [string_id], mode="prompt", style="natural"
+    )
+    assert f"자연스러운 {target_name}로 번역하세요" in chunks[0]
+    assert f"\n{output_label}:\n" in chunks[0]
+    assert "\nEN:\n" not in chunks[0]
+
+    result = lms.import_ai_translation_text(
+        db, f"ID=MENU_HOME\n\n{output_label}:\n{translated}", language_code
+    )
+    assert result == {"updated": 1, "errors": 0}
+    saved = db.execute(
+        """SELECT translated_text FROM localization_translations
+           WHERE string_id=? AND language_code=?""",
+        (string_id, language_code),
+    ).fetchone()[0]
+    assert saved == translated
+
+
+def test_japanese_import_does_not_accept_english_output_label():
+    db = connection()
+    string_id = lms.register_string(
+        db, "홈", page="Header", component="Menu", language_key="MENU_HOME"
+    )
+    result = lms.import_ai_translation_text(db, "ID=MENU_HOME\n\nEN:\nHome", "ja")
+    assert result == {"updated": 0, "errors": 1}
+    assert db.execute(
+        """SELECT COUNT(*) FROM localization_translations
+           WHERE string_id=? AND language_code='ja'""",
+        (string_id,),
+    ).fetchone()[0] == 0
 
 
 def test_glossary_can_be_updated_and_deactivated():

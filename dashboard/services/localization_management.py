@@ -31,10 +31,15 @@ ALLOWED_PRIORITY = {"Critical", "High", "Medium", "Low"}
 PRIORITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
 TRANSLATION_STYLES = {
     "literal": "원문의 의미와 문장 구조를 가능한 한 충실하게 번역합니다.",
-    "natural": "영어 사용자가 자연스럽게 이해하도록 번역합니다.",
+    "natural": "대상 언어 사용자가 자연스럽게 이해하도록 번역합니다.",
     "casino": "카지노·복합리조트 산업에서 통용되는 전문 용어를 우선합니다.",
     "business": "간결하고 전문적인 비즈니스 문체를 사용합니다.",
     "marketing": "정확성을 유지하면서 설득력 있는 마케팅 문체를 사용합니다.",
+}
+PROMPT_LANGUAGES = {
+    "en": {"target_name": "영어", "output_label": "EN"},
+    "ja": {"target_name": "일본어", "output_label": "JA"},
+    "yue-HK": {"target_name": "광둥어(홍콩 번체)", "output_label": "YUE"},
 }
 PROMPT_MAX_ITEMS = 150
 PROMPT_MAX_CHARS = 60000
@@ -527,7 +532,21 @@ def deactivate_glossary(connection, glossary_id, language_code="en"):
         raise ValueError("용어집 항목을 찾을 수 없습니다.")
 
 
-def _prompt_entry(row):
+def _prompt_language(connection, language_code):
+    row = connection.execute(
+        "SELECT display_name FROM localization_languages WHERE language_code=? AND is_active=1",
+        (language_code,),
+    ).fetchone()
+    if not row or language_code == "ko":
+        raise ValueError("지원하지 않는 번역 대상 언어입니다.")
+    configured = PROMPT_LANGUAGES.get(language_code)
+    if configured:
+        return configured
+    label = re.sub(r"[^A-Z0-9]+", "_", language_code.upper()).strip("_")
+    return {"target_name": row["display_name"], "output_label": label}
+
+
+def _prompt_entry(row, output_label):
     return (
         "--------------------------------\n\n"
         f"ID={row['language_key']}\n\n"
@@ -535,18 +554,18 @@ def _prompt_entry(row):
         f"PAGE={row['page_name']}\n\n"
         "KOREAN:\n"
         f"{row['source_text']}\n\n"
-        "EN:\n\n"
+        f"{output_label}:\n\n"
     )
 
 
-def _prompt_instructions(style, glossary):
+def _prompt_instructions(style, glossary, target_name, output_label):
     style_rule = TRANSLATION_STYLES.get(style, TRANSLATION_STYLES["natural"])
     glossary_text = "\n".join(
         f"- {item['source_text']} → {item['target_text']}" for item in glossary
     ) or "- 등록된 용어 없음"
     return f"""당신은 카지노 산업 전문 번역가입니다.
 
-다음 한국어 문자열을 자연스러운 영어로 번역하세요.
+다음 한국어 문자열을 자연스러운 {target_name}로 번역하세요.
 
 번역 규칙
 
@@ -558,7 +577,7 @@ def _prompt_instructions(style, glossary):
 6. 줄바꿈을 유지합니다.
 7. 번역되지 않은 항목만 작성합니다.
 8. 설명은 작성하지 않습니다.
-9. ID와 EN 출력 형식을 반드시 유지합니다.
+9. ID와 {output_label} 출력 형식을 반드시 유지합니다.
 10. 전체 번역 결과를 하나의 ```text 코드블록 안에 작성합니다.
 11. 코드블록 밖에는 어떤 설명, 주석 또는 인사말도 작성하지 않습니다.
 12. 선택한 번역 스타일: {style_rule}
@@ -577,6 +596,8 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
                                 mode="prompt", style="natural",
                                 max_items=PROMPT_MAX_ITEMS,
                                 max_chars=PROMPT_MAX_CHARS):
+    prompt_language = _prompt_language(connection, language_code)
+    output_label = prompt_language["output_label"]
     ids = []
     for value in string_ids:
         try:
@@ -605,7 +626,7 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
     ).fetchall()]
     if not rows:
         raise ValueError("선택 항목 중 미번역 대상이 없습니다.")
-    entries = [_prompt_entry(row) for row in rows]
+    entries = [_prompt_entry(row, output_label) for row in rows]
     groups, current, current_size = [], [], 0
     for entry in entries:
         if current and (len(current) >= max_items or current_size + len(entry) > max_chars):
@@ -614,7 +635,9 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
     if current:
         groups.append(current)
     glossary = list_glossary(connection, language_code, active_only=True)
-    prefix = _prompt_instructions(style, glossary) if mode == "prompt" else ""
+    prefix = _prompt_instructions(
+        style, glossary, prompt_language["target_name"], output_label
+    ) if mode == "prompt" else ""
     suffix = (
         "=========================\n\n"
         "위 규칙을 모두 준수하고, 출력 형식은 절대 변경하지 마십시오. "
@@ -630,6 +653,14 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         raise ValueError("AI 번역 결과를 붙여 넣어주세요.")
     if len(text) > 2_000_000:
         raise ValueError("붙여넣기 내용은 2MB 이하여야 합니다.")
+    prompt_language = _prompt_language(connection, language_code)
+    output_label = prompt_language["output_label"]
+    accepted_labels = (
+        output_label,
+        f"TITLE_{output_label}",
+        f"CONTENT_{output_label}",
+    )
+    label_pattern = "|".join(re.escape(label) for label in accepted_labels)
     pattern = re.compile(
         r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)"
         r"(?=^\s*ID\s*=|\Z)"
@@ -641,13 +672,16 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         values = {
             item.group(1): item.group(2).strip()
             for item in re.finditer(
-                r"(?ms)^\s*(EN|TITLE_EN|CONTENT_EN)\s*:\s*\r?\n(.*?)"
-                r"(?=^\s*(?:EN|TITLE_EN|CONTENT_EN)\s*:|\Z)",
+                rf"(?ms)^\s*({label_pattern})\s*:\s*\r?\n(.*?)"
+                rf"(?=^\s*(?:{label_pattern})\s*:|\Z)",
                 match.group(2),
             )
         }
         translated_value = (
-            values.get("EN") or values.get("CONTENT_EN") or values.get("TITLE_EN") or ""
+            values.get(output_label)
+            or values.get(f"CONTENT_{output_label}")
+            or values.get(f"TITLE_{output_label}")
+            or ""
         )
         translation = re.sub(
             r"\n?\s*-{8,}\s*$", "", translated_value
@@ -668,7 +702,9 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         except ValueError:
             errors += 1
     if not matched:
-        raise ValueError("ID=... 및 EN: 형식의 번역 결과를 찾지 못했습니다.")
+        raise ValueError(
+            f"ID=... 및 {output_label}: 형식의 번역 결과를 찾지 못했습니다."
+        )
     connection.commit()
     return {"updated": updated, "errors": errors}
 
