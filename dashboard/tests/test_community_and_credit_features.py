@@ -141,7 +141,10 @@ def test_company_rating_badge_is_prominent_and_responsive():
         encoding="utf-8"
     )
     assert 'class="rating-zero"' in template
-    assert ".company-rating-badge .rating-zero::after" in css
+    zero_rule = css.split(".company-rating-badge .rating-zero {", 1)[1].split("}", 1)[0]
+    assert "font-size: 0.72em;" in zero_rule
+    assert "font-weight: 400;" in zero_rule
+    assert ".company-rating-badge .rating-zero::after" not in css
 
 
 def test_company_executive_profiles_support_single_and_joint_representatives(tmp_path):
