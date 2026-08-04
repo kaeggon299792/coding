@@ -136,6 +136,8 @@ def _system_prompt(language_code, glossary):
         "id exactly once and provide only its translation in the requested JSON schema. "
         "Preserve meaning, numbers, dates, currencies, URLs, line breaks, HTML tags, "
         "Markdown syntax, and placeholders exactly. Never add facts, explanations, or labels. "
+        "Every digit sequence, decimal separator, thousands separator, sign, and percent sign "
+        "must appear exactly as supplied. Never spell digits out or introduce new digits. "
         "Keep company, brand, and product identities accurate. "
         f"Target language: {target['name']}. {target['rule']}\n\n"
         f"Required glossary:\n{glossary_text}"
