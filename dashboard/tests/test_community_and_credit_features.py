@@ -230,11 +230,14 @@ def test_company_rating_badge_is_prominent_and_responsive():
     badge_rule = css.split(".company-rating-badge {", 1)[1].split("}", 1)[0]
     source_rule = css.rsplit(".company-rating-badge small {", 1)[1].split("}", 1)[0]
     assert "display: inline-grid;" in badge_rule
-    assert "grid-template-columns: auto auto;" in badge_rule
+    assert "grid-template-columns: auto;" in badge_rule
     assert "grid-column: 1 / -1;" in source_rule
     template = (Path(__file__).parents[1] / "templates" / "companies.html").read_text(
         encoding="utf-8"
     )
+    rating_badge = template.split('class="company-rating-badge"', 1)[1].split("</a>", 1)[0]
+    assert "나이스신용평가 기준" not in rating_badge
+    assert rating_badge.count("현재 신용등급") == 2  # aria-label and visible label
     assert 'class="rating-zero"' in template
     zero_rule = css.split(".company-rating-badge .rating-zero {", 1)[1].split("}", 1)[0]
     assert "font-size: 0.72em;" in zero_rule

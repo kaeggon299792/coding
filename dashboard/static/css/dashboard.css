@@ -811,7 +811,7 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge.credit-risk { color: var(--brand-danger); }
 .company-rating-badge {
   display: inline-grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto;
   align-items: baseline;
   column-gap: 4px;
   row-gap: 2px;
