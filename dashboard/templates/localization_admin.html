@@ -36,9 +36,10 @@
     </div>
   </section>
   <form method="post" action="{{ url_for('auth.localization_prompt') }}" id="localization-prompt-form" class="panel localization-prompt-builder">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="language_code" value="{{ language_code }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="return_language_code" value="{{ language_code }}">
     <div><h2>AI 번역 작업 만들기</h2><p>아래 목록에서 미번역 항목을 선택하세요. 긴 작업은 자동으로 여러 코드블록으로 나뉩니다.</p></div>
     <fieldset><legend>내보내기 방식</legend><label><input type="radio" name="export_mode" value="data"> 번역 데이터만 복사</label><label><input type="radio" name="export_mode" value="prompt" checked> AI 번역 프롬프트 생성</label></fieldset>
+    <label>출력 언어<select name="language_code"><option value="all" selected>전체 언어 한 번에</option>{% for language in languages if not language.is_source %}<option value="{{ language.language_code }}">{{ language.display_name }} ({{ language.language_code }})</option>{% endfor %}</select></label>
     <label>번역 스타일<select name="translation_style"><option value="literal">직역</option><option value="natural" selected>자연스러운 번역</option><option value="casino">카지노 업계 용어 우선</option><option value="business">비즈니스 문체</option><option value="marketing">마케팅 문체</option></select></label>
     <div class="localization-selection-actions"><button class="btn" type="button" data-select-pending>현재 페이지 미번역 전체 선택</button><button class="btn btn-primary" type="submit">선택 항목 생성</button></div>
   </form>

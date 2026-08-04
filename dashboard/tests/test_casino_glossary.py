@@ -71,6 +71,19 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
             },
         )
         assert created.status_code == 302
+        duplicate = client.post(
+            "/tips/glossary",
+            data={
+                "csrf_token": "g" * 64,
+                "category": "business",
+                "term_ko": "테스트 게임 용어",
+                "term_en": "Duplicate Term",
+                "definition": "중복 정의입니다.",
+                "easy_explanation": "중복 설명입니다.",
+                "is_public": "1",
+            },
+        )
+        assert duplicate.status_code == 302
 
     connection = schema.connect(str(db_path))
     row = connection.execute(
@@ -79,6 +92,10 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
     ).fetchone()
     assert row["term_en"] == "Test Gaming Term"
     assert row["is_public"] == 1
+    assert connection.execute(
+        "SELECT COUNT(*) FROM casino_glossary_terms WHERE term_ko=?",
+        ("테스트 게임 용어",),
+    ).fetchone()[0] == 1
     connection.close()
 
 
@@ -97,3 +114,6 @@ def test_glossary_subnav_and_english_static_labels(monkeypatch, tmp_path):
     assert "Gaming Terms" in html
     assert "Business Terms" in html
     assert 'href="/en/tips/glossary"' in html
+    template = (__import__("pathlib").Path(__file__).parents[1] / "templates" / "tips" / "glossary.html").read_text(encoding="utf-8")
+    assert '{% include "_data_subnav.html" %}' in template
+    assert 'tips/_subnav.html' not in template

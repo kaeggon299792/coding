@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}기업별 복리후생 | Casino IN{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container company-benefits-page">
+  <header class="page-header">
+    <p class="page-eyebrow">COMPANY INTELLIGENCE / BENEFITS</p>
+    <h1 class="page-title">기업별 복리후생</h1>
+    <p class="page-description">기업별 복지 제도와 지원 수준을 기록하고, 종료된 제도도 이력으로 보존합니다.</p>
+  </header>
+
+  <form class="panel company-benefit-filter" method="get">
+    <label>기업
+      <select name="company">
+        <option value="">전체 기업</option>
+        {% for company in companies %}<option value="{{ company.name }}"{% if selected_company == company.name %} selected{% endif %}>{{ company.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">조회</button>
+    {% if selected_company %}<a class="btn" href="{{ url_for('company_benefits_page') }}">전체 보기</a>{% endif %}
+  </form>
+
+  {% if current_user_role == 'admin' %}
+  <details class="panel company-benefit-admin" open>
+    <summary>복리후생 등록</summary>
+    <form class="company-benefit-form" method="post" action="{{ url_for('create_company_benefit_route') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>기업<select name="company_name" required>{% for company in companies %}<option value="{{ company.name }}"{% if selected_company == company.name %} selected{% endif %}>{{ company.name }}</option>{% endfor %}</select></label>
+      <label>분류<select name="category" required>{% for value, label in benefit_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>복지명<input name="benefit_name" maxlength="120" placeholder="예: 직장 어린이집" required></label>
+      <label>지원 내용·금액<input name="support_value" maxlength="300" placeholder="예: 복지카드 연 120만원"></label>
+      <label>수준<input name="benefit_level" maxlength="100" placeholder="예: 연 120만원 / 전액 / 우수"></label>
+      <label>시행일<input type="date" name="effective_from"></label>
+      <label>종료일<input type="date" name="ended_on"><small>현재 운영 중이면 비워두세요.</small></label>
+      <label class="wide">비고<textarea name="notes" rows="3" maxlength="1000" placeholder="대상, 신청 조건, 사용 방법 등을 기록하세요."></textarea></label>
+      <div class="wide company-benefit-form-actions"><button class="btn btn-primary" type="submit">등록</button></div>
+    </form>
+  </details>
+  {% endif %}
+
+  <div class="company-benefit-sections">
+    {% for company in visible_companies %}
+    {% set company_benefits = benefits_by_company.get(company.name, []) %}
+    <section class="company-benefit-section">
+      <header><div><p class="page-eyebrow">{{ '%02d'|format(loop.index) }} / COMPANY</p><h2>{{ company.name }}</h2></div><strong>{{ company_benefits|length }}개</strong></header>
+      {% if company_benefits %}
+      <div class="company-benefit-grid">
+        {% for benefit in company_benefits %}
+        <article class="panel company-benefit-card{% if benefit.ended_on %} is-ended{% endif %}">
+          <header>
+            <div><span>{{ category_labels.get(benefit.category, benefit.category) }}</span><h3>{% if benefit.ended_on %}<s>{{ benefit.benefit_name }}</s>{% else %}{{ benefit.benefit_name }}{% endif %}</h3></div>
+            {% if benefit.ended_on %}<b class="benefit-ended-badge">종료 {{ benefit.ended_on }}</b>{% else %}<b class="benefit-active-badge">운영 중</b>{% endif %}
+          </header>
+          <dl>
+            <div><dt>지원 내용·금액</dt><dd>{% if benefit.ended_on %}<s>{{ benefit.support_value or '-' }}</s>{% else %}{{ benefit.support_value or '-' }}{% endif %}</dd></div>
+            <div><dt>수준</dt><dd>{% if benefit.ended_on %}<s>{{ benefit.benefit_level or '-' }}</s>{% else %}{{ benefit.benefit_level or '-' }}{% endif %}</dd></div>
+            <div class="wide"><dt>비고</dt><dd>{% if benefit.ended_on %}<s>{{ benefit.notes or '-' }}</s>{% else %}{{ benefit.notes or '-' }}{% endif %}</dd></div>
+          </dl>
+          <footer><span>시행 {{ benefit.effective_from or '미상' }}</span>{% if benefit.ended_on %}<strong>종료일 {{ benefit.ended_on }}</strong>{% endif %}</footer>
+          {% if current_user_role == 'admin' %}
+          <details class="company-benefit-edit"><summary>관리자 수정</summary>
+            <form class="company-benefit-form compact" method="post" action="{{ url_for('edit_company_benefit_route', benefit_id=benefit.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <label>기업<select name="company_name" required>{% for option in companies %}<option value="{{ option.name }}"{% if benefit.company_name == option.name %} selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></label>
+              <label>분류<select name="category" required>{% for value, label in benefit_categories %}<option value="{{ value }}"{% if benefit.category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+              <label>복지명<input name="benefit_name" value="{{ benefit.benefit_name }}" maxlength="120" required></label>
+              <label>지원 내용·금액<input name="support_value" value="{{ benefit.support_value }}" maxlength="300"></label>
+              <label>수준<input name="benefit_level" value="{{ benefit.benefit_level }}" maxlength="100"></label>
+              <label>시행일<input type="date" name="effective_from" value="{{ benefit.effective_from or '' }}"></label>
+              <label>종료일<input type="date" name="ended_on" value="{{ benefit.ended_on or '' }}"><small>비우면 다시 운영 중으로 표시됩니다.</small></label>
+              <label class="wide">비고<textarea name="notes" rows="3" maxlength="1000">{{ benefit.notes }}</textarea></label>
+              <div class="wide company-benefit-form-actions"><button class="btn btn-primary" type="submit">저장</button></div>
+            </form>
+            {% if not benefit.ended_on %}<form class="company-benefit-end-form" method="post" action="{{ url_for('end_company_benefit_route', benefit_id=benefit.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="company_name" value="{{ benefit.company_name }}"><label>종료일<input type="date" name="ended_on" value="{{ today }}" required></label><button class="btn danger-button" type="submit">종료 이력 남기기</button></form>{% endif %}
+          </details>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}<div class="panel empty-state">아직 등록된 복리후생이 없습니다.</div>{% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

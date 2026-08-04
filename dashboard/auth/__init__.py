@@ -1600,16 +1600,23 @@ def localization_prompt():
     connection = dashboard_db()
     try:
         try:
-            chunks = localization_management.generate_translation_chunks(
-                connection, language_code, request.form.getlist("string_ids"),
-                mode=mode, style=style,
-            )
+            if language_code == "all":
+                chunks = localization_management.generate_all_translation_chunks(
+                    connection, request.form.getlist("string_ids"),
+                    mode=mode, style=style,
+                )
+            else:
+                chunks = localization_management.generate_translation_chunks(
+                    connection, language_code, request.form.getlist("string_ids"),
+                    mode=mode, style=style,
+                )
         except ValueError as exc:
             return redirect(url_for(
                 "auth.localization_dashboard", language=language_code, error=str(exc)
             ))
         return render_template(
             "localization_prompt.html", chunks=chunks, language_code=language_code,
+            return_language_code=(request.form.get("return_language_code") or "en"),
             mode=mode, style=style, csrf_token=get_csrf_token(),
         )
     finally:
@@ -1631,10 +1638,15 @@ def localization_import_ai():
     connection = dashboard_db()
     try:
         try:
-            result = localization_management.import_ai_translation_text(
-                connection, translation_payload,
-                language_code, session.get("user_id"),
-            )
+            if language_code == "all":
+                result = localization_management.import_ai_translation_text_all(
+                    connection, translation_payload, session.get("user_id"),
+                )
+            else:
+                result = localization_management.import_ai_translation_text(
+                    connection, translation_payload,
+                    language_code, session.get("user_id"),
+                )
         except ValueError as exc:
             connection.rollback()
             return redirect(url_for(
@@ -1643,7 +1655,7 @@ def localization_import_ai():
     finally:
         connection.close()
     return redirect(url_for(
-        "auth.localization_dashboard", language=language_code,
+        "auth.localization_dashboard", language=("en" if language_code == "all" else language_code),
         imported=f"AI 번역 {result['updated']}건 반영 · {result['errors']}건 제외",
     ))
 

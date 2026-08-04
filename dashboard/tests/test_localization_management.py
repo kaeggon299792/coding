@@ -263,6 +263,55 @@ def test_glossary_can_be_updated_and_deactivated():
     assert updated["is_active"] == 0
 
 
+def test_glossary_rejects_duplicate_source_for_same_language():
+    db = connection()
+    lms.save_glossary(db, "복합리조트", "Integrated Resort", "en")
+    with pytest.raises(ValueError, match="이미 등록된"):
+        lms.save_glossary(db, "복합리조트", "IR", "en")
+
+
+def test_all_language_prompt_and_import_use_one_combined_clipboard_payload():
+    db = connection()
+    string_id = lms.register_string(
+        db, "기업정보", page="Header", component="Menu",
+        language_key="MENU_COMPANY_ALL",
+    )
+    chunks = lms.generate_all_translation_chunks(
+        db, [string_id], mode="prompt", style="business"
+    )
+    assert len(chunks) == 1
+    assert chunks[0].count("ID=MENU_COMPANY_ALL") == 1
+    for label in ("EN:", "JA:", "YUE:"):
+        assert label in chunks[0]
+
+    result = lms.import_ai_translation_text_all(
+        db,
+        """ID=MENU_COMPANY_ALL
+
+EN:
+Company Information
+JA:
+企業情報
+YUE:
+公司資料""",
+    )
+    assert result == {
+        "updated": 3,
+        "errors": 0,
+        "languages": {"en": 1, "ja": 1, "yue-HK": 1},
+    }
+    rows = db.execute(
+        """SELECT language_code, translated_text FROM localization_translations
+           WHERE string_id=? ORDER BY language_code""",
+        (string_id,),
+    ).fetchall()
+    assert [tuple(row) for row in rows] == [
+        ("en", "Company Information"),
+        ("ja", "企業情報"),
+        ("yue-HK", "公司資料"),
+    ]
+
+
 def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path):
     from dashboard_db import schema
 
@@ -277,7 +326,7 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     assert upgraded.execute(
         "SELECT COUNT(*) FROM localization_glossary"
     ).fetchone()[0] == 8
-    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080406
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == 2026080407
     upgraded.close()
 
 
@@ -399,6 +448,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert response.status_code == 200
         assert "Localization Management" in response.get_data(as_text=True)
         assert "AI 번역 프롬프트 생성" in response.get_data(as_text=True)
+        assert '<option value="all" selected>전체 언어 한 번에</option>' in response.get_data(as_text=True)
         assert "<option selected>Pending</option>" in response.get_data(as_text=True)
         assert 'name="string_ids"' in response.get_data(as_text=True)
         assert 'name="string_ids" value=' in response.get_data(as_text=True)
@@ -432,6 +482,16 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert prompt.status_code == 200
         assert "카지노 산업 전문 번역가" in prompt.get_data(as_text=True)
         assert 'name="translation_chunk"' in prompt.get_data(as_text=True)
+        all_prompt = client.post("/admin/localization/prompt", data={
+            "csrf_token": "a" * 64, "language_code": "all",
+            "return_language_code": "en", "string_ids": str(pending_id),
+            "export_mode": "prompt", "translation_style": "business",
+        })
+        assert all_prompt.status_code == 200
+        all_prompt_html = all_prompt.get_data(as_text=True)
+        assert "전체 대상 언어가 함께 포함됩니다" in all_prompt_html
+        for label in ("EN:", "JA:", "YUE:"):
+            assert label in all_prompt_html
         imported = client.post("/admin/localization/import-ai", data={
             "csrf_token": "a" * 64, "language_code": "en",
             "translation_payload": "ID=UI_" + "0" * 16 + "\n\nEN:\nIgnored",

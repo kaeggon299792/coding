@@ -2,7 +2,7 @@
 {% block title %}카지노 용어집 · 자료실{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
-{% include "tips/_subnav.html" %}
+{% include "_data_subnav.html" %}
 <main class="page-container casino-glossary-page">
   <header class="page-header glossary-hero">
     <div>
@@ -20,7 +20,7 @@
     {% if query or selected_category %}<a class="btn" href="{{ url_for('tips.glossary_page') }}">초기화</a>{% endif %}
   </form>
 
-  {% if current_role == 'admin' %}
+  {% if current_user_role == 'admin' %}
   <details class="panel glossary-admin-compose">
     <summary>새 용어 등록</summary>
     <form method="post" action="{{ url_for('tips.glossary_page') }}" class="glossary-form">
@@ -49,13 +49,13 @@
         <div class="glossary-grid">
           {% for term in category_terms %}
           <article class="panel glossary-card">
-            <header><div><span class="glossary-category">{{ category_label }}</span><h3>{{ term.term_en if current_locale == 'en' and term.term_en else term.term_ko }}</h3>{% if term.term_en and current_locale != 'en' %}<p>{{ term.term_en }}</p>{% endif %}</div>{% if current_role == 'admin' and not term.is_public %}<span class="badge">비공개</span>{% endif %}</header>
+            <header><div><span class="glossary-category">{{ category_label }}</span><h3>{{ term.term_en if current_locale == 'en' and term.term_en else term.term_ko }}</h3>{% if term.term_en and current_locale != 'en' %}<p>{{ term.term_en }}</p>{% endif %}</div>{% if current_user_role == 'admin' and not term.is_public %}<span class="badge">비공개</span>{% endif %}</header>
             <dl>
               <div><dt>기본 의미</dt><dd>{{ term.definition }}</dd></div>
               <div class="easy"><dt>쉽게 말하면</dt><dd>{{ term.easy_explanation }}</dd></div>
             </dl>
             {% if term.aliases %}<p class="glossary-aliases"><b>다른 표기</b> {{ term.aliases }}</p>{% endif %}
-            {% if current_role == 'admin' %}
+            {% if current_user_role == 'admin' %}
             <details class="glossary-edit"><summary>수정·삭제</summary>
               <form method="post" action="{{ url_for('tips.edit_glossary_page', term_id=term.id) }}" class="glossary-form compact">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

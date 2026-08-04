@@ -97,6 +97,17 @@ def _glossary_form_values():
     }
 
 
+def _ensure_unique_glossary_term(connection, term_ko, *, exclude_id=None):
+    duplicate = connection.execute(
+        """SELECT id FROM casino_glossary_terms
+           WHERE is_deleted=0 AND term_ko=? COLLATE NOCASE
+             AND (? IS NULL OR id<>?)""",
+        (term_ko, exclude_id, exclude_id),
+    ).fetchone()
+    if duplicate:
+        raise ValueError("이미 등록된 용어입니다.")
+
+
 def _ensure_site_category(connection, category):
     connection.execute(
         """
@@ -197,6 +208,7 @@ def glossary_page():
                 abort(400)
             try:
                 values = _glossary_form_values()
+                _ensure_unique_glossary_term(connection, values["term_ko"])
                 timestamp = now_kst().isoformat(timespec="seconds")
                 connection.execute(
                     """
@@ -267,6 +279,9 @@ def edit_glossary_page(term_id):
         return redirect(url_for("tips.glossary_page"))
     connection = dashboard_db()
     try:
+        _ensure_unique_glossary_term(
+            connection, values["term_ko"], exclude_id=term_id
+        )
         cursor = connection.execute(
             """
             UPDATE casino_glossary_terms SET
@@ -284,6 +299,10 @@ def edit_glossary_page(term_id):
         if not cursor.rowcount:
             abort(404)
         connection.commit()
+    except (ValueError, sqlite3.IntegrityError):
+        connection.rollback()
+        flash("이미 등록된 용어입니다.", "error")
+        return redirect(url_for("tips.glossary_page"))
     finally:
         connection.close()
     flash("카지노 용어를 수정했습니다.", "success")

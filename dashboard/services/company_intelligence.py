@@ -177,6 +177,11 @@ def _company_profiles(connection):
     return profiles
 
 
+def list_company_options(connection):
+    """Return canonical company names and slugs for company-scoped editors."""
+    return _company_profiles(connection)
+
+
 def get_company_profile_by_slug(connection, company_slug):
     return _find_profile_by_slug(_company_profiles(connection), str(company_slug or ""))
 

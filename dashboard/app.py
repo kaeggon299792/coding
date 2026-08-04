@@ -10,6 +10,7 @@ import hmac
 import json
 import re
 import secrets
+import sqlite3
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -107,6 +108,7 @@ INDEXABLE_ENDPOINTS = {
     "laws_page",
     "legislation_page",
     "companies_page",
+    "company_benefits_page",
     "company_news_page",
     "research_library_page",
     "credits_page",
@@ -156,6 +158,7 @@ SITEMAP_STATIC_ENDPOINTS = {
     "laws_page": {"changefreq": "daily", "priority": "0.9"},
     "legislation_page": {"changefreq": "daily", "priority": "0.88"},
     "companies_page": {"changefreq": "daily", "priority": "0.85"},
+    "company_benefits_page": {"changefreq": "monthly", "priority": "0.72"},
     "company_news_page": {"changefreq": "hourly", "priority": "0.85"},
     "research_library_page": {"changefreq": "weekly", "priority": "0.8"},
     "tips.list_page": {"changefreq": "weekly", "priority": "0.8"},
@@ -442,6 +445,7 @@ ENDPOINT_PERMISSIONS = {
     "laws_page": "laws",
     "legislation_page": "laws",
     "companies_page": "companies",
+    "company_benefits_page": "companies",
     "company_news_page": "companies",
     "research_library_page": "research_library",
     "download_research_document": "research_library",
@@ -469,6 +473,7 @@ PUBLIC_READ_ENDPOINTS = {
     "laws_page",
     "legislation_page",
     "companies_page",
+    "company_benefits_page",
     "company_news_page",
     "community_board_page",
     "notice_board_page",
@@ -967,6 +972,7 @@ def inject_globals():
         "laws_page": "법률·규제",
         "legislation_page": "입법동향",
         "companies_page": "주요 국내기업",
+        "company_benefits_page": "복리후생",
         "company_news_page": "기업별 뉴스",
         "research_library_page": "기업별 리포트",
         "download_research_document": "기업별 리포트",
@@ -1085,6 +1091,7 @@ def _site_map_links():
             "endpoint": "companies_page",
             "children": [
                 {"label": "주요 국내기업", "endpoint": "companies_page"},
+                {"label": "복리후생", "endpoint": "company_benefits_page"},
                 {"label": "기업별 뉴스", "endpoint": "company_news_page"},
                 {"label": "기업별 공시", "endpoint": "disclosures_page"},
                 {"label": "기업별 리포트", "endpoint": "research_library_page"},
@@ -1234,6 +1241,9 @@ def _build_sitemap_entries(connection):
                 ),
             ),
             default=today_kst_str(),
+        ),
+        "company_benefits_page": _max_timestamp(
+            connection, "company_benefits", "updated_at"
         ),
         "company_news_page": news_reader.last_updated_at() or today_kst_str(),
         "research_library_page": _max_timestamp(connection, "research_documents", "updated_at"),
@@ -3267,6 +3277,176 @@ def legislation_page():
 # ============================================================
 # 회사 360도 비교
 # ============================================================
+
+COMPANY_BENEFIT_CATEGORIES = (
+    ("family", "가족·보육"),
+    ("financial", "금전·포인트"),
+    ("health", "건강·의료"),
+    ("leave", "휴가·근무"),
+    ("meal", "식사·생활"),
+    ("education", "교육·성장"),
+    ("housing", "주거·교통"),
+    ("other", "기타"),
+)
+
+
+def _company_benefit_form_values(connection):
+    company_name = " ".join((request.form.get("company_name") or "").split())
+    valid_companies = {
+        item["name"] for item in company_intelligence.list_company_options(connection)
+    }
+    if company_name not in valid_companies:
+        raise ValueError("등록된 기업을 선택해주세요.")
+    category = (request.form.get("category") or "other").strip()
+    if category not in {value for value, _ in COMPANY_BENEFIT_CATEGORIES}:
+        raise ValueError("복리후생 분류를 확인해주세요.")
+    benefit_name = " ".join((request.form.get("benefit_name") or "").split())
+    if not benefit_name or len(benefit_name) > 120:
+        raise ValueError("복지명은 120자 이내로 입력해주세요.")
+
+    def optional_date(field, label):
+        value = (request.form.get(field) or "").strip()
+        if not value:
+            return None
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"{label} 날짜를 확인해주세요.") from exc
+        return value
+
+    effective_from = optional_date("effective_from", "시행일")
+    ended_on = optional_date("ended_on", "종료일")
+    if effective_from and ended_on and ended_on < effective_from:
+        raise ValueError("종료일은 시행일보다 빠를 수 없습니다.")
+    values = {
+        "company_name": company_name,
+        "category": category,
+        "benefit_name": benefit_name,
+        "support_value": (request.form.get("support_value") or "").strip(),
+        "benefit_level": (request.form.get("benefit_level") or "").strip(),
+        "notes": (request.form.get("notes") or "").strip(),
+        "effective_from": effective_from,
+        "ended_on": ended_on,
+    }
+    limits = {"support_value": 300, "benefit_level": 100, "notes": 1000}
+    if any(len(values[field]) > limit for field, limit in limits.items()):
+        raise ValueError("지원 내용·수준·비고의 허용 길이를 초과했습니다.")
+    return values
+
+
+@app.get("/companies/benefits")
+def company_benefits_page():
+    selected_company = (request.args.get("company") or "").strip()
+    connection = dashboard_db()
+    try:
+        companies = company_intelligence.list_company_options(connection)
+        valid_names = {item["name"] for item in companies}
+        if selected_company not in valid_names:
+            selected_company = ""
+        rows = queries.list_company_benefits(
+            connection, selected_company or None
+        )
+        grouped = {item["name"]: [] for item in companies}
+        for row in rows:
+            grouped.setdefault(row["company_name"], []).append(row)
+        visible_companies = [
+            item for item in companies
+            if not selected_company or item["name"] == selected_company
+        ]
+        return render_template(
+            "company_benefits.html",
+            companies=companies,
+            visible_companies=visible_companies,
+            benefits_by_company=grouped,
+            selected_company=selected_company,
+            benefit_categories=COMPANY_BENEFIT_CATEGORIES,
+            category_labels=dict(COMPANY_BENEFIT_CATEGORIES),
+            csrf_token=get_csrf_token(),
+            today=today_kst_str(),
+        )
+    finally:
+        connection.close()
+
+
+@app.post("/companies/benefits")
+@admin_required
+def create_company_benefit_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        values = _company_benefit_form_values(connection)
+        queries.create_company_benefit(
+            connection, values, actor_id=session.get("user_id")
+        )
+    except (ValueError, sqlite3.IntegrityError) as exc:
+        connection.rollback()
+        message = (
+            "해당 기업에 같은 이름의 활성 복리후생이 이미 있습니다."
+            if isinstance(exc, sqlite3.IntegrityError) else str(exc)
+        )
+        flash(message, "error")
+    else:
+        flash("복리후생 항목을 등록했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "company_benefits_page", company=request.form.get("company_name", "")
+    ))
+
+
+@app.post("/companies/benefits/<int:benefit_id>/edit")
+@admin_required
+def edit_company_benefit_route(benefit_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not queries.get_company_benefit(connection, benefit_id):
+            abort(404)
+        values = _company_benefit_form_values(connection)
+        queries.update_company_benefit(connection, benefit_id, values)
+    except (ValueError, sqlite3.IntegrityError) as exc:
+        connection.rollback()
+        message = (
+            "해당 기업에 같은 이름의 활성 복리후생이 이미 있습니다."
+            if isinstance(exc, sqlite3.IntegrityError) else str(exc)
+        )
+        flash(message, "error")
+    else:
+        flash("복리후생 항목을 수정했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "company_benefits_page", company=request.form.get("company_name", "")
+    ))
+
+
+@app.post("/companies/benefits/<int:benefit_id>/end")
+@admin_required
+def end_company_benefit_route(benefit_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    ended_on = (request.form.get("ended_on") or today_kst_str()).strip()
+    try:
+        datetime.strptime(ended_on, "%Y-%m-%d")
+    except ValueError:
+        abort(400)
+    connection = dashboard_db()
+    try:
+        benefit = queries.get_company_benefit(connection, benefit_id)
+        if not benefit:
+            abort(404)
+        if benefit.get("effective_from") and ended_on < benefit["effective_from"]:
+            flash("종료일은 시행일보다 빠를 수 없습니다.", "error")
+        else:
+            queries.end_company_benefit(connection, benefit_id, ended_on)
+            flash("복리후생 종료 이력을 남겼습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "company_benefits_page", company=request.form.get("company_name", "")
+    ))
 
 @app.route("/companies")
 def companies_page():

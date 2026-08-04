@@ -501,6 +501,13 @@ def save_glossary(connection, source_text, target_text, language_code="en",
         (language_code,),
     ).fetchone():
         raise ValueError("대상 언어를 확인해주세요.")
+    duplicate = connection.execute(
+        """SELECT id FROM localization_glossary
+           WHERE language_code=? AND source_text=? AND (? IS NULL OR id<>?)""",
+        (language_code, source, glossary_id, glossary_id),
+    ).fetchone()
+    if duplicate:
+        raise ValueError("같은 언어에 이미 등록된 용어입니다.")
     now = _timestamp()
     if glossary_id:
         cursor = connection.execute(
@@ -515,10 +522,7 @@ def save_glossary(connection, source_text, target_text, language_code="en",
         connection.execute(
             """INSERT INTO localization_glossary
                    (source_text,target_text,language_code,is_active,created_at,updated_at,updated_by)
-               VALUES (?,?,?,1,?,?,?)
-               ON CONFLICT(source_text,language_code) DO UPDATE SET
-                 target_text=excluded.target_text,is_active=1,
-                 updated_at=excluded.updated_at,updated_by=excluded.updated_by""",
+               VALUES (?,?,?,1,?,?,?)""",
             (source, target, language_code, now, now, actor_id),
         )
 
@@ -645,6 +649,186 @@ def generate_translation_chunks(connection, language_code, string_ids, *,
         if mode == "prompt" else ""
     )
     return [prefix + "".join(group) + suffix for group in groups]
+
+
+def _active_prompt_languages(connection):
+    languages = []
+    for row in connection.execute(
+        """SELECT language_code, display_name FROM localization_languages
+           WHERE is_active=1 AND is_source=0 ORDER BY language_code"""
+    ).fetchall():
+        configured = _prompt_language(connection, row["language_code"])
+        languages.append({
+            "language_code": row["language_code"],
+            "display_name": row["display_name"],
+            **configured,
+        })
+    if not languages:
+        raise ValueError("활성화된 번역 대상 언어가 없습니다.")
+    return languages
+
+
+def generate_all_translation_chunks(connection, string_ids, *, mode="prompt",
+                                    style="natural", max_items=PROMPT_MAX_ITEMS,
+                                    max_chars=PROMPT_MAX_CHARS):
+    """Generate one clipboard payload containing every active target language."""
+    languages = _active_prompt_languages(connection)
+    ids = []
+    for value in string_ids:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0 and parsed not in ids:
+            ids.append(parsed)
+    if not ids:
+        raise ValueError("번역할 항목을 하나 이상 선택해주세요.")
+    if len(ids) > 500:
+        raise ValueError("한 번에 최대 500개 항목을 선택할 수 있습니다.")
+
+    placeholders = ",".join("?" for _ in ids)
+    rows = [dict(row) for row in connection.execute(
+        f"""SELECT id, language_key, source_text, page_name, string_type
+            FROM localization_strings
+            WHERE id IN ({placeholders}) AND deleted_at IS NULL
+              AND status<>'Ignored'
+            ORDER BY CASE priority WHEN 'Critical' THEN 0 WHEN 'High' THEN 1
+                     WHEN 'Medium' THEN 2 ELSE 3 END, id""",
+        ids,
+    ).fetchall()]
+    completed = {
+        (row["string_id"], row["language_code"])
+        for row in connection.execute(
+            f"""SELECT string_id, language_code FROM localization_translations
+                WHERE string_id IN ({placeholders}) AND status='Completed'""",
+            ids,
+        ).fetchall()
+    }
+    entries = []
+    for row in rows:
+        pending_languages = [
+            language for language in languages
+            if (row["id"], language["language_code"]) not in completed
+        ]
+        if not pending_languages:
+            continue
+        fields = "\n".join(
+            f"{language['output_label']}:\n" for language in pending_languages
+        )
+        entries.append(
+            "--------------------------------\n\n"
+            f"ID={row['language_key']}\n\n"
+            f"TYPE={row['string_type']}\n"
+            f"PAGE={row['page_name']}\n\n"
+            f"KOREAN:\n{row['source_text']}\n\n{fields}\n"
+        )
+    if not entries:
+        raise ValueError("선택 항목은 모든 언어의 번역이 완료됐습니다.")
+
+    max_items = max(1, min(int(max_items or PROMPT_MAX_ITEMS), 500))
+    max_chars = max(3000, min(int(max_chars or PROMPT_MAX_CHARS), 100000))
+    groups, current, current_size = [], [], 0
+    for entry in entries:
+        if current and (len(current) >= max_items or current_size + len(entry) > max_chars):
+            groups.append(current)
+            current, current_size = [], 0
+        current.append(entry)
+        current_size += len(entry)
+    if current:
+        groups.append(current)
+
+    if mode != "prompt":
+        return ["".join(group) for group in groups]
+    language_lines = "\n".join(
+        f"- {language['output_label']}: {language['display_name']}"
+        for language in languages
+    )
+    glossary_lines = []
+    for language in languages:
+        terms = list_glossary(
+            connection, language["language_code"], active_only=True
+        )
+        if terms:
+            glossary_lines.append(
+                f"[{language['output_label']}]\n" + "\n".join(
+                    f"- {term['source_text']} → {term['target_text']}" for term in terms
+                )
+            )
+    prefix = f"""당신은 카지노 산업 전문 번역가입니다.
+
+각 KOREAN 문장을 아래의 모든 대상 언어로 번역하세요. 이미 완료된 언어는 입력칸이 없으며, 표시된 언어 라벨만 채웁니다.
+
+대상 언어
+{language_lines}
+
+규칙
+1. ID, TYPE, PAGE, KOREAN과 언어 라벨을 변경하지 않습니다.
+2. HTML, Markdown, 줄바꿈, 변수와 placeholder를 보존합니다.
+3. 브랜드명과 회사명은 임의로 바꾸지 않습니다.
+4. 설명이나 주석 없이 전체 결과를 하나의 ```text 코드블록으로 반환합니다.
+5. 번역 스타일은 {TRANSLATION_STYLES.get(style, TRANSLATION_STYLES['natural'])}
+
+프로젝트 공통 용어집
+{chr(10).join(glossary_lines) or '- 등록된 용어 없음'}
+
+=========================\n\n"""
+    suffix = (
+        "=========================\n\n"
+        "모든 ID와 표시된 언어 라벨을 유지하고 번역 결과만 채워주세요."
+    )
+    return [prefix + "".join(group) + suffix for group in groups]
+
+
+def import_ai_translation_text_all(connection, payload, actor_id=None):
+    """Import a combined AI response containing multiple language labels."""
+    text = str(payload or "")
+    if not text.strip():
+        raise ValueError("AI 번역 결과를 붙여 넣어주세요.")
+    if len(text) > 2_000_000:
+        raise ValueError("붙여넣기 내용은 2MB 이하여야 합니다.")
+    languages = _active_prompt_languages(connection)
+    by_label = {item["output_label"]: item["language_code"] for item in languages}
+    label_pattern = "|".join(re.escape(label) for label in by_label)
+    block_pattern = re.compile(
+        r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)(?=^\s*ID\s*=|\Z)"
+    )
+    updated = errors = 0
+    per_language = {item["language_code"]: 0 for item in languages}
+    for block in block_pattern.finditer(text):
+        language_key = block.group(1).strip()[:200]
+        row = connection.execute(
+            "SELECT id FROM localization_strings WHERE language_key=? AND deleted_at IS NULL",
+            (language_key,),
+        ).fetchone()
+        values = list(re.finditer(
+            rf"(?ms)^\s*({label_pattern})\s*:\s*\r?\n(.*?)"
+            rf"(?=^\s*(?:{label_pattern})\s*:|\Z)",
+            block.group(2),
+        ))
+        if not row or not values:
+            errors += 1
+            continue
+        for value in values:
+            translation = re.sub(
+                r"\n?\s*-{8,}\s*$", "", value.group(2)
+            ).strip()
+            if not translation:
+                errors += 1
+                continue
+            language_code = by_label[value.group(1)]
+            try:
+                save_translation(
+                    connection, row["id"], language_code, translation,
+                    actor_id=actor_id, status="Completed",
+                )
+                updated += 1
+                per_language[language_code] += 1
+            except ValueError:
+                errors += 1
+    if not updated and not errors:
+        raise ValueError("ID와 언어 라벨 형식의 번역 결과를 찾지 못했습니다.")
+    connection.commit()
+    return {"updated": updated, "errors": errors, "languages": per_language}
 
 
 def import_ai_translation_text(connection, payload, language_code="en", actor_id=None):

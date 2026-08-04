@@ -1153,6 +1153,76 @@ def list_latest_company_executive_profiles(connection, company_name):
     return [dict(row) for row in rows]
 
 
+def list_company_benefits(connection, company_name=None):
+    sql = "SELECT * FROM company_benefits"
+    params = ()
+    if company_name:
+        sql += " WHERE company_name=?"
+        params = (company_name,)
+    sql += (
+        " ORDER BY company_name, CASE WHEN ended_on IS NULL THEN 0 ELSE 1 END, "
+        "category, benefit_name COLLATE NOCASE, COALESCE(ended_on, '') DESC"
+    )
+    return [dict(row) for row in connection.execute(sql, params).fetchall()]
+
+
+def get_company_benefit(connection, benefit_id):
+    row = connection.execute(
+        "SELECT * FROM company_benefits WHERE id=?", (benefit_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_company_benefit(connection, values, actor_id=None):
+    timestamp = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        INSERT INTO company_benefits (
+            company_name, category, benefit_name, support_value, benefit_level,
+            notes, effective_from, ended_on, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            values["company_name"], values["category"], values["benefit_name"],
+            values["support_value"], values["benefit_level"], values["notes"],
+            values["effective_from"], values["ended_on"], actor_id, timestamp, timestamp,
+        ),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def update_company_benefit(connection, benefit_id, values):
+    cursor = connection.execute(
+        """
+        UPDATE company_benefits SET
+            company_name=?, category=?, benefit_name=?, support_value=?,
+            benefit_level=?, notes=?, effective_from=?, ended_on=?, updated_at=?
+        WHERE id=?
+        """,
+        (
+            values["company_name"], values["category"], values["benefit_name"],
+            values["support_value"], values["benefit_level"], values["notes"],
+            values["effective_from"], values["ended_on"],
+            now_kst().isoformat(timespec="seconds"), benefit_id,
+        ),
+    )
+    if not cursor.rowcount:
+        raise ValueError("복리후생 항목을 찾을 수 없습니다.")
+    connection.commit()
+
+
+def end_company_benefit(connection, benefit_id, ended_on):
+    cursor = connection.execute(
+        """UPDATE company_benefits
+           SET ended_on=?, updated_at=? WHERE id=? AND ended_on IS NULL""",
+        (ended_on, now_kst().isoformat(timespec="seconds"), benefit_id),
+    )
+    if not cursor.rowcount:
+        raise ValueError("활성 복리후생 항목을 찾을 수 없습니다.")
+    connection.commit()
+
+
 def list_latest_company_financial_reports(connection, company_name):
     """회사·제표별 가장 최근에 반영된 원본 보고서 메타데이터를 반환한다."""
 

@@ -132,6 +132,11 @@ def test_company_rating_badge_is_prominent_and_responsive():
     rule = css.split(".company-rating-badge strong {", 1)[1].split("}", 1)[0]
     assert "font-size: clamp(28px, 2.2vw, 32px);" in rule
     assert "font-weight: 800;" in rule
+    badge_rule = css.split(".company-rating-badge {", 1)[1].split("}", 1)[0]
+    source_rule = css.rsplit(".company-rating-badge small {", 1)[1].split("}", 1)[0]
+    assert "display: inline-grid;" in badge_rule
+    assert "grid-template-columns: auto auto;" in badge_rule
+    assert "grid-column: 1 / -1;" in source_rule
 
 
 def test_company_executive_profiles_support_single_and_joint_representatives(tmp_path):

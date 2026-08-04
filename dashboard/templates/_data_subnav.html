@@ -1,12 +1,13 @@
 {% set news_endpoints = ('related_news_page', 'overseas_news_page') %}
 {% set market_endpoints = ('market_trend_page', 'casino_industry_page', 'casino_visitors_page', 'casino_revenue_page', 'casino_fund_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page') %}
-{% set company_endpoints = ('companies_page', 'company_detail_page', 'company_news_page', 'disclosures_page', 'upload_ir_document', 'download_ir_document', 'reanalyze_ir_document', 'update_ir_document_title', 'delete_ir_document', 'research_library_page', 'download_research_document', 'reanalyze_research_document', 'update_research_document_title', 'delete_research_document', 'salary_trend_page', 'recruitment_page') %}
+{% set company_endpoints = ('companies_page', 'company_detail_page', 'company_benefits_page', 'create_company_benefit_route', 'edit_company_benefit_route', 'end_company_benefit_route', 'company_news_page', 'disclosures_page', 'upload_ir_document', 'download_ir_document', 'reanalyze_ir_document', 'update_ir_document_title', 'delete_ir_document', 'research_library_page', 'download_research_document', 'reanalyze_research_document', 'update_research_document_title', 'delete_research_document', 'salary_trend_page', 'recruitment_page') %}
 <nav class="data-subnav" aria-label="{{ current_menu_name }} {{ t('하위 메뉴') }}">
   {% if request.endpoint in news_endpoints %}
     <a href="{{ url_for('related_news_page') }}"{% if request.endpoint == 'related_news_page' %} class="active" aria-current="page"{% endif %}>국내 뉴스</a>
     <a href="{{ url_for('overseas_news_page') }}"{% if request.endpoint == 'overseas_news_page' %} class="active" aria-current="page"{% endif %}>해외 뉴스</a>
   {% elif request.endpoint in company_endpoints %}
     <a href="{{ url_for('companies_page') }}"{% if request.endpoint in ('companies_page', 'company_detail_page') %} class="active" aria-current="page"{% endif %}>주요 국내기업</a>
+    <a href="{{ url_for('company_benefits_page') }}"{% if request.endpoint in ('company_benefits_page', 'create_company_benefit_route', 'edit_company_benefit_route', 'end_company_benefit_route') %} class="active" aria-current="page"{% endif %}>복리후생</a>
     <a href="{{ url_for('company_news_page') }}"{% if request.endpoint == 'company_news_page' %} class="active" aria-current="page"{% endif %}>기업별 뉴스</a>
     <a href="{{ url_for('disclosures_page') }}"{% if request.endpoint in ('disclosures_page', 'upload_ir_document', 'download_ir_document', 'reanalyze_ir_document', 'update_ir_document_title', 'delete_ir_document') %} class="active" aria-current="page"{% endif %}>기업별 공시</a>
     <a href="{{ url_for('research_library_page') }}"{% if request.endpoint in ('research_library_page', 'download_research_document', 'reanalyze_research_document', 'update_research_document_title', 'delete_research_document') %} class="active" aria-current="page"{% endif %}>기업별 리포트</a>
@@ -27,4 +28,5 @@
     <a href="{{ url_for('economic_trend_page') }}"{% if request.endpoint == 'economic_trend_page' %} class="active" aria-current="page"{% endif %}>환율·유가</a>
     <a href="{{ url_for('holiday_calendar_page') }}"{% if request.endpoint == 'holiday_calendar_page' %} class="active" aria-current="page"{% endif %}>나라별 연휴</a>
   {% endif %}
+  <label class="sticky-nav-toggle" title="상단 메뉴를 스크롤에 따라 표시"><input type="checkbox" data-sticky-nav-toggle checked><span>메뉴 따라가기</span></label>
 </nav>

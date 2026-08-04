@@ -15,7 +15,7 @@ import config
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080406
+SCHEMA_VERSION = 2026080407
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -698,6 +698,36 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_company_executive_profiles_latest "
         "ON company_executive_profiles(company_name, profile_as_of DESC, id)"
+    )
+
+    # ---- company_benefits (회사별 복리후생 및 종료 이력) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS company_benefits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '기타',
+            benefit_name TEXT NOT NULL,
+            support_value TEXT NOT NULL DEFAULT '',
+            benefit_level TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            effective_from TEXT,
+            ended_on TEXT,
+            created_by INTEGER REFERENCES dashboard_users(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            CHECK(ended_on IS NULL OR effective_from IS NULL OR ended_on >= effective_from)
+        )
+        """
+    )
+    connection.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_company_benefits_active_unique
+           ON company_benefits(company_name, benefit_name COLLATE NOCASE)
+           WHERE ended_on IS NULL"""
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_company_benefits_list
+           ON company_benefits(company_name, ended_on, category, benefit_name)"""
     )
 
     # ---- company_financial_reports / values (VALUESearch 원본 재무제표) ----
