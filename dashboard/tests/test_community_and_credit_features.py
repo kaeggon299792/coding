@@ -247,3 +247,14 @@ def test_board_error_and_changed_templates_render():
         "company_news.html", "error.html",
     ):
         app_module.app.jinja_env.get_template(template)
+
+
+def test_community_table_keeps_metadata_columns_on_one_line():
+    css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".community-table{table-layout:fixed}" in css
+    assert ".community-title-cell{width:auto;min-width:0}" in css
+    assert ".community-table th:nth-child(4),.community-table td:nth-child(4){width:110px;white-space:nowrap}" in css
+    assert ".community-table th:nth-child(5),.community-table td:nth-child(5){width:120px;white-space:nowrap}" in css
+    assert "@media(max-width:760px){.community-table th:nth-child(n+3),.community-table td:nth-child(n+3){width:auto;white-space:normal}}" in css
