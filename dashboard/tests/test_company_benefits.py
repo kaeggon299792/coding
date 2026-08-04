@@ -130,7 +130,9 @@ def test_company_benefits_navigation_and_template_contract():
 def test_sticky_navigation_is_not_limited_to_one_viewport():
     root = Path(__file__).parents[1]
     css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    base = (root / "templates" / "base.html").read_text(encoding="utf-8")
 
     assert "html { height: 100%; }" in css
     assert "body { min-height: 100%; }" in css
     assert "html, body { height: 100%; }" not in css
+    assert "dashboard.css') }}?v=20260804-sticky-nav1" in base
