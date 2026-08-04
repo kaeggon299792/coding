@@ -60,22 +60,23 @@ def test_board_types_and_recommendation_toggle(db_connection):
         db_connection, user_id, "member", "자유글", "본문",
         board_type="community",
     )
+    pinned_id = queries.create_community_post(
+        db_connection, user_id, "member", "상단 고정글", "본문",
+        board_type="community", is_pinned=True,
+    )
     notice_id = queries.create_community_post(
         db_connection, user_id, "member", "공지", "본문",
         board_type="notice",
     )
     assert [row["id"] for row in queries.list_community_posts(
         db_connection, board_type="community"
-    )] == [community_id]
+    )] == [pinned_id, community_id]
     assert [row["id"] for row in queries.list_community_posts(
         db_connection, board_type="notice"
     )] == [notice_id]
-    assert [row["id"] for row in queries.list_community_posts(
-        db_connection, board_type="community", include_notices=True
-    )] == [notice_id, community_id]
-    assert queries.count_community_posts(
-        db_connection, board_type="community", include_notices=True
-    ) == 2
+    assert queries.count_community_posts(db_connection, board_type="community") == 2
+    queries.set_community_post_pinned(db_connection, pinned_id, False)
+    assert queries.get_community_post(db_connection, pinned_id)["is_pinned"] == 0
 
     assert queries.toggle_community_post_recommendation(
         db_connection, community_id, user_id
@@ -89,9 +90,7 @@ def test_board_types_and_recommendation_toggle(db_connection):
 
     queries.soft_delete_community_post(db_connection, community_id, user_id)
     assert queries.get_community_post(db_connection, community_id) is None
-    assert queries.count_community_posts(
-        db_connection, board_type="community", include_notices=True
-    ) == 1
+    assert queries.count_community_posts(db_connection, board_type="community") == 1
     deleted = db_connection.execute(
         "SELECT is_deleted, deleted_by, deleted_at FROM community_posts WHERE id=?",
         (community_id,),
@@ -127,13 +126,17 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
                 "csrf_token": "c" * 64,
                 "title": "일반 사용자의 글",
                 "content": "일반 본문",
-                "is_notice": "1",
+                "is_pinned": "1",
             },
         )
         assert created.status_code == 302
         owner_post_id = int(created.headers["Location"].rstrip("/").split("/")[-1])
         owner_page = client.get(f"/board/{owner_post_id}")
         assert "community-post-delete-button" in owner_page.get_data(as_text=True)
+        assert client.post(
+            f"/board/{owner_post_id}/pin",
+            data={"csrf_token": "c" * 64, "is_pinned": "1"},
+        ).status_code == 403
         assert client.post(
             f"/board/{owner_post_id}/delete",
             data={"csrf_token": "invalid"},
@@ -144,20 +147,44 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
             browser_session["username"] = "board-admin"
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "a" * 64
-        notice = client.post(
+        pinned = client.post(
             "/board",
             data={
                 "csrf_token": "a" * 64,
-                "title": "상단 고정 공지",
+                "title": "자유게시판 고정글",
+                "content": "고정글 본문",
+                "is_pinned": "1",
+            },
+        )
+        assert pinned.status_code == 302
+        pinned_id = int(pinned.headers["Location"].rstrip("/").split("/")[-1])
+        notice = client.post(
+            "/board/notices",
+            data={
+                "csrf_token": "a" * 64,
+                "title": "공지사항 전용 글",
                 "content": "공지 본문",
-                "is_notice": "1",
             },
         )
         assert notice.status_code == 302
         notice_id = int(notice.headers["Location"].rstrip("/").split("/")[-1])
+        assert client.post(
+            f"/board/{notice_id}/pin",
+            data={"csrf_token": "a" * 64, "is_pinned": "1"},
+        ).status_code == 404
         board_html = client.get("/board").get_data(as_text=True)
-        assert "상단 고정 공지" in board_html
-        assert "NOTICE" in board_html
+        notice_html = client.get("/board/notices").get_data(as_text=True)
+        assert "자유게시판 고정글" in board_html
+        assert "PINNED" in board_html
+        assert "공지사항 전용 글" not in board_html
+        assert "공지사항 전용 글" in notice_html
+        assert "자유게시판 고정글" not in notice_html
+
+        unpinned = client.post(
+            f"/board/{pinned_id}/pin",
+            data={"csrf_token": "a" * 64, "is_pinned": "0"},
+        )
+        assert unpinned.status_code == 302
 
         deleted = client.post(
             f"/board/{owner_post_id}/delete",
@@ -167,9 +194,14 @@ def test_admin_notice_creation_and_owner_post_deletion_routes(monkeypatch, tmp_p
         assert client.get(f"/board/{owner_post_id}").status_code == 404
 
     connection = schema.connect(str(db_path))
-    assert connection.execute(
-        "SELECT board_type FROM community_posts WHERE id=?", (owner_post_id,)
-    ).fetchone()["board_type"] == "community"
+    owner_row = connection.execute(
+        "SELECT board_type, is_pinned FROM community_posts WHERE id=?", (owner_post_id,)
+    ).fetchone()
+    assert (owner_row["board_type"], owner_row["is_pinned"]) == ("community", 0)
+    pinned_row = connection.execute(
+        "SELECT board_type, is_pinned FROM community_posts WHERE id=?", (pinned_id,)
+    ).fetchone()
+    assert (pinned_row["board_type"], pinned_row["is_pinned"]) == ("community", 0)
     assert connection.execute(
         "SELECT board_type FROM community_posts WHERE id=?", (notice_id,)
     ).fetchone()["board_type"] == "notice"
@@ -355,10 +387,13 @@ def test_board_templates_expose_admin_notice_and_owner_delete_controls():
     post_template = (root / "templates" / "community_post.html").read_text(
         encoding="utf-8"
     )
-    assert 'name="is_notice"' in board_template
+    assert 'name="is_pinned"' in board_template
     assert "current_user_role == 'admin'" in board_template
-    assert "post.board_type == 'notice'" in board_template
+    assert "post.is_pinned" in board_template
+    assert "is_notice_board" in board_template
     assert "delete_community_post_route" in post_template
+    assert "set_community_post_pinned_route" in post_template
+    assert "상단 고정 해제" in post_template
     assert "current_user.id == post.author_id" in post_template
 
 

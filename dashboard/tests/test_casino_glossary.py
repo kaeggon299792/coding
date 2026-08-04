@@ -70,6 +70,9 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
                (username, password_hash, role, is_active, created_at)
            VALUES ('glossary-admin', 'unused', 'admin', 1, '2026-08-04T00:00:00')"""
     ).lastrowid
+    delete_term_id = connection.execute(
+        "SELECT id FROM casino_glossary_terms WHERE term_ko='바카라'"
+    ).fetchone()["id"]
     connection.commit()
     connection.close()
 
@@ -117,6 +120,16 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
             },
         )
         assert duplicate.status_code == 302
+        deleted = client.post(
+            f"/tips/glossary/{delete_term_id}/delete",
+            data={"csrf_token": "g" * 64},
+            follow_redirects=True,
+        )
+        deleted_html = deleted.get_data(as_text=True)
+        assert deleted.status_code == 200
+        assert deleted_html.count("카지노 용어를 삭제했습니다.") == 1
+        new_tip_page = client.get("/tips/new").get_data(as_text=True)
+        assert "카지노 용어를 삭제했습니다." not in new_tip_page
 
     connection = schema.connect(str(db_path))
     row = connection.execute(

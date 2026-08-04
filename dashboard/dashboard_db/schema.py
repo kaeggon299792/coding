@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080410
+SCHEMA_VERSION = 2026080411
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -477,6 +477,10 @@ def migrate(connection):
     _ensure_column(connection, "community_posts", "deleted_at", "TEXT")
     _ensure_column(connection, "community_posts", "deleted_by", "INTEGER")
     _ensure_column(
+        connection, "community_posts", "is_pinned",
+        "INTEGER NOT NULL DEFAULT 0",
+    )
+    _ensure_column(
         connection, "community_posts", "board_type",
         "TEXT NOT NULL DEFAULT 'community'",
     )
@@ -491,6 +495,10 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_posts_visible "
         "ON community_posts(is_deleted, board_type, created_at DESC, id DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_community_posts_board_pinned_created "
+        "ON community_posts(is_deleted, board_type, is_pinned DESC, created_at DESC, id DESC)"
     )
 
     # ---- community_comments ----

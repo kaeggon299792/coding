@@ -13,6 +13,10 @@
     <div class="glossary-hero-count"><strong>{{ terms|length }}</strong><span>등록 용어</span></div>
   </header>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}
+  {% endwith %}
+
   <form class="panel glossary-filter" method="get">
     <label><span>용어 검색</span><input type="search" name="q" value="{{ query }}" placeholder="용어·영문명·설명 검색"></label>
     <label><span>분류</span><select name="category"><option value="">전체</option><option value="game"{% if selected_category == 'game' %} selected{% endif %}>게임 용어</option><option value="business"{% if selected_category == 'business' %} selected{% endif %}>비즈니스 용어</option></select></label>

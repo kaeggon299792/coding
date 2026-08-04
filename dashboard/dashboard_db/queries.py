@@ -342,7 +342,7 @@ def delete_action_item_comment(connection, comment_id, user_id):
 
 def create_community_post(
     connection, author_id, author_username, title, content,
-    image_url=None, pdf_url=None, board_type="community",
+    image_url=None, pdf_url=None, board_type="community", is_pinned=False,
 ):
     title = (title or "").strip()
     content = (content or "").strip()
@@ -372,12 +372,14 @@ def create_community_post(
         """
         INSERT INTO community_posts
             (author_id, author_username, title, content, image_url, pdf_url,
-             board_type, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             board_type, is_pinned, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             author_id, author_username, title, content,
-            image_url or None, pdf_url or None, board_type, now_iso, now_iso,
+            image_url or None, pdf_url or None, board_type,
+            1 if is_pinned and board_type == "community" else 0,
+            now_iso, now_iso,
         ),
     )
     connection.commit()
@@ -386,41 +388,44 @@ def create_community_post(
 
 def list_community_posts(
     connection, limit=20, offset=0, board_type="community",
-    include_notices=False,
 ):
-    board_condition = (
-        "post.board_type IN ('notice', 'community')"
-        if include_notices and board_type == "community"
-        else "post.board_type = ?"
-    )
-    params = [] if "IN" in board_condition else [board_type]
     rows = connection.execute(
-        f"""
+        """
         SELECT post.*,
                (SELECT COUNT(1) FROM community_post_recommendations AS recommendation
                 WHERE recommendation.post_id = post.id) AS recommendation_count,
                (SELECT COUNT(1) FROM community_comments AS comment
                 WHERE comment.post_id = post.id AND comment.is_deleted = 0) AS comment_count
         FROM community_posts AS post
-        WHERE post.is_deleted = 0 AND {board_condition}
-        ORDER BY CASE WHEN post.board_type='notice' THEN 0 ELSE 1 END,
-                 post.created_at DESC, post.id DESC LIMIT ? OFFSET ?
+        WHERE post.is_deleted = 0 AND post.board_type = ?
+        ORDER BY post.is_pinned DESC, post.created_at DESC, post.id DESC
+        LIMIT ? OFFSET ?
         """,
-        (*params, max(1, min(int(limit), 100)), max(0, int(offset))),
+        (board_type, max(1, min(int(limit), 100)), max(0, int(offset))),
     ).fetchall()
     return [dict(row) for row in rows]
 
 
-def count_community_posts(connection, board_type="community", include_notices=False):
-    if include_notices and board_type == "community":
-        return connection.execute(
-            "SELECT COUNT(*) FROM community_posts "
-            "WHERE is_deleted=0 AND board_type IN ('notice', 'community')"
-        ).fetchone()[0]
+def count_community_posts(connection, board_type="community"):
     return connection.execute(
         "SELECT COUNT(*) FROM community_posts WHERE is_deleted=0 AND board_type=?",
         (board_type,),
     ).fetchone()[0]
+
+
+def set_community_post_pinned(connection, post_id, is_pinned):
+    now_iso = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        UPDATE community_posts
+        SET is_pinned=?, updated_at=?
+        WHERE id=? AND board_type='community' AND is_deleted=0
+        """,
+        (1 if is_pinned else 0, now_iso, post_id),
+    )
+    if not cursor.rowcount:
+        raise ValueError("자유게시판 글을 찾을 수 없습니다.")
+    connection.commit()
 
 
 def get_community_post(connection, post_id, user_id=None):

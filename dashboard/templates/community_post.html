@@ -35,6 +35,13 @@
         <button class="btn community-post-delete-button" type="submit">삭제</button>
       </form>
       {% endif %}
+      {% if current_user_role == 'admin' and post.board_type == 'community' %}
+      <form method="post" action="{{ url_for('set_community_post_pinned_route', post_id=post.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="is_pinned" value="{{ '0' if post.is_pinned else '1' }}">
+        <button class="btn community-pin-button" type="submit">{{ '상단 고정 해제' if post.is_pinned else '자유게시판 상단 고정' }}</button>
+      </form>
+      {% endif %}
       <span class="community-share-status" data-community-share-status role="status" aria-live="polite"></span>
     </div>
   </article>

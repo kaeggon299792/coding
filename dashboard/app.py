@@ -3969,16 +3969,13 @@ def _community_board_context(
     connection, page=1, error=None, form_data=None, board_type="community",
 ):
     page_size = 20
-    include_notices = board_type == "community"
-    total = queries.count_community_posts(
-        connection, board_type=board_type, include_notices=include_notices
-    )
+    total = queries.count_community_posts(connection, board_type=board_type)
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page), total_pages))
     return {
         "posts": queries.list_community_posts(
             connection, limit=page_size, offset=(page - 1) * page_size,
-            board_type=board_type, include_notices=include_notices,
+            board_type=board_type,
         ),
         "total": total,
         "page": page,
@@ -4090,7 +4087,7 @@ def create_community_post_route():
             "content": (request.form.get("content") or "").strip(),
             "image_url": (request.form.get("image_url") or "").strip(),
             "pdf_url": (request.form.get("pdf_url") or "").strip(),
-            "is_notice": request.form.get("is_notice") == "1",
+            "is_pinned": request.form.get("is_pinned") == "1",
         }
         if not validate_csrf(request.form.get("csrf_token", "")):
             return render_template(
@@ -4112,10 +4109,9 @@ def create_community_post_route():
                 content=form_data["content"],
                 image_url=image_url,
                 pdf_url=pdf_url,
-                board_type=(
-                    "notice"
-                    if session.get("role") == "admin" and form_data["is_notice"]
-                    else "community"
+                board_type="community",
+                is_pinned=(
+                    session.get("role") == "admin" and form_data["is_pinned"]
                 ),
             )
         except ValueError as error:
@@ -4127,7 +4123,9 @@ def create_community_post_route():
             ), 400
         security_audit.log_event(
             connection,
-            "NOTICE_POST_CREATE" if form_data["is_notice"] and session.get("role") == "admin" else "COMMUNITY_POST_CREATE",
+            "COMMUNITY_PINNED_POST_CREATE"
+            if form_data["is_pinned"] and session.get("role") == "admin"
+            else "COMMUNITY_POST_CREATE",
             "community_post",
             post_id,
             {"title_length": len(form_data["title"])},
@@ -4340,6 +4338,30 @@ def delete_community_post_route(post_id):
             if post["board_type"] == "notice"
             else "community_board_page"
         ))
+    finally:
+        connection.close()
+
+
+@app.post("/board/<int:post_id>/pin")
+@admin_required
+def set_community_post_pinned_route(post_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    is_pinned = request.form.get("is_pinned") == "1"
+    connection = dashboard_db()
+    try:
+        try:
+            queries.set_community_post_pinned(connection, post_id, is_pinned)
+        except ValueError:
+            abort(404)
+        security_audit.log_event(
+            connection,
+            "COMMUNITY_POST_PIN" if is_pinned else "COMMUNITY_POST_UNPIN",
+            "community_post",
+            post_id,
+        )
+        connection.commit()
+        return redirect(url_for("community_post_page", post_id=post_id))
     finally:
         connection.close()
 

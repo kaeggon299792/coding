@@ -37,7 +37,7 @@
         <label class="community-field"><span>PDF 링크 <em>선택</em></span><input type="url" name="pdf_url" maxlength="2048" inputmode="url" value="{{ form_data.pdf_url or '' }}" placeholder="https://example.com/document.pdf"></label>
       </div>
       {% if current_user_role == 'admin' and not is_notice_board %}
-      <label class="community-notice-check"><input type="checkbox" name="is_notice" value="1"{% if form_data.is_notice %} checked{% endif %}><span><b>공지로 등록</b><small>자유 게시판 최상단과 공지사항에 함께 표시됩니다.</small></span></label>
+      <label class="community-notice-check"><input type="checkbox" name="is_pinned" value="1"{% if form_data.is_pinned %} checked{% endif %}><span><b>자유게시판 상단 고정</b><small>이 글은 자유게시판에만 표시되며 최상단에 고정됩니다.</small></span></label>
       {% endif %}
       <div class="community-form-footer">
         <small>공개 게시판 · 최대 5,000자 · HTTPS 링크만 허용</small>
@@ -70,9 +70,9 @@
         <thead><tr><th class="community-number">번호</th><th>제목</th><th>작성자</th><th>추천·댓글</th><th>작성일</th></tr></thead>
         <tbody>
         {% for post in posts %}
-          <tr{% if post.board_type == 'notice' %} class="is-notice"{% endif %}>
-            <td class="community-number">{% if post.board_type == 'notice' %}<b>공지</b>{% else %}{{ total - (((page|default(1, true)) - 1) * 20 + loop.index0) }}{% endif %}</td>
-            <td class="community-title-cell"><a href="{{ url_for('community_post_page', post_id=post.id) }}"><strong>{% if post.board_type == 'notice' %}<em>NOTICE</em>{% endif %}{{ post.title }}</strong><span>{{ post.content|striptags|truncate(90, true, '…') }}</span></a></td>
+          <tr{% if post.is_pinned %} class="is-pinned"{% endif %}>
+            <td class="community-number">{% if is_notice_board %}<b>공지</b>{% elif post.is_pinned %}<b>고정</b>{% else %}{{ total - (((page|default(1, true)) - 1) * 20 + loop.index0) }}{% endif %}</td>
+            <td class="community-title-cell"><a href="{{ url_for('community_post_page', post_id=post.id) }}"><strong>{% if is_notice_board %}<em>NOTICE</em>{% elif post.is_pinned %}<em>PINNED</em>{% endif %}{{ post.title }}</strong><span>{{ post.content|striptags|truncate(90, true, '…') }}</span></a></td>
             <td data-label="작성자">{{ post.author_username or '탈퇴한 사용자' }}</td>
             <td data-label="추천·댓글">↑ {{ post.recommendation_count }} · {{ post.comment_count }}</td>
             <td data-label="작성일"><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:10] }}</time></td>
