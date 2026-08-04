@@ -138,6 +138,8 @@ def _system_prompt(language_code, glossary):
         "Markdown syntax, and placeholders exactly. Never add facts, explanations, or labels. "
         "Every digit sequence, decimal separator, thousands separator, sign, and percent sign "
         "must appear exactly as supplied. Never spell digits out or introduce new digits. "
+        "The translation must contain zero Hangul characters. Transliterate Korean personal "
+        "and place names when no established target-language or official Latin form exists. "
         "Keep company, brand, and product identities accurate. "
         f"Target language: {target['name']}. {target['rule']}\n\n"
         f"Required glossary:\n{glossary_text}"

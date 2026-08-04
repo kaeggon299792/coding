@@ -90,6 +90,7 @@ def test_translation_prompt_requires_literal_numeric_preservation():
 
     assert "Every digit sequence" in prompt
     assert "Never spell digits out or introduce new digits" in prompt
+    assert "must contain zero Hangul characters" in prompt
 
 
 def test_manual_translation_runs_all_pending_rows_in_batches(
