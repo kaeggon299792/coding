@@ -63,9 +63,11 @@ from services import (
     unified_search,
 )
 from official_docs import official_docs_bp
+from seo_content import LOCALIZED_SEO_PAGE_COPY
 from tips import tips_bp
 from localization import (
     LocalePrefixMiddleware,
+    SUPPORTED_LOCALES,
     alternate_paths,
     extract_translatable_html_strings,
     load_catalog,
@@ -410,6 +412,8 @@ SEO_PAGE_COPY = {
         ),
     },
 }
+for _seo_locale, _seo_pages in LOCALIZED_SEO_PAGE_COPY.items():
+    SEO_PAGE_COPY.setdefault(_seo_locale, {}).update(_seo_pages)
 _STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 
@@ -547,22 +551,34 @@ def _seo_defaults():
     seo_paths = alternate_paths(request.path)
     canonical_path = seo_paths[locale]
     localized_copy = SEO_PAGE_COPY.get(locale, {})
-    fallback_title = (
-        "Casino IN | 카지노 산업 정보와 인사이트"
-        if locale == "ko"
-        else "Casino IN | Casino Industry Information and Insights"
-    )
-    fallback_description = (
-        "국내외 카지노 산업 뉴스, 기업정보, 공시, 관광객, 환율, 시장 데이터와 인사이트를 제공하는 정보 플랫폼입니다."
-        if locale == "ko"
-        else "An information platform covering casino-industry news, company data, disclosures, tourism, FX, and market intelligence."
+    fallback_title, fallback_description = localized_copy.get(
+        "public_home", SEO_PAGE_COPY["en"]["public_home"]
     )
     title, description = localized_copy.get(
         endpoint,
         (fallback_title, fallback_description),
     )
     robots = "index,follow" if endpoint in INDEXABLE_ENDPOINTS else "noindex,nofollow"
-    structured_data = []
+    language_tag = {
+        "ko": "ko-KR",
+        "en": "en-US",
+        "ja": "ja-JP",
+        "yue-HK": "yue-HK",
+    }.get(locale, locale)
+    page_schema = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": title,
+        "url": f"{CANONICAL_URL}{canonical_path}",
+        "description": description,
+        "inLanguage": language_tag,
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Casino IN",
+            "url": f"{CANONICAL_URL}/",
+        },
+    }
+    structured_data = [page_schema] if endpoint in INDEXABLE_ENDPOINTS else []
     if endpoint == "public_home":
         website = {
             "@context": "https://schema.org",
@@ -570,7 +586,7 @@ def _seo_defaults():
             "name": "Casino IN",
             "url": f"{CANONICAL_URL}/",
             "description": description,
-            "inLanguage": "ko-KR" if locale == "ko" else "en-US",
+            "inLanguage": language_tag,
             "potentialAction": {
                 "@type": "SearchAction",
                 "target": f"{CANONICAL_URL}/search?q={{search_term_string}}",
@@ -584,15 +600,7 @@ def _seo_defaults():
             "url": f"{CANONICAL_URL}/",
             "logo": SEO_IMAGE_URL,
         }
-        webpage = {
-            "@context": "https://schema.org",
-            "@type": "WebPage",
-            "name": title,
-            "url": f"{CANONICAL_URL}{canonical_path}",
-            "description": description,
-            "isPartOf": {"@type": "WebSite", "name": "Casino IN", "url": f"{CANONICAL_URL}/"},
-        }
-        structured_data = [website, organization, webpage]
+        structured_data = [website, organization, page_schema]
     return {
         "seo_title": title,
         "seo_description": description,
@@ -609,6 +617,22 @@ def _seo_defaults():
         "seo_og_description": description,
         "seo_og_type": "website",
         "seo_og_url": f"{CANONICAL_URL}{canonical_path}",
+        "seo_og_locale": {
+            "ko": "ko_KR",
+            "en": "en_US",
+            "ja": "ja_JP",
+            "yue-HK": "yue_HK",
+        }.get(locale, "ko_KR"),
+        "seo_og_locale_alternates": [
+            value
+            for key, value in {
+                "ko": "ko_KR",
+                "en": "en_US",
+                "ja": "ja_JP",
+                "yue-HK": "yue_HK",
+            }.items()
+            if key != locale
+        ],
         "seo_image_url": SEO_IMAGE_URL,
         "seo_image_alt": "Casino IN logo",
         "seo_twitter_card": "summary_large_image",
@@ -1194,7 +1218,8 @@ def sitemap_page():
 def _sitemap_url_entry(path, lastmod, changefreq, priority):
     urls = _alternate_absolute_urls(path)
     entries = []
-    for locale_path in (urls["ko"], urls["en"]):
+    for locale in SUPPORTED_LOCALES:
+        locale_path = urls[locale]
         entries.append({
             "loc": locale_path,
             "lastmod": _date_only(lastmod),

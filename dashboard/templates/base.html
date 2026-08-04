@@ -18,8 +18,9 @@
 <meta property="og:url" content="{{ seo_og_url }}">
 <meta property="og:image" content="{{ seo_image_url }}">
 <meta property="og:image:alt" content="{{ seo_image_alt }}">
-<meta property="og:locale" content="{{ 'en_US' if current_locale == 'en' else 'ko_KR' }}">
-<meta property="og:locale:alternate" content="{{ 'ko_KR' if current_locale == 'en' else 'en_US' }}">
+<meta property="og:locale" content="{{ seo_og_locale }}">
+{% for alternate_locale in seo_og_locale_alternates %}<meta property="og:locale:alternate" content="{{ alternate_locale }}">
+{% endfor %}
 <meta name="twitter:card" content="{{ seo_twitter_card }}">
 <meta name="twitter:title" content="{{ seo_og_title }}">
 <meta name="twitter:description" content="{{ seo_og_description }}">
