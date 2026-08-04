@@ -2487,6 +2487,7 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 @media(max-width:620px){.company-benefit-card h3{font-size:22px}.company-benefit-card dd{font-size:13px}}
 
 /* Immediate localization API action */
+.news-stat-grid .is-alert strong{color:var(--brand-danger)}
 .localization-api-run{display:flex;align-items:center;gap:8px}.localization-api-run select{min-height:40px;padding:8px 10px;border:1px solid var(--brand-border-strong);background:var(--brand-bg);color:var(--brand-text-primary)}
 @media(max-width:560px){.localization-api-run,.localization-api-run select,.localization-api-run .btn{width:100%}}
 
