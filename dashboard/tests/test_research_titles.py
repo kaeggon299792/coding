@@ -75,14 +75,14 @@ def test_research_title_can_be_edited_or_replaced_with_ai_title(
             session["csrf_token"] = "r" * 64
 
         manual = client.post(
-            f"/library/{document_id}/title",
+            f"/companies/reports/{document_id}/title",
             data={"csrf_token": "r" * 64, "title": "직접 수정한 제목"},
         )
         ai_title = client.post(
-            f"/library/{document_id}/title",
+            f"/companies/reports/{document_id}/title",
             data={"csrf_token": "r" * 64, "title_mode": "ai"},
         )
-        page = client.get("/library")
+        page = client.get("/companies/reports")
 
     assert manual.status_code == 302
     assert ai_title.status_code == 302

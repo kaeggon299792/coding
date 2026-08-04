@@ -139,7 +139,7 @@ def test_library_upload_route_saves_and_analyzes(monkeypatch, tmp_path):
             session["username"] = "admin"
             session["csrf_token"] = "a" * 64
         response = client.post(
-            "/library",
+            "/companies/reports",
             data={
                 "csrf_token": "a" * 64,
                 "company_name": "GKL",
@@ -220,7 +220,7 @@ def test_library_upload_blank_title_uses_gpt_then_filename_fallback(
             session["username"] = "admin"
             session["csrf_token"] = "b" * 64
         response = client.post(
-            "/library",
+            "/companies/reports",
             data={
                 "csrf_token": "b" * 64,
                 "company_name": "GKL",

@@ -87,7 +87,7 @@ def _fetch_feed(feed, limit=25):
         retry_attempts=3,
         timeout=(5, 15),
         headers={
-            "User-Agent": "CasinoIN/1.0 (+https://casino.shingoon.me/credits)",
+            "User-Agent": "CasinoIN/1.0 (+https://www.casinoin.kr/credits)",
             "Accept": "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8",
         },
     )

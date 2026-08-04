@@ -69,9 +69,9 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert '<html lang="en"' in html
     assert "Casino Industry Information and Insights" in html
     assert ">Market Intelligence<" in html
-    assert 'rel="canonical" href="https://casino.shingoon.me/en/"' in html
-    assert 'hreflang="ko" href="https://casino.shingoon.me/"' in html
-    assert 'hreflang="en" href="https://casino.shingoon.me/en/"' in html
+    assert 'rel="canonical" href="https://www.casinoin.kr/en/"' in html
+    assert 'hreflang="ko" href="https://www.casinoin.kr/"' in html
+    assert 'hreflang="en" href="https://www.casinoin.kr/en/"' in html
     assert 'hreflang="x-default"' in html
     assert "G-PTRL0XC53Z" in html
     taglines = {
@@ -92,22 +92,22 @@ def test_english_home_uses_same_route_with_localized_seo(client):
 @pytest.mark.parametrize(
     "path",
     (
-        "/en/performance/casino-industry",
-        "/en/performance/news",
-        "/en/performance/markets",
-        "/en/performance/tourism",
-        "/en/performance/economy",
-        "/en/performance/holidays",
-        "/en/performance/salaries",
-        "/en/performance/recruitment",
-        "/en/disclosures",
+        "/en/market/casino-industry",
+        "/en/news",
+        "/en/market/stocks",
+        "/en/market/tourism",
+        "/en/market/exchange-rates-and-oil",
+        "/en/market/holidays",
+        "/en/companies/salary-ratings",
+        "/en/companies/recruitment",
+        "/en/companies/disclosures",
         "/en/laws",
         "/en/companies",
-        "/en/library",
+        "/en/companies/reports",
         "/en/search",
         "/en/credits",
-        "/en/tips",
-        "/en/bug-reports",
+        "/en/resources",
+        "/en/board/bug-reports",
     ),
 )
 def test_public_english_routes_keep_endpoint_parity(client, path):
@@ -118,20 +118,20 @@ def test_public_english_routes_keep_endpoint_parity(client, path):
 
 
 def test_language_switch_preserves_path_and_query(client):
-    response = client.get("/en/performance/holidays?year=2027")
+    response = client.get("/en/market/holidays?year=2027")
     html = response.get_data(as_text=True)
-    assert 'href="/performance/holidays?year=2027" data-locale-link="ko"' in html
+    assert 'href="/market/holidays?year=2027" data-locale-link="ko"' in html
     assert (
-        'href="/en/performance/holidays?year=2027" data-locale-link="en"'
+        'href="/en/market/holidays?year=2027" data-locale-link="en"'
         in html
     )
-    assert 'href="/ja/performance/holidays?year=2027" data-locale-link="ja"' in html
-    assert 'href="/yue-hk/performance/holidays?year=2027" data-locale-link="yue-HK"' in html
+    assert 'href="/ja/market/holidays?year=2027" data-locale-link="ja"' in html
+    assert 'href="/yue-hk/market/holidays?year=2027" data-locale-link="yue-HK"' in html
 
 
 @pytest.mark.parametrize("locale", ("ja", "yue-hk"))
 def test_additional_locale_prefixes_use_same_routes(client, locale):
-    response = client.get(f"/{locale}/performance/news")
+    response = client.get(f"/{locale}/news")
     assert response.status_code == 200
     expected = "yue-HK" if locale == "yue-hk" else locale
     assert response.headers["Content-Language"] == expected
@@ -150,7 +150,7 @@ def test_english_library_explains_upload_title_priority(client):
         session["username"] = "admin"
         session["role"] = "admin"
 
-    response = client.get("/en/library")
+    response = client.get("/en/companies/reports")
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200

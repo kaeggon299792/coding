@@ -281,13 +281,14 @@ TRUSTED_HOSTS = tuple(
     host.strip().lower()
     for host in _get_str(
         "TRUSTED_HOSTS",
+        "www.casinoin.kr,casinoin.kr,"
         "casino.shingoon.me,www.casino.shingoon.me,"
         "dashboard.shingoon.me,dashboard-kaekun.pythonanywhere.com",
     ).split(",")
     if host.strip()
 )
 DASHBOARD_PUBLIC_URL = _get_str(
-    "DASHBOARD_PUBLIC_URL", "https://casino.shingoon.me"
+    "DASHBOARD_PUBLIC_URL", "https://www.casinoin.kr"
 ).rstrip("/")
 
 

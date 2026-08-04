@@ -78,11 +78,11 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
 
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        public = client.get("/tips/glossary")
+        public = client.get("/resources/glossary")
         assert public.status_code == 200
         assert "카지노 용어집" in public.get_data(as_text=True)
         assert "바카라" in public.get_data(as_text=True)
-        assert client.post("/tips/glossary", data={}).status_code == 403
+        assert client.post("/resources/glossary", data={}).status_code == 403
 
         with client.session_transaction() as browser_session:
             browser_session["user_id"] = admin_id
@@ -90,11 +90,11 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "g" * 64
 
-        admin_page = client.get("/tips/glossary")
+        admin_page = client.get("/resources/glossary")
         assert f'name="csrf_token" value="{"g" * 64}"' in admin_page.get_data(as_text=True)
-        assert client.post("/tips/glossary", data={}).status_code == 400
+        assert client.post("/resources/glossary", data={}).status_code == 400
         created = client.post(
-            "/tips/glossary",
+            "/resources/glossary",
             data={
                 "csrf_token": "g" * 64,
                 "category": "game",
@@ -108,7 +108,7 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
         )
         assert created.status_code == 302
         duplicate = client.post(
-            "/tips/glossary",
+            "/resources/glossary",
             data={
                 "csrf_token": "g" * 64,
                 "category": "business",
@@ -121,14 +121,14 @@ def test_glossary_is_public_but_registration_is_admin_csrf_protected(monkeypatch
         )
         assert duplicate.status_code == 302
         deleted = client.post(
-            f"/tips/glossary/{delete_term_id}/delete",
+            f"/resources/glossary/{delete_term_id}/delete",
             data={"csrf_token": "g" * 64},
             follow_redirects=True,
         )
         deleted_html = deleted.get_data(as_text=True)
         assert deleted.status_code == 200
         assert deleted_html.count("카지노 용어를 삭제했습니다.") == 1
-        new_tip_page = client.get("/tips/new").get_data(as_text=True)
+        new_tip_page = client.get("/resources/new").get_data(as_text=True)
         assert "카지노 용어를 삭제했습니다." not in new_tip_page
 
     connection = schema.connect(str(db_path))
@@ -153,13 +153,13 @@ def test_glossary_subnav_and_english_static_labels(monkeypatch, tmp_path):
     import app as app_module
 
     app_module.app.config["TESTING"] = True
-    response = app_module.app.test_client().get("/en/tips/glossary")
+    response = app_module.app.test_client().get("/en/resources/glossary")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
     assert "Casino Glossary" in html
     assert "Gaming Terms" in html
     assert "Business Terms" in html
-    assert 'href="/en/tips/glossary"' in html
+    assert 'href="/en/resources/glossary"' in html
     template = (__import__("pathlib").Path(__file__).parents[1] / "templates" / "tips" / "glossary.html").read_text(encoding="utf-8")
     assert '{% include "_data_subnav.html" %}' in template
     assert 'tips/_subnav.html' not in template

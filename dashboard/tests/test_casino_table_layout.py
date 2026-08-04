@@ -14,7 +14,7 @@ def client(monkeypatch, tmp_path):
 
 
 def test_revenue_table_has_aligned_columns_and_krw_notes(client):
-    response = client.get("/performance/casino-industry/revenue")
+    response = client.get("/market/casino-industry/revenue")
 
     assert response.status_code == 200
     assert b"<colgroup>" in response.data
@@ -25,7 +25,7 @@ def test_revenue_table_has_aligned_columns_and_krw_notes(client):
 
 
 def test_fund_table_has_header_aligned_columns(client):
-    response = client.get("/performance/casino-industry/fund")
+    response = client.get("/market/casino-industry/fund")
 
     assert response.status_code == 200
     assert b"casino-fund-table" in response.data

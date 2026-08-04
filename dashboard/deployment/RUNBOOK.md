@@ -45,10 +45,22 @@ touch app.py /var/www/casino_shingoon_me_wsgi.py /var/www/dashboard_shingoon_me_
 
 ## 배포 직후 확인
 
+운영 `.env`는 Git으로 덮어쓰지 않고 PythonAnywhere에서 다음 비밀이 아닌
+도메인 설정만 수동으로 확인합니다. 기존 비밀값과 다른 환경변수는 유지합니다.
+
+```text
+DASHBOARD_PUBLIC_URL=https://www.casinoin.kr
+TRUSTED_HOSTS=www.casinoin.kr,casinoin.kr,casino.shingoon.me,www.casino.shingoon.me,dashboard.shingoon.me,dashboard-kaekun.pythonanywhere.com
+GOOGLE_REDIRECT_URI=https://www.casinoin.kr/auth/google/callback
+```
+
+Google Cloud Console에도 위 callback URI와
+`https://www.casinoin.kr` JavaScript 원본을 먼저 추가한 뒤 앱을 Reload합니다.
+
 ```bash
-curl -fsS https://casino.shingoon.me/ > /dev/null
-curl -fsS https://casino.shingoon.me/login > /dev/null
-curl -fsS https://casino.shingoon.me/performance/markets > /dev/null
+curl -fsS https://www.casinoin.kr/ > /dev/null
+curl -fsS https://www.casinoin.kr/login > /dev/null
+curl -fsS https://www.casinoin.kr/market/stocks > /dev/null
 ```
 
 로그인·관리자 권한, 데이터 화면, 최종 확인/변경 시각, 오류 로그도 변경 범위에 맞춰 확인합니다.

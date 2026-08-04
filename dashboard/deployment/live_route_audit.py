@@ -5,7 +5,7 @@ import urllib.request
 
 sys.path.insert(0, ".")
 module = importlib.import_module("app")
-base = "https://casino.shingoon.me"
+base = "https://www.casinoin.kr"
 skip = {"static", "robots_txt", "sitemap_xml", "healthz"}
 results = []
 for rule in sorted(module.app.url_map.iter_rules(), key=lambda item: item.rule):

@@ -67,7 +67,7 @@ def _resolve_grounding_citations(citations):
                     url,
                     allow_redirects=False,
                     timeout=min(config.GEMINI_REQUEST_TIMEOUT_SECONDS, 20),
-                    headers={"User-Agent": "CasinoIN/1.0 (+https://casino.shingoon.me/credits)"},
+                    headers={"User-Agent": "CasinoIN/1.0 (+https://www.casinoin.kr/credits)"},
                 )
                 location = (response.headers.get("Location") or "").strip()
                 if 300 <= response.status_code < 400 and _is_public_web_url(location):

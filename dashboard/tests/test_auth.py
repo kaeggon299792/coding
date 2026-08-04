@@ -154,7 +154,7 @@ def test_registration_sends_secure_admin_review_link(client, monkeypatch):
     assert force is True
     assert "pending.user" in message
     assert "pending@example.com" in message
-    assert "https://casino.shingoon.me/admin/users?pending_user=2#user-2" in message
+    assert "https://www.casinoin.kr/admin/users?pending_user=2#user-2" in message
     assert "Strong-password" not in message
 
     review = client.get("/admin/users?pending_user=2", follow_redirects=False)

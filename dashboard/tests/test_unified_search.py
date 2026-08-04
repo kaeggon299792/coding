@@ -30,6 +30,8 @@ def test_dashboard_search_sources_are_normalized_and_sorted(db_connection, monke
 
     assert {item["source"] for item in results} == {"news", "action"}
     assert all(item["title"] for item in results)
+    action = next(item for item in results if item["source"] == "action")
+    assert action["url"].startswith("/board/bug-reports/")
     assert results == sorted(results, key=unified_search._sort_key, reverse=True)
 
 
@@ -57,6 +59,7 @@ def test_research_documents_are_in_unified_search(db_connection):
 
     assert len(results) == 1
     assert results[0]["source"] == "research"
+    assert results[0]["url"].startswith("/companies/reports/")
     assert results[0]["url"].endswith("/download")
 
 

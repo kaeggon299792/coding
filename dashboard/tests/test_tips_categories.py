@@ -41,51 +41,51 @@ def test_admin_manages_tip_categories_and_renames_existing_articles(monkeypatch,
 
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        assert client.get("/tips/categories").status_code == 302
+        assert client.get("/resources/categories").status_code == 302
         _login(client, regular_id, "category-user", "user", "u" * 64)
-        assert client.get("/tips/categories").status_code == 403
+        assert client.get("/resources/categories").status_code == 403
         assert client.post(
-            f"/tips/categories/{excel_id}/rename",
+            f"/resources/categories/{excel_id}/rename",
             data={"csrf_token": "u" * 64, "name": "스프레드시트"},
         ).status_code == 403
 
         _login(client, admin_id, "category-admin", "admin", "a" * 64)
-        page = client.get("/tips/categories")
+        page = client.get("/resources/categories")
         assert page.status_code == 200
         assert "자료실 카테고리 관리" in page.get_data(as_text=True)
         assert "기존 엑셀 자료" not in page.get_data(as_text=True)
 
         created = client.post(
-            "/tips/categories",
+            "/resources/categories",
             data={"csrf_token": "a" * 64, "name": "카지노 운영"},
             follow_redirects=True,
         )
         assert created.status_code == 200
         assert "카지노 운영" in created.get_data(as_text=True)
         duplicate = client.post(
-            "/tips/categories",
+            "/resources/categories",
             data={"csrf_token": "a" * 64, "name": "카지노 운영"},
             follow_redirects=True,
         )
         assert "이미 등록된 카테고리" in duplicate.get_data(as_text=True)
 
         renamed = client.post(
-            f"/tips/categories/{excel_id}/rename",
+            f"/resources/categories/{excel_id}/rename",
             data={"csrf_token": "a" * 64, "name": "스프레드시트"},
             follow_redirects=True,
         )
         assert "기존 자료를 함께 변경" in renamed.get_data(as_text=True)
-        assert "스프레드시트" in client.get("/tips/new").get_data(as_text=True)
+        assert "스프레드시트" in client.get("/resources/new").get_data(as_text=True)
 
         toggled = client.post(
-            f"/tips/categories/{excel_id}/toggle",
+            f"/resources/categories/{excel_id}/toggle",
             data={"csrf_token": "a" * 64},
             follow_redirects=True,
         )
         assert "새 글 선택 목록에서 숨겼습니다" in toggled.get_data(as_text=True)
-        assert "스프레드시트" not in client.get("/tips/new").get_data(as_text=True)
+        assert "스프레드시트" not in client.get("/resources/new").get_data(as_text=True)
         forged = client.post(
-            "/tips/new",
+            "/resources/new",
             data={
                 "csrf_token": "a" * 64, "title": "숨김 카테고리 글",
                 "slug": "hidden-category-tip", "body": "본문",

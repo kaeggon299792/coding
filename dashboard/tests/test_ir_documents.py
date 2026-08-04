@@ -109,7 +109,7 @@ def test_ir_upload_uses_gpt_title_and_stays_out_of_research_list(
     with app_module.app.test_client() as client:
         _login(client, user_id)
         response = client.post(
-            "/disclosures/ir",
+            "/companies/disclosures/ir",
             data={
                 "csrf_token": "i" * 64,
                 "company_name": "GKL",
@@ -147,7 +147,7 @@ def test_ir_manual_title_wins_when_ai_suggests_another_title(monkeypatch, tmp_pa
     with app_module.app.test_client() as client:
         _login(client, user_id)
         response = client.post(
-            "/disclosures/ir",
+            "/companies/disclosures/ir",
             data={"csrf_token": "i" * 64, "company_name": "GKL", "title": "수동 IR 제목", "document": (BytesIO(b"fake"), "manual.pdf")},
             content_type="multipart/form-data",
         )
@@ -176,7 +176,7 @@ def test_duplicate_ir_upload_is_rejected_and_temporary_file_removed(monkeypatch,
     with app_module.app.test_client() as client:
         _login(client, user_id)
         response = client.post(
-            "/disclosures/ir",
+            "/companies/disclosures/ir",
             data={"csrf_token": "i" * 64, "company_name": "GKL", "document": (BytesIO(b"fake"), "duplicate.pdf")},
             content_type="multipart/form-data",
         )
@@ -205,7 +205,7 @@ def test_ir_ai_failure_is_stored_safely_for_later_reanalysis(monkeypatch, tmp_pa
     with app_module.app.test_client() as client:
         _login(client, user_id)
         response = client.post(
-            "/disclosures/ir",
+            "/companies/disclosures/ir",
             data={"csrf_token": "i" * 64, "company_name": "GKL", "document": (BytesIO(b"fake"), "failed.pdf")},
             content_type="multipart/form-data",
         )
@@ -221,7 +221,7 @@ def test_ir_upload_rejects_missing_csrf(monkeypatch, tmp_path):
     app_module, _, user_id = _configure_app_db(monkeypatch, tmp_path)
     with app_module.app.test_client() as client:
         _login(client, user_id)
-        response = client.post("/disclosures/ir", data={})
+        response = client.post("/companies/disclosures/ir", data={})
     assert response.status_code == 400
 
 
@@ -235,7 +235,7 @@ def test_user_without_disclosures_permission_cannot_upload(monkeypatch, tmp_path
     connection.close()
     with app_module.app.test_client() as client:
         _login(client, user_id)
-        response = client.post("/disclosures/ir", data={"csrf_token": "i" * 64})
+        response = client.post("/companies/disclosures/ir", data={"csrf_token": "i" * 64})
     assert response.status_code == 403
 
 
@@ -246,12 +246,12 @@ def test_research_management_urls_cannot_manipulate_ir(monkeypatch, tmp_path):
     connection.close()
     with app_module.app.test_client() as client:
         _login(client, user_id)
-        assert client.get(f"/library/{ir_id}/download").status_code == 404
+        assert client.get(f"/companies/reports/{ir_id}/download").status_code == 404
         assert client.post(
-            f"/library/{ir_id}/reanalyze", data={"csrf_token": "i" * 64}
+            f"/companies/reports/{ir_id}/reanalyze", data={"csrf_token": "i" * 64}
         ).status_code == 404
         assert client.post(
-            f"/library/{ir_id}/delete", data={"csrf_token": "i" * 64}
+            f"/companies/reports/{ir_id}/delete", data={"csrf_token": "i" * 64}
         ).status_code == 404
     connection = schema.connect(str(db_path))
     assert queries.get_research_document(connection, ir_id, document_type="ir")
@@ -275,8 +275,8 @@ def test_ir_can_be_reanalyzed_and_deleted_by_disclosures_admin(monkeypatch, tmp_
     monkeypatch.setattr("services.document_library.remove_file", removed.append)
     with app_module.app.test_client() as client:
         _login(client, user_id)
-        assert client.post(f"/disclosures/ir/{ir_id}/reanalyze", data={"csrf_token": "i" * 64}).status_code == 302
-        assert client.post(f"/disclosures/ir/{ir_id}/delete", data={"csrf_token": "i" * 64}).status_code == 302
+        assert client.post(f"/companies/disclosures/ir/{ir_id}/reanalyze", data={"csrf_token": "i" * 64}).status_code == 302
+        assert client.post(f"/companies/disclosures/ir/{ir_id}/delete", data={"csrf_token": "i" * 64}).status_code == 302
     assert removed == ["ir-22222222.pdf"]
     assert analysis_calls == [True]
     connection = schema.connect(str(db_path))
@@ -312,7 +312,7 @@ def test_ir_reanalysis_replaces_only_filename_fallback_title(monkeypatch, tmp_pa
         _login(client, user_id)
         for document_id in (fallback_id, manual_id):
             response = client.post(
-                f"/disclosures/ir/{document_id}/reanalyze",
+                f"/companies/disclosures/ir/{document_id}/reanalyze",
                 data={"csrf_token": "i" * 64},
             )
             assert response.status_code == 302
@@ -333,16 +333,16 @@ def test_ir_title_can_be_edited_without_cross_type_access(monkeypatch, tmp_path)
     with app_module.app.test_client() as client:
         _login(client, user_id)
         response = client.post(
-            f"/disclosures/ir/{ir_id}/title",
+            f"/companies/disclosures/ir/{ir_id}/title",
             data={"csrf_token": "i" * 64, "title": "직접 수정한 IR 제목"},
         )
         assert response.status_code == 302
         assert client.post(
-            f"/disclosures/ir/{research_id}/title",
+            f"/companies/disclosures/ir/{research_id}/title",
             data={"csrf_token": "i" * 64, "title": "잘못된 수정"},
         ).status_code == 404
         assert client.post(
-            f"/disclosures/ir/{ir_id}/title",
+            f"/companies/disclosures/ir/{ir_id}/title",
             data={"csrf_token": "invalid", "title": "CSRF 우회"},
         ).status_code == 302
     connection = schema.connect(str(db_path))
@@ -373,13 +373,13 @@ def test_public_disclosures_page_shows_ir_but_not_management_controls(monkeypatc
     )
     connection.close()
     with app_module.app.test_client() as client:
-        response = client.get("/disclosures")
+        response = client.get("/companies/disclosures")
     assert response.status_code == 200
     assert "ir 문서".encode() in response.data
     assert "분기보고서".encode() in response.data
     assert "기업 공시 자료".encode() in response.data
     assert b'id="ir-library-title"' not in response.data
-    assert b"/disclosures/ir/1/reanalyze" not in response.data
+    assert b"/companies/disclosures/ir/1/reanalyze" not in response.data
 
 
 def test_non_admin_cannot_see_or_call_ir_management(monkeypatch, tmp_path):
@@ -396,11 +396,11 @@ def test_non_admin_cannot_see_or_call_ir_management(monkeypatch, tmp_path):
             session["username"] = "ir-user"
             session["role"] = "user"
             session["csrf_token"] = "i" * 64
-        page = client.get("/disclosures")
+        page = client.get("/companies/disclosures")
         assert page.status_code == 200
         assert "기업 IR 자료 등록" not in page.get_data(as_text=True)
         assert client.post(
-            "/disclosures/ir", data={"csrf_token": "i" * 64}
+            "/companies/disclosures/ir", data={"csrf_token": "i" * 64}
         ).status_code == 403
 
 
@@ -418,7 +418,7 @@ def test_admin_sees_paradian_and_ir_management(monkeypatch, tmp_path):
     app_module, _, user_id = _configure_app_db(monkeypatch, tmp_path)
     with app_module.app.test_client() as client:
         _login(client, user_id)
-        disclosures = client.get("/disclosures").get_data(as_text=True)
+        disclosures = client.get("/companies/disclosures").get_data(as_text=True)
         companies = client.get("/companies").get_data(as_text=True)
     assert "기업 IR 자료 등록" in disclosures
     assert "관리자 전용" in companies
@@ -436,8 +436,8 @@ def test_non_admin_cannot_access_paradian_or_official_documents(monkeypatch, tmp
             session["username"] = "regular-user"
             session["role"] = "user"
             session["csrf_token"] = "i" * 64
-        assert client.get("/paradian").status_code == 403
-        assert client.get("/performance").status_code == 403
+        assert client.get("/admin").status_code == 403
+        assert client.get("/admin/performance").status_code == 403
         assert client.get("/official-docs/").status_code == 403
 
 

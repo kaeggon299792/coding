@@ -312,8 +312,8 @@ def build_search_index():
 def canonical_url(base_url, slug=None):
     base_url = base_url.rstrip("/")
     if slug:
-        return f"{base_url}/tips/{slug}"
-    return f"{base_url}/tips"
+        return f"{base_url}/resources/{slug}"
+    return f"{base_url}/resources"
 
 
 # ==================== 관리자 CRUD ====================

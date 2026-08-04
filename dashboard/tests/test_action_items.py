@@ -77,7 +77,7 @@ def test_bug_post_access_is_limited_to_author_and_admin():
     from app import app, can_access_action_item
 
     item = {"reported_by": "writer"}
-    with app.test_request_context("/bug-reports/1"):
+    with app.test_request_context("/board/bug-reports/1"):
         session.update(user_id=1, username="writer", role="user")
         assert can_access_action_item(item)
 

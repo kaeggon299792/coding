@@ -153,7 +153,7 @@ def test_salary_page_is_public():
     from app import app
 
     app.testing = True
-    response = app.test_client().get("/performance/salaries")
+    response = app.test_client().get("/companies/salary-ratings")
     assert response.status_code == 200
     assert "연봉·평점".encode() in response.data
 
@@ -179,6 +179,6 @@ def test_recruitment_page_is_public_and_searchable(monkeypatch, tmp_path):
         "analyzed_at": None, "analysis_error": None,
     })
     connection.close()
-    response = app.test_client().get("/performance/recruitment?q=딜러")
+    response = app.test_client().get("/companies/recruitment?q=딜러")
     assert response.status_code == 200
     assert "카지노 딜러 채용".encode() in response.data

@@ -60,7 +60,7 @@ def test_market_page_shows_separate_domestic_and_global_freshness(monkeypatch, t
     monkeypatch.setattr(app_module.queries, "global_market_quotes_need_refresh", lambda *_args, **_kwargs: False)
 
     app_module.app.testing = True
-    response = app_module.app.test_client().get("/performance/markets")
+    response = app_module.app.test_client().get("/market/stocks")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -114,7 +114,7 @@ def test_economy_page_shows_oil_and_exchange_freshness_separately(monkeypatch, t
     )
 
     app_module.app.testing = True
-    response = app_module.app.test_client().get("/performance/economy")
+    response = app_module.app.test_client().get("/market/exchange-rates-and-oil")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -188,7 +188,7 @@ def test_market_page_refreshes_stale_domestic_quotes_on_request(monkeypatch, tmp
     )
 
     app_module.app.testing = True
-    response = app_module.app.test_client().get("/performance/markets")
+    response = app_module.app.test_client().get("/market/stocks")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -241,7 +241,7 @@ def test_economy_page_refreshes_stale_series_on_request(monkeypatch, tmp_path):
     )
 
     app_module.app.testing = True
-    response = app_module.app.test_client().get("/performance/economy")
+    response = app_module.app.test_client().get("/market/exchange-rates-and-oil")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200

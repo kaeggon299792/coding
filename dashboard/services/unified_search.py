@@ -85,7 +85,7 @@ def _normalize_dashboard_item(source, row):
             "summary": row.get("ai_summary") or (row.get("extracted_text") or "")[:500],
             "occurred_at": row.get("report_date") or row.get("created_at"),
             "meta": " · ".join(filter(None, [row.get("company_name"), row.get("publisher")])),
-            "url": f"/library/{row['id']}/download", "importance": None,
+            "url": f"/companies/reports/{row['id']}/download", "importance": None,
         }
     if source == "disclosure":
         return {
@@ -119,7 +119,7 @@ def _normalize_dashboard_item(source, row):
             "summary": row.get("description") or row.get("memo") or row.get("ai_recommended_action"),
             "occurred_at": row.get("updated_at") or row.get("created_at"),
             "meta": " · ".join(filter(None, [row.get("owner"), row.get("status"), row.get("due_date")])),
-            "url": f"/bug-reports/{row['id']}", "importance": row.get("priority"),
+            "url": f"/board/bug-reports/{row['id']}", "importance": row.get("priority"),
             "reported_by": row.get("reported_by"),
         }
     return {

@@ -93,6 +93,26 @@ _CANONICAL_PARTS = urlsplit(CANONICAL_URL)
 CANONICAL_SCHEME = (_CANONICAL_PARTS.scheme or "https").lower()
 CANONICAL_HOST = (_CANONICAL_PARTS.netloc or "").split(":", 1)[0].lower()
 SEO_IMAGE_URL = f"{CANONICAL_URL}/static/img/casino-in-logo.png"
+LEGACY_PUBLIC_PATH_PREFIXES = tuple(sorted({
+    "/dashboard": "/",
+    "/paradian": "/admin",
+    "/performance/source-download": "/resources/source-data",
+    "/performance/casino-industry": "/market/casino-industry",
+    "/performance/overseas-news": "/news/overseas",
+    "/performance/recruitment": "/companies/recruitment",
+    "/performance/salaries": "/companies/salary-ratings",
+    "/performance/holidays": "/market/holidays",
+    "/performance/economy": "/market/exchange-rates-and-oil",
+    "/performance/tourism": "/market/tourism",
+    "/performance/markets": "/market/stocks",
+    "/performance/news": "/news",
+    "/performance": "/admin/performance",
+    "/disclosures": "/companies/disclosures",
+    "/library": "/companies/reports",
+    "/tips": "/resources",
+    "/action-items": "/board/bug-reports",
+    "/bug-reports": "/board/bug-reports",
+}.items(), key=lambda item: len(item[0]), reverse=True))
 INDEXABLE_ENDPOINTS = {
     "public_home",
     "market_trend_page",
@@ -547,6 +567,92 @@ def _neutral_url_for(endpoint, **values):
     return path
 
 
+def _canonical_path(path):
+    """Map a legacy public path to its one canonical IA-aligned path."""
+
+    for legacy_prefix, canonical_prefix in LEGACY_PUBLIC_PATH_PREFIXES:
+        if path == legacy_prefix:
+            return canonical_prefix
+        if path.startswith(f"{legacy_prefix}/"):
+            path = f"{canonical_prefix}{path[len(legacy_prefix):]}"
+            break
+    if path not in {"/", "/official-docs/"} and path.endswith("/"):
+        return path.rstrip("/")
+    return path
+
+
+def _localized_path(path):
+    script_root = (request.script_root or "").rstrip("/")
+    if path == "/":
+        return f"{script_root}/" or "/"
+    return f"{script_root}{path}"
+
+
+def _canonical_request_url(path):
+    target = f"{CANONICAL_URL}{_localized_path(path)}"
+    if request.query_string:
+        target = f"{target}?{request.query_string.decode('latin-1')}"
+    return target
+
+
+def _breadcrumb_schema(endpoint, locale, title, canonical_path):
+    section_by_endpoint = {
+        "related_news_page": ("뉴스", "/news"),
+        "overseas_news_page": ("뉴스", "/news"),
+        "casino_industry_page": ("시장 정보", "/market/casino-industry"),
+        "casino_visitors_page": ("시장 정보", "/market/casino-industry"),
+        "casino_revenue_page": ("시장 정보", "/market/casino-industry"),
+        "casino_fund_page": ("시장 정보", "/market/casino-industry"),
+        "market_trend_page": ("시장 정보", "/market/casino-industry"),
+        "tourism_trend_page": ("시장 정보", "/market/casino-industry"),
+        "economic_trend_page": ("시장 정보", "/market/casino-industry"),
+        "holiday_calendar_page": ("시장 정보", "/market/casino-industry"),
+        "companies_page": ("기업정보", "/companies"),
+        "company_benefits_page": ("기업정보", "/companies"),
+        "company_recruitment_guide_page": ("기업정보", "/companies"),
+        "company_news_page": ("기업정보", "/companies"),
+        "disclosures_page": ("기업정보", "/companies"),
+        "research_library_page": ("기업정보", "/companies"),
+        "salary_trend_page": ("기업정보", "/companies"),
+        "recruitment_page": ("기업정보", "/companies"),
+        "laws_page": ("법률·규제", "/laws"),
+        "legislation_page": ("법률·규제", "/laws"),
+        "tips.list_page": ("자료실", "/resources"),
+        "tips.sites_page": ("자료실", "/resources"),
+        "tips.glossary_page": ("자료실", "/resources"),
+    }
+    locale_prefix = "" if locale == "ko" else f"/{locale.lower()}"
+    items = [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": translate_text("홈", locale),
+        "item": f"{CANONICAL_URL}{locale_prefix}/",
+    }]
+    section = section_by_endpoint.get(endpoint)
+    if section:
+        section_label, section_path = section
+        section_url = f"{CANONICAL_URL}{locale_prefix}{section_path}"
+        if section_url != f"{CANONICAL_URL}{canonical_path}":
+            items.append({
+                "@type": "ListItem",
+                "position": len(items) + 1,
+                "name": translate_text(section_label, locale),
+                "item": section_url,
+            })
+    if endpoint != "public_home":
+        items.append({
+            "@type": "ListItem",
+            "position": len(items) + 1,
+            "name": title.split(" | ", 1)[0],
+            "item": f"{CANONICAL_URL}{canonical_path}",
+        })
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": items,
+    }
+
+
 def _seo_defaults():
     locale = getattr(g, "locale", "ko")
     endpoint = request.endpoint or ""
@@ -580,7 +686,10 @@ def _seo_defaults():
             "url": f"{CANONICAL_URL}/",
         },
     }
-    structured_data = [page_schema] if endpoint in INDEXABLE_ENDPOINTS else []
+    structured_data = (
+        [page_schema, _breadcrumb_schema(endpoint, locale, title, canonical_path)]
+        if endpoint in INDEXABLE_ENDPOINTS else []
+    )
     if endpoint == "public_home":
         website = {
             "@context": "https://schema.org",
@@ -602,7 +711,12 @@ def _seo_defaults():
             "url": f"{CANONICAL_URL}/",
             "logo": SEO_IMAGE_URL,
         }
-        structured_data = [website, organization, page_schema]
+        structured_data = [
+            website,
+            organization,
+            page_schema,
+            _breadcrumb_schema(endpoint, locale, title, canonical_path),
+        ]
     return {
         "seo_title": title,
         "seo_description": description,
@@ -646,17 +760,16 @@ def _seo_defaults():
 def establish_request_security():
     g.locale = locale_from_environ(request.environ)
     host = request.host.split(":", 1)[0].lower()
-    if request.method in {"GET", "HEAD"} and request.endpoint != "healthz":
-        current_scheme = _request_scheme()
-        if host in config.TRUSTED_HOSTS and (
-            host != CANONICAL_HOST or current_scheme != CANONICAL_SCHEME
-        ):
-            target = f"{CANONICAL_SCHEME}://{CANONICAL_HOST}{request.full_path}"
-            if target.endswith("?"):
-                target = target[:-1]
-            return redirect(target, code=301)
     if not app.testing and host not in config.TRUSTED_HOSTS:
         abort(400)
+    if request.method in {"GET", "HEAD"} and request.endpoint != "healthz":
+        current_scheme = _request_scheme()
+        canonical_path = _canonical_path(request.path)
+        if canonical_path != request.path or (
+            host in config.TRUSTED_HOSTS
+            and (host != CANONICAL_HOST or current_scheme != CANONICAL_SCHEME)
+        ):
+            return redirect(_canonical_request_url(canonical_path), code=301)
     restore_remembered_login()
     # Apply revocation, expiry, active-state and role changes before public or
     # protected route functions can consume stale session data.
@@ -1370,32 +1483,16 @@ def _build_sitemap_entries(connection):
 
 @app.route("/robots.txt")
 def robots_txt():
-    lines = [
-        "User-agent: *",
-        "Allow: /",
-        "",
-        "Disallow: /admin/",
-        "Disallow: /login",
-        "Disallow: /logout",
-        "Disallow: /register",
-        "Disallow: /api/",
-        "Disallow: /official-docs/",
-        "Disallow: /paradian",
-        "Disallow: /bug-reports",
-        "Disallow: /action-items",
-        "Disallow: /board",
-        "Disallow: /en/login",
-        "Disallow: /en/logout",
-        "Disallow: /en/register",
-        "Disallow: /en/api/",
-        "Disallow: /en/official-docs/",
-        "Disallow: /en/paradian",
-        "Disallow: /en/bug-reports",
-        "Disallow: /en/action-items",
-        "Disallow: /en/board",
-        "",
-        f"Sitemap: {CANONICAL_URL}/sitemap.xml",
-    ]
+    lines = ["User-agent: *", "Allow: /", ""]
+    protected_paths = (
+        "/admin", "/login", "/logout", "/register", "/api/",
+        "/official-docs/", "/board",
+    )
+    for locale_prefix in ("", "/en", "/ja", "/yue-hk"):
+        lines.extend(
+            f"Disallow: {locale_prefix}{path}" for path in protected_paths
+        )
+    lines.extend(("", f"Sitemap: {CANONICAL_URL}/sitemap.xml"))
     return app.response_class("\n".join(lines), mimetype="text/plain")
 
 
@@ -1943,10 +2040,10 @@ def public_home():
 
 @app.route("/dashboard")
 def dashboard_home():
-    return redirect(url_for("public_home"), code=302)
+    return redirect(_canonical_request_url("/"), code=301)
 
 
-@app.route("/paradian")
+@app.route("/admin")
 @login_required
 def paradian_portal_page():
     return render_template("paradian_portal.html")
@@ -1986,8 +2083,7 @@ def _visible_action_items(connection, status=None):
     )
 
 
-@app.get("/action-items")
-@app.get("/bug-reports")
+@app.get("/board/bug-reports")
 def action_items_page():
     connection = dashboard_db()
     try:
@@ -2003,8 +2099,7 @@ def action_items_page():
         connection.close()
 
 
-@app.post("/action-items")
-@app.post("/bug-reports")
+@app.post("/board/bug-reports")
 @login_required
 def create_action_item_route():
     connection = dashboard_db()
@@ -2183,7 +2278,7 @@ def create_admin_action_item_route():
     return redirect(url_for("admin_action_items_page"))
 
 
-@app.get("/bug-reports/<int:item_id>")
+@app.get("/board/bug-reports/<int:item_id>")
 @login_required
 def action_item_detail(item_id):
     connection = dashboard_db()
@@ -2205,7 +2300,7 @@ def action_item_detail(item_id):
         connection.close()
 
 
-@app.post("/bug-reports/<int:item_id>/comments")
+@app.post("/board/bug-reports/<int:item_id>/comments")
 @login_required
 def add_action_item_comment(item_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -2232,7 +2327,7 @@ def add_action_item_comment(item_id):
     return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
 
 
-@app.post("/bug-reports/<int:item_id>/comments/<int:comment_id>/edit")
+@app.post("/board/bug-reports/<int:item_id>/comments/<int:comment_id>/edit")
 @login_required
 def edit_action_item_comment(item_id, comment_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -2259,7 +2354,7 @@ def edit_action_item_comment(item_id, comment_id):
     return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
 
 
-@app.post("/bug-reports/<int:item_id>/comments/<int:comment_id>/delete")
+@app.post("/board/bug-reports/<int:item_id>/comments/<int:comment_id>/delete")
 @login_required
 def delete_action_item_comment(item_id, comment_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -2281,7 +2376,7 @@ def delete_action_item_comment(item_id, comment_id):
     return redirect(url_for("action_item_detail", item_id=item_id) + "#comments")
 
 
-@app.route("/action-items/<int:item_id>/update", methods=["POST"])
+@app.route("/board/bug-reports/<int:item_id>/update", methods=["POST"])
 @login_required
 def update_action_item_route(item_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -2333,14 +2428,14 @@ def update_action_item_route(item_id):
     finally:
         connection.close()
     next_url = request.form.get("next", "")
-    if next_url.startswith("/bug-reports/"):
+    if next_url.startswith("/board/bug-reports/"):
         return redirect(next_url)
     if next_url == url_for("admin_action_items_page"):
         return redirect(next_url)
     return redirect(url_for("action_items_page"))
 
 
-@app.route("/action-items/<int:item_id>/delete", methods=["POST"])
+@app.route("/board/bug-reports/<int:item_id>/delete", methods=["POST"])
 @login_required
 def delete_action_item_route(item_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -2425,7 +2520,7 @@ def performance_ingest_api():
     return jsonify({"success": True, "parsing_status": "ok" if parsed else "failed"})
 
 
-@app.route("/performance")
+@app.route("/admin/performance")
 @login_required
 def performance_page():
     connection = dashboard_db()
@@ -2443,7 +2538,7 @@ def performance_page():
         connection.close()
 
 
-@app.route("/performance/source-download")
+@app.route("/resources/source-data")
 @login_required
 def source_download_page():
     """로그인 사용자용 통합 숫자 데이터 조회·복사 화면."""
@@ -2468,7 +2563,7 @@ def source_download_page():
         connection.close()
 
 
-@app.route("/performance/tourism")
+@app.route("/market/tourism")
 def tourism_trend_page():
     connection = dashboard_db()
     try:
@@ -2487,7 +2582,7 @@ def tourism_trend_page():
         connection.close()
 
 
-@app.route("/performance/casino-industry")
+@app.route("/market/casino-industry")
 def casino_industry_page():
     return render_template(
         "casino_industry.html",
@@ -2497,7 +2592,7 @@ def casino_industry_page():
     )
 
 
-@app.route("/performance/casino-industry/visitors")
+@app.route("/market/casino-industry/visitors")
 def casino_visitors_page():
     return render_template(
         "casino_history.html",
@@ -2508,7 +2603,7 @@ def casino_visitors_page():
     )
 
 
-@app.route("/performance/casino-industry/revenue")
+@app.route("/market/casino-industry/revenue")
 def casino_revenue_page():
     return render_template(
         "casino_history.html",
@@ -2519,7 +2614,7 @@ def casino_revenue_page():
     )
 
 
-@app.route("/performance/casino-industry/fund")
+@app.route("/market/casino-industry/fund")
 def casino_fund_page():
     return render_template(
         "casino_fund.html",
@@ -2527,7 +2622,7 @@ def casino_fund_page():
     )
 
 
-@app.route("/performance/markets")
+@app.route("/market/stocks")
 def market_trend_page():
     connection = dashboard_db()
     try:
@@ -2554,7 +2649,7 @@ def market_trend_page():
         connection.close()
 
 
-@app.route("/performance/news")
+@app.route("/news")
 def related_news_page():
     allowed_days = {7, 30, 90, 365}
     try:
@@ -2624,7 +2719,7 @@ def related_news_page():
     )
 
 
-@app.route("/performance/overseas-news")
+@app.route("/news/overseas")
 def overseas_news_page():
     allowed_days = {7, 14, 30, 90, 365}
     days = request.args.get("days", 30, type=int)
@@ -2685,7 +2780,7 @@ def overseas_news_page():
     )
 
 
-@app.route("/performance/economy")
+@app.route("/market/exchange-rates-and-oil")
 def economic_trend_page():
     connection = dashboard_db()
     try:
@@ -2708,7 +2803,7 @@ def economic_trend_page():
         connection.close()
 
 
-@app.route("/performance/holidays")
+@app.route("/market/holidays")
 def holiday_calendar_page():
     from services import holiday_calendar
     return render_template(
@@ -2720,7 +2815,7 @@ def holiday_calendar_page():
     )
 
 
-@app.route("/performance/salaries")
+@app.route("/companies/salary-ratings")
 def salary_trend_page():
     from services import casino_industry
 
@@ -2741,7 +2836,7 @@ def salary_trend_page():
         connection.close()
 
 
-@app.route("/performance/recruitment")
+@app.route("/companies/recruitment")
 def recruitment_page():
     term = request.args.get("q", "").strip()
     source = request.args.get("source", "").strip()
@@ -2857,7 +2952,7 @@ def _disclosures_context(connection, error=None):
     }
 
 
-@app.route("/disclosures")
+@app.route("/companies/disclosures")
 def disclosures_page():
     connection = dashboard_db()
     try:
@@ -2866,7 +2961,7 @@ def disclosures_page():
         connection.close()
 
 
-@app.route("/disclosures/ir", methods=["POST"])
+@app.route("/companies/disclosures/ir", methods=["POST"])
 @login_required
 def upload_ir_document():
     if session.get("role") != "admin":
@@ -2993,7 +3088,7 @@ def upload_ir_document():
         connection.close()
 
 
-@app.route("/disclosures/ir/<int:document_id>/download")
+@app.route("/companies/disclosures/ir/<int:document_id>/download")
 def download_ir_document(document_id):
     connection = dashboard_db()
     try:
@@ -3027,7 +3122,7 @@ def download_ir_document(document_id):
         connection.close()
 
 
-@app.route("/disclosures/ir/<int:document_id>/reanalyze", methods=["POST"])
+@app.route("/companies/disclosures/ir/<int:document_id>/reanalyze", methods=["POST"])
 @login_required
 def reanalyze_ir_document(document_id):
     if session.get("role") != "admin":
@@ -3064,7 +3159,7 @@ def reanalyze_ir_document(document_id):
         connection.close()
 
 
-@app.route("/disclosures/ir/<int:document_id>/title", methods=["POST"])
+@app.route("/companies/disclosures/ir/<int:document_id>/title", methods=["POST"])
 @login_required
 def update_ir_document_title(document_id):
     if session.get("role") != "admin":
@@ -3098,7 +3193,7 @@ def update_ir_document_title(document_id):
         connection.close()
 
 
-@app.route("/disclosures/ir/<int:document_id>/delete", methods=["POST"])
+@app.route("/companies/disclosures/ir/<int:document_id>/delete", methods=["POST"])
 @login_required
 def delete_ir_document(document_id):
     if session.get("role") != "admin":
@@ -4416,7 +4511,7 @@ def _library_context(connection, error=None):
     }
 
 
-@app.route("/library", methods=["GET", "POST"])
+@app.route("/companies/reports", methods=["GET", "POST"])
 def research_library_page():
     if request.method == "POST":
         if not session.get("user_id"):
@@ -4553,7 +4648,7 @@ def research_library_page():
         connection.close()
 
 
-@app.route("/library/<int:document_id>/download")
+@app.route("/companies/reports/<int:document_id>/download")
 def download_research_document(document_id):
     connection = dashboard_db()
     try:
@@ -4585,7 +4680,7 @@ def download_research_document(document_id):
         connection.close()
 
 
-@app.route("/library/<int:document_id>/reanalyze", methods=["POST"])
+@app.route("/companies/reports/<int:document_id>/reanalyze", methods=["POST"])
 @login_required
 def reanalyze_research_document(document_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -4607,7 +4702,7 @@ def reanalyze_research_document(document_id):
         connection.close()
 
 
-@app.route("/library/<int:document_id>/title", methods=["POST"])
+@app.route("/companies/reports/<int:document_id>/title", methods=["POST"])
 @login_required
 def update_research_document_title(document_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
@@ -4650,7 +4745,7 @@ def update_research_document_title(document_id):
         connection.close()
 
 
-@app.route("/library/<int:document_id>/delete", methods=["POST"])
+@app.route("/companies/reports/<int:document_id>/delete", methods=["POST"])
 @login_required
 def delete_research_document(document_id):
     if not validate_csrf(request.form.get("csrf_token", "")):

@@ -21,7 +21,7 @@ from services import content_translation, security_audit, tips_content
 from utils import now_kst
 
 
-tips_bp = Blueprint("tips", __name__, url_prefix="/tips")
+tips_bp = Blueprint("tips", __name__, url_prefix="/resources")
 ALLOWED_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".xlsx", ".xlsm",
     ".docx", ".pptx", ".txt", ".csv", ".zip",
@@ -708,6 +708,9 @@ def detail_page(slug):
         rendered = tips_content.render_markdown(item["body"])
     finally:
         connection.close()
+    public_url = config.DASHBOARD_PUBLIC_URL.rstrip("/")
+    article_url = f"{public_url}{url_for('tips.detail_page', slug=item['slug'])}"
+    logo_url = f"{public_url}{url_for('static', filename='img/casino-in-logo.png')}"
     return render_template(
         "tips/detail.html", tip=item, rendered_body=rendered,
         attachments=files, comments=item_comments,
@@ -726,7 +729,7 @@ def detail_page(slug):
             "dateModified": (item.get("updated_at") or item.get("updated_date") or item.get("published_date")),
             "mainEntityOfPage": {
                 "@type": "WebPage",
-                "@id": f"https://casino.shingoon.me/tips/{item['slug']}",
+                "@id": article_url,
             },
             "author": {"@type": "Organization", "name": "Casino IN"},
             "publisher": {
@@ -734,10 +737,27 @@ def detail_page(slug):
                 "name": "Casino IN",
                 "logo": {
                     "@type": "ImageObject",
-                    "url": "https://casino.shingoon.me/static/img/casino-in-logo.png",
+                    "url": logo_url,
                 },
             },
-            "image": ["https://casino.shingoon.me/static/img/casino-in-logo.png"],
+            "image": [logo_url],
+        }, {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem", "position": 1, "name": "Casino IN",
+                    "item": f"{public_url}{url_for('public_home')}",
+                },
+                {
+                    "@type": "ListItem", "position": 2, "name": "자료실",
+                    "item": f"{public_url}{url_for('tips.list_page')}",
+                },
+                {
+                    "@type": "ListItem", "position": 3, "name": item["title"],
+                    "item": article_url,
+                },
+            ],
         }],
     )
 

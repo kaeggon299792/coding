@@ -54,13 +54,20 @@ def test_english_catalog_and_sitemap_match_ia():
         assert f'"label": "{label}"' in app_source
 
 
-def test_existing_urls_are_not_replaced_by_new_routes():
+def test_canonical_routes_and_legacy_redirect_map_match_navigation():
     app_source = (ROOT / "app.py").read_text(encoding="utf-8")
     for route in (
-        '/performance/news', '/performance/overseas-news', '/disclosures', '/laws',
-        '/companies', '/library', '/search', '/sitemap',
+        '/news', '/news/overseas', '/market/casino-industry', '/market/stocks',
+        '/companies/disclosures', '/companies/reports', '/companies/salary-ratings',
+        '/companies/recruitment', '/resources/source-data', '/board/bug-reports',
+        '/laws', '/companies', '/search', '/sitemap',
     ):
         assert route in app_source
+    for legacy_route in (
+        '/performance/news', '/performance/overseas-news', '/disclosures',
+        '/library', '/tips', '/bug-reports',
+    ):
+        assert legacy_route in app_source
 
 
 def test_changed_templates_compile_in_flask():

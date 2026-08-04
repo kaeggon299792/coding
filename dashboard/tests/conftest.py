@@ -16,8 +16,15 @@ os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 os.environ.setdefault("TELEGRAM_CHAT_ID", "-1")
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
+os.environ.setdefault("DASHBOARD_PUBLIC_URL", "https://www.casinoin.kr")
 os.environ.setdefault(
-    "GOOGLE_REDIRECT_URI", "https://casino.shingoon.me/auth/google/callback"
+    "TRUSTED_HOSTS",
+    "www.casinoin.kr,casinoin.kr,casino.shingoon.me,"
+    "www.casino.shingoon.me,dashboard.shingoon.me,"
+    "dashboard-kaekun.pythonanywhere.com",
+)
+os.environ.setdefault(
+    "GOOGLE_REDIRECT_URI", "https://www.casinoin.kr/auth/google/callback"
 )
 
 

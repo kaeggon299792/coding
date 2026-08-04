@@ -32,7 +32,7 @@ def test_casino_industry_region_filter():
 
 
 def test_casino_industry_page_is_public(client):
-    response = client.get("/performance/casino-industry")
+    response = client.get("/market/casino-industry")
     assert response.status_code == 200
     assert "국내 카지노 산업".encode() in response.data
     assert "파라다이스카지노 워커힐점".encode() in response.data
@@ -68,9 +68,9 @@ def test_casino_history_latest_values_match_report():
 @pytest.mark.parametrize(
     ("path", "title"),
     [
-        ("/performance/casino-industry/visitors", "연도별 카지노 이용객"),
-        ("/performance/casino-industry/revenue", "연도별 카지노 매출액 비율"),
-        ("/performance/casino-industry/fund", "기금 부과 현황"),
+        ("/market/casino-industry/visitors", "연도별 카지노 이용객"),
+        ("/market/casino-industry/revenue", "연도별 카지노 매출액 비율"),
+        ("/market/casino-industry/fund", "기금 부과 현황"),
     ],
 )
 def test_casino_statistics_pages_are_public(client, path, title):

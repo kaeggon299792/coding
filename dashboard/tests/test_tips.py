@@ -105,12 +105,12 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
             browser_session["username"] = "admin"
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "c" * 64
-        listing = client.get("/tips")
+        listing = client.get("/resources")
         comment_response = client.post(
-            f"/tips/{item['slug']}/comments",
+            f"/resources/{item['slug']}/comments",
             data={"csrf_token": "c" * 64, "content": "<script>의견</script>"},
         )
-        detail = client.get(f"/tips/{item['slug']}")
+        detail = client.get(f"/resources/{item['slug']}")
 
     assert listing.status_code == 200
     assert "라우트 테스트" in listing.get_data(as_text=True)
@@ -148,7 +148,7 @@ def test_new_tip_form_includes_code_block_guide(monkeypatch, tmp_path):
             browser_session["username"] = "admin-form"
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "f" * 64
-        response = client.get("/tips/new")
+        response = client.get("/resources/new")
 
     html = response.get_data(as_text=True)
     assert response.status_code == 200
@@ -175,9 +175,9 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
 
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        public_page = client.get("/tips/sites")
+        public_page = client.get("/resources/sites")
         anonymous_create = client.post(
-            "/tips/sites",
+            "/resources/sites",
             data={
                 "title": "허용되지 않는 등록",
                 "url": "https://example.invalid",
@@ -189,14 +189,14 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "d" * 64
         category_created = client.post(
-            "/tips/sites/categories",
+            "/resources/sites/categories",
             data={
                 "csrf_token": "d" * 64,
                 "name": "통계·공공데이터",
             },
         )
         created = client.post(
-            "/tips/sites",
+            "/resources/sites",
             data={
                 "csrf_token": "d" * 64,
                 "title": "국가법령정보센터",
@@ -208,7 +208,7 @@ def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
                 "is_public": "1",
             },
         )
-        listing = client.get("/tips/sites?q=법령")
+        listing = client.get("/resources/sites?q=법령")
 
     assert public_page.status_code == 200
     assert "관련 사이트" in public_page.get_data(as_text=True)
@@ -260,7 +260,7 @@ def test_related_site_rejects_non_http_url(monkeypatch, tmp_path):
             browser_session["role"] = "admin"
             browser_session["csrf_token"] = "e" * 64
         response = client.post(
-            "/tips/sites",
+            "/resources/sites",
             data={
                 "csrf_token": "e" * 64,
                 "title": "위험한 주소",

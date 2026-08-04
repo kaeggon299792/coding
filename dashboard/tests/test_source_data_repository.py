@@ -47,13 +47,13 @@ def test_source_download_requires_login_and_renders_for_session(monkeypatch, tmp
     monkeypatch.setattr(config, "DASHBOARD_DB_FILE", str(db_path))
     dashboard_app.app.config.update(TESTING=True)
     client = dashboard_app.app.test_client()
-    anonymous = client.get("/performance/source-download")
+    anonymous = client.get("/resources/source-data")
     assert anonymous.status_code == 302
     assert "/login" in anonymous.location
     with client.session_transaction() as session:
         session["user_id"] = 999
         session["username"] = "viewer"
         session["role"] = "user"
-    response = client.get("/performance/source-download")
+    response = client.get("/resources/source-data")
     assert response.status_code == 200
     assert "데이터 다운" in response.get_data(as_text=True)

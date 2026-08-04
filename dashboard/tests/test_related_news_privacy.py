@@ -20,8 +20,9 @@ def test_public_related_news_never_queries_or_renders_internal_insights(monkeypa
         raise AssertionError("public route attempted to read internal executive insights")
 
     monkeypatch.setattr(app_module.queries, "list_recent_executive_insights", forbidden_query)
-    app_module.app.config.update(TESTING=True, SERVER_NAME="localhost")
-    response = app_module.app.test_client().get("/performance/news", base_url="https://localhost")
+    monkeypatch.setitem(app_module.app.config, "TESTING", True)
+    monkeypatch.setitem(app_module.app.config, "SERVER_NAME", None)
+    response = app_module.app.test_client().get("/news", base_url="https://localhost")
     assert response.status_code == 200
     assert "경영진 관점 분석" not in response.get_data(as_text=True)
 

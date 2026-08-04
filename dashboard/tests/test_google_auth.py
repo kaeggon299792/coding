@@ -13,7 +13,7 @@ def google_client(monkeypatch, tmp_path):
     monkeypatch.setattr("config.GOOGLE_CLIENT_SECRET", "test-google-client-secret")
     monkeypatch.setattr(
         "config.GOOGLE_REDIRECT_URI",
-        "https://casino.shingoon.me/auth/google/callback",
+        "https://www.casinoin.kr/auth/google/callback",
     )
 
     import app as app_module
