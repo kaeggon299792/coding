@@ -149,6 +149,23 @@ def test_prompt_windows_use_compact_scrollable_height():
     assert ".localization-prompt-pair textarea{height:320px;min-height:320px" in css
 
 
+def test_japanese_and_cantonese_pages_load_matching_noto_webfonts():
+    from pathlib import Path
+
+    root = Path(__file__).parents[1]
+    base = (root / "templates" / "base.html").read_text(encoding="utf-8")
+    css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+
+    assert "@fontsource-variable/noto-sans-jp@5.3.0/index.css" in base
+    assert "@fontsource-variable/noto-sans-hk@5.3.0/index.css" in base
+    assert "{% if current_locale == 'ja' %}" in base
+    assert "{% elif current_locale == 'yue-HK' %}" in base
+    assert "html:lang(ja)" in css
+    assert "'Noto Sans JP Variable'" in css
+    assert "html:lang(yue-HK)" in css
+    assert "'Noto Sans HK Variable'" in css
+
+
 def test_ai_prompt_uses_glossary_style_and_splits_long_selection():
     db = connection()
     lms.save_glossary(db, "기업정보", "Company Profile", "en")

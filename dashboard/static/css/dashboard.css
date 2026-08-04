@@ -196,6 +196,14 @@ html[data-site-font="hahmlet"] {
   --font-body: var(--font-numeric), 'Hahmlet', 'Pretendard Variable', Pretendard, serif;
   --font-display: var(--font-numeric), 'Trap', 'Hahmlet', 'Pretendard Variable', Pretendard, serif;
 }
+html:lang(ja) {
+  --font-body: var(--font-numeric), 'Noto Sans JP Variable', 'Pretendard Variable', Pretendard, sans-serif;
+  --font-display: var(--font-numeric), 'Trap', 'Noto Sans JP Variable', 'Pretendard Variable', Pretendard, sans-serif;
+}
+html:lang(yue-HK) {
+  --font-body: var(--font-numeric), 'Noto Sans HK Variable', 'Pretendard Variable', Pretendard, sans-serif;
+  --font-display: var(--font-numeric), 'Trap', 'Noto Sans HK Variable', 'Pretendard Variable', Pretendard, sans-serif;
+}
 html[data-number-font="trap"] { --font-numeric: 'Casino Numeric Trap'; }
 html[data-number-font="montserrat"] { --font-numeric: 'Casino Numeric Montserrat'; }
 html[data-number-font="gowun-batang"] { --font-numeric: 'Casino Numeric Gowun'; }
