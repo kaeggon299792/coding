@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 import config
 from auth import admin_required, login_required, validate_csrf
 from extensions import dashboard_db
-from services import content_translation, tips_content
+from services import content_translation, security_audit, tips_content
 from utils import now_kst
 
 
@@ -37,6 +37,31 @@ def _snippet(text, limit=170):
 
 def _is_admin():
     return session.get("role") == "admin"
+
+
+def _active_tip_categories(connection, include=()):
+    names = [
+        row["name"] for row in connection.execute(
+            """SELECT name FROM tips_categories WHERE is_active=1
+               ORDER BY sort_order, name COLLATE NOCASE"""
+        ).fetchall()
+    ]
+    return tuple(dict.fromkeys((*names, *(name for name in include if name))))
+
+
+def _tip_category_name(raw_name):
+    name = " ".join((raw_name or "").split()).strip()
+    if not name:
+        raise ValueError("카테고리명을 입력해주세요.")
+    if len(name) > 80:
+        raise ValueError("카테고리명은 80자 이하로 입력해주세요.")
+    return name
+
+
+def _validate_tip_category(connection, name, include=()):
+    allowed = _active_tip_categories(connection, include=include)
+    if name not in allowed:
+        raise ValueError("현재 사용할 수 없는 카테고리입니다.")
 
 
 def _site_form_values():
@@ -186,11 +211,11 @@ def list_page():
                    WHERE is_deleted=0 AND category<>'' ORDER BY category"""
             ).fetchall()
         ]
+        categories = tuple(dict.fromkeys((
+            *_active_tip_categories(connection), *existing_categories
+        )))
     finally:
         connection.close()
-    categories = tuple(dict.fromkeys(
-        (*tips_content.CATEGORIES, *existing_categories)
-    ))
     return render_template(
         "tips/list.html", tips=items, query=query, selected_category=category,
         categories=categories,
@@ -502,6 +527,127 @@ def trash_page():
     return render_template("tips/trash.html", tips=items)
 
 
+@tips_bp.route("/categories", methods=["GET", "POST"])
+@admin_required
+def categories_page():
+    connection = dashboard_db()
+    try:
+        if request.method == "POST":
+            if not validate_csrf(request.form.get("csrf_token")):
+                abort(400)
+            try:
+                name = _tip_category_name(request.form.get("name"))
+                connection.execute(
+                    """INSERT INTO tips_categories
+                       (name, sort_order, is_active, created_at, updated_at)
+                       VALUES (?, COALESCE((SELECT MAX(sort_order) + 1 FROM tips_categories), 1),
+                               1, ?, ?)""",
+                    (name, now_kst().isoformat(), now_kst().isoformat()),
+                )
+                security_audit.log_event(
+                    connection, "TIPS_CATEGORY_CREATE", "tips_category",
+                    connection.execute("SELECT last_insert_rowid()").fetchone()[0],
+                    {"name": name},
+                )
+                connection.commit()
+                flash("자료실 카테고리를 추가했습니다.", "success")
+                return redirect(url_for("tips.categories_page"))
+            except sqlite3.IntegrityError:
+                connection.rollback()
+                flash("이미 등록된 카테고리입니다.", "error")
+            except ValueError as exc:
+                connection.rollback()
+                flash(str(exc), "error")
+        categories = [
+            dict(row) for row in connection.execute(
+                """SELECT category.*,
+                          (SELECT COUNT(*) FROM tips_articles AS article
+                           WHERE article.category=category.name) AS article_count
+                   FROM tips_categories AS category
+                   ORDER BY category.sort_order, category.name COLLATE NOCASE"""
+            ).fetchall()
+        ]
+    finally:
+        connection.close()
+    return render_template("tips/categories.html", categories=categories)
+
+
+@tips_bp.post("/categories/<int:category_id>/rename")
+@admin_required
+def rename_category_page(category_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        category = connection.execute(
+            "SELECT * FROM tips_categories WHERE id=?", (category_id,)
+        ).fetchone()
+        if not category:
+            abort(404)
+        try:
+            name = _tip_category_name(request.form.get("name"))
+            connection.execute(
+                "UPDATE tips_articles SET category=?, updated_at=? WHERE category=?",
+                (name, now_kst().isoformat(), category["name"]),
+            )
+            connection.execute(
+                "UPDATE tips_categories SET name=?, updated_at=? WHERE id=?",
+                (name, now_kst().isoformat(), category_id),
+            )
+            security_audit.log_event(
+                connection, "TIPS_CATEGORY_RENAME", "tips_category", category_id,
+                {"before": category["name"], "after": name},
+            )
+            connection.commit()
+        except sqlite3.IntegrityError:
+            connection.rollback()
+            flash("이미 등록된 카테고리입니다.", "error")
+            return redirect(url_for("tips.categories_page"))
+        except ValueError as exc:
+            connection.rollback()
+            flash(str(exc), "error")
+            return redirect(url_for("tips.categories_page"))
+    finally:
+        connection.close()
+    flash("카테고리명과 기존 자료를 함께 변경했습니다.", "success")
+    return redirect(url_for("tips.categories_page"))
+
+
+@tips_bp.post("/categories/<int:category_id>/toggle")
+@admin_required
+def toggle_category_page(category_id):
+    if not validate_csrf(request.form.get("csrf_token")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        category = connection.execute(
+            "SELECT * FROM tips_categories WHERE id=?", (category_id,)
+        ).fetchone()
+        if not category:
+            abort(404)
+        next_active = 0 if category["is_active"] else 1
+        if not next_active:
+            active_count = connection.execute(
+                "SELECT COUNT(*) FROM tips_categories WHERE is_active=1"
+            ).fetchone()[0]
+            if active_count <= 1:
+                flash("최소 한 개의 활성 카테고리는 남겨야 합니다.", "error")
+                return redirect(url_for("tips.categories_page"))
+        connection.execute(
+            "UPDATE tips_categories SET is_active=?, updated_at=? WHERE id=?",
+            (next_active, now_kst().isoformat(), category_id),
+        )
+        security_audit.log_event(
+            connection, "TIPS_CATEGORY_TOGGLE", "tips_category", category_id,
+            {"is_active": bool(next_active)},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    flash("카테고리를 다시 표시했습니다." if next_active else "카테고리를 새 글 선택 목록에서 숨겼습니다.", "success")
+    return redirect(url_for("tips.categories_page"))
+
+
 @tips_bp.route("/new", methods=["GET", "POST"])
 @admin_required
 def new_page():
@@ -511,6 +657,8 @@ def new_page():
         values = _form_values()
         connection = dashboard_db()
         try:
+            categories = _active_tip_categories(connection)
+            _validate_tip_category(connection, values["category"])
             item = tips_content.save_tip(
                 connection, values, session.get("user_id")
             )
@@ -519,16 +667,19 @@ def new_page():
             connection.rollback()
             flash(str(exc), "error")
             return render_template(
-                "tips/form.html", tip=values, categories=tips_content.CATEGORIES,
+                "tips/form.html", tip=values, categories=categories,
                 mode="new",
             ), 400
         finally:
             connection.close()
         flash("자료를 등록했습니다.", "success")
         return redirect(url_for("tips.detail_page", slug=item["slug"]))
-    return render_template(
-        "tips/form.html", tip={}, categories=tips_content.CATEGORIES, mode="new"
-    )
+    connection = dashboard_db()
+    try:
+        categories = _active_tip_categories(connection)
+    finally:
+        connection.close()
+    return render_template("tips/form.html", tip={}, categories=categories, mode="new")
 
 
 @tips_bp.route("/<slug>")
@@ -680,6 +831,12 @@ def edit_page(slug):
                 abort(400)
             values = _form_values()
             try:
+                categories = _active_tip_categories(
+                    connection, include=(item["category"],)
+                )
+                _validate_tip_category(
+                    connection, values["category"], include=(item["category"],)
+                )
                 item = tips_content.save_tip(
                     connection, values, session.get("user_id"), item["id"]
                 )
@@ -689,15 +846,15 @@ def edit_page(slug):
                 flash(str(exc), "error")
                 return render_template(
                     "tips/form.html", tip=values,
-                    categories=tips_content.CATEGORIES, mode="edit",
+                    categories=categories, mode="edit",
                 ), 400
             flash("자료를 수정했습니다.", "success")
             return redirect(url_for("tips.detail_page", slug=item["slug"]))
         return render_template(
             "tips/form.html", tip=item,
-            categories=tuple(dict.fromkeys((
-                *tips_content.CATEGORIES, item["category"]
-            ))),
+            categories=_active_tip_categories(
+                connection, include=(item["category"],)
+            ),
             mode="edit",
         )
     finally:

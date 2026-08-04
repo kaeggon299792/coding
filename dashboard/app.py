@@ -49,6 +49,7 @@ from services import (
     content_translation,
     document_library,
     economic_data,
+    editor_images,
     market_data,
     localization_management,
     news_reader,
@@ -4001,7 +4002,7 @@ def _community_board_context(
 _COMMUNITY_MARKDOWN_TAGS = {
     "p", "br", "strong", "em", "del", "blockquote", "code", "pre",
     "ul", "ol", "li", "h1", "h2", "h3", "h4", "hr", "table",
-    "thead", "tbody", "tr", "th", "td", "a",
+    "thead", "tbody", "tr", "th", "td", "a", "img",
 }
 _COMMUNITY_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"}
 
@@ -4015,11 +4016,42 @@ def _render_community_markdown(value):
     cleaned = bleach.clean(
         rendered,
         tags=_COMMUNITY_MARKDOWN_TAGS,
-        attributes={"a": ["href", "title"]},
+        attributes={"a": ["href", "title"], "img": ["src", "alt", "title"]},
         protocols={"https", "mailto"},
         strip=True,
     )
     return Markup(cleaned)
+
+
+@app.post("/editor/images")
+@login_required
+def upload_editor_image_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return jsonify({"error": "요청이 만료되었습니다. 새로고침 후 다시 시도해주세요."}), 400
+    scope = (request.form.get("scope") or "").strip()
+    if scope not in {"community", "notice", "tips"}:
+        return jsonify({"error": "허용되지 않은 작성 화면입니다."}), 400
+    if scope in {"notice", "tips"} and session.get("role") != "admin":
+        abort(403)
+    try:
+        filename = editor_images.save_pasted_image(
+            request.files.get("image"),
+            config.EDITOR_IMAGE_DIR,
+            config.EDITOR_IMAGE_MAX_BYTES,
+        )
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    image_url = url_for("static", filename=f"uploads/editor/{filename}")
+    connection = dashboard_db()
+    try:
+        security_audit.log_event(
+            connection, "EDITOR_IMAGE_UPLOAD", "editor_image", filename,
+            {"scope": scope},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return jsonify({"url": image_url})
 
 
 def _community_attachment_url(raw_value, kind):

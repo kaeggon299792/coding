@@ -16,7 +16,12 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080411
+SCHEMA_VERSION = 2026080412
+
+TIPS_CATEGORY_SEEDS = (
+    "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
+    "경영기획", "데이터 분석", "PC·시스템", "기타",
+)
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -1651,6 +1656,29 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_tips_category "
         "ON tips_articles(category, is_deleted, draft)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tips_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    for sort_order, name in enumerate(TIPS_CATEGORY_SEEDS, start=1):
+        connection.execute(
+            """INSERT OR IGNORE INTO tips_categories (name, sort_order)
+               VALUES (?, ?)""",
+            (name, sort_order),
+        )
+    connection.execute(
+        """INSERT OR IGNORE INTO tips_categories (name, sort_order)
+           SELECT DISTINCT category, 1000
+           FROM tips_articles WHERE TRIM(category)<>''"""
     )
     connection.execute(
         """

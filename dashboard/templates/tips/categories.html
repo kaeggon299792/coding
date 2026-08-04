@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}자료실 카테고리 관리{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260804-image-paste1">{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container tips-shell">
+  <header class="tips-header">
+    <div><p class="eyebrow">ADMIN / LIBRARY CATEGORIES</p><h1>자료실 카테고리 관리</h1><p>관리자만 카테고리를 추가·수정하거나 새 글 선택 목록에서 숨길 수 있습니다.</p></div>
+    <a class="btn btn-secondary" href="{{ url_for('tips.list_page') }}">자료실로 돌아가기</a>
+  </header>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="form-message {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
+  <section class="panel tips-category-manager">
+    <form class="site-category-form" method="post" action="{{ url_for('tips.categories_page') }}">
+      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+      <label><span>새 카테고리명 <b>*</b></span><input name="name" maxlength="80" required placeholder="예: 카지노 운영"></label>
+      <button class="btn" type="submit">카테고리 추가</button>
+    </form>
+    <div class="tips-category-list">
+      {% for category in categories %}
+      <article class="tips-category-row{% if not category.is_active %} is-inactive{% endif %}">
+        <form method="post" action="{{ url_for('tips.rename_category_page', category_id=category.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+          <label><span>카테고리명</span><input name="name" value="{{ category.name }}" maxlength="80" required></label>
+          <button class="btn btn-secondary" type="submit">이름 변경</button>
+        </form>
+        <div class="tips-category-meta"><span>등록 자료 {{ category.article_count }}건</span><span>{{ '사용 중' if category.is_active else '숨김' }}</span></div>
+        <form method="post" action="{{ url_for('tips.toggle_category_page', category_id=category.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+          <button class="btn btn-text" type="submit">{{ '새 글에서 숨기기' if category.is_active else '다시 표시' }}</button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

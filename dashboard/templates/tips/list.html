@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}자료실{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260801-library-theme-colors">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260804-image-paste1">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
@@ -10,7 +10,7 @@
     <h1>자료실</h1>
     <p class="tips-hero-lead">업무 노하우와 자동화 자료를 검색하고 확인합니다.</p>
     <p class="tips-hero-supporting">실무에서 검증한 방법, 도구와 업무 기준을 한곳에 축적합니다.</p>
-    {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn" href="{{ url_for('tips.new_page') }}">새 자료 등록</a><a class="btn btn-secondary" href="{{ url_for('tips.trash_page') }}">휴지통</a></div>{% endif %}
+    {% if current_user_role == 'admin' %}<div class="tips-actions"><a class="btn" href="{{ url_for('tips.new_page') }}">새 자료 등록</a><a class="btn btn-secondary" href="{{ url_for('tips.categories_page') }}">카테고리 관리</a><a class="btn btn-secondary" href="{{ url_for('tips.trash_page') }}">휴지통</a></div>{% endif %}
   </header>
 
   <form class="tips-search" method="get" action="{{ url_for('tips.list_page') }}">

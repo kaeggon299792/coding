@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if mode == 'new' %}새 자료 등록{% else %}자료 수정{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260801-library-theme-colors">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260804-image-paste1">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
@@ -32,7 +32,7 @@ def summarize_sales(amount):
 ```</code></pre>
       <small>백틱 3개로 시작하고 끝내면 코드블록으로 렌더링되며, 상세 화면에서는 복사 버튼도 자동으로 붙습니다.</small>
     </section>
-    <label class="wide"><span>본문 (Markdown) <b>*</b></span><textarea name="body" rows="24" required>{{ tip.body or '' }}</textarea></label>
+    <label class="wide"><span>본문 (Markdown) <b>*</b></span><textarea id="tip-body-editor" name="body" rows="24" required data-image-paste data-image-paste-scope="tips" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ global_csrf_token }}">{{ tip.body or '' }}</textarea><small>본문에 이미지를 복사한 뒤 Ctrl+V로 바로 넣을 수 있습니다. PNG·JPG·GIF·WebP, 최대 5MB.</small><small class="image-paste-status" data-image-paste-status="tip-body-editor" role="status" aria-live="polite"></small></label>
     <label class="wide"><span>첨부파일</span><input type="file" name="attachments" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.xlsx,.xlsm,.docx,.pptx,.txt,.csv,.zip"><small>파일은 10MB 이하. 이미지, PDF, Office 문서, 텍스트, ZIP을 지원합니다.</small></label>
     <label class="check"><input type="checkbox" name="featured" value="1" {% if tip.featured %}checked{% endif %}><span>중요 게시물로 상단 고정</span></label>
     <label class="check"><input type="checkbox" name="draft" value="1" {% if tip.draft %}checked{% endif %}><span>비공개(관리자만 열람)</span></label>
@@ -40,3 +40,4 @@ def summarize_sales(amount):
   </form>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260804-1" defer></script>{% endblock %}
