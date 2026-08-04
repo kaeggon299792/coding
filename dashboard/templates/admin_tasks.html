@@ -3,62 +3,75 @@
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container task-admin-page" data-i18n-ignore>
-  <header class="page-header">
-    <p class="page-eyebrow">ADMINISTRATION / AUTOMATION MAP</p>
-    <h1 class="page-title">자동화 작업 현황</h1>
-    <p class="page-description">PythonAnywhere와 로컬 PC에서 무엇이 언제 실행되고, 어디서 정보를 가져와 어디에 저장하는지 쉽게 설명합니다.</p>
-    <p class="task-verified-note">등록 상태 확인 기준: {{ registry.verified_at }} · 표시 시각은 모두 한국시간(KST)</p>
+  <header class="page-header task-page-header">
+    <div>
+      <p class="page-eyebrow">ADMINISTRATION / AUTOMATION MAP</p>
+      <h1 class="page-title">자동화 작업 현황</h1>
+      <p class="page-description">서버와 로컬 PC에서 실행되는 작업을 플랫폼·일정·데이터 흐름별로 확인합니다.</p>
+    </div>
+    <p class="task-verified-note"><span class="status-dot is-ok"></span>{{ registry.verified_at }} 등록 상태 확인<br><small>표시 시각은 모두 한국시간(KST)</small></p>
   </header>
 
   <section class="task-summary-grid" aria-label="자동화 작업 요약">
-    <article><span>PythonAnywhere 예약</span><strong>{{ registry.counts.pythonanywhere_scheduled }}</strong><small>번역 작업 포함</small></article>
-    <article><span>PythonAnywhere 상시</span><strong>{{ registry.counts.pythonanywhere_always_on }}</strong><small>중단 시 자동 재시작</small></article>
-    <article><span>로컬 Windows 등록</span><strong>{{ registry.counts.windows_registered }}</strong><small>게시판 17 + 데이터랩 10</small></article>
+    <article class="task-summary-card is-scheduled"><span class="task-summary-index">01</span><div><b>PythonAnywhere 예약</b><strong>{{ registry.counts.pythonanywhere_scheduled }}</strong><small>정해진 시각에 실행 · 번역 포함</small></div></article>
+    <article class="task-summary-card is-always"><span class="task-summary-index">02</span><div><b>PythonAnywhere 상시</b><strong>{{ registry.counts.pythonanywhere_always_on }}</strong><small>계속 실행 · 중단 시 자동 재시작</small></div></article>
+    <article class="task-summary-card is-local"><span class="task-summary-index">03</span><div><b>로컬 Windows 등록</b><strong>{{ registry.counts.windows_registered }}</strong><small>게시판 17개 + 데이터랩 10개</small></div></article>
   </section>
 
-  <section class="panel task-explainer">
-    <div class="section-heading"><div><p class="section-kicker">HOW TO READ</p><h2>이 화면의 상태를 읽는 방법</h2></div></div>
+  <details class="panel task-explainer">
+    <summary><div><p class="section-kicker">HOW TO READ</p><b>상태값이 무엇을 뜻하는지 확인하기</b></div><span>읽는 방법</span></summary>
     <ol>
-      <li><b>등록 확인</b>은 실제 PythonAnywhere Tasks와 Windows 작업 스케줄러에서 작업이 존재하는지 확인한 값입니다.</li>
-      <li><b>마지막 실행</b>은 CASINO IN DB의 실행이력 또는 해당 작업 로그의 마지막 기록입니다.</li>
+      <li><b>등록 확인</b>은 실제 PythonAnywhere Tasks와 Windows 작업 스케줄러에 작업이 존재하는지 확인한 값입니다.</li>
+      <li><b>마지막 실행</b>은 CASINO IN DB의 실행 이력 또는 해당 작업 로그의 마지막 기록입니다.</li>
       <li><b>마지막 데이터 신호</b>는 뉴스·이메일·실적처럼 별도 프로그램이 만든 데이터가 마지막으로 도착한 시각입니다.</li>
-      <li>로컬 PC는 서버가 Windows 상태를 직접 읽을 수 없습니다. 따라서 등록 확인값과 서버에 도착한 데이터 신호를 구분합니다.</li>
+      <li>서버는 로컬 Windows 상태를 실시간으로 읽을 수 없으므로 등록 확인값과 서버에 도착한 데이터 신호를 구분합니다.</li>
     </ol>
-  </section>
+  </details>
 
   {% for section_title, tasks in [('PythonAnywhere', registry.pythonanywhere), ('로컬 PC', registry.local)] %}
   <section class="task-section">
-    <header class="section-heading"><div><p class="section-kicker">{{ 'SERVER AUTOMATION' if section_title == 'PythonAnywhere' else 'WINDOWS AUTOMATION' }}</p><h2>{{ section_title }}</h2></div><span>{{ tasks|length }}개 작업 그룹</span></header>
+    <header class="section-heading task-section-heading">
+      <div><p class="section-kicker">{{ 'SERVER AUTOMATION' if section_title == 'PythonAnywhere' else 'WINDOWS AUTOMATION' }}</p><h2>{{ section_title }}</h2><p>{{ '운영 서버에서 실행되는 작업입니다.' if section_title == 'PythonAnywhere' else '사용자 PC의 Windows 작업 스케줄러에서 실행됩니다.' }}</p></div>
+      <span>{{ tasks|length }}개 작업 그룹</span>
+    </header>
     <div class="task-card-grid">
       {% for task in tasks %}
-      <article class="task-card">
-        <header>
-          <div><span class="task-location">{{ task.location }}</span><span class="task-kind">{{ task.kind }}</span></div>
-          <h3>{{ task.title }}</h3>
-          <p class="task-schedule">{{ task.schedule }}</p>
-          <small>플랫폼 등록값: {{ task.platform_schedule }}</small>
-        </header>
-        <dl class="task-status-list">
-          <div><dt>실행 플랫폼</dt><dd><b>{{ task.platform }}</b></dd></div>
-          <div><dt>실행 방식</dt><dd>{{ task.mode }}</dd></div>
-          <div><dt>등록 상태</dt><dd><span class="status-dot is-ok"></span>{{ task.verified_at }} 확인</dd></div>
-          <div><dt>마지막 실행</dt><dd>{{ (task.last_run_at or task.last_log_at or '-')|replace('T', ' ')|truncate(20, true, '') }}{% if task.last_status %} · {{ task.last_status }}{% endif %}</dd></div>
-          <div><dt>마지막 데이터 신호</dt><dd>{{ (task.last_signal_at or '-')|replace('T', ' ')|truncate(20, true, '') }}</dd></div>
-          {% if task.last_error %}<div class="task-error"><dt>최근 오류</dt><dd>{{ task.last_error }}</dd></div>{% endif %}
-        </dl>
-        <div class="task-bundle{% if task.mode == '묶음 실행' %} is-bundle{% endif %}">
-          <b>{{ '한 번의 예약으로 함께 실행되는 작업' if task.mode == '묶음 실행' else '이 예약이 실행하는 작업' }}</b>
-          <ol>{% for step in task.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+      <details class="task-card"{% if loop.first %} open{% endif %}>
+        <summary class="task-card-summary">
+          <div class="task-summary-main">
+            <div class="task-tags"><span class="task-location">{{ task.location }}</span><span class="task-kind">{{ task.kind }}</span></div>
+            <h3>{{ task.title }}</h3>
+            <p>{{ task.platform }}</p>
+          </div>
+          <div class="task-summary-time"><span>실행 일정</span><strong>{{ task.schedule }}</strong><small>{{ task.platform_schedule }}</small></div>
+          <div class="task-summary-state"><span class="task-state-pill"><span class="status-dot is-ok"></span>등록 확인</span><span class="task-open-label">상세 보기</span></div>
+        </summary>
+
+        <div class="task-card-body">
+          <dl class="task-status-grid">
+            <div><dt>실행 방식</dt><dd><b>{{ task.mode }}</b></dd></div>
+            <div><dt>마지막 실행</dt><dd>{{ (task.last_run_at or task.last_log_at or '-')|replace('T', ' ')|truncate(20, true, '') }}{% if task.last_status %}<small>{{ task.last_status }}</small>{% endif %}</dd></div>
+            <div><dt>마지막 데이터 신호</dt><dd>{{ (task.last_signal_at or '-')|replace('T', ' ')|truncate(20, true, '') }}</dd></div>
+            {% if task.last_error %}<div class="task-error"><dt>최근 오류</dt><dd>{{ task.last_error }}</dd></div>{% endif %}
+          </dl>
+
+          <div class="task-bundle{% if task.mode == '묶음 실행' %} is-bundle{% endif %}">
+            <div><span>RUN SEQUENCE</span><b>{{ '한 번의 예약으로 함께 실행되는 작업' if task.mode == '묶음 실행' else '이 예약이 실행하는 작업' }}</b></div>
+            <ol>{% for step in task.steps %}<li><span>{{ '%02d'|format(loop.index) }}</span>{{ step }}</li>{% endfor %}</ol>
+          </div>
+          {% if task.connection_note %}<p class="task-connection-note"><b>플랫폼 연결 안내</b>{{ task.connection_note }}</p>{% endif %}
+
+          <div class="task-flow-heading"><span>DATA FLOW</span><b>정보가 반영되는 과정</b></div>
+          <div class="task-flow">
+            <div><span>01</span><b>어디서 가져오나</b><p>{{ task.source }}</p></div>
+            <div><span>02</span><b>어떻게 처리하나</b><p>{{ task.process }}</p></div>
+            <div><span>03</span><b>어디에 반영되나</b><p>{{ task.destination }}</p></div>
+          </div>
+          <div class="task-failure"><b>오류가 나면</b><p>{{ task.failure }}</p></div>
+
+          <details class="task-command"><summary>실행 파일 경로 보기</summary><code>{{ task.command }}</code></details>
         </div>
-        {% if task.connection_note %}<p class="task-connection-note">{{ task.connection_note }}</p>{% endif %}
-        <div class="task-flow">
-          <div><b>① 어디서 가져오나</b><p>{{ task.source }}</p></div>
-          <div><b>② 어떻게 처리하나</b><p>{{ task.process }}</p></div>
-          <div><b>③ 어디에 반영되나</b><p>{{ task.destination }}</p></div>
-          <div><b>오류가 나면</b><p>{{ task.failure }}</p></div>
-        </div>
-        <details><summary>실행 파일 보기</summary><code>{{ task.command }}</code></details>
-      </article>
+      </details>
       {% endfor %}
     </div>
   </section>
