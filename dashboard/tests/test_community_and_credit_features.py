@@ -137,6 +137,11 @@ def test_company_rating_badge_is_prominent_and_responsive():
     assert "display: inline-grid;" in badge_rule
     assert "grid-template-columns: auto auto;" in badge_rule
     assert "grid-column: 1 / -1;" in source_rule
+    template = (Path(__file__).parents[1] / "templates" / "companies.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'class="rating-zero"' in template
+    assert ".company-rating-badge .rating-zero::after" in css
 
 
 def test_company_executive_profiles_support_single_and_joint_representatives(tmp_path):

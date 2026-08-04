@@ -1,0 +1,60 @@
+<details class="company-content-comments" id="comments-{{ comment_target_type }}-{{ comment_target_id }}">
+  <summary>댓글 {{ comment_data.count }}</summary>
+  <div class="company-content-comments-body">
+    {% if comment_data.threads %}
+    <ol class="company-content-comment-list">
+      {% for comment in comment_data.threads %}
+      <li class="company-content-comment{% if comment.is_deleted %} is-deleted{% endif %}">
+        {% if comment.is_deleted %}
+        <p class="company-content-comment-deleted">삭제된 댓글입니다.</p>
+        {% else %}
+        <header><strong>{{ comment.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ comment.created_at }}">{{ comment.created_at[:16]|replace('T', ' ') }}</time></header>
+        <p>{{ comment.content }}</p>
+        <div class="company-content-comment-actions">
+          {% if current_username %}
+          <details><summary>답글</summary>
+            <form method="post" action="{{ url_for('create_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="parent_id" value="{{ comment.id }}">
+              <textarea name="content" rows="2" maxlength="1000" required placeholder="답글을 입력해주세요."></textarea>
+              <button class="btn" type="submit">답글 등록</button>
+            </form>
+          </details>
+          {% endif %}
+          {% if current_user_role == 'admin' or (current_user and current_user.id == comment.author_id) %}
+          <form method="post" action="{{ url_for('delete_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id, comment_id=comment.id) }}" onsubmit="return confirm('댓글을 삭제할까요?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="community-delete-button" type="submit">삭제</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if comment.replies %}
+        <ol class="company-content-reply-list">
+          {% for reply in comment.replies %}
+          <li>
+            <header><strong>{{ reply.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ reply.created_at }}">{{ reply.created_at[:16]|replace('T', ' ') }}</time></header>
+            <p>{{ reply.content }}</p>
+            {% if current_user_role == 'admin' or (current_user and current_user.id == reply.author_id) %}
+            <form method="post" action="{{ url_for('delete_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id, comment_id=reply.id) }}" onsubmit="return confirm('답글을 삭제할까요?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="community-delete-button" type="submit">삭제</button>
+            </form>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}<p class="company-content-comment-empty">아직 댓글이 없습니다.</p>{% endif %}
+
+    {% if current_username %}
+    <form class="company-content-comment-form" method="post" action="{{ url_for('create_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>{{ current_username }} 님의 댓글<textarea name="content" rows="3" maxlength="1000" required placeholder="의견이나 추가 정보를 남겨주세요."></textarea></label>
+      <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
+    </form>
+    {% else %}
+    <div class="company-content-comment-login"><span>댓글 작성은 로그인 후 이용할 수 있습니다.</span><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></div>
+    {% endif %}
+  </div>
+</details>

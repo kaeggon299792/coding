@@ -51,7 +51,7 @@
           </div>
           {% if company.credit_rating %}
           <a class="company-rating-badge" href="{{ url_for('company_detail_page', company_slug=company.slug) }}#credit-rating-history" aria-label="{{ company.display_name or company.name }} 현재 신용등급 {{ company.credit_rating.rating }}, 나이스신용평가 기준">
-            <span>현재 신용등급</span> <strong>{{ company.credit_rating.rating }}</strong><small>나이스신용평가 기준</small>
+            <span>현재 신용등급</span> <strong>{% for character in company.credit_rating.rating %}{% if character == '0' %}<i class="rating-zero">0</i>{% else %}{{ character }}{% endif %}{% endfor %}</strong><small>나이스신용평가 기준</small>
           </a>
           {% endif %}
         </div>

@@ -15,7 +15,7 @@ import config
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080408
+SCHEMA_VERSION = 2026080409
 
 CASINO_GLOSSARY_SEED_TERMS = (
     ("game", "바카라", "Baccarat", "플레이어와 뱅커 중 어느 쪽의 카드 합이 9에 더 가까운지 맞히는 테이블 게임.", "두 편 중 9에 더 가까운 쪽을 고르는 게임입니다."),
@@ -763,6 +763,38 @@ def migrate(connection):
            ON company_recruitment_guides(
                company_name, experience_period DESC, process_type, id DESC
            )"""
+    )
+
+    # ---- company_content_comments (복리후생·채용 족보 댓글 및 대댓글) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS company_content_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target_type TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            parent_id INTEGER REFERENCES company_content_comments(id),
+            author_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+            author_username TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            deleted_at TEXT,
+            deleted_by INTEGER REFERENCES dashboard_users(id),
+            CHECK(target_type IN ('benefit', 'recruitment_guide')),
+            CHECK(parent_id IS NULL OR parent_id <> id)
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_company_content_comments_target
+           ON company_content_comments(
+               target_type, target_id, parent_id, created_at, id
+           )"""
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_company_content_comments_author
+           ON company_content_comments(author_id, created_at DESC)"""
     )
 
     # ---- company_financial_reports / values (VALUESearch 원본 재무제표) ----

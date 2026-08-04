@@ -1286,6 +1286,98 @@ def update_company_recruitment_guide(connection, guide_id, values):
     connection.commit()
 
 
+def _company_comment_target_exists(connection, target_type, target_id):
+    tables = {
+        "benefit": "company_benefits",
+        "recruitment_guide": "company_recruitment_guides",
+    }
+    table = tables.get(target_type)
+    if not table:
+        return False
+    return connection.execute(
+        f"SELECT 1 FROM {table} WHERE id=?", (target_id,)
+    ).fetchone() is not None
+
+
+def list_company_content_comments(connection, target_type, target_id=None):
+    sql = "SELECT * FROM company_content_comments WHERE target_type=?"
+    params = [target_type]
+    if target_id is not None:
+        sql += " AND target_id=?"
+        params.append(target_id)
+    sql += " ORDER BY target_id, created_at, id"
+    return [dict(row) for row in connection.execute(sql, params).fetchall()]
+
+
+def get_company_content_comment(connection, comment_id):
+    row = connection.execute(
+        "SELECT * FROM company_content_comments WHERE id=?", (comment_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_company_content_comment(
+    connection, target_type, target_id, author_id, author_username, content,
+    parent_id=None,
+):
+    text = (content or "").strip()
+    if not text or len(text) > 1000:
+        raise ValueError("댓글은 1~1,000자로 입력해주세요.")
+    if not _company_comment_target_exists(connection, target_type, target_id):
+        raise ValueError("댓글을 작성할 항목을 찾을 수 없습니다.")
+    if parent_id is not None:
+        parent = get_company_content_comment(connection, parent_id)
+        if (
+            not parent or parent["is_deleted"] or parent["parent_id"] is not None
+            or parent["target_type"] != target_type
+            or int(parent["target_id"]) != int(target_id)
+        ):
+            raise ValueError("답글을 작성할 댓글을 찾을 수 없습니다.")
+    now = now_kst()
+    ten_minutes_ago = (now - timedelta(minutes=10)).isoformat(timespec="seconds")
+    day_ago = (now - timedelta(days=1)).isoformat(timespec="seconds")
+    recent_count = connection.execute(
+        """SELECT COUNT(*) FROM company_content_comments
+           WHERE author_id=? AND is_deleted=0 AND created_at>=?""",
+        (author_id, ten_minutes_ago),
+    ).fetchone()[0]
+    daily_count = connection.execute(
+        """SELECT COUNT(*) FROM company_content_comments
+           WHERE author_id=? AND is_deleted=0 AND created_at>=?""",
+        (author_id, day_ago),
+    ).fetchone()[0]
+    if recent_count >= 10 or daily_count >= 100:
+        raise ValueError("댓글 작성 횟수가 너무 많습니다. 잠시 후 다시 시도해주세요.")
+    timestamp = now.isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        INSERT INTO company_content_comments (
+            target_type, target_id, parent_id, author_id, author_username,
+            content, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            target_type, target_id, parent_id, author_id,
+            (author_username or "")[:100], text, timestamp, timestamp,
+        ),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def soft_delete_company_content_comment(connection, comment_id, user_id):
+    timestamp = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """UPDATE company_content_comments
+           SET is_deleted=1, deleted_at=?, deleted_by=?, updated_at=?
+           WHERE id=? AND is_deleted=0""",
+        (timestamp, user_id, timestamp, comment_id),
+    )
+    if not cursor.rowcount:
+        raise ValueError("댓글을 찾을 수 없습니다.")
+    connection.commit()
+
+
 def list_latest_company_financial_reports(connection, company_name):
     """회사·제표별 가장 최근에 반영된 원본 보고서 메타데이터를 반환한다."""
 

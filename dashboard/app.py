@@ -3307,7 +3307,7 @@ COMPANY_BENEFIT_CATEGORIES = (
 )
 
 
-def _company_benefit_form_values(connection):
+def _company_benefit_form_values(connection, existing=None):
     company_name = " ".join((request.form.get("company_name") or "").split())
     valid_companies = {
         item["name"] for item in company_intelligence.list_company_options(connection)
@@ -3321,20 +3321,6 @@ def _company_benefit_form_values(connection):
     if not benefit_name or len(benefit_name) > 120:
         raise ValueError("복지명은 120자 이내로 입력해주세요.")
 
-    def optional_date(field, label):
-        value = (request.form.get(field) or "").strip()
-        if not value:
-            return None
-        try:
-            datetime.strptime(value, "%Y-%m-%d")
-        except ValueError as exc:
-            raise ValueError(f"{label} 날짜를 확인해주세요.") from exc
-        return value
-
-    effective_from = optional_date("effective_from", "시행일")
-    ended_on = optional_date("ended_on", "종료일")
-    if effective_from and ended_on and ended_on < effective_from:
-        raise ValueError("종료일은 시행일보다 빠를 수 없습니다.")
     values = {
         "company_name": company_name,
         "category": category,
@@ -3342,13 +3328,42 @@ def _company_benefit_form_values(connection):
         "support_value": (request.form.get("support_value") or "").strip(),
         "benefit_level": (request.form.get("benefit_level") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
-        "effective_from": effective_from,
-        "ended_on": ended_on,
+        "effective_from": existing.get("effective_from") if existing else None,
+        "ended_on": existing.get("ended_on") if existing else None,
     }
     limits = {"support_value": 300, "benefit_level": 100, "notes": 1000}
     if any(len(values[field]) > limit for field, limit in limits.items()):
         raise ValueError("지원 내용·수준·비고의 허용 길이를 초과했습니다.")
     return values
+
+
+def _group_company_comment_threads(rows):
+    grouped = {}
+    roots = {}
+    for item in rows:
+        target_id = int(item["target_id"])
+        grouped.setdefault(target_id, {"threads": [], "count": 0})
+        if item["parent_id"] is None:
+            thread = dict(item)
+            thread["replies"] = []
+            grouped[target_id]["threads"].append(thread)
+            roots[item["id"]] = thread
+    for item in rows:
+        if item["parent_id"] is None or item["is_deleted"]:
+            continue
+        parent = roots.get(item["parent_id"])
+        if parent and int(parent["target_id"]) == int(item["target_id"]):
+            parent["replies"].append(dict(item))
+    for target in grouped.values():
+        target["threads"] = [
+            thread for thread in target["threads"]
+            if not thread["is_deleted"] or thread["replies"]
+        ]
+        target["count"] = sum(
+            (0 if thread["is_deleted"] else 1) + len(thread["replies"])
+            for thread in target["threads"]
+        )
+    return grouped
 
 
 @app.get("/companies/benefits")
@@ -3378,6 +3393,9 @@ def company_benefits_page():
             selected_company=selected_company,
             benefit_categories=COMPANY_BENEFIT_CATEGORIES,
             category_labels=dict(COMPANY_BENEFIT_CATEGORIES),
+            comments_by_target=_group_company_comment_threads(
+                queries.list_company_content_comments(connection, "benefit")
+            ),
             csrf_token=get_csrf_token(),
             today=today_kst_str(),
         )
@@ -3419,9 +3437,10 @@ def edit_company_benefit_route(benefit_id):
         abort(400)
     connection = dashboard_db()
     try:
-        if not queries.get_company_benefit(connection, benefit_id):
+        benefit = queries.get_company_benefit(connection, benefit_id)
+        if not benefit:
             abort(404)
-        values = _company_benefit_form_values(connection)
+        values = _company_benefit_form_values(connection, existing=benefit)
         queries.update_company_benefit(connection, benefit_id, values)
     except (ValueError, sqlite3.IntegrityError) as exc:
         connection.rollback()
@@ -3547,6 +3566,11 @@ def company_recruitment_guide_page():
             selected_process=selected_process,
             process_types=RECRUITMENT_GUIDE_PROCESS_TYPES,
             process_labels=dict(RECRUITMENT_GUIDE_PROCESS_TYPES),
+            comments_by_target=_group_company_comment_threads(
+                queries.list_company_content_comments(
+                    connection, "recruitment_guide"
+                )
+            ),
             csrf_token=get_csrf_token(),
         )
     finally:
@@ -3607,6 +3631,101 @@ def edit_company_recruitment_guide_route(guide_id):
         "company_recruitment_guide_page",
         company=request.form.get("company_name", ""),
     ))
+
+
+def _company_comment_target(connection, target_type, target_id):
+    if target_type == "benefit":
+        return queries.get_company_benefit(connection, target_id)
+    if target_type == "recruitment_guide":
+        return queries.get_company_recruitment_guide(connection, target_id)
+    return None
+
+
+def _company_comment_redirect(target_type, target):
+    endpoint = (
+        "company_benefits_page"
+        if target_type == "benefit"
+        else "company_recruitment_guide_page"
+    )
+    return url_for(endpoint, company=target["company_name"]) + f"#comments-{target_type}-{target['id']}"
+
+
+@app.post("/companies/comments/<target_type>/<int:target_id>")
+@login_required
+def create_company_content_comment_route(target_type, target_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    parent_value = (request.form.get("parent_id") or "").strip()
+    if parent_value and not parent_value.isdigit():
+        abort(400)
+    parent_id = int(parent_value) if parent_value else None
+    connection = dashboard_db()
+    try:
+        target = _company_comment_target(connection, target_type, target_id)
+        if not target:
+            abort(404)
+        try:
+            comment_id = queries.create_company_content_comment(
+                connection,
+                target_type=target_type,
+                target_id=target_id,
+                author_id=session["user_id"],
+                author_username=session.get("username") or "",
+                content=request.form.get("content"),
+                parent_id=parent_id,
+            )
+        except ValueError as exc:
+            flash(str(exc), "error")
+        else:
+            security_audit.log_event(
+                connection,
+                "COMPANY_CONTENT_COMMENT_CREATE",
+                "company_content_comment",
+                comment_id,
+                {
+                    "target_type": target_type,
+                    "target_id": target_id,
+                    "is_reply": parent_id is not None,
+                },
+            )
+            connection.commit()
+        return redirect(_company_comment_redirect(target_type, target))
+    finally:
+        connection.close()
+
+
+@app.post("/companies/comments/<target_type>/<int:target_id>/<int:comment_id>/delete")
+@login_required
+def delete_company_content_comment_route(target_type, target_id, comment_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        target = _company_comment_target(connection, target_type, target_id)
+        comment = queries.get_company_content_comment(connection, comment_id)
+        if (
+            not target or not comment or comment["is_deleted"]
+            or comment["target_type"] != target_type
+            or int(comment["target_id"]) != target_id
+        ):
+            abort(404)
+        is_owner = int(comment["author_id"]) == int(session["user_id"])
+        if session.get("role") != "admin" and not is_owner:
+            abort(403)
+        queries.soft_delete_company_content_comment(
+            connection, comment_id, session["user_id"]
+        )
+        security_audit.log_event(
+            connection,
+            "COMPANY_CONTENT_COMMENT_DELETE",
+            "company_content_comment",
+            comment_id,
+            {"target_type": target_type, "target_id": target_id},
+        )
+        connection.commit()
+        return redirect(_company_comment_redirect(target_type, target))
+    finally:
+        connection.close()
 
 @app.route("/companies")
 def companies_page():

@@ -31,8 +31,6 @@
       <label>복지명<input name="benefit_name" maxlength="120" placeholder="예: 직장 어린이집" required></label>
       <label>지원 내용·금액<input name="support_value" maxlength="300" placeholder="예: 복지카드 연 120만원"></label>
       <label>수준<input name="benefit_level" maxlength="100" placeholder="예: 연 120만원 / 전액 / 우수"></label>
-      <label>시행일<input type="date" name="effective_from"></label>
-      <label>종료일<input type="date" name="ended_on"><small>현재 운영 중이면 비워두세요.</small></label>
       <label class="wide">비고<textarea name="notes" rows="3" maxlength="1000" placeholder="대상, 신청 조건, 사용 방법 등을 기록하세요."></textarea></label>
       <div class="wide company-benefit-form-actions"><button class="btn btn-primary" type="submit">등록</button></div>
     </form>
@@ -57,7 +55,8 @@
             <div><dt>수준</dt><dd>{% if benefit.ended_on %}<s>{{ benefit.benefit_level or '-' }}</s>{% else %}{{ benefit.benefit_level or '-' }}{% endif %}</dd></div>
             <div class="wide"><dt>비고</dt><dd>{% if benefit.ended_on %}<s>{{ benefit.notes or '-' }}</s>{% else %}{{ benefit.notes or '-' }}{% endif %}</dd></div>
           </dl>
-          <footer><span>시행 {{ benefit.effective_from or '미상' }}</span>{% if benefit.ended_on %}<strong>종료일 {{ benefit.ended_on }}</strong>{% endif %}</footer>
+          {% if benefit.ended_on %}<footer><strong>종료일 {{ benefit.ended_on }}</strong></footer>{% endif %}
+          {% set comment_target_type = 'benefit' %}{% set comment_target_id = benefit.id %}{% set comment_data = comments_by_target.get(benefit.id, {'threads': [], 'count': 0}) %}{% include "_company_content_comments.html" %}
           {% if current_user_role == 'admin' %}
           <details class="company-benefit-edit"><summary>관리자 수정</summary>
             <form class="company-benefit-form compact" method="post" action="{{ url_for('edit_company_benefit_route', benefit_id=benefit.id) }}">
@@ -67,8 +66,6 @@
               <label>복지명<input name="benefit_name" value="{{ benefit.benefit_name }}" maxlength="120" required></label>
               <label>지원 내용·금액<input name="support_value" value="{{ benefit.support_value }}" maxlength="300"></label>
               <label>수준<input name="benefit_level" value="{{ benefit.benefit_level }}" maxlength="100"></label>
-              <label>시행일<input type="date" name="effective_from" value="{{ benefit.effective_from or '' }}"></label>
-              <label>종료일<input type="date" name="ended_on" value="{{ benefit.ended_on or '' }}"><small>비우면 다시 운영 중으로 표시됩니다.</small></label>
               <label class="wide">비고<textarea name="notes" rows="3" maxlength="1000">{{ benefit.notes }}</textarea></label>
               <div class="wide company-benefit-form-actions"><button class="btn btn-primary" type="submit">저장</button></div>
             </form>

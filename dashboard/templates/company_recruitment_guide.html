@@ -62,6 +62,7 @@
           <section><h4>실제 질문</h4><p>{{ guide.question_text }}</p></section>
           <section><h4>분위기</h4><p>{{ guide.atmosphere or '등록된 분위기 정보가 없습니다.' }}</p></section>
           {% if guide.notes %}<section><h4>답변 팁·비고</h4><p>{{ guide.notes }}</p></section>{% endif %}
+          {% set comment_target_type = 'recruitment_guide' %}{% set comment_target_id = guide.id %}{% set comment_data = comments_by_target.get(guide.id, {'threads': [], 'count': 0}) %}{% include "_company_content_comments.html" %}
           {% if current_user_role == 'admin' %}
           <details class="recruitment-guide-edit"><summary>관리자 수정</summary>
             <form class="recruitment-guide-form compact" method="post" action="{{ url_for('edit_company_recruitment_guide_route', guide_id=guide.id) }}">
