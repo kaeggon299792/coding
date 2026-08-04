@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}기업별 채용 족보 | Casino IN{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container recruitment-guide-page">
+  <header class="page-header">
+    <p class="page-eyebrow">COMPANY INTELLIGENCE / RECRUITMENT GUIDE</p>
+    <h1 class="page-title">기업별 채용 족보</h1>
+    <p class="page-description">면접·실기·필기에서 나온 질문과 당시 전형 분위기를 기업별로 정리합니다.</p>
+  </header>
+
+  <form class="panel recruitment-guide-filter" method="get">
+    <label>기업
+      <select name="company">
+        <option value="">전체 기업</option>
+        {% for company in companies %}<option value="{{ company.name }}"{% if selected_company == company.name %} selected{% endif %}>{{ company.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>전형
+      <select name="process_type">
+        <option value="">전체 전형</option>
+        {% for value, label in process_types %}<option value="{{ value }}"{% if selected_process == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">조회</button>
+    {% if selected_company or selected_process %}<a class="btn" href="{{ url_for('company_recruitment_guide_page') }}">초기화</a>{% endif %}
+  </form>
+
+  {% if current_user_role == 'admin' %}
+  <details class="panel recruitment-guide-admin" open>
+    <summary>채용 족보 등록</summary>
+    <form class="recruitment-guide-form" method="post" action="{{ url_for('create_company_recruitment_guide_route') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>기업<select name="company_name" required>{% for company in companies %}<option value="{{ company.name }}"{% if selected_company == company.name %} selected{% endif %}>{{ company.name }}</option>{% endfor %}</select></label>
+      <label>전형 종류<select name="process_type" required>{% for value, label in process_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>지원 직무<input name="position_name" maxlength="120" placeholder="예: 카지노 딜러"></label>
+      <label>전형 단계<input name="stage_name" maxlength="100" placeholder="예: 1차 실무면접"></label>
+      <label>응시 시기<input type="month" name="experience_period"></label>
+      <label class="wide">실제 질문<textarea name="question_text" rows="4" maxlength="2000" placeholder="질문을 가능한 그대로 입력하세요." required></textarea></label>
+      <label class="wide">분위기<textarea name="atmosphere" rows="3" maxlength="1000" placeholder="예: 면접관 3명, 차분한 분위기, 추가 질문이 많았음"></textarea></label>
+      <label class="wide">답변 팁·비고<textarea name="notes" rows="3" maxlength="1500" placeholder="준비 포인트나 실기 진행 방식을 적어주세요. 개인정보는 입력하지 마세요."></textarea></label>
+      <div class="wide recruitment-guide-form-actions"><small>지원자·면접관의 이름, 연락처 등 개인정보는 등록하지 마세요.</small><button class="btn btn-primary" type="submit">등록</button></div>
+    </form>
+  </details>
+  {% endif %}
+
+  <div class="recruitment-guide-sections">
+    {% for company in visible_companies %}
+    {% set company_guides = guides_by_company.get(company.name, []) %}
+    <section class="recruitment-guide-section">
+      <header><div><p class="page-eyebrow">{{ '%02d'|format(loop.index) }} / COMPANY</p><h2>{{ company.name }}</h2></div><strong>{{ company_guides|length }}개</strong></header>
+      {% if company_guides %}
+      <div class="recruitment-guide-grid">
+        {% for guide in company_guides %}
+        <article class="panel recruitment-guide-card">
+          <header>
+            <div><span>{{ process_labels.get(guide.process_type, guide.process_type) }}</span><h3>{{ guide.position_name or '직무 미상' }}</h3></div>
+            <b>{{ guide.experience_period or '시기 미상' }}</b>
+          </header>
+          {% if guide.stage_name %}<p class="recruitment-guide-stage">{{ guide.stage_name }}</p>{% endif %}
+          <section><h4>실제 질문</h4><p>{{ guide.question_text }}</p></section>
+          <section><h4>분위기</h4><p>{{ guide.atmosphere or '등록된 분위기 정보가 없습니다.' }}</p></section>
+          {% if guide.notes %}<section><h4>답변 팁·비고</h4><p>{{ guide.notes }}</p></section>{% endif %}
+          {% if current_user_role == 'admin' %}
+          <details class="recruitment-guide-edit"><summary>관리자 수정</summary>
+            <form class="recruitment-guide-form compact" method="post" action="{{ url_for('edit_company_recruitment_guide_route', guide_id=guide.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <label>기업<select name="company_name" required>{% for option in companies %}<option value="{{ option.name }}"{% if guide.company_name == option.name %} selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></label>
+              <label>전형 종류<select name="process_type" required>{% for value, label in process_types %}<option value="{{ value }}"{% if guide.process_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+              <label>지원 직무<input name="position_name" value="{{ guide.position_name }}" maxlength="120"></label>
+              <label>전형 단계<input name="stage_name" value="{{ guide.stage_name }}" maxlength="100"></label>
+              <label>응시 시기<input type="month" name="experience_period" value="{{ guide.experience_period }}"></label>
+              <label class="wide">실제 질문<textarea name="question_text" rows="4" maxlength="2000" required>{{ guide.question_text }}</textarea></label>
+              <label class="wide">분위기<textarea name="atmosphere" rows="3" maxlength="1000">{{ guide.atmosphere }}</textarea></label>
+              <label class="wide">답변 팁·비고<textarea name="notes" rows="3" maxlength="1500">{{ guide.notes }}</textarea></label>
+              <div class="wide recruitment-guide-form-actions"><button class="btn btn-primary" type="submit">저장</button></div>
+            </form>
+          </details>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}<div class="panel empty-state">아직 등록된 채용 족보가 없습니다.</div>{% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

@@ -1223,6 +1223,69 @@ def end_company_benefit(connection, benefit_id, ended_on):
     connection.commit()
 
 
+def list_company_recruitment_guides(connection, company_name=None, process_type=None):
+    conditions = []
+    params = []
+    if company_name:
+        conditions.append("company_name=?")
+        params.append(company_name)
+    if process_type:
+        conditions.append("process_type=?")
+        params.append(process_type)
+    sql = "SELECT * FROM company_recruitment_guides"
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY company_name, experience_period DESC, id DESC"
+    return [dict(row) for row in connection.execute(sql, params).fetchall()]
+
+
+def get_company_recruitment_guide(connection, guide_id):
+    row = connection.execute(
+        "SELECT * FROM company_recruitment_guides WHERE id=?", (guide_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_company_recruitment_guide(connection, values, actor_id=None):
+    timestamp = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        INSERT INTO company_recruitment_guides (
+            company_name, process_type, position_name, stage_name, question_text,
+            atmosphere, experience_period, notes, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            values["company_name"], values["process_type"], values["position_name"],
+            values["stage_name"], values["question_text"], values["atmosphere"],
+            values["experience_period"], values["notes"], actor_id,
+            timestamp, timestamp,
+        ),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def update_company_recruitment_guide(connection, guide_id, values):
+    cursor = connection.execute(
+        """
+        UPDATE company_recruitment_guides SET
+            company_name=?, process_type=?, position_name=?, stage_name=?,
+            question_text=?, atmosphere=?, experience_period=?, notes=?, updated_at=?
+        WHERE id=?
+        """,
+        (
+            values["company_name"], values["process_type"], values["position_name"],
+            values["stage_name"], values["question_text"], values["atmosphere"],
+            values["experience_period"], values["notes"],
+            now_kst().isoformat(timespec="seconds"), guide_id,
+        ),
+    )
+    if not cursor.rowcount:
+        raise ValueError("채용 족보 항목을 찾을 수 없습니다.")
+    connection.commit()
+
+
 def list_latest_company_financial_reports(connection, company_name):
     """회사·제표별 가장 최근에 반영된 원본 보고서 메타데이터를 반환한다."""
 

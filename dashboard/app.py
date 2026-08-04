@@ -100,6 +100,7 @@ INDEXABLE_ENDPOINTS = {
     "holiday_calendar_page",
     "salary_trend_page",
     "recruitment_page",
+    "company_recruitment_guide_page",
     "casino_industry_page",
     "casino_visitors_page",
     "casino_revenue_page",
@@ -154,6 +155,7 @@ SITEMAP_STATIC_ENDPOINTS = {
     "holiday_calendar_page": {"changefreq": "monthly", "priority": "0.7"},
     "salary_trend_page": {"changefreq": "daily", "priority": "0.7"},
     "recruitment_page": {"changefreq": "daily", "priority": "0.75"},
+    "company_recruitment_guide_page": {"changefreq": "monthly", "priority": "0.72"},
     "disclosures_page": {"changefreq": "daily", "priority": "0.9"},
     "laws_page": {"changefreq": "daily", "priority": "0.9"},
     "legislation_page": {"changefreq": "daily", "priority": "0.88"},
@@ -219,6 +221,10 @@ SEO_PAGE_COPY = {
         "recruitment_page": (
             "카지노 업계 채용 정보 | Casino IN",
             "잡코리아, 사람인, 인크루트 기반 카지노 관련 채용공고를 구조화해 보여줍니다.",
+        ),
+        "company_recruitment_guide_page": (
+            "카지노 기업 채용 족보 | Casino IN",
+            "기업별 면접·실기 질문과 전형 분위기 기록을 확인합니다.",
         ),
         "disclosures_page": (
             "카지노 기업 공시정보 | Casino IN",
@@ -338,6 +344,10 @@ SEO_PAGE_COPY = {
             "Casino Recruitment Signals | Casino IN",
             "Browse structured casino-related job postings collected from major Korean hiring platforms.",
         ),
+        "company_recruitment_guide_page": (
+            "Casino Company Interview Guide | Casino IN",
+            "Review company-specific interview and practical-test questions and atmosphere notes.",
+        ),
         "disclosures_page": (
             "Casino Company Disclosures | Casino IN",
             "Monitor DART filings, submitters, and AI summaries for tracked casino companies.",
@@ -446,6 +456,7 @@ ENDPOINT_PERMISSIONS = {
     "legislation_page": "laws",
     "companies_page": "companies",
     "company_benefits_page": "companies",
+    "company_recruitment_guide_page": "companies",
     "company_news_page": "companies",
     "research_library_page": "research_library",
     "download_research_document": "research_library",
@@ -474,6 +485,7 @@ PUBLIC_READ_ENDPOINTS = {
     "legislation_page",
     "companies_page",
     "company_benefits_page",
+    "company_recruitment_guide_page",
     "company_news_page",
     "community_board_page",
     "notice_board_page",
@@ -959,6 +971,7 @@ def inject_globals():
         "holiday_calendar_page": "나라별 연휴",
         "salary_trend_page": "연봉·평점",
         "recruitment_page": "채용정보",
+        "company_recruitment_guide_page": "족보",
         "source_download_page": "원천 데이터 다운",
         "casino_industry_page": "국내 카지노 산업",
         "casino_visitors_page": "연도별 카지노 이용객",
@@ -1097,6 +1110,7 @@ def _site_map_links():
                 {"label": "기업별 리포트", "endpoint": "research_library_page"},
                 {"label": "연봉·평점", "endpoint": "salary_trend_page"},
                 {"label": "채용정보", "endpoint": "recruitment_page"},
+                {"label": "족보", "endpoint": "company_recruitment_guide_page"},
             ],
         },
         {
@@ -1216,6 +1230,9 @@ def _build_sitemap_entries(connection):
         "holiday_calendar_page": today_kst_str(),
         "salary_trend_page": _max_timestamp(connection, "salary_snapshots", "fetched_at"),
         "recruitment_page": _max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
+        "company_recruitment_guide_page": _max_timestamp(
+            connection, "company_recruitment_guides", "updated_at"
+        ),
         "disclosures_page": _max_timestamp(connection, "dart_disclosures", "fetched_at"),
         "laws_page": _max_timestamp(connection, "law_updates", "fetched_at"),
         "legislation_page": max(
@@ -3446,6 +3463,149 @@ def end_company_benefit_route(benefit_id):
         connection.close()
     return redirect(url_for(
         "company_benefits_page", company=request.form.get("company_name", "")
+    ))
+
+
+RECRUITMENT_GUIDE_PROCESS_TYPES = (
+    ("interview", "면접"),
+    ("practical", "실기"),
+    ("written", "필기"),
+    ("other", "기타"),
+)
+
+
+def _recruitment_guide_form_values(connection):
+    company_name = " ".join((request.form.get("company_name") or "").split())
+    valid_companies = {
+        item["name"] for item in company_intelligence.list_company_options(connection)
+    }
+    if company_name not in valid_companies:
+        raise ValueError("등록된 기업을 선택해주세요.")
+    process_type = (request.form.get("process_type") or "").strip()
+    if process_type not in {value for value, _ in RECRUITMENT_GUIDE_PROCESS_TYPES}:
+        raise ValueError("전형 종류를 확인해주세요.")
+    question_text = (request.form.get("question_text") or "").strip()
+    if not question_text:
+        raise ValueError("실제 질문을 입력해주세요.")
+    experience_period = (request.form.get("experience_period") or "").strip()
+    if experience_period:
+        try:
+            datetime.strptime(experience_period, "%Y-%m")
+        except ValueError as exc:
+            raise ValueError("응시 시기를 확인해주세요.") from exc
+    values = {
+        "company_name": company_name,
+        "process_type": process_type,
+        "position_name": " ".join((request.form.get("position_name") or "").split()),
+        "stage_name": " ".join((request.form.get("stage_name") or "").split()),
+        "question_text": question_text,
+        "atmosphere": (request.form.get("atmosphere") or "").strip(),
+        "experience_period": experience_period,
+        "notes": (request.form.get("notes") or "").strip(),
+    }
+    limits = {
+        "position_name": 120,
+        "stage_name": 100,
+        "question_text": 2000,
+        "atmosphere": 1000,
+        "notes": 1500,
+    }
+    if any(len(values[field]) > limit for field, limit in limits.items()):
+        raise ValueError("입력 가능한 글자 수를 초과했습니다.")
+    return values
+
+
+@app.get("/companies/recruitment-guide")
+def company_recruitment_guide_page():
+    selected_company = (request.args.get("company") or "").strip()
+    selected_process = (request.args.get("process_type") or "").strip()
+    connection = dashboard_db()
+    try:
+        companies = company_intelligence.list_company_options(connection)
+        valid_names = {item["name"] for item in companies}
+        valid_processes = {value for value, _ in RECRUITMENT_GUIDE_PROCESS_TYPES}
+        if selected_company not in valid_names:
+            selected_company = ""
+        if selected_process not in valid_processes:
+            selected_process = ""
+        rows = queries.list_company_recruitment_guides(
+            connection, selected_company or None, selected_process or None
+        )
+        grouped = {item["name"]: [] for item in companies}
+        for row in rows:
+            grouped.setdefault(row["company_name"], []).append(row)
+        visible_companies = [
+            item for item in companies
+            if not selected_company or item["name"] == selected_company
+        ]
+        return render_template(
+            "company_recruitment_guide.html",
+            companies=companies,
+            visible_companies=visible_companies,
+            guides_by_company=grouped,
+            selected_company=selected_company,
+            selected_process=selected_process,
+            process_types=RECRUITMENT_GUIDE_PROCESS_TYPES,
+            process_labels=dict(RECRUITMENT_GUIDE_PROCESS_TYPES),
+            csrf_token=get_csrf_token(),
+        )
+    finally:
+        connection.close()
+
+
+@app.post("/companies/recruitment-guide")
+@admin_required
+def create_company_recruitment_guide_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        values = _recruitment_guide_form_values(connection)
+        queries.create_company_recruitment_guide(
+            connection, values, actor_id=session.get("user_id")
+        )
+    except (ValueError, sqlite3.IntegrityError) as exc:
+        connection.rollback()
+        message = (
+            "같은 기업·전형·응시 시기에 동일한 질문이 이미 있습니다."
+            if isinstance(exc, sqlite3.IntegrityError) else str(exc)
+        )
+        flash(message, "error")
+    else:
+        flash("채용 족보 항목을 등록했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "company_recruitment_guide_page",
+        company=request.form.get("company_name", ""),
+    ))
+
+
+@app.post("/companies/recruitment-guide/<int:guide_id>/edit")
+@admin_required
+def edit_company_recruitment_guide_route(guide_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not queries.get_company_recruitment_guide(connection, guide_id):
+            abort(404)
+        values = _recruitment_guide_form_values(connection)
+        queries.update_company_recruitment_guide(connection, guide_id, values)
+    except (ValueError, sqlite3.IntegrityError) as exc:
+        connection.rollback()
+        message = (
+            "같은 기업·전형·응시 시기에 동일한 질문이 이미 있습니다."
+            if isinstance(exc, sqlite3.IntegrityError) else str(exc)
+        )
+        flash(message, "error")
+    else:
+        flash("채용 족보 항목을 수정했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "company_recruitment_guide_page",
+        company=request.form.get("company_name", ""),
     ))
 
 @app.route("/companies")
