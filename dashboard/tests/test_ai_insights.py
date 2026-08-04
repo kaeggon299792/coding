@@ -11,9 +11,12 @@ OpenAI 클라이언트가 실제로 이 코드가 필요로 하는 형태로 동
 """
 
 import json
+from datetime import timedelta
 from types import SimpleNamespace
 
+from dashboard_db import queries
 from services import ai_insights
+from utils import now_kst
 
 
 def test_openai_client_can_be_constructed(monkeypatch):
@@ -85,6 +88,7 @@ def test_daily_limit_sends_one_detailed_telegram_alert(
     monkeypatch.setattr("config.OPENAI_API_KEY", "test-key-not-real")
     monkeypatch.setattr("config.OPENAI_INSIGHT_MODEL", "test-model")
     monkeypatch.setattr("config.MAX_GPT_CALLS_PER_DAY", 0)
+    monkeypatch.setattr(ai_insights, "get_daily_call_limit", lambda connection: 0)
     sent = []
     monkeypatch.setattr(
         ai_insights.telegram_alert,
@@ -109,6 +113,42 @@ def test_daily_limit_sends_one_detailed_telegram_alert(
         "SELECT sent_at FROM ai_limit_alerts WHERE limit_type='call_count'"
     ).fetchone()
     assert row["sent_at"]
+
+
+def test_admin_limit_setting_and_reset_preserve_usage_log(db_connection):
+    ai_insights.set_daily_call_limit(db_connection, 321, actor_id=None)
+    assert ai_insights.get_daily_call_limit(db_connection) == 321
+    queries.record_api_usage(
+        db_connection, "test-model", "test-call", 10, 5, 0.01, True,
+        request_summary="request", response_summary='{"ok":true}',
+    )
+    assert queries.get_today_usage_summary(db_connection)["call_count"] == 1
+
+    ai_insights.reset_today_usage(db_connection)
+
+    assert queries.get_today_usage_summary(db_connection)["call_count"] == 0
+    assert db_connection.execute(
+        "SELECT COUNT(*) FROM api_usage WHERE request_type='test-call'"
+    ).fetchone()[0] == 1
+
+
+def test_log_retention_removes_only_entries_older_than_30_days(db_connection):
+    old = (now_kst() - timedelta(days=31)).isoformat()
+    recent = (now_kst() - timedelta(days=1)).isoformat()
+    db_connection.executemany(
+        """INSERT INTO errors(occurred_at,stage,error_type,error_message)
+           VALUES (?, 'test', 'test', 'test')""",
+        [(old,), (recent,)],
+    )
+    db_connection.commit()
+
+    queries.purge_logs_older_than(db_connection, days=30)
+    db_connection.commit()
+
+    rows = db_connection.execute(
+        "SELECT occurred_at FROM errors ORDER BY occurred_at"
+    ).fetchall()
+    assert [row["occurred_at"] for row in rows] == [recent]
 
 
 def test_important_overseas_news_uses_low_context_web_search(

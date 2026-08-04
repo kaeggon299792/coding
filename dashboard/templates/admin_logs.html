@@ -111,6 +111,41 @@
       {% endif %}
     </nav>
   </section>
+
+  <section class="panel" id="openai-api-log">
+    <div class="section-heading">
+      <div>
+        <h2>OpenAI API 호출 로그</h2>
+        <p>요청 기능·모델·토큰·비용과 AI 응답 결과를 확인합니다. 모든 로그는 30일만 보존됩니다.</p>
+      </div>
+      <span>{{ api_total }}건</span>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>일시</th><th>호출 기능</th><th>모델</th><th>결과</th><th>토큰·비용</th><th>요청·응답</th></tr></thead>
+        <tbody>
+          {% for item in api_events %}
+          <tr>
+            <td>{{ item.called_at|replace('T', ' ')|truncate(20, true, '') }}</td>
+            <td><code>{{ item.request_type }}</code></td>
+            <td>{{ item.model or '-' }}</td>
+            <td>{{ '성공' if item.success else '실패' }}{% if item.error_message %}<small class="self-label">{{ item.error_message }}</small>{% endif %}</td>
+            <td>입력 {{ '{:,}'.format(item.input_tokens or 0) }}<br>출력 {{ '{:,}'.format(item.output_tokens or 0) }}<br>${{ '{:,.6f}'.format(item.estimated_cost or 0) }}</td>
+            <td>
+              <details><summary>요청 보기</summary><pre class="change-detail">{{ item.request_summary or '기존 로그에 요청 본문이 저장되지 않음' }}</pre></details>
+              <details><summary>응답 보기</summary><pre class="change-detail">{{ item.response_summary or item.error_message or '기존 로그에 응답 본문이 저장되지 않음' }}</pre></details>
+            </td>
+          </tr>
+          {% else %}<tr><td colspan="6" class="empty-state">OpenAI API 호출 로그가 없습니다.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav class="news-pagination" aria-label="OpenAI API 로그 페이지 이동">
+      {% if api_page > 1 %}<a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page, activity_page=activity_page, api_page=api_page-1) }}#openai-api-log">이전</a>{% endif %}
+      <span>{{ api_page }} / {{ api_pages }}</span>
+      {% if api_page < api_pages %}<a class="btn" href="{{ url_for('auth.admin_logs', account_page=account_page, activity_page=activity_page, api_page=api_page+1) }}#openai-api-log">다음</a>{% endif %}
+    </nav>
+  </section>
 </main>
 {% include "_footer.html" %}
 {% endblock %}

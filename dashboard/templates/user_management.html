@@ -13,6 +13,30 @@
   {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
   {% if success %}<div class="account-notice">{{ success }}</div>{% endif %}
 
+  <section class="panel account-create-panel">
+    <div class="section-heading">
+      <div>
+        <h2>OpenAI 호출 한도</h2>
+        <p>오늘의 한도 판정용 호출 횟수를 관리합니다. 초기화해도 원본 사용량·비용 기록은 삭제되지 않습니다.</p>
+      </div>
+      <span>{{ '{:,}'.format(openai_usage.call_count) }} / {{ '{:,}'.format(openai_usage.call_limit) }}회</span>
+    </div>
+    <div class="news-stat-grid" aria-label="OpenAI 오늘 사용량">
+      <article><span>초기화 이후 호출</span><strong>{{ '{:,}'.format(openai_usage.call_count) }}</strong></article>
+      <article><span>현재 일일 한도</span><strong>{{ '{:,}'.format(openai_usage.call_limit) }}</strong></article>
+      <article><span>초기화 이후 예상 비용</span><strong>${{ '{:,.4f}'.format(openai_usage.total_cost) }}</strong></article>
+    </div>
+    <form method="post" action="{{ url_for('auth.update_openai_call_limit') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>일일 호출 한도</span><input type="number" name="call_limit" min="1" max="100000" value="{{ openai_usage.call_limit }}" required></label>
+      <button class="btn btn-primary" type="submit">한도 변경</button>
+    </form>
+    <form method="post" action="{{ url_for('auth.reset_openai_daily_usage') }}" onsubmit="return confirm('오늘의 한도 판정용 카운터를 0으로 초기화할까요? 원본 사용량 기록은 보존됩니다.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn danger-button" type="submit">오늘 호출 횟수 초기화</button>
+    </form>
+  </section>
+
   <section class="panel">
     <div class="section-heading">
       <div>

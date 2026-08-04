@@ -958,13 +958,7 @@ def log_user_activity(response):
         cleanup_tick = time.monotonic()
         if cleanup_tick - _last_activity_log_retention_cleanup >= 3600:
             # Retention cleanup is maintenance, not part of every page view.
-            retention_cutoff = (now_kst() - timedelta(days=180)).isoformat(
-                timespec="seconds"
-            )
-            connection.execute(
-                "DELETE FROM security_audit_log WHERE created_at < ?",
-                (retention_cutoff,),
-            )
+            queries.purge_logs_older_than(connection, days=30)
             _last_activity_log_retention_cleanup = cleanup_tick
         connection.commit()
     except Exception:

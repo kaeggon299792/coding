@@ -26,7 +26,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
-    gemini_usage, localization_auto_translation, localization_management,
+    ai_insights, gemini_usage, localization_auto_translation, localization_management,
     security_audit, site_preferences, task_registry, telegram_alert,
 )
 import config
@@ -1373,6 +1373,8 @@ def user_management():
             [user["id"] for user in users if user["approval_status"] != "deleted"],
         )
         gemini_usage_dashboard = gemini_usage.admin_dashboard(connection)
+        openai_usage = queries.get_today_usage_summary(connection)
+        openai_usage["call_limit"] = ai_insights.get_daily_call_limit(connection)
         return render_template(
             "user_management.html", users=users, error=error,
             success=success, csrf_token=get_csrf_token(),
@@ -1393,9 +1395,60 @@ def user_management():
             number_font=site_preferences.get_number_font(connection),
             number_font_choices=site_preferences.NUMBER_FONT_CHOICES,
             gemini_usage=gemini_usage_dashboard,
+            openai_usage=openai_usage,
         )
     finally:
         connection.close()
+
+
+@auth_bp.post("/admin/ai-usage/limit")
+@admin_required
+def update_openai_call_limit():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    connection = dashboard_db()
+    try:
+        try:
+            value = ai_insights.set_daily_call_limit(
+                connection, request.form.get("call_limit"), session.get("user_id")
+            )
+        except ValueError as error:
+            return redirect(url_for("auth.user_management", success=str(error)))
+        security_audit.log_event(
+            connection, "OPENAI_DAILY_LIMIT_UPDATED", resource_type="site_settings",
+            resource_id="openai_daily_call_limit", detail={"call_limit": value},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.user_management", success=f"OpenAI 일일 호출 한도를 {value:,}회로 변경했습니다."
+    ))
+
+
+@auth_bp.post("/admin/ai-usage/reset")
+@admin_required
+def reset_openai_daily_usage():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    connection = dashboard_db()
+    try:
+        previous = queries.get_today_usage_summary(connection)
+        reset_at = ai_insights.reset_today_usage(connection, session.get("user_id"))
+        security_audit.log_event(
+            connection, "OPENAI_DAILY_USAGE_RESET", resource_type="api_usage",
+            resource_id=now_kst().strftime("%Y-%m-%d"), detail={
+                "previous_call_count": previous["call_count"],
+                "previous_estimated_cost": previous["total_cost"],
+                "reset_at": reset_at,
+            },
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.user_management", success="오늘 OpenAI 한도 카운터를 초기화했습니다. 기존 사용량 기록은 보존됩니다."
+    ))
 
 
 @auth_bp.get("/admin/logs")
@@ -1406,6 +1459,7 @@ def admin_logs():
     page_size = 10
     account_page = max(1, request.args.get("account_page", 1, type=int))
     activity_page = max(1, request.args.get("activity_page", 1, type=int))
+    api_page = max(1, request.args.get("api_page", 1, type=int))
     connection = dashboard_db()
     try:
         account_total = connection.execute(
@@ -1414,11 +1468,16 @@ def admin_logs():
         activity_total = connection.execute(
             "SELECT COUNT(*) AS count FROM security_audit_log"
         ).fetchone()["count"]
+        api_total = connection.execute(
+            "SELECT COUNT(*) AS count FROM api_usage WHERE provider='openai' OR provider IS NULL"
+        ).fetchone()["count"]
 
         account_pages = max(1, (account_total + page_size - 1) // page_size)
         activity_pages = max(1, (activity_total + page_size - 1) // page_size)
+        api_pages = max(1, (api_total + page_size - 1) // page_size)
         account_page = min(account_page, account_pages)
         activity_page = min(activity_page, activity_pages)
+        api_page = min(api_page, api_pages)
 
         audit = [
             dict(row)
@@ -1442,6 +1501,17 @@ def admin_logs():
                 (page_size, (activity_page - 1) * page_size),
             ).fetchall()
         ]
+        api_events = [
+            dict(row)
+            for row in connection.execute(
+                """SELECT id,called_at,model,request_type,input_tokens,output_tokens,
+                          estimated_cost,success,request_summary,response_summary,error_message
+                   FROM api_usage
+                   WHERE provider='openai' OR provider IS NULL
+                   ORDER BY called_at DESC,id DESC LIMIT ? OFFSET ?""",
+                (page_size, (api_page - 1) * page_size),
+            ).fetchall()
+        ]
         return render_template(
             "admin_logs.html",
             audit=audit,
@@ -1452,6 +1522,10 @@ def admin_logs():
             activity_page=activity_page,
             activity_pages=activity_pages,
             activity_total=activity_total,
+            api_events=api_events,
+            api_page=api_page,
+            api_pages=api_pages,
+            api_total=api_total,
         )
     finally:
         connection.close()

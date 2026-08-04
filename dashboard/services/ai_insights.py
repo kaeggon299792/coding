@@ -31,6 +31,54 @@ class DailyLimitExceeded(Exception):
     pass
 
 
+def get_daily_call_limit(connection):
+    row = connection.execute(
+        "SELECT setting_value FROM site_settings WHERE setting_key='openai_daily_call_limit'"
+    ).fetchone()
+    try:
+        value = int(row["setting_value"]) if row else config.MAX_GPT_CALLS_PER_DAY
+    except (TypeError, ValueError):
+        value = config.MAX_GPT_CALLS_PER_DAY
+    return max(1, min(value, 100000))
+
+
+def set_daily_call_limit(connection, value, actor_id=None):
+    try:
+        value = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("호출 한도는 숫자로 입력해주세요.") from exc
+    if not 1 <= value <= 100000:
+        raise ValueError("호출 한도는 1~100,000회로 설정해주세요.")
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_by,updated_at)
+           VALUES ('openai_daily_call_limit',?,?,?)
+           ON CONFLICT(setting_key) DO UPDATE SET
+             setting_value=excluded.setting_value,updated_by=excluded.updated_by,
+             updated_at=excluded.updated_at""",
+        (str(value), actor_id, now_kst().isoformat()),
+    )
+    connection.commit()
+    return value
+
+
+def reset_today_usage(connection, actor_id=None):
+    reset_at = now_kst().isoformat()
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_by,updated_at)
+           VALUES ('openai_usage_reset_at',?,?,?)
+           ON CONFLICT(setting_key) DO UPDATE SET
+             setting_value=excluded.setting_value,updated_by=excluded.updated_by,
+             updated_at=excluded.updated_at""",
+        (reset_at, actor_id, reset_at),
+    )
+    connection.execute(
+        "DELETE FROM ai_limit_alerts WHERE alert_date=?",
+        (now_kst().strftime("%Y-%m-%d"),),
+    )
+    connection.commit()
+    return reset_at
+
+
 def _get_client():
     global _client
     if _client is None:
@@ -46,17 +94,19 @@ def _get_client():
 
 def _check_daily_limits(connection):
     summary = queries.get_today_usage_summary(connection)
-    if summary["call_count"] >= config.MAX_GPT_CALLS_PER_DAY:
-        raise DailyLimitExceeded(f"하루 GPT 호출 한도({config.MAX_GPT_CALLS_PER_DAY}회)에 도달했습니다.")
+    call_limit = get_daily_call_limit(connection)
+    if summary["call_count"] >= call_limit:
+        raise DailyLimitExceeded(f"하루 GPT 호출 한도({call_limit}회)에 도달했습니다.")
     if summary["total_cost"] >= config.DAILY_OPENAI_BUDGET_USD:
         raise DailyLimitExceeded(f"하루 예상 비용 한도(${config.DAILY_OPENAI_BUDGET_USD:.2f})에 도달했습니다.")
 
 
 def _notify_daily_limit(connection, request_type, error):
     summary = queries.get_today_usage_summary(connection)
+    call_limit = get_daily_call_limit(connection)
     limit_type = (
         "call_count"
-        if summary["call_count"] >= config.MAX_GPT_CALLS_PER_DAY
+        if summary["call_count"] >= call_limit
         else "estimated_cost"
     )
     if not queries.claim_ai_limit_alert(
@@ -67,7 +117,7 @@ def _notify_daily_limit(connection, request_type, error):
         "🚨 <b>CASINO IN GPT 내부 한도 초과</b>\n\n"
         f"• 차단 사유: {html.escape(str(error))}\n"
         f"• 요청 기능: {html.escape(request_type)}\n"
-        f"• 현재 호출: {summary['call_count']:,} / {config.MAX_GPT_CALLS_PER_DAY:,}회\n"
+        f"• 현재 호출: {summary['call_count']:,} / {call_limit:,}회\n"
         f"• 예상 비용: ${summary['total_cost']:.4f} / ${config.DAILY_OPENAI_BUDGET_USD:.2f}\n"
         f"• 발생 시각: {now_kst().strftime('%Y-%m-%d %H:%M:%S KST')}\n\n"
         "자동·일반 AI 호출은 차단되며, 권한 사용자의 수동 재분석은 계속 실행됩니다."
@@ -172,7 +222,12 @@ def _call(
             input_tokens, output_tokens, selected_model, web_search=uses_web_search
         )
         queries.record_api_usage(
-            connection, selected_model, request_type, input_tokens, output_tokens, cost, success
+            connection, selected_model, request_type, input_tokens, output_tokens, cost, success,
+            request_summary=user_prompt,
+            response_summary=(
+                json.dumps(data, ensure_ascii=False) if data is not None else None
+            ),
+            error_message=error_message,
         )
 
     return data, error_message
@@ -509,6 +564,11 @@ def extract_official_document_fields(
             output_tokens,
             _estimate_cost(input_tokens, output_tokens),
             success,
+            request_summary=f"PDF: {filename}",
+            response_summary=(
+                json.dumps(data, ensure_ascii=False) if data is not None else None
+            ),
+            error_message=error_message,
         )
     return data, error_message
 

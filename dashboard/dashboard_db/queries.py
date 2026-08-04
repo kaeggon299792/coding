@@ -2957,27 +2957,68 @@ def get_data_freshness(connection, table, checked_run_type, changed_column="chan
 # api_usage / errors (대시보드 자체 AI 호출 비용 보호 + 오류 로그)
 # ============================================================
 
-def record_api_usage(connection, model, request_type, input_tokens, output_tokens, estimated_cost, success):
+def record_api_usage(
+    connection, model, request_type, input_tokens, output_tokens, estimated_cost,
+    success, request_summary=None, response_summary=None, error_message=None,
+):
     connection.execute(
         """
         INSERT INTO api_usage (
             called_at, model, request_type, input_tokens, output_tokens,
-            estimated_cost, success, provider
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'openai')
+            estimated_cost, success, provider, request_summary, response_summary,
+            error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'openai', ?, ?, ?)
         """,
-        (now_kst().isoformat(), model, request_type, input_tokens, output_tokens, estimated_cost, 1 if success else 0),
+        (
+            now_kst().isoformat(), model, request_type, input_tokens, output_tokens,
+            estimated_cost, 1 if success else 0,
+            str(request_summary or "")[:4000] or None,
+            str(response_summary or "")[:8000] or None,
+            str(error_message or "")[:2000] or None,
+        ),
     )
     connection.commit()
 
 
 def get_today_usage_summary(connection):
-    today_prefix = now_kst().strftime("%Y-%m-%d")
+    now = now_kst()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    reset_row = connection.execute(
+        "SELECT setting_value FROM site_settings WHERE setting_key='openai_usage_reset_at'"
+    ).fetchone()
+    reset_at = reset_row["setting_value"] if reset_row else ""
+    since = reset_at if reset_at.startswith(now.strftime("%Y-%m-%d")) else today_start
     row = connection.execute(
         "SELECT COUNT(*) AS call_count, COALESCE(SUM(estimated_cost), 0) AS total_cost "
-        "FROM api_usage WHERE called_at LIKE ? AND (provider='openai' OR provider IS NULL)",
-        (f"{today_prefix}%",),
+        "FROM api_usage WHERE called_at>=? AND (provider='openai' OR provider IS NULL)",
+        (since,),
     ).fetchone()
     return {"call_count": row["call_count"], "total_cost": row["total_cost"]}
+
+
+def purge_logs_older_than(connection, days=30):
+    days = max(1, min(int(days), 3650))
+    cutoff = (now_kst() - timedelta(days=days)).isoformat(timespec="seconds")
+    deleted = {}
+    for table, column in (
+        ("security_audit_log", "created_at"),
+        ("dashboard_user_audit", "created_at"),
+        ("api_usage", "called_at"),
+        ("errors", "occurred_at"),
+        ("dashboard_analysis_runs", "started_at"),
+        ("official_document_change_log", "created_at"),
+        ("localization_events", "created_at"),
+    ):
+        cursor = connection.execute(
+            f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)
+        )
+        deleted[table] = cursor.rowcount
+    alert_cutoff = (now_kst() - timedelta(days=days)).strftime("%Y-%m-%d")
+    cursor = connection.execute(
+        "DELETE FROM ai_limit_alerts WHERE alert_date < ?", (alert_cutoff,)
+    )
+    deleted["ai_limit_alerts"] = cursor.rowcount
+    return deleted
 
 
 def claim_ai_limit_alert(connection, limit_type, request_type, summary):

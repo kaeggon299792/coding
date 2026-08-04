@@ -2072,6 +2072,9 @@ def migrate(connection):
     _ensure_column(connection, "api_usage", "search_cost_usd", "REAL NOT NULL DEFAULT 0")
     _ensure_column(connection, "api_usage", "usd_krw_rate", "REAL")
     _ensure_column(connection, "api_usage", "estimated_cost_krw", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(connection, "api_usage", "request_summary", "TEXT")
+    _ensure_column(connection, "api_usage", "response_summary", "TEXT")
+    _ensure_column(connection, "api_usage", "error_message", "TEXT")
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_api_usage_provider_called "
         "ON api_usage(provider, called_at DESC)"
