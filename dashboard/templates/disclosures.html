@@ -52,7 +52,7 @@
   </form>
 
   <section class="disclosure-library" aria-labelledby="disclosure-library-title">
-    <div class="library-toolbar"><h2 id="disclosure-library-title">{{ 'Company Filings' if is_english else '기업 공시 자료' }} <span class="item-meta">{{ company_filings|length }} {{ 'filings' if is_english else '건' }}</span></h2></div>
+    <div class="library-toolbar"><h2 id="disclosure-library-title">{{ 'Company Filings' if is_english else '기업 공시 자료' }} <span class="item-meta">{{ filing_total }} {{ 'filings' if is_english else '건' }}</span></h2></div>
     {% if company_filings %}
     <div class="library-grid disclosure-card-grid">
       {% for filing in company_filings %}
@@ -106,6 +106,13 @@
       {% endif %}
       {% endfor %}
     </div>
+    {% if filing_pages > 1 %}
+    <nav class="news-pagination" aria-label="{{ 'Company filing pages' if is_english else '기업 공시 페이지 이동' }}">
+      {% if filing_page > 1 %}<a class="btn" href="{{ url_for('disclosures_page', page=filing_page-1, company=selected_company, days=days) }}">{{ 'Previous' if is_english else '이전' }}</a>{% endif %}
+      <span>{{ filing_page }} / {{ filing_pages }}</span>
+      {% if filing_page < filing_pages %}<a class="btn" href="{{ url_for('disclosures_page', page=filing_page+1, company=selected_company, days=days) }}">{{ 'Next' if is_english else '다음' }}</a>{% endif %}
+    </nav>
+    {% endif %}
     {% else %}
       <p class="empty-state">{{ 'No company filings are available for the selected filters.' if is_english else '선택한 조건에 표시할 기업 공시 자료가 없습니다.' }}</p>
     {% endif %}

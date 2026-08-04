@@ -22,7 +22,8 @@
       <label><span>사용 환경</span><input type="text" name="environment" maxlength="200" placeholder="예: 회사 VM / Chrome"></label>
       <label><span>중요도 <em>필수</em></span><select name="priority" required><option value="긴급">긴급 · 업무 불가</option><option value="높음">높음 · 빠른 확인 필요</option><option value="보통" selected>보통</option><option value="낮음">낮음 · 문의/개선</option></select></label>
       {% if is_admin %}<label><span>처리 담당자</span><input type="text" name="owner" maxlength="80" placeholder="미지정 가능"></label>{% endif %}
-      <label class="wide"><span>내용 <em>필수</em></span><textarea name="description" required maxlength="5000" rows="5" placeholder="오류 현상, 기대한 동작 또는 질문 내용을 입력해주세요."></textarea></label>
+      <label class="wide"><span>내용 <em>필수</em></span><textarea id="bug-report-description" name="description" required maxlength="5000" rows="5" data-image-paste data-image-paste-scope="bug_report" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ csrf_token }}" placeholder="오류 현상, 기대한 동작 또는 질문 내용을 입력해주세요."></textarea><small>이미지를 복사해 Ctrl+V로 붙여넣거나 아래에서 선택할 수 있습니다. PNG·JPG·GIF·WebP, 최대 5MB.</small><small class="image-paste-status" data-image-paste-status="bug-report-description" role="status" aria-live="polite"></small></label>
+      <label class="wide"><span>사진 첨부 <em>선택</em></span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-upload-for="bug-report-description"></label>
       <div class="bug-form-footer"><span>{{ t('작성자') }}: {{ current_username }} · {{ t('비공개') }}</span><button class="btn btn-primary" type="submit">등록</button></div>
     </form>
   </section>
@@ -53,3 +54,4 @@
   </section>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260805-1" defer></script>{% endblock %}

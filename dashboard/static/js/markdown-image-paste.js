@@ -21,12 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
       return true;
     };
-    textarea.addEventListener("paste", async (event) => {
-      const image = [...(event.clipboardData?.items || [])]
-        .find((item) => item.kind === "file" && item.type.startsWith("image/"))
-        ?.getAsFile();
-      if (!image) return;
-      event.preventDefault();
+    const uploadImage = async (image) => {
       setStatus("이미지를 업로드하고 있습니다…");
       const formData = new FormData();
       formData.append("image", image, image.name || "clipboard-image");
@@ -43,6 +38,23 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         setStatus(error.message || "이미지를 업로드하지 못했습니다.", true);
       }
+    };
+    textarea.addEventListener("paste", async (event) => {
+      const image = [...(event.clipboardData?.items || [])]
+        .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+        ?.getAsFile();
+      if (!image) return;
+      event.preventDefault();
+      await uploadImage(image);
+    });
+    const fileInput = document.querySelector(
+      `[data-image-upload-for="${textarea.id}"]`
+    );
+    fileInput?.addEventListener("change", async () => {
+      const image = fileInput.files?.[0];
+      if (!image) return;
+      await uploadImage(image);
+      fileInput.value = "";
     });
   });
 });

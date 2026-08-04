@@ -82,6 +82,7 @@ from utils import display_y_drive_path, escape_html, now_kst, setup_logger, toda
 
 logger = setup_logger("dashboard_app")
 _last_account_retention_cleanup = 0.0
+_last_activity_log_retention_cleanup = 0.0
 _localization_render_scan_at = {}
 
 ANONYMOUS_ACTIVITY_DEDUPE_MINUTES = 5
@@ -894,6 +895,7 @@ def log_user_activity(response):
     if not authenticated and request.method not in {"GET", "HEAD"}:
         return response
 
+    global _last_activity_log_retention_cleanup
     connection = dashboard_db()
     try:
         path = f"{request.script_root}{request.path}"[:500]
@@ -953,12 +955,17 @@ def log_user_activity(response):
             # access.  Keep the actual status in detail_json as well.
             success=200 <= response.status_code < 300,
         )
-        # 활동 로그는 180일만 보관해 DB가 계속 커지는 것을 방지한다.
-        retention_cutoff = (now_kst() - timedelta(days=180)).isoformat(timespec="seconds")
-        connection.execute(
-            "DELETE FROM security_audit_log WHERE created_at < ?",
-            (retention_cutoff,),
-        )
+        cleanup_tick = time.monotonic()
+        if cleanup_tick - _last_activity_log_retention_cleanup >= 3600:
+            # Retention cleanup is maintenance, not part of every page view.
+            retention_cutoff = (now_kst() - timedelta(days=180)).isoformat(
+                timespec="seconds"
+            )
+            connection.execute(
+                "DELETE FROM security_audit_log WHERE created_at < ?",
+                (retention_cutoff,),
+            )
+            _last_activity_log_retention_cleanup = cleanup_tick
         connection.commit()
     except Exception:
         logger.exception("사용자 활동 로그 저장 실패")
@@ -1078,21 +1085,27 @@ def inject_globals():
     account_active = not bool(session.get("user_id"))
     localization_pending_count = 0
     if session.get("user_id"):
-        connection = dashboard_db()
+        cached_user = getattr(g, "current_user_record", None)
+        connection = None
         try:
-            row = connection.execute(
-                """
-                SELECT id, username, role, name, picture_url, is_active
-                FROM dashboard_users WHERE id=?
-                """,
-                (session["user_id"],),
-            ).fetchone()
+            row = cached_user
+            if row is None:
+                connection = dashboard_db()
+                row = connection.execute(
+                    """
+                    SELECT id, username, role, name, picture_url, is_active
+                    FROM dashboard_users WHERE id=?
+                    """,
+                    (session["user_id"],),
+                ).fetchone()
             if row and row["is_active"]:
                 account_active = True
                 current_user = dict(row)
                 role = current_user.get("role") or "user"
                 session["role"] = role
                 if role == "admin":
+                    if connection is None:
+                        connection = dashboard_db()
                     localization_management.scan_if_due(
                         connection, Path(app.root_path), interval_minutes=60,
                     )
@@ -1111,13 +1124,18 @@ def inject_globals():
             else:
                 role = None
         finally:
-            connection.close()
-    font_connection = dashboard_db()
-    try:
-        site_font = site_preferences.get_site_font(font_connection)
-        number_font = site_preferences.get_number_font(font_connection)
-    finally:
-        font_connection.close()
+            if connection is not None:
+                connection.close()
+    cached_fonts = site_preferences.get_cached_fonts()
+    if cached_fonts is None:
+        font_connection = dashboard_db()
+        try:
+            site_font = site_preferences.get_site_font(font_connection)
+            number_font = site_preferences.get_number_font(font_connection)
+        finally:
+            font_connection.close()
+    else:
+        site_font, number_font = cached_fonts
     endpoint_menu_names = {
         "public_home": "홈",
         "dashboard_home": "홈",
@@ -1214,7 +1232,7 @@ def inject_globals():
         "canonical_url": seo_defaults["seo_canonical_url"],
         "hreflang_urls": seo_defaults["seo_hreflang_urls"],
         "localized_meta": meta_for(locale),
-        "i18n_catalog": catalog,
+        "i18n_catalog": catalog if locale == "en" else {},
         "t": lambda value: translate_text(value, locale),
         **seo_defaults,
     }
@@ -2292,6 +2310,7 @@ def action_item_detail(item_id):
         return render_template(
             "action_item_detail.html",
             item=item,
+            description_html=_render_community_markdown(item.get("description")),
             comments=comments,
             csrf_token=get_csrf_token(),
             is_admin=session.get("role") == "admin",
@@ -2882,9 +2901,6 @@ def _disclosures_context(connection, error=None):
     freshness = queries.get_data_freshness(
         connection, "dart_disclosures", "dart_sync", "fetched_at"
     )
-    analyses = queries.list_latest_disclosure_analyses(
-        connection, (item["id"] for item in disclosures)
-    )
     ir_documents = queries.list_research_documents(
         connection,
         company_name=selected_company or None,
@@ -2931,11 +2947,31 @@ def _disclosures_context(connection, error=None):
         key=lambda item: (item["sort_date"], item["source_type"] == "ir"),
         reverse=True,
     )
+    page_size = 20
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    filing_total = len(company_filings)
+    filing_pages = max(1, (filing_total + page_size - 1) // page_size)
+    page = min(page, filing_pages)
+    start = (page - 1) * page_size
+    company_filings = company_filings[start:start + page_size]
+    page_disclosures = [
+        item["disclosure"] for item in company_filings
+        if item["source_type"] == "dart"
+    ]
+    analyses = queries.list_latest_disclosure_analyses(
+        connection, (item["id"] for item in page_disclosures)
+    )
     return {
         "disclosures": disclosures,
         "analyses": analyses,
         "ir_documents": ir_documents,
         "company_filings": company_filings,
+        "filing_total": filing_total,
+        "filing_page": page,
+        "filing_pages": filing_pages,
         "companies": companies,
         "selected_company": selected_company,
         "days": days,
@@ -3945,6 +3981,10 @@ def company_news_page():
     selected_importance = (request.args.get("importance") or "all").strip()
     selected_analysis = (request.args.get("analysis") or "all").strip()
     selected_impact = (request.args.get("impact") or "all").strip()
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
     category_labels = {
         "all": "전체",
         **company_intelligence.COMPANY_NEWS_CATEGORY_LABELS,
@@ -4041,9 +4081,31 @@ def company_news_page():
             )
             for code in category_labels
         }
+        page_size = 20
+        visible_total = sum(
+            len(company["visible_articles"]) for company in visible_companies
+        )
+        page_count = max(1, (visible_total + page_size - 1) // page_size)
+        page = min(page, page_count)
+        page_start = (page - 1) * page_size
+        page_end = page_start + page_size
+        cursor = 0
+        paged_companies = []
+        for company in visible_companies:
+            articles = company["visible_articles"]
+            company_start = cursor
+            company_end = cursor + len(articles)
+            slice_start = max(0, page_start - company_start)
+            slice_end = min(len(articles), page_end - company_start)
+            cursor = company_end
+            if slice_start >= slice_end:
+                continue
+            paged_companies.append(
+                {**company, "visible_articles": articles[slice_start:slice_end]}
+            )
         return render_template(
             "company_news.html",
-            companies=visible_companies,
+            companies=paged_companies,
             company_names=company_names,
             company_name_labels=company_name_labels,
             selected_company=selected_company,
@@ -4056,6 +4118,9 @@ def company_news_page():
             category_counts=category_counts,
             news_stats=news_stats,
             days=days,
+            news_page=page,
+            news_page_count=page_count,
+            news_total_count=visible_total,
         )
     finally:
         connection.close()
@@ -4124,7 +4189,7 @@ def upload_editor_image_route():
     if not validate_csrf(request.form.get("csrf_token", "")):
         return jsonify({"error": "요청이 만료되었습니다. 새로고침 후 다시 시도해주세요."}), 400
     scope = (request.form.get("scope") or "").strip()
-    if scope not in {"community", "notice", "tips"}:
+    if scope not in {"community", "notice", "tips", "bug_report"}:
         return jsonify({"error": "허용되지 않은 작성 화면입니다."}), 400
     if scope in {"notice", "tips"} and session.get("role") != "admin":
         abort(403)

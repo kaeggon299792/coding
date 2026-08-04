@@ -20,7 +20,7 @@
       <div><dt>사용 환경</dt><dd>{{ item.environment or '-' }}</dd></div>
       <div><dt>처리 담당자</dt><dd>{{ item.owner or '-' }}</dd></div>
     </dl>
-    <section class="bug-detail-content"><h2>내용</h2><p>{{ item.description or '내용 없음' }}</p></section>
+    <section class="bug-detail-content"><h2>내용</h2><div class="community-markdown">{{ description_html }}</div></section>
 
     <details class="bug-edit-panel">
       <summary>게시글 수정</summary>
@@ -33,7 +33,8 @@
         <label><span>사용 환경</span><input name="environment" value="{{ item.environment or '' }}" maxlength="200"></label>
         <label><span>중요도</span><select name="priority">{% for priority in ['긴급','높음','보통','낮음'] %}<option value="{{ priority }}" {% if item.priority == priority %}selected{% endif %}>{{ priority }}</option>{% endfor %}</select></label>
         {% if is_admin %}<label><span>담당자</span><input name="owner" value="{{ item.owner or '' }}"></label><label><span>상태</span><select name="status">{% for status in ['접수','확인 중','수정 중','검증 중','해결','보류'] %}<option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>{% endif %}
-        <label class="wide"><span>내용</span><textarea name="description" rows="6" required>{{ item.description or '' }}</textarea></label>
+        <label class="wide"><span>내용</span><textarea id="bug-report-edit-description" name="description" rows="6" maxlength="5000" required data-image-paste data-image-paste-scope="bug_report" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ csrf_token }}">{{ item.description or '' }}</textarea><small>이미지를 복사해 Ctrl+V로 붙여넣거나 아래에서 선택할 수 있습니다.</small><small class="image-paste-status" data-image-paste-status="bug-report-edit-description" role="status" aria-live="polite"></small></label>
+        <label class="wide"><span>사진 첨부</span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-upload-for="bug-report-edit-description"></label>
         <div class="bug-form-footer"><span>작성자와 관리자만 수정할 수 있습니다.</span><button class="btn" type="submit">변경사항 저장</button></div>
       </form>
     </details>
@@ -61,3 +62,4 @@
   </section>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260805-1" defer></script>{% endblock %}

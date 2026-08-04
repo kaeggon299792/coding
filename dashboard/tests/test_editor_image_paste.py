@@ -59,6 +59,7 @@ def test_editor_image_upload_obeys_board_and_library_permissions(monkeypatch, tm
         assert community.status_code == 200
         assert community.get_json()["url"].startswith("/static/uploads/editor/")
         assert community.get_json()["url"].endswith(".png")
+        assert _upload(client, "bug_report", "u" * 64).status_code == 200
         assert _upload(client, "notice", "u" * 64).status_code == 403
         assert _upload(client, "tips", "u" * 64).status_code == 403
 
@@ -71,7 +72,7 @@ def test_editor_image_upload_obeys_board_and_library_permissions(monkeypatch, tm
         assert "PNG, JPG, GIF, WebP" in invalid.get_json()["error"]
 
     saved = list(image_dir.iterdir())
-    assert len(saved) == 3
+    assert len(saved) == 4
     assert all(path.suffix == ".png" and path.read_bytes() == PNG_BYTES for path in saved)
 
 
@@ -81,13 +82,17 @@ def test_markdown_editors_enable_clipboard_images_and_render_safely():
     root = Path(__file__).parents[1]
     board = (root / "templates" / "community_board.html").read_text(encoding="utf-8")
     tips = (root / "templates" / "tips" / "form.html").read_text(encoding="utf-8")
+    bug_board = (root / "templates" / "action_items.html").read_text(encoding="utf-8")
     script = (root / "static" / "js" / "markdown-image-paste.js").read_text(
         encoding="utf-8"
     )
     assert 'data-image-paste-scope="{{ \'notice\' if is_notice_board else \'community\' }}"' in board
     assert 'data-image-paste-scope="tips"' in tips
+    assert 'data-image-paste-scope="bug_report"' in bug_board
+    assert 'data-image-upload-for="bug-report-description"' in bug_board
     assert 'event.clipboardData?.items' in script
     assert 'formData.append("csrf_token"' in script
+    assert "data-image-upload-for" in script
 
     rendered = str(app_module._render_community_markdown(
         "![안전 이미지](/static/uploads/editor/test.png)\n\n"

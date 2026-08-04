@@ -24,6 +24,14 @@ DEFAULT_NUMBER_FONT = "pretendard"
 _number_font_cache = {"value": DEFAULT_NUMBER_FONT, "expires": 0.0}
 
 
+def get_cached_fonts():
+    """Return both presentation settings without opening the DB when warm."""
+    now = time.monotonic()
+    if _font_cache["expires"] > now and _number_font_cache["expires"] > now:
+        return _font_cache["value"], _number_font_cache["value"]
+    return None
+
+
 def get_site_font(connection):
     now = time.monotonic()
     if _font_cache["expires"] > now:

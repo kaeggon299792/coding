@@ -101,8 +101,10 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 </button>
 <button class="back-to-top" id="back-to-top" type="button" aria-label="맨 위로 이동" hidden>↑</button>
 {% include "_legal_footer.html" %}
+{% if current_locale == 'en' %}
 <script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
 <script src="{{ url_for('static', filename='js/dashboard-i18n.js') }}" defer></script>
+{% endif %}
 <script src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260731-spotlight7" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"></script>
@@ -235,15 +237,13 @@ document.addEventListener("keydown", (event) => {
     clearInterval(timer);
     clearTimeout(safetyTimer);
     paint(100);
-    setTimeout(() => {
-      loader.classList.add("is-hidden");
-      loader.setAttribute("aria-hidden", "true");
-    }, 180);
+    loader.classList.add("is-hidden");
+    loader.setAttribute("aria-hidden", "true");
   }
   start(0);
   document.addEventListener("DOMContentLoaded", () => {
     paint(Math.max(value, 92));
-    setTimeout(finish, 240);
+    finish();
   });
   window.addEventListener("load", finish, {once: true});
   window.addEventListener("pageshow", (event) => { if (event.persisted) finish(); });

@@ -75,6 +75,13 @@ def test_changed_templates_compile_in_flask():
 
     for template in (
         "_topbar.html", "_data_subnav.html", "public_home.html", "companies.html",
-        "disclosures.html", "laws.html", "account.html", "sitemap.html",
+        "disclosures.html", "company_news.html", "action_items.html",
+        "action_item_detail.html", "laws.html", "account.html", "sitemap.html",
     ):
         app_module.app.jinja_env.get_template(template)
+
+
+def test_page_loader_has_no_forced_completion_delay():
+    base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
+    assert "setTimeout(finish, 240)" not in base
+    assert 'loader.classList.add("is-hidden")' in base

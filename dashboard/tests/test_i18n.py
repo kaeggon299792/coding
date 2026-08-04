@@ -49,6 +49,8 @@ def test_korean_home_remains_default(client):
     assert 'href="/en/" data-locale-link="en"' in html
     assert 'href="/ja/" data-locale-link="ja"' in html
     assert 'href="/yue-hk/" data-locale-link="yue-HK"' in html
+    assert 'id="dashboard-i18n-catalog"' not in html
+    assert "dashboard-i18n.js" not in html
     pairs = (
         ("카지노인을 위한 모든 정보.", "Everything casino professionals need."),
         ("카지노인을 위한 하나의 공간.", "One space for the casino industry."),
@@ -74,6 +76,8 @@ def test_english_home_uses_same_route_with_localized_seo(client):
     assert 'hreflang="en" href="https://www.casinoin.kr/en/"' in html
     assert 'hreflang="x-default"' in html
     assert "G-PTRL0XC53Z" in html
+    assert 'id="dashboard-i18n-catalog"' in html
+    assert "dashboard-i18n.js" in html
     taglines = {
         "Everything casino professionals need.",
         "One space for the casino industry.",
@@ -135,7 +139,10 @@ def test_additional_locale_prefixes_use_same_routes(client, locale):
     assert response.status_code == 200
     expected = "yue-HK" if locale == "yue-hk" else locale
     assert response.headers["Content-Language"] == expected
-    assert f'<html lang="{expected}"' in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    assert f'<html lang="{expected}"' in html
+    assert 'id="dashboard-i18n-catalog"' not in html
+    assert "dashboard-i18n.js" not in html
 
 
 def test_english_static_assets_are_served_through_prefix(client):

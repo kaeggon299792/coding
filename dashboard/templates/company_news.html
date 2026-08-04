@@ -62,5 +62,12 @@
     <p class="empty-state">{{ t('분류할 기업 정보가 없습니다.') }}</p>
     {% endfor %}
   </div>
+  {% if news_page_count > 1 %}
+  <nav class="news-pagination" aria-label="{{ t('기업별 뉴스 페이지 이동') }}">
+    {% if news_page > 1 %}<a class="btn" href="{{ url_for('company_news_page', page=news_page-1, days=days, company=selected_company, category=selected_category, q=search_query, importance=selected_importance, analysis=selected_analysis, impact=selected_impact) }}">{{ t('이전') }}</a>{% endif %}
+    <span>{{ news_page }} / {{ news_page_count }} · {{ news_total_count }}{{ t('건') }}</span>
+    {% if news_page < news_page_count %}<a class="btn" href="{{ url_for('company_news_page', page=news_page+1, days=days, company=selected_company, category=selected_category, q=search_query, importance=selected_importance, analysis=selected_analysis, impact=selected_impact) }}">{{ t('다음') }}</a>{% endif %}
+  </nav>
+  {% endif %}
 </main>
 {% endblock %}

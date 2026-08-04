@@ -101,25 +101,42 @@ def google_oauth_missing_settings():
 
 
 def current_menu_permissions():
+    cached = getattr(g, "current_menu_permissions", None)
+    if cached is not None:
+        return cached
     if not session.get("user_id"):
-        return {code: False for code in MENU_PERMISSIONS}
-    connection = dashboard_db()
+        permissions = {code: False for code in MENU_PERMISSIONS}
+        g.current_menu_permissions = permissions
+        return permissions
+    connection = None
     try:
-        user = connection.execute(
-            "SELECT role, is_active FROM dashboard_users WHERE id=?",
-            (session["user_id"],),
-        ).fetchone()
+        user = getattr(g, "current_user_record", None)
+        if user is None:
+            connection = dashboard_db()
+            user = connection.execute(
+                "SELECT role, is_active FROM dashboard_users WHERE id=?",
+                (session["user_id"],),
+            ).fetchone()
         if user and user["is_active"]:
             session["role"] = user["role"] or "user"
             if session["role"] == "admin":
-                return {code: True for code in MENU_PERMISSIONS}
+                permissions = {code: True for code in MENU_PERMISSIONS}
+                g.current_menu_permissions = permissions
+                return permissions
         elif not (current_app.testing and not user):
-            return {code: False for code in MENU_PERMISSIONS}
-        return queries.get_user_permissions(
+            permissions = {code: False for code in MENU_PERMISSIONS}
+            g.current_menu_permissions = permissions
+            return permissions
+        if connection is None:
+            connection = dashboard_db()
+        permissions = queries.get_user_permissions(
             connection, session["user_id"], MENU_PERMISSIONS.keys()
         )
+        g.current_menu_permissions = permissions
+        return permissions
     finally:
-        connection.close()
+        if connection is not None:
+            connection.close()
 
 
 def _client_ip():
@@ -423,7 +440,8 @@ def refresh_current_session():
     try:
         user = connection.execute(
             """
-            SELECT username, role, is_active, password_changed_at
+            SELECT id, username, role, name, picture_url, approval_status,
+                   is_active, password_changed_at
             FROM dashboard_users WHERE id = ?
             """,
             (session["user_id"],),
@@ -440,6 +458,7 @@ def refresh_current_session():
             g.session_expired = True
             return False
         if user:
+            g.current_user_record = dict(user)
             session["username"] = user["username"]
             session["role"] = user["role"] or "user"
         connection.commit()
