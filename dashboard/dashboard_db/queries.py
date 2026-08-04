@@ -1565,6 +1565,33 @@ def list_company_financial_values_for_reports(connection, report_ids):
     return [dict(row) for row in rows]
 
 
+def list_casino_market_share_financials(connection, start_year, end_year):
+    """Return annual revenue and operating profit from each latest report."""
+    rows = connection.execute(
+        """
+        SELECT report.company_name, value.account_code,
+               value.fiscal_date, value.amount
+        FROM company_financial_reports AS report
+        JOIN company_financial_values AS value ON value.report_id = report.id
+        WHERE report.statement_type = 'income_statement'
+          AND value.account_code IN ('121000', '125000')
+          AND value.period_type = 'annual'
+          AND CAST(SUBSTR(value.fiscal_date, 1, 4) AS INTEGER) BETWEEN ? AND ?
+          AND report.id = (
+              SELECT newer.id
+              FROM company_financial_reports AS newer
+              WHERE newer.company_name = report.company_name
+                AND newer.statement_type = report.statement_type
+              ORDER BY newer.imported_at DESC, newer.id DESC
+              LIMIT 1
+          )
+        ORDER BY value.fiscal_date, report.company_name, value.account_code
+        """,
+        (int(start_year), int(end_year)),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_latest_company_credit_rating(connection, company_name):
     row = connection.execute(
         """

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}산업 M/S{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+{% include "_casino_subnav.html" %}
+<main class="page-container casino-ms-page">
+  <header class="page-header casino-ms-header">
+    <div><p class="page-eyebrow">DATA / CASINO INDUSTRY / MARKET SHARE</p><h1 class="page-title">산업 M/S</h1><p class="page-description">카지노 운영 법인의 매출액과 영업이익을 시장 구간별로 비교합니다.</p></div>
+    <form method="get" class="casino-ms-year" aria-label="기준 연도 선택">
+      <label for="market-share-year">기준 연도</label>
+      <select id="market-share-year" name="year">
+        {% for year in market_share.years %}<option value="{{ year }}"{% if year == market_share.selected_year %} selected{% endif %}>{{ year }}년</option>{% endfor %}
+      </select>
+      <button type="submit">적용</button>
+    </form>
+  </header>
+
+  <p class="casino-ms-source">{{ market_share.source_note }}</p>
+  {% for comparison in market_share.comparisons %}
+  <section class="panel casino-ms-section">
+    <header><div><span>0{{ loop.index }}</span><h2>{{ comparison.title }}</h2></div><p>{{ comparison.subtitle }}</p></header>
+    <div class="casino-ms-metrics">
+      {% for metric, label, items in [('revenue', '매출액', comparison.revenue_items), ('operating_profit', '영업이익', comparison.profit_items)] %}
+      <article class="casino-ms-chart">
+        <div class="casino-ms-chart-title"><strong>{{ label }}</strong><small>{{ market_share.selected_year }} · 억원</small></div>
+        <div class="casino-ms-bars">
+          {% for item in items %}
+          <div class="casino-ms-row{% if item[metric] < 0 %} is-negative{% endif %}">
+            <div><b>{{ item.name }}</b><span>{{ "{:,.1f}".format(item[metric]) }}억원</span></div>
+            <div class="casino-ms-track"><i style="width:{{ item.share }}%"></i></div>
+            <small>{% if item[metric] < 0 %}적자{% else %}{{ item.share }}%{% endif %}</small>
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  <section class="panel casino-ms-trend">
+    <header><div><span>04</span><h2>최근 5개년 추이</h2></div><p>2021–2025 법인별 연간 실적</p></header>
+    <div class="casino-ms-trend-grid">
+      {% for metric, label in [('revenue', '매출액 추이'), ('operating_profit', '영업이익 추이')] %}
+      <article>
+        <h3>{{ label }}</h3>
+        <svg viewBox="0 0 800 250" role="img" aria-label="{{ label }} 선그래프">
+          {% for x in [24,212,400,588,776] %}<line x1="{{ x }}" y1="24" x2="{{ x }}" y2="220" class="casino-ms-gridline"/>{% endfor %}
+          {% for item in market_share.trend %}<polyline class="casino-ms-line line-{{ loop.index }}" points="{{ item[metric ~ '_polyline'] }}"/>{% endfor %}
+          {% for year in market_share.trend_years %}<text x="{{ 24 + loop.index0 * 188 }}" y="244" text-anchor="middle">{{ year }}</text>{% endfor %}
+        </svg>
+        <div class="casino-ms-legend">{% for item in market_share.trend %}<span class="legend-{{ loop.index }}">{{ item.name }}</span>{% endfor %}</div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

@@ -44,6 +44,7 @@ from extensions import dashboard_db
 from services import (
     ai_insights,
     casino_industry,
+    casino_market_share,
     casino_statistics,
     company_intelligence,
     content_translation,
@@ -126,6 +127,7 @@ INDEXABLE_ENDPOINTS = {
     "recruitment_page",
     "company_recruitment_guide_page",
     "casino_industry_page",
+    "casino_market_share_page",
     "casino_visitors_page",
     "casino_revenue_page",
     "casino_fund_page",
@@ -1158,6 +1160,7 @@ def inject_globals():
         "company_recruitment_guide_page": "족보",
         "source_download_page": "원천 데이터 다운",
         "casino_industry_page": "국내 카지노 산업",
+        "casino_market_share_page": "산업 M/S",
         "casino_visitors_page": "연도별 카지노 이용객",
         "casino_revenue_page": "연도별 카지노 매출액 비율",
         "casino_fund_page": "기금 부과 현황",
@@ -1274,6 +1277,7 @@ def _site_map_links():
             "endpoint": "casino_industry_page",
             "children": [
                 {"label": "국내 카지노 산업", "endpoint": "casino_industry_page"},
+                {"label": "산업 M/S", "endpoint": "casino_market_share_page"},
                 {"label": "연도별 카지노 이용객", "endpoint": "casino_visitors_page"},
                 {"label": "연도별 카지노 매출액 비율", "endpoint": "casino_revenue_page"},
                 {"label": "기금 부과 현황", "endpoint": "casino_fund_page"},
@@ -2609,6 +2613,20 @@ def casino_industry_page():
             request.args.get("region", "").strip()
         ),
     )
+
+
+@app.route("/market/casino-industry/market-share")
+def casino_market_share_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "casino_market_share.html",
+            market_share=casino_market_share.build_dashboard(
+                connection, request.args.get("year")
+            ),
+        )
+    finally:
+        connection.close()
 
 
 @app.route("/market/casino-industry/visitors")

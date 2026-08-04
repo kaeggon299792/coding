@@ -1,6 +1,6 @@
 import pytest
 
-from services import casino_industry, casino_statistics
+from services import casino_industry, casino_market_share, casino_statistics
 
 
 @pytest.fixture
@@ -38,6 +38,30 @@ def test_casino_industry_page_is_public(client):
     assert "국내 카지노 산업".encode() in response.data
     assert "파라다이스카지노 워커힐점".encode() in response.data
     assert "2,263,762".encode() in response.data
+
+
+def test_casino_market_share_page_is_public(client):
+    response = client.get("/market/casino-industry/market-share?year=2024")
+    assert response.status_code == 200
+    assert b"casino-ms-page" in response.data
+    assert b'<option value="2024" selected>' in response.data
+
+
+def test_market_share_uses_central_financial_values(monkeypatch):
+    rows = [
+        {"company_name": "강원랜드", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
+        {"company_name": "강원랜드", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 20_000_000_000},
+        {"company_name": "GKL", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 50_000_000_000},
+        {"company_name": "GKL", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 10_000_000_000},
+    ]
+    monkeypatch.setattr(
+        "services.casino_market_share.queries.list_casino_market_share_financials",
+        lambda connection, start_year, end_year: rows,
+    )
+    result = casino_market_share.build_dashboard(object(), 2025)
+    assert result["selected_year"] == 2025
+    assert result["comparisons"][0]["revenue_items"][0]["name"] == "외래객"
+    assert result["comparisons"][0]["revenue_items"][0]["share"] == 33.3
 
 
 def test_casino_history_latest_values_match_report():
