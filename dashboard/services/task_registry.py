@@ -9,7 +9,7 @@ from dashboard_db import queries
 from services import news_reader
 
 
-VERIFIED_AT = "2026-08-04"
+VERIFIED_AT = "2026-08-06"
 
 
 TASKS = (
@@ -280,10 +280,10 @@ def dashboard(connection):
         item = dict(definition)
         if definition["location"] == "로컬 PC":
             item["platform"] = "Windows 작업 스케줄러 (현재 로컬 PC)"
-        elif definition["kind"] == "Always-on":
-            item["platform"] = "PythonAnywhere Always-on Tasks"
         else:
-            item["platform"] = "PythonAnywhere Scheduled Tasks"
+            item["platform"] = "PythonAnywhere Always-on · CASINOINBOT"
+            item["managed_by"] = "CASINOINBOT"
+            item["kind"] = "CASINOINBOT"
         item.update(EXECUTION_META[definition["key"]])
         item["connection_note"] = {
             "local_datalab": (
@@ -312,8 +312,8 @@ def dashboard(connection):
         "pythonanywhere": [item for item in items if item["location"] == "PythonAnywhere"],
         "local": [item for item in items if item["location"] == "로컬 PC"],
         "counts": {
-            "pythonanywhere_scheduled": 7,
-            "pythonanywhere_always_on": 3,
+            "pythonanywhere_scheduled": 0,
+            "pythonanywhere_always_on": 1,
             "windows_registered": 27,
         },
         "verified_at": VERIFIED_AT,

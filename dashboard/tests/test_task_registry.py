@@ -5,8 +5,8 @@ def test_registry_groups_real_server_and_windows_tasks(db_connection):
     registry = task_registry.dashboard(db_connection)
 
     assert registry["counts"] == {
-        "pythonanywhere_scheduled": 7,
-        "pythonanywhere_always_on": 3,
+        "pythonanywhere_scheduled": 0,
+        "pythonanywhere_always_on": 1,
         "windows_registered": 27,
     }
     assert {item["key"] for item in registry["pythonanywhere"]} >= {
@@ -20,7 +20,8 @@ def test_registry_groups_real_server_and_windows_tasks(db_connection):
     )
     assert translation["schedule"] == "매일 23:30 KST"
     assert translation["platform_schedule"] == "14:30 UTC"
-    assert translation["platform"] == "PythonAnywhere Scheduled Tasks"
+    assert translation["platform"] == "PythonAnywhere Always-on · CASINOINBOT"
+    assert translation["managed_by"] == "CASINOINBOT"
     law = next(item for item in registry["items"] if item["key"] == "law_sync")
     assert law["mode"] == "묶음 실행"
     assert "유가·환율 갱신" in law["steps"]
