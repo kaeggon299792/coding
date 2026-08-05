@@ -377,6 +377,9 @@ def migrate(connection):
             ('community', '자유 게시판', 'silver', 'gold', 'gold'),
             ('notice', '공지사항', 'silver', 'black', 'gold'),
             ('bug_reports', '버그 및 건의', 'silver', 'gold', 'gold'),
+            ('benefits', '복지게시판', 'silver', 'black', 'gold'),
+            ('recruitment_guide', '족보게시판', 'silver', 'black', 'gold'),
+            ('source_data', '원천 데이터 다운', 'gold', 'black', 'black'),
         ),
     )
     connection.execute(

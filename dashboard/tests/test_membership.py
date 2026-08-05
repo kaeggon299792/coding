@@ -27,6 +27,16 @@ def test_default_grades_and_board_policy(db_connection):
     assert membership.can_board(
         db_connection, "community", "write", user_id, "user"
     ) is True
+    policies = {
+        row["board_key"]: row for row in membership.list_board_permissions(db_connection)
+    }
+    assert policies["benefits"]["board_label"] == "복지게시판"
+    assert policies["recruitment_guide"]["board_label"] == "족보게시판"
+    assert policies["source_data"]["read_grade"] == "gold"
+    assert membership.can_board(db_connection, "benefits", "write") is False
+    assert membership.can_board(
+        db_connection, "source_data", "read", user_id, "user"
+    ) is True
 
 
 def test_black_grade_is_reserved_for_admin(db_connection):

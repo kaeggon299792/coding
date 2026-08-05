@@ -2756,6 +2756,11 @@ def source_download_page():
     """로그인 사용자용 통합 숫자 데이터 조회·복사 화면."""
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "source_data", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         source_data_repository.synchronize_existing_data(connection)
         include_internal = session.get("role") == "admin"
         view = source_data_repository.build_view(
@@ -3791,6 +3796,11 @@ def company_benefits_page():
     selected_company = (request.args.get("company") or "").strip()
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "benefits", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         companies = company_intelligence.list_company_options(connection)
         valid_names = {item["name"] for item in companies}
         if selected_company not in valid_names:
@@ -3816,6 +3826,14 @@ def company_benefits_page():
             comments_by_target=_group_company_comment_threads(
                 queries.list_company_content_comments(connection, "benefit")
             ),
+            can_write=membership.can_board(
+                connection, "benefits", "write",
+                session.get("user_id"), session.get("role"),
+            ),
+            can_comment=membership.can_board(
+                connection, "benefits", "comment",
+                session.get("user_id"), session.get("role"),
+            ),
             csrf_token=get_csrf_token(),
             today=today_kst_str(),
         )
@@ -3824,12 +3842,17 @@ def company_benefits_page():
 
 
 @app.post("/companies/benefits")
-@admin_required
+@login_required
 def create_company_benefit_route():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "benefits", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         values = _company_benefit_form_values(connection)
         queries.create_company_benefit(
             connection, values, actor_id=session.get("user_id")
@@ -3960,6 +3983,11 @@ def company_recruitment_guide_page():
     selected_process = (request.args.get("process_type") or "").strip()
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "recruitment_guide", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         companies = company_intelligence.list_company_options(connection)
         valid_names = {item["name"] for item in companies}
         valid_processes = {value for value, _ in RECRUITMENT_GUIDE_PROCESS_TYPES}
@@ -3991,6 +4019,14 @@ def company_recruitment_guide_page():
                     connection, "recruitment_guide"
                 )
             ),
+            can_write=membership.can_board(
+                connection, "recruitment_guide", "write",
+                session.get("user_id"), session.get("role"),
+            ),
+            can_comment=membership.can_board(
+                connection, "recruitment_guide", "comment",
+                session.get("user_id"), session.get("role"),
+            ),
             csrf_token=get_csrf_token(),
         )
     finally:
@@ -3998,12 +4034,17 @@ def company_recruitment_guide_page():
 
 
 @app.post("/companies/recruitment-guide")
-@admin_required
+@login_required
 def create_company_recruitment_guide_route():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "recruitment_guide", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         values = _recruitment_guide_form_values(connection)
         queries.create_company_recruitment_guide(
             connection, values, actor_id=session.get("user_id")
@@ -4081,6 +4122,15 @@ def create_company_content_comment_route(target_type, target_id):
     parent_id = int(parent_value) if parent_value else None
     connection = dashboard_db()
     try:
+        board_key = {
+            "benefit": "benefits",
+            "recruitment_guide": "recruitment_guide",
+        }.get(target_type)
+        if not board_key or not membership.can_board(
+            connection, board_key, "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         target = _company_comment_target(connection, target_type, target_id)
         if not target:
             abort(404)

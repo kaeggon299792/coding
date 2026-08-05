@@ -11,7 +11,14 @@ from utils import now_kst
 
 
 GRADE_CODES = ("silver", "gold", "platinum", "diamond", "black")
-BOARD_KEYS = ("community", "notice", "bug_reports")
+BOARD_KEYS = (
+    "community",
+    "notice",
+    "bug_reports",
+    "benefits",
+    "recruitment_guide",
+    "source_data",
+)
 MAX_ICON_BYTES = 512 * 1024
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 UPLOAD_DIR = STATIC_DIR / "uploads" / "membership"

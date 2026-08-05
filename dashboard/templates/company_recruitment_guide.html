@@ -27,7 +27,7 @@
     {% if selected_company or selected_process %}<a class="btn" href="{{ url_for('company_recruitment_guide_page') }}">초기화</a>{% endif %}
   </form>
 
-  {% if current_user_role == 'admin' %}
+  {% if can_write %}
   <details class="panel recruitment-guide-admin" open>
     <summary>채용 족보 등록</summary>
     <form class="recruitment-guide-form" method="post" action="{{ url_for('create_company_recruitment_guide_route') }}">

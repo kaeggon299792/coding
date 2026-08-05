@@ -42,6 +42,7 @@ def test_existing_static_statistics_are_idempotently_backfilled(db_connection):
 def test_source_download_requires_login_and_renders_for_session(monkeypatch, tmp_path):
     import app as dashboard_app
     import config
+    from dashboard_db import schema
 
     db_path = tmp_path / "route.db"
     monkeypatch.setattr(config, "DASHBOARD_DB_FILE", str(db_path))
@@ -50,6 +51,14 @@ def test_source_download_requires_login_and_renders_for_session(monkeypatch, tmp
     anonymous = client.get("/resources/source-data")
     assert anonymous.status_code == 302
     assert "/login" in anonymous.location
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """INSERT INTO dashboard_users
+           (id, username, password_hash, role, membership_level, is_active, created_at)
+           VALUES (999, 'viewer', 'unused', 'user', 'gold', 1, '2026-08-06T00:00:00')"""
+    )
+    connection.commit()
+    connection.close()
     with client.session_transaction() as session:
         session["user_id"] = 999
         session["username"] = "viewer"

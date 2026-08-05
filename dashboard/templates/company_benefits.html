@@ -21,7 +21,7 @@
     {% if selected_company %}<a class="btn" href="{{ url_for('company_benefits_page') }}">전체 보기</a>{% endif %}
   </form>
 
-  {% if current_user_role == 'admin' %}
+  {% if can_write %}
   <details class="panel company-benefit-admin" open>
     <summary>복리후생 등록</summary>
     <form class="company-benefit-form" method="post" action="{{ url_for('create_company_benefit_route') }}">
