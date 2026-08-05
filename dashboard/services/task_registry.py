@@ -6,7 +6,7 @@ from pathlib import Path
 
 import config
 from dashboard_db import queries
-from services import news_reader
+from services import automation_settings, news_reader
 
 
 VERIFIED_AT = "2026-08-06"
@@ -275,6 +275,7 @@ def _signal(connection, signal):
 
 
 def dashboard(connection):
+    managed_settings = automation_settings.get_all(connection)
     items = []
     for definition in TASKS:
         item = dict(definition)
@@ -306,6 +307,7 @@ def dashboard(connection):
         item["last_signal_at"] = _signal(connection, definition.get("signal"))
         item["last_log_at"] = _log_evidence(definition.get("log_name"))
         item["verified_at"] = VERIFIED_AT
+        item["settings"] = managed_settings.get(definition["key"])
         items.append(item)
     return {
         "items": items,

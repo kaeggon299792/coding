@@ -60,6 +60,7 @@ from services import (
     rss_feed,
     salary_data,
     security_audit,
+    security_monitor,
     site_preferences,
     source_data_repository,
     telegram_alert,
@@ -883,6 +884,25 @@ def localize_response(response):
 
 
 @app.after_request
+def monitor_security_events(response):
+    """Keep failed/probing requests even when the visitor is not signed in."""
+    if request.endpoint in {"static", "healthz"}:
+        return response
+    if not security_monitor.should_inspect(response):
+        return response
+    connection = dashboard_db()
+    try:
+        security_monitor.inspect_response(connection, response)
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        logger.exception("보안 요청 탐지 기록 실패")
+    finally:
+        connection.close()
+    return response
+
+
+@app.after_request
 def log_user_activity(response):
     """회원과 비회원의 화면 활동을 민감정보 없이 영구 제한과 함께 기록한다."""
 
@@ -911,7 +931,7 @@ def log_user_activity(response):
                 current - timedelta(minutes=ANONYMOUS_ACTIVITY_DEDUPE_MINUTES)
             ).isoformat(timespec="seconds")
             day_since = (current - timedelta(days=1)).isoformat(timespec="seconds")
-            ip_address = str(request.remote_addr or "")[:100]
+            ip_address = security_audit.client_ip()
             duplicate = connection.execute(
                 """
                 SELECT 1 FROM security_audit_log

@@ -65,3 +65,48 @@ def test_admin_tasks_route_requires_admin(monkeypatch, tmp_path):
         assert "자동화 작업 현황" in html
         assert "매일 23:30 KST" in html
         assert "Brity 게시판 알림" in html
+
+
+def test_admin_can_update_casinoinbot_task_settings(monkeypatch, tmp_path):
+    import app as app_module
+    from dashboard_db import schema
+
+    db_path = tmp_path / "task-settings.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    db = schema.connect(str(db_path))
+    admin_id = db.execute(
+        """INSERT INTO dashboard_users
+               (username,password_hash,role,is_active,approval_status,created_at)
+           VALUES ('task-admin','unused','admin',1,'approved','2026-08-06T00:00:00')"""
+    ).lastrowid
+    db.commit()
+    db.close()
+    app_module.app.config["TESTING"] = True
+
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as session:
+            session.update(
+                user_id=admin_id, username="task-admin", role="admin", csrf_token="valid"
+            )
+        response = client.post(
+            "/admin/tasks/settings",
+            data={
+                "csrf_token": "valid",
+                "task_key": "email_monitor",
+                "enabled": "1",
+                "notify_error": "1",
+                "interval_minutes": "12",
+            },
+        )
+        assert response.status_code == 302
+
+    db = schema.connect(str(db_path))
+    from services import automation_settings
+    setting = automation_settings.get_task(db, "email_monitor")
+    audit = db.execute(
+        "SELECT action FROM security_audit_log WHERE action='AUTOMATION_TASK_SETTING_UPDATE'"
+    ).fetchone()
+    db.close()
+    assert setting["interval_minutes"] == 12
+    assert setting["notify_success"] is False
+    assert audit is not None

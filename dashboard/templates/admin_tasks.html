@@ -36,7 +36,7 @@
     </header>
     <div class="task-card-grid">
       {% for task in tasks %}
-      <details class="task-card"{% if loop.first %} open{% endif %}>
+      <details class="task-card" id="task-{{ task.key }}"{% if loop.first or request.args.get('saved') == task.key %} open{% endif %}>
         <summary class="task-card-summary">
           <div class="task-summary-main">
             <div class="task-tags"><span class="task-location">{{ task.location }}</span><span class="task-kind">{{ task.kind }}</span></div>
@@ -48,6 +48,29 @@
         </summary>
 
         <div class="task-card-body">
+          {% if task.settings %}
+          <form class="task-setting-form" method="post" action="{{ url_for('auth.update_admin_task_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="task_key" value="{{ task.key }}">
+            <div class="task-setting-heading">
+              <div><span>CASINOINBOT CONTROL</span><b>작업별 실행·알림 설정</b></div>
+              {% if request.args.get('saved') == task.key %}<small class="task-setting-saved">저장 완료 · 다음 점검 주기부터 적용</small>{% endif %}
+            </div>
+            <div class="task-setting-grid">
+              <label class="task-setting-toggle"><input type="checkbox" name="enabled" value="1"{% if task.settings.enabled %} checked{% endif %}><span>작업 실행</span><small>끄면 CASINOINBOT이 해당 작업을 시작하지 않습니다.</small></label>
+              <label class="task-setting-toggle"><input type="checkbox" name="notify_error" value="1"{% if task.settings.notify_error %} checked{% endif %}><span>오류 알림</span><small>실패·예외가 있을 때만 텔레그램으로 알립니다.</small></label>
+              <label class="task-setting-toggle"><input type="checkbox" name="notify_success" value="1"{% if task.settings.notify_success %} checked{% endif %}><span>정상 완료 알림</span><small>기본값은 꺼짐입니다. 무변화·특이사항 없음은 보내지 않습니다.</small></label>
+              {% if task.settings.timing == 'continuous' %}
+              <label><span>반복 주기</span><div class="task-setting-input"><input type="number" name="interval_minutes" min="1" max="1440" value="{{ task.settings.interval_minutes }}"><em>분</em></div></label>
+              {% elif task.settings.timing == 'hourly' %}
+              <label><span>매시간 실행 분(UTC)</span><div class="task-setting-input"><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
+              {% else %}
+              <label><span>실행 시각(UTC)</span><div class="task-setting-input"><input type="number" name="hour_utc" min="0" max="23" value="{{ task.settings.hour_utc }}"><em>시</em><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
+              {% endif %}
+            </div>
+            <button class="btn task-setting-submit" type="submit">이 작업 설정 저장</button>
+          </form>
+          {% endif %}
           <dl class="task-status-grid">
             <div><dt>실행 방식</dt><dd><b>{{ task.mode }}</b></dd></div>
             <div><dt>마지막 실행</dt><dd>{{ (task.last_run_at or task.last_log_at or '-')|replace('T', ' ')|truncate(20, true, '') }}{% if task.last_status %}<small>{{ task.last_status }}</small>{% endif %}</dd></div>

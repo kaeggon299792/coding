@@ -10,6 +10,34 @@
     <p><a class="btn" href="{{ url_for('auth.user_management') }}">관리자 페이지로 돌아가기</a></p>
   </header>
 
+  <section class="panel security-detection-panel" id="security-detections">
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">SECURITY DETECTION</p>
+        <h2>보안 탐지 로그</h2>
+        <p>권한 없는 접근, CSRF 검증 실패, 민감 경로 탐색, 반복 호출 제한을 기록합니다. 같은 접속지에서 기준 횟수를 넘으면 텔레그램 경보가 발송됩니다.</p>
+      </div>
+      <span>{{ security_total }}건</span>
+    </div>
+    <div class="security-rule-guide">
+      <span><b>CSRF</b> 10분 3회</span><span><b>민감 경로 탐색</b> 10분 3회</span><span><b>권한 거부</b> 10분 10회</span><span><b>호출 제한</b> 10분 3회</span><small>동일 유형·IP 경보 재발송 간격 60분</small>
+    </div>
+    <div class="security-event-list">
+      {% for item in security_alerts %}
+      <article class="security-event-item{% if item.action == 'SECURITY_THRESHOLD_ALERT' %} is-alert{% endif %}">
+        <header><b>{{ item.action }}</b><time>{{ item.created_at|replace('T', ' ')|truncate(20, true, '') }}</time></header>
+        <p>{{ item.explanation }}</p>
+        <dl><div><dt>접속 IP</dt><dd><code>{{ item.ip_address or '-' }}</code></dd></div><div><dt>요청</dt><dd>{{ item.detail.get('method', '-') }} {{ item.detail.get('path', item.resource_id or '-') }}</dd></div><div><dt>응답</dt><dd>HTTP {{ item.detail.get('status_code', '-') }}</dd></div>{% if item.detail.get('event_count') %}<div><dt>탐지 횟수</dt><dd>{{ item.detail.get('event_count') }}회</dd></div>{% endif %}</dl>
+      </article>
+      {% else %}<p class="empty-state">현재 저장된 보안 탐지 이벤트가 없습니다.</p>{% endfor %}
+    </div>
+    <nav class="news-pagination" aria-label="보안 탐지 로그 페이지 이동">
+      {% if security_page > 1 %}<a class="btn" href="{{ url_for('auth.admin_logs', security_page=security_page-1, account_page=account_page, activity_page=activity_page, api_page=api_page) }}#security-detections">이전</a>{% endif %}
+      <span>{{ security_page }} / {{ security_pages }}</span>
+      {% if security_page < security_pages %}<a class="btn" href="{{ url_for('auth.admin_logs', security_page=security_page+1, account_page=account_page, activity_page=activity_page, api_page=api_page) }}#security-detections">다음</a>{% endif %}
+    </nav>
+  </section>
+
   <section class="panel" id="account-audit">
     <div class="section-heading">
       <div>

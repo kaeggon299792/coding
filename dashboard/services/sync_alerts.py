@@ -1,6 +1,7 @@
 """Common notifications for scheduled external-data sync failures."""
 
-from services import telegram_alert
+from extensions import dashboard_db
+from services import automation_settings, telegram_alert
 
 
 LABELS = {
@@ -13,7 +14,15 @@ LABELS = {
 
 
 def notify_issue(run_type, status, errors):
-    if status == "success":
+    success = status == "success"
+    connection = dashboard_db()
+    try:
+        enabled = automation_settings.notifications_enabled(
+            connection, run_type, success=success
+        )
+    finally:
+        connection.close()
+    if not enabled:
         return True
     details = errors if isinstance(errors, str) else "; ".join(
         str(item) for item in errors if item

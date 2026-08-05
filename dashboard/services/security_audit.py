@@ -7,6 +7,18 @@ from flask import has_request_context, request, session
 from utils import now_kst
 
 
+def client_ip():
+    """Return the client address reported by the production reverse proxy."""
+    if not has_request_context():
+        return ""
+    return str(
+        request.headers.get("CF-Connecting-IP")
+        or request.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+        or request.remote_addr
+        or ""
+    )[:100]
+
+
 def log_event(
     connection,
     action,
@@ -15,7 +27,7 @@ def log_event(
     detail=None,
     success=True,
 ):
-    ip_address = request.remote_addr if has_request_context() else None
+    ip_address = client_ip() if has_request_context() else None
     user_agent = request.user_agent.string if has_request_context() else None
     connection.execute(
         """

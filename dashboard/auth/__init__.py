@@ -26,9 +26,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
-    ai_insights, ai_runtime_settings, gemini_usage, localization_auto_translation,
+    ai_insights, ai_runtime_settings, automation_settings, gemini_usage, localization_auto_translation,
     localization_management,
-    security_audit, site_preferences, task_registry, telegram_alert,
+    security_audit, security_monitor, site_preferences, task_registry, telegram_alert,
 )
 import config
 from utils import now_kst
@@ -250,7 +250,10 @@ def get_csrf_token():
 
 def validate_csrf(token):
     expected = session.get("csrf_token")
-    return bool(expected) and bool(token) and secrets.compare_digest(expected, token)
+    valid = bool(expected) and bool(token) and secrets.compare_digest(expected, token)
+    if not valid:
+        g.csrf_validation_failed = True
+    return valid
 
 
 def _session_hash(raw_session_id):
@@ -1642,6 +1645,7 @@ def admin_logs():
     account_page = max(1, request.args.get("account_page", 1, type=int))
     activity_page = max(1, request.args.get("activity_page", 1, type=int))
     api_page = max(1, request.args.get("api_page", 1, type=int))
+    security_page = max(1, request.args.get("security_page", 1, type=int))
     connection = dashboard_db()
     try:
         account_total = connection.execute(
@@ -1653,13 +1657,18 @@ def admin_logs():
         api_total = connection.execute(
             "SELECT COUNT(*) AS count FROM api_usage WHERE provider='openai' OR provider IS NULL"
         ).fetchone()["count"]
+        security_total = connection.execute(
+            "SELECT COUNT(*) AS count FROM security_audit_log WHERE action LIKE 'SECURITY_%'"
+        ).fetchone()["count"]
 
         account_pages = max(1, (account_total + page_size - 1) // page_size)
         activity_pages = max(1, (activity_total + page_size - 1) // page_size)
         api_pages = max(1, (api_total + page_size - 1) // page_size)
+        security_pages = max(1, (security_total + page_size - 1) // page_size)
         account_page = min(account_page, account_pages)
         activity_page = min(activity_page, activity_pages)
         api_page = min(api_page, api_pages)
+        security_page = min(security_page, security_pages)
 
         audit = [
             dict(row)
@@ -1694,6 +1703,17 @@ def admin_logs():
                 (page_size, (api_page - 1) * page_size),
             ).fetchall()
         ]
+        security_alerts = []
+        for row in connection.execute(
+            """SELECT * FROM security_audit_log
+               WHERE action LIKE 'SECURITY_%'
+               ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?""",
+            (page_size, (security_page - 1) * page_size),
+        ).fetchall():
+            item = dict(row)
+            item["detail"] = security_monitor.parse_detail(item)
+            item["explanation"] = security_monitor.describe_event(item)
+            security_alerts.append(item)
         return render_template(
             "admin_logs.html",
             audit=audit,
@@ -1708,6 +1728,10 @@ def admin_logs():
             api_page=api_page,
             api_pages=api_pages,
             api_total=api_total,
+            security_alerts=security_alerts,
+            security_page=security_page,
+            security_pages=security_pages,
+            security_total=security_total,
         )
     finally:
         connection.close()
@@ -1723,6 +1747,42 @@ def admin_tasks():
         return render_template("admin_tasks.html", registry=task_registry.dashboard(connection))
     finally:
         connection.close()
+
+
+@auth_bp.post("/admin/tasks/settings")
+@admin_required
+def update_admin_task_settings():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return render_template("403.html"), 400
+    task_key = (request.form.get("task_key") or "").strip()
+    values = {
+        "enabled": request.form.get("enabled") == "1",
+        "notify_error": request.form.get("notify_error") == "1",
+        "notify_success": request.form.get("notify_success") == "1",
+        "interval_minutes": request.form.get("interval_minutes") or 1,
+        "hour_utc": request.form.get("hour_utc") or 0,
+        "minute_utc": request.form.get("minute_utc") or 0,
+    }
+    connection = dashboard_db()
+    try:
+        before = automation_settings.get_task(connection, task_key)
+        after = automation_settings.update_task(
+            connection, task_key, values, session.get("user_id")
+        )
+        security_audit.log_event(
+            connection,
+            "AUTOMATION_TASK_SETTING_UPDATE",
+            "automation_task",
+            task_key,
+            {"before": before, "after": after},
+        )
+        connection.commit()
+    except (KeyError, TypeError, ValueError):
+        connection.rollback()
+        return render_template("400.html"), 400
+    finally:
+        connection.close()
+    return redirect(url_for("auth.admin_tasks", saved=task_key) + f"#task-{task_key}")
 
 
 @auth_bp.get("/admin/localization")

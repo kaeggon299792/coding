@@ -7,7 +7,7 @@ def test_casinoinbot_inventory_matches_pythonanywhere_tasks():
     assert len(casinoinbot.WORKERS) == 3
     assert len(casinoinbot.SCHEDULES) == 7
     assert {item.name for item in casinoinbot.WORKERS} == {
-        "email_monitor", "casino_news_watch", "telegram_performance"
+        "email_monitor", "casino_news_watch", "telegram_ingest"
     }
     assert {item.name for item in casinoinbot.SCHEDULES} >= {
         "law_sync", "dart_sync", "localization_translation"
