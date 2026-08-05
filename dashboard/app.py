@@ -78,6 +78,7 @@ from localization import (
     meta_for,
     translate_html,
     translate_structure,
+    translate_source_label,
     translate_text,
 )
 from utils import display_y_drive_path, escape_html, now_kst, setup_logger, today_kst_str
@@ -1236,6 +1237,7 @@ def inject_globals():
         "localized_meta": meta_for(locale),
         "i18n_catalog": catalog if locale == "en" else {},
         "t": lambda value: translate_text(value, locale),
+        "t_source": lambda value: translate_source_label(value, locale),
         **seo_defaults,
     }
 

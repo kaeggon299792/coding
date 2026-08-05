@@ -156,6 +156,54 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     return f"{leading}{translated}{trailing}"
 
 
+def translate_source_label(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
+    """Localize recurring Korean tokens in compound source-series labels.
+
+    Source-series names can combine provider-supplied English names with a
+    Korean frequency suffix. Keep the stored source untouched and translate
+    only those well-defined display tokens.
+    """
+    translated = translate_text(value, locale)
+    if locale == DEFAULT_LOCALE or not isinstance(translated, str):
+        return translated
+    month_names = (
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    )
+
+    def replace_as_of(match: re.Match) -> str:
+        year, month = match.group(1), int(match.group(2))
+        if locale == "en":
+            return f"As of {month_names[month]} {year}"
+        if locale == "ja":
+            return f"{year}年{month}月時点"
+        return f"截至{year}年{month}月"
+
+    translated = re.sub(
+        r"(\d{4})년\s*(\d{1,2})월\s*기준", replace_as_of, translated
+    )
+    replacements = {
+        "en": {
+            "분기누계": "Quarter-to-date", "연누계": "Year-to-date",
+            "분기별": "Quarterly", "연간": "Annual", "월별": "Monthly",
+            "전체 입장객": "Total visitors", "입장객": "Visitors",
+        },
+        "ja": {
+            "분기누계": "四半期累計", "연누계": "年初来累計",
+            "분기별": "四半期別", "연간": "年間", "월별": "月別",
+            "전체 입장객": "総入場者数", "입장객": "入場者数",
+        },
+        "yue-HK": {
+            "분기누계": "季度累計", "연누계": "年初至今累計",
+            "분기별": "按季度", "연간": "全年", "월별": "按月",
+            "전체 입장객": "總入場人次", "입장객": "入場人次",
+        },
+    }
+    for source, target in replacements.get(locale, {}).items():
+        translated = translated.replace(source, target)
+    return translated
+
+
 def _translate_numeric_unit(text: str) -> str | None:
     """Translate frequently changing Korean financial/count units."""
 

@@ -3,6 +3,18 @@ import re
 import pytest
 from werkzeug.security import generate_password_hash
 
+from localization import translate_source_label
+
+
+def test_source_series_compound_labels_translate_korean_frequency_tokens():
+    source = "GKL - Busan Lotte Casino - 전체 입장객 (연누계·2026년 7월 기준)"
+    assert translate_source_label(source, "en") == (
+        "GKL - Busan Lotte Casino - Total visitors "
+        "(Year-to-date·As of July 2026)"
+    )
+    assert "연누계" not in translate_source_label(source, "ja")
+    assert "입장객" not in translate_source_label(source, "yue-HK")
+
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):

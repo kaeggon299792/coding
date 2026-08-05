@@ -42,7 +42,7 @@
           {% for item in items %}
           <label>
             <input type="checkbox" name="series" value="{{ item.series_key }}" {% if item.series_key in source_view.selected_keys %}checked{% endif %}>
-            <span>{{ t(item.label) }} <small>{{ t(item.unit) }}</small></span>
+            <span>{{ t_source(item.label) }} <small>{{ t(item.unit) }}</small></span>
           </label>
           {% endfor %}
         </div>
@@ -61,7 +61,7 @@
               {% for item in items %}
               <label>
                 <input type="checkbox" name="series" value="{{ item.series_key }}" {% if item.series_key in source_view.selected_keys %}checked{% endif %}>
-                <span>{{ t(item.label) }} <small>{{ t(item.unit) }}</small></span>
+                <span>{{ t_source(item.label) }} <small>{{ t(item.unit) }}</small></span>
               </label>
               {% endfor %}
             </div>
@@ -90,7 +90,7 @@
         <thead><tr><th>{{ t('데이터 종류') }}</th><th>{{ t('단위') }}</th>{% for period in source_view.periods %}<th>{{ period }}</th>{% endfor %}</tr></thead>
         <tbody>
           {% for row in source_view.rows %}
-          <tr data-series-key="{{ row.series_key }}"><th><span>{{ t(row.label) }}</span><small>{{ t(row.source_name) }}</small></th><td>{{ t(row.unit) }}</td>{% for value in row['values'] %}<td data-raw-value="{{ '' if value is none else value }}">{% if value is none %}-{% elif value == value|int %}{{ "{:,}".format(value|int) }}{% else %}{{ "{:,.2f}".format(value) }}{% endif %}</td>{% endfor %}</tr>
+          <tr data-series-key="{{ row.series_key }}"><th><span>{{ t_source(row.label) }}</span><small>{{ t(row.source_name) }}</small></th><td>{{ t(row.unit) }}</td>{% for value in row['values'] %}<td data-raw-value="{{ '' if value is none else value }}">{% if value is none %}-{% elif value == value|int %}{{ "{:,}".format(value|int) }}{% else %}{{ "{:,.2f}".format(value) }}{% endif %}</td>{% endfor %}</tr>
           {% endfor %}
         </tbody>
       </table>
@@ -102,7 +102,7 @@
 
   <section class="panel source-chart-panel">
     <div class="source-section-heading"><div><p class="page-eyebrow">VISUALIZE</p><h2>{{ t('선택 데이터 그래프') }}</h2></div>
-      <label>{{ t('그래프 데이터') }}<select id="source-chart-series">{% for row in source_view.rows %}<option value="{{ row.series_key }}">{{ t(row.label) }}</option>{% endfor %}</select></label>
+      <label>{{ t('그래프 데이터') }}<select id="source-chart-series">{% for row in source_view.rows %}<option value="{{ row.series_key }}">{{ t_source(row.label) }}</option>{% endfor %}</select></label>
     </div>
     <div class="source-chart" id="source-chart" role="img" aria-label="{{ t('선택 데이터 추이 그래프') }}"></div>
   </section>
