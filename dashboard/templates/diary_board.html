@@ -15,7 +15,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="diary-form-row">
         <label><span>날짜</span><input type="date" name="diary_date" required value="{{ form_data.diary_date or '' }}"></label>
-        <fieldset><legend>오늘의 기분</legend><div class="diary-mood-options">{% for code, mood in moods.items() %}<label><input type="radio" name="mood_code" value="{{ code }}"{% if form_data.mood_code == code %} checked{% endif %} required><span aria-hidden="true">{{ mood[0] }}</span><small>{{ mood[1] }}</small></label>{% endfor %}</div></fieldset>
+        <label><span>오늘의 기분</span><select class="diary-mood-select" name="mood_code" required aria-label="오늘의 기분"><option value="" disabled{% if not form_data.mood_code %} selected{% endif %}>기분을 선택하세요</option>{% for code, mood in moods.items() %}<option value="{{ code }}"{% if form_data.mood_code == code %} selected{% endif %}>{{ mood[0] }} {{ mood[1] }}</option>{% endfor %}</select></label>
       </div>
       <label><span>제목</span><input type="text" name="title" maxlength="150" required value="{{ form_data.title or '' }}" placeholder="오늘을 한 문장으로 남겨보세요"></label>
       <label><span>내용 <em>Markdown · 이미지 붙여넣기 지원</em></span><textarea id="diary-content" name="content" maxlength="10000" rows="11" required data-image-paste data-image-paste-scope="diary" data-image-paste-endpoint="{{ url_for('upload_diary_image_route') }}" data-image-paste-csrf="{{ csrf_token }}" placeholder="내용을 입력하거나 그림을 복사한 뒤 Ctrl+V로 붙여넣으세요.">{{ form_data.content or '' }}</textarea><small class="image-paste-status" data-image-paste-status="diary-content" role="status" aria-live="polite"></small></label>

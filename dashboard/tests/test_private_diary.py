@@ -100,3 +100,21 @@ def test_diary_validates_csrf_date_and_mood(monkeypatch, tmp_path):
                   "mood_code": "unknown", "title": "제목", "content": "본문"},
         )
         assert invalid_form.status_code == 400
+
+
+def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
+    db_path = tmp_path / "diary-moods.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    import app as app_module
+
+    connection = schema.connect(str(db_path))
+    user_id = _user(connection, "diary-moods")
+    connection.close()
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        _login(client, user_id, "diary-moods", "m" * 64)
+        page = client.get("/board/diary").get_data(as_text=True)
+        assert '<select class="diary-mood-select" name="mood_code"' in page
+        assert page.count('<option value="') >= 30
+        assert "🤩 황홀함" in page
+        assert "🪫 지침" in page
