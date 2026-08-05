@@ -7,6 +7,7 @@
 import html as html_module
 import re
 from datetime import datetime
+from urllib.parse import unquote
 
 import config
 from services.http_utils import get_with_hard_timeout
@@ -44,23 +45,29 @@ SOURCES = (
     },
 )
 
-# 국민연금 월별 사업장 자료를 가공해 공개하는 고용 지표입니다. 수집 페이지의
-# 브랜드명은 내부 source_url에만 보존하고 화면의 출처는 원자료 기준으로 표시합니다.
+# 국민연금공단의 공식 사업장 API를 이용하는 고용 지표입니다. 사업장별 고지액,
+# 가입자 수, 취득·상실 인원으로 계산하므로 화면에서는 추정치임을 함께 안내합니다.
+NPS_API_BASE = "https://apis.data.go.kr/B552015/NpsBplcInfoInqireServiceV2"
+NPS_SOURCE_URL = "https://www.data.go.kr/data/3046071/openapi.do"
 EMPLOYMENT_METRIC_SOURCES = (
     {
         "entity_code": "paradise", "entity_name": "파라다이스",
-        "url": "https://jlab.incruit.com/inc/99717",
+        "query_name": "파라다이스", "address_keyword": "중구",
+        "source_name": "국민연금 기준",
+    },
+    {
+        "entity_code": "gkl", "entity_name": "GKL",
+        "query_name": "그랜드코리아레저", "address_keyword": "강남구",
         "source_name": "국민연금 기준",
     },
     {
         "entity_code": "kangwon_land", "entity_name": "강원랜드",
-        "url": "https://jlab.incruit.com/inc/0000146872",
+        "query_name": "강원랜드", "address_keyword": "정선군",
         "source_name": "국민연금 기준",
     },
     {
-        "entity_code": "lotte_tour",
-        "entity_name": "롯데관광개발(드림타워 카지노 운영법인)",
-        "url": "https://jlab.incruit.com/inc/139931",
+        "entity_code": "lotte_tour", "entity_name": "롯데관광개발",
+        "query_name": "롯데관광개발", "address_keyword": "제주시",
         "source_name": "국민연금 기준",
     },
 )
@@ -366,19 +373,94 @@ def _plain_text(document):
     ).strip()
 
 
-def _parse_employment_metrics(document):
-    """국민연금 기반 1년 연봉 성장률과 최근 12개월 퇴사율을 추출한다."""
-    text = _plain_text(document)
-    growth = re.search(
-        r"연봉\s*성장\s*\((?:1y|1년)\)\s*([+-]?\d+(?:\.\d+)?)%",
-        text, re.IGNORECASE,
+def _nps_items(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("국민연금 API 응답 형식이 올바르지 않습니다.")
+    if "OpenAPI_ServiceResponse" in payload:
+        header = payload["OpenAPI_ServiceResponse"].get("cmmMsgHeader") or {}
+        raise ValueError(header.get("returnAuthMsg") or header.get("errMsg") or "API 인증 오류")
+    response = payload.get("response") or {}
+    header = response.get("header") or {}
+    if str(header.get("resultCode", "")) not in {"00", "0"}:
+        raise ValueError(header.get("resultMsg") or "국민연금 API 조회 오류")
+    items = ((response.get("body") or {}).get("items") or {}).get("item") or []
+    return items if isinstance(items, list) else [items]
+
+
+def _nps_request(operation, **params):
+    if not config.NPS_API_KEY:
+        raise ValueError("NPS_API_KEY가 설정되지 않았습니다.")
+    response = get_with_hard_timeout(
+        f"{NPS_API_BASE}/{operation}",
+        hard_timeout_seconds=config.NPS_REQUEST_TIMEOUT_SECONDS,
+        retry_attempts=2,
+        timeout=(5, config.NPS_REQUEST_TIMEOUT_SECONDS),
+        params={
+            **params,
+            "serviceKey": unquote(config.NPS_API_KEY.strip()),
+            "dataType": "json",
+            "pageNo": 1,
+        },
+        headers={"Accept": "application/json", "User-Agent": "CASINO-IN/1.0"},
     )
-    turnover = re.search(
-        r"퇴사율\s*\(연환산\)\s*(\d+(?:\.\d+)?)%", text, re.IGNORECASE,
+    response.raise_for_status()
+    return _nps_items(response.json())
+
+
+def _normalized_workplace_name(value):
+    text = str(value or "")
+    for token in ("주식회사", "유한회사", "(주)", "㈜"):
+        text = text.replace(token, "")
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", text).lower()
+
+
+def _select_nps_history(rows, source):
+    target = _normalized_workplace_name(source["query_name"])
+    candidates = [
+        row for row in rows
+        if target in _normalized_workplace_name(row.get("wkplNm"))
+        or _normalized_workplace_name(row.get("wkplNm")) in target
+    ]
+    address_keyword = source.get("address_keyword")
+    address_matches = [
+        row for row in candidates
+        if address_keyword and address_keyword in str(row.get("wkplRoadNmDtlAddr") or "")
+    ]
+    if address_matches:
+        candidates = address_matches
+    if not candidates:
+        raise ValueError(f"{source['entity_name']} 국민연금 사업장을 찾지 못했습니다.")
+    groups = {}
+    for row in candidates:
+        group_key = (
+            row.get("bzowrRgstNo") or "",
+            _normalized_workplace_name(row.get("wkplNm")),
+            row.get("wkplRoadNmDtlAddr") or "",
+        )
+        month = str(row.get("dataCrtYm") or "")
+        if len(month) == 6 and month.isdigit() and row.get("seq") is not None:
+            groups.setdefault(group_key, {})[month] = row
+    if not groups:
+        raise ValueError(f"{source['entity_name']} 월별 사업장 이력이 없습니다.")
+    history = max(
+        groups.values(),
+        key=lambda values: (max(values, default=""), len(values)),
     )
-    if not growth or not turnover:
-        raise ValueError("국민연금 기반 연봉성장률·퇴사율을 찾지 못했습니다.")
-    return float(growth.group(1)), float(turnover.group(1))
+    return [history[month] for month in sorted(history, reverse=True)[:13]][::-1]
+
+
+def _estimated_annual_salary(detail):
+    subscribers = float(detail.get("jnngpCnt") or 0)
+    notice_amount = float(detail.get("crrmmNtcAmt") or 0)
+    if subscribers <= 0 or notice_amount <= 0:
+        return None
+    return notice_amount / subscribers / 0.09 * 12
+
+
+def _month_distance(start, end):
+    start_year, start_month = int(start[:4]), int(start[4:6])
+    end_year, end_month = int(end[:4]), int(end[4:6])
+    return (end_year - start_year) * 12 + end_month - start_month
 
 
 def _parse_blind_rating(document):
@@ -490,27 +572,60 @@ def fetch_review_source(source):
 
 
 def fetch_employment_metrics(source):
-    response = get_with_hard_timeout(
-        source["url"],
-        hard_timeout_seconds=max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 30),
-        retry_attempts=2,
-        timeout=(5, max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 30)),
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 Chrome/126 Safari/537.36"
-            ),
-            "Accept-Language": "ko-KR,ko;q=0.9",
-        },
+    base_rows = _nps_request(
+        "getBassInfoSearchV2",
+        wkplNm=source["query_name"],
+        numOfRows=100,
     )
-    response.raise_for_status()
-    response.encoding = response.apparent_encoding or response.encoding
-    salary_growth_rate, turnover_rate = _parse_employment_metrics(response.text)
+    history = _select_nps_history(base_rows, source)
+    monthly = []
+    for row in history:
+        detail_items = _nps_request(
+            "getDetailInfoSearchV2", seq=row["seq"], numOfRows=10,
+        )
+        if not detail_items:
+            continue
+        period_items = _nps_request(
+            "getPdAcctoSttusInfoSearchV2",
+            seq=row["seq"],
+            dataCrtYm=row["dataCrtYm"],
+            numOfRows=10,
+        )
+        monthly.append({
+            "month": str(row["dataCrtYm"]),
+            "subscribers": float(detail_items[0].get("jnngpCnt") or 0),
+            "annual_salary": _estimated_annual_salary(detail_items[0]),
+            "leavers": float(
+                (period_items[0] if period_items else {}).get("lssJnngpCnt") or 0
+            ),
+        })
+    if not monthly:
+        raise ValueError(f"{source['entity_name']} 국민연금 상세 이력이 없습니다.")
+    salary_points = [item for item in monthly if item["annual_salary"]]
+    salary_growth_rate = None
+    growth_period_months = None
+    if len(salary_points) >= 2:
+        first, latest = salary_points[0], salary_points[-1]
+        growth_period_months = _month_distance(first["month"], latest["month"])
+        if growth_period_months > 0 and first["annual_salary"] > 0:
+            raw_growth = latest["annual_salary"] / first["annual_salary"]
+            salary_growth_rate = round(
+                (raw_growth ** (12 / growth_period_months) - 1) * 100, 1
+            )
+    recent = monthly[-12:]
+    headcounts = [item["subscribers"] for item in recent if item["subscribers"] > 0]
+    turnover_rate = None
+    if headcounts:
+        average_headcount = sum(headcounts) / len(headcounts)
+        turnover_rate = round(sum(item["leavers"] for item in recent) / average_headcount * 100, 1)
     timestamp = now_kst()
     return {
         **source,
         "salary_growth_rate": salary_growth_rate,
         "turnover_rate": turnover_rate,
+        "growth_period_months": growth_period_months,
+        "source_url": NPS_SOURCE_URL,
+        "source_period": monthly[-1]["month"],
         "collected_date": timestamp.date().isoformat(),
         "fetched_at": timestamp.isoformat(),
     }

@@ -28,12 +28,37 @@ def test_employer_review_parsers():
     assert (rating, count) == (3.2, 88)
 
 
-def test_national_pension_employment_metric_parser():
-    growth, turnover = salary_data._parse_employment_metrics(
-        "<div>연봉 성장 (1y)</div><b>+6.1%</b>"
-        "<div>국민연금 기준</div><div>퇴사율 (연환산)</div><b>13.1%</b>"
+def test_national_pension_official_api_metrics(monkeypatch):
+    months = [f"2025{month:02d}" for month in range(7, 13)] + [
+        f"2026{month:02d}" for month in range(1, 8)
+    ]
+    base_rows = [
+        {
+            "seq": index + 1, "dataCrtYm": month, "wkplNm": "주식회사 파라다이스",
+            "bzowrRgstNo": "123456****", "wkplRoadNmDtlAddr": "서울특별시 중구",
+        }
+        for index, month in enumerate(months)
+    ]
+
+    def fake_request(operation, **params):
+        if operation == "getBassInfoSearchV2":
+            return base_rows
+        if operation == "getDetailInfoSearchV2":
+            index = int(params["seq"]) - 1
+            amount = 90_000_000 + round(9_000_000 * index / 12)
+            return [{"jnngpCnt": 100, "crrmmNtcAmt": amount}]
+        if operation == "getPdAcctoSttusInfoSearchV2":
+            return [{"nwAcqzrCnt": 2, "lssJnngpCnt": 1}]
+        raise AssertionError(operation)
+
+    monkeypatch.setattr(salary_data, "_nps_request", fake_request)
+    item = salary_data.fetch_employment_metrics(
+        salary_data.EMPLOYMENT_METRIC_SOURCES[0]
     )
-    assert (growth, turnover) == (6.1, 13.1)
+    assert item["salary_growth_rate"] == 10.0
+    assert item["turnover_rate"] == 12.0
+    assert item["source_name"] == "국민연금 기준"
+    assert item["source_url"] == salary_data.NPS_SOURCE_URL
 
 
 def test_employment_metrics_use_central_repository(tmp_path):
