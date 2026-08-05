@@ -59,6 +59,12 @@ def test_protected_page_redirects_to_login_when_not_authenticated(client):
     assert "/login" in page
 
 
+def test_api_settings_redirects_anonymous_user_to_login(client):
+    response = client.get("/admin/ai-settings", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
 def test_full_login_then_access_dashboard(client):
     csrf = _get_csrf(client, "/login")
     client.post(
@@ -276,10 +282,15 @@ def test_admin_can_change_ai_settings_by_purpose(client):
             "csrf_token": csrf,
         },
     )
-    page = client.get("/admin/users")
+    account_page = client.get("/admin/users")
+    assert account_page.status_code == 200
+    assert "용도별 AI 설정" not in account_page.get_data(as_text=True)
+    page = client.get("/admin/ai-settings")
     assert page.status_code == 200
+    assert "OpenAI 호출 한도" in page.get_data(as_text=True)
     assert "용도별 AI 설정" in page.get_data(as_text=True)
-    csrf = _get_csrf(client, "/admin/users")
+    assert "Gemini 기사 분석 사용량·비용" in page.get_data(as_text=True)
+    csrf = _get_csrf(client, "/admin/ai-settings")
     payload = {"csrf_token": csrf}
     purposes = {
         "translation": "gpt-translation-test",
@@ -302,6 +313,7 @@ def test_admin_can_change_ai_settings_by_purpose(client):
         "/admin/ai-settings/purposes", data=payload, follow_redirects=False
     )
     assert response.status_code == 302
+    assert "/admin/ai-settings?success=" in response.headers["Location"]
     connection = dashboard_db()
     settings = dict(connection.execute(
         "SELECT setting_key,setting_value FROM site_settings WHERE setting_key LIKE 'ai_purpose_%'"

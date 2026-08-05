@@ -7,7 +7,7 @@
     <p class="page-eyebrow">Administration / Accounts</p>
     <h1 class="page-title">관리자 페이지</h1>
     <p class="page-description">사용자 계정을 만들고 접근 권한, 사용 상태, 비밀번호를 관리합니다.</p>
-    <p><a class="btn" href="{{ url_for('auth.admin_logs') }}">{{ t('로그 10건씩 보기') }}</a> <a class="btn" href="{{ url_for('admin_action_items_page') }}">미처리 과제 관리</a></p>
+    <p><a class="btn" href="{{ url_for('auth.admin_logs') }}">{{ t('로그 10건씩 보기') }}</a> <a class="btn" href="{{ url_for('auth.ai_settings') }}">API 설정</a> <a class="btn" href="{{ url_for('admin_action_items_page') }}">미처리 과제 관리</a></p>
   </header>
 
   {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
@@ -30,103 +30,6 @@
       <button class="btn btn-primary" type="submit">가입 승인 정책 저장</button>
     </form>
     <p class="page-note">자동 승인 상태에서도 가입 횟수 제한, 이메일 형식 검사, 비밀번호 정책, 감사 로그와 텔레그램 알림은 그대로 적용됩니다.</p>
-  </section>
-
-  <section class="panel account-create-panel">
-    <div class="section-heading">
-      <div>
-        <h2>OpenAI 호출 한도</h2>
-        <p>오늘의 한도 판정용 호출 횟수를 관리합니다. 초기화해도 원본 사용량·비용 기록은 삭제되지 않습니다.</p>
-      </div>
-      <span>{{ '{:,}'.format(openai_usage.call_count) }} / {{ '{:,}'.format(openai_usage.call_limit) }}회</span>
-    </div>
-    <div class="news-stat-grid" aria-label="OpenAI 오늘 사용량">
-      <article><span>초기화 이후 호출</span><strong>{{ '{:,}'.format(openai_usage.call_count) }}</strong></article>
-      <article><span>현재 일일 한도</span><strong>{{ '{:,}'.format(openai_usage.call_limit) }}</strong></article>
-      <article><span>초기화 이후 예상 비용</span><strong>${{ '{:,.4f}'.format(openai_usage.total_cost) }}</strong></article>
-    </div>
-    <form method="post" action="{{ url_for('auth.update_openai_call_limit') }}" class="account-create-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label><span>일일 호출 한도</span><input type="number" name="call_limit" min="1" max="100000" value="{{ openai_usage.call_limit }}" required></label>
-      <button class="btn btn-primary" type="submit">한도 변경</button>
-    </form>
-    <form method="post" action="{{ url_for('auth.reset_openai_daily_usage') }}" onsubmit="return confirm('오늘의 한도 판정용 카운터를 0으로 초기화할까요? 원본 사용량 기록은 보존됩니다.');">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="btn danger-button" type="submit">오늘 호출 횟수 초기화</button>
-    </form>
-  </section>
-
-  <section class="panel account-create-panel" id="ai-purpose-settings">
-    <div class="section-heading">
-      <div>
-        <h2>용도별 AI 설정</h2>
-        <p>API 키는 서버 환경변수에 안전하게 보관하고, 여기서는 기능별 모델·활성화·독립 일일 한도만 관리합니다.</p>
-      </div>
-      <span>{{ ai_purpose_settings|length }}개 용도</span>
-    </div>
-    <form method="post" action="{{ url_for('auth.update_ai_purpose_settings') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="table-scroll"><table class="data-table ai-purpose-table">
-        <thead><tr><th>용도</th><th>사용</th><th>모델</th><th>오늘 사용</th><th>독립 일일 한도</th><th>추가 기준</th></tr></thead>
-        <tbody>{% for item in ai_purpose_settings %}<tr>
-          <td><strong>{{ item.label }}</strong><small class="self-label">{{ item.description }}</small></td>
-          <td><label class="news-check"><input type="checkbox" name="{{ item.purpose }}_enabled" value="1" {% if item.enabled %}checked{% endif %}><span>활성</span></label></td>
-          <td><input name="{{ item.purpose }}_model" value="{{ item.model }}" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,79}" autocomplete="off" required aria-label="{{ item.label }} 모델"></td>
-          <td><strong>{{ '{:,}'.format(item.usage.call_count) }}회</strong><small class="self-label">${{ '{:,.4f}'.format(item.usage.total_cost) }}</small></td>
-          <td><input type="number" name="{{ item.purpose }}_daily_call_limit" min="1" max="100000" value="{{ item.daily_call_limit }}" required aria-label="{{ item.label }} 일일 호출 한도"></td>
-          <td>{% if item.purpose == 'news_importance' %}
-            <label><span>중요 표시</span><input type="number" name="news_importance_importance_threshold" min="0" max="100" value="{{ item.importance_threshold }}" required></label>
-            <label><span>웹 검증</span><input type="number" name="news_importance_web_importance_threshold" min="0" max="100" value="{{ item.web_importance_threshold }}" required></label>
-          {% else %}<span class="muted">-</span>{% endif %}</td>
-        </tr>{% endfor %}</tbody>
-      </table></div>
-      <p class="page-note">독립 한도 외에 위의 전체 OpenAI 안전 한도와 전체 예상 비용 한도도 함께 적용됩니다. 수동 재분석 기능의 기존 한도 우회 정책은 유지됩니다.</p>
-      <button class="btn btn-primary" type="submit">용도별 AI 설정 저장</button>
-    </form>
-  </section>
-
-  <section class="panel">
-    <div class="section-heading">
-      <div>
-        <h2>{{ t('Gemini 기사 분석 사용량·비용') }}</h2>
-        <p>{{ t('해외 뉴스 기사 분석의 실제 응답 토큰과 Google 검색 실행 횟수를 호출별로 저장합니다. 원화는 호출 시점의 최신 수집 USD 환율로 환산한 예상치입니다.') }}</p>
-      </div>
-      <span>{% if current_locale == 'en' %}{{ gemini_usage.month.call_count }} calls · This month{% else %}{{ gemini_usage.month.call_count }}회 · 이번 달{% endif %}</span>
-    </div>
-    <div class="news-stat-grid" aria-label="{{ t('오늘 Gemini 사용량') }}">
-      <article><span>{{ t('오늘 분석 기사') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.article_count) }}</strong><small>{% if current_locale == 'en' %}{{ '{:,}'.format(gemini_usage.today.call_count) }} API calls{% else %}{{ '{:,}'.format(gemini_usage.today.call_count) }} API 호출{% endif %}</small></article>
-      <article><span>{{ t('오늘 입력 토큰') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.input_tokens) }}</strong><small>{{ t('프롬프트·URL 컨텍스트') }}</small></article>
-      <article><span>{{ t('오늘 출력·생각 토큰') }}</span><strong>{{ '{:,}'.format(gemini_usage.today.output_tokens + gemini_usage.today.thought_tokens) }}</strong><small>{% if current_locale == 'en' %}Response {{ '{:,}'.format(gemini_usage.today.output_tokens) }} · Reasoning {{ '{:,}'.format(gemini_usage.today.thought_tokens) }}{% else %}응답 {{ '{:,}'.format(gemini_usage.today.output_tokens) }} · 생각 {{ '{:,}'.format(gemini_usage.today.thought_tokens) }}{% endif %}</small></article>
-      <article><span>{{ t('오늘 검색·예상 비용') }}</span><strong>₩{{ '{:,.2f}'.format(gemini_usage.today.estimated_cost_krw) }}</strong><small>{% if current_locale == 'en' %}{{ '{:,}'.format(gemini_usage.today.search_query_count) }} search queries{% else %}{{ '{:,}'.format(gemini_usage.today.search_query_count) }}개 검색어{% endif %}</small></article>
-    </div>
-    <div class="table-scroll"><table class="data-table">
-      <thead><tr><th>구분</th><th>기사</th><th>호출</th><th>입력 토큰</th><th>출력 토큰</th><th>생각 토큰</th><th>검색</th><th>USD</th><th>예상 원화</th></tr></thead>
-      <tbody>
-        {% for label, usage in [('오늘', gemini_usage.today), ('이번 달', gemini_usage.month), ('전체 누적', gemini_usage.all_time)] %}
-        <tr><td><strong>{{ label }}</strong></td><td>{{ '{:,}'.format(usage.article_count) }}</td><td>{{ '{:,}'.format(usage.call_count) }}</td><td>{{ '{:,}'.format(usage.input_tokens) }}</td><td>{{ '{:,}'.format(usage.output_tokens) }}</td><td>{{ '{:,}'.format(usage.thought_tokens) }}</td><td>{{ '{:,}'.format(usage.search_query_count) }}</td><td>${{ '{:,.6f}'.format(usage.estimated_cost_usd) }}</td><td>₩{{ '{:,.2f}'.format(usage.estimated_cost_krw) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table></div>
-    <details>
-      <summary>최근 일별 비용 보기</summary>
-      <div class="table-scroll"><table class="data-table">
-        <thead><tr><th>일자</th><th>기사</th><th>호출</th><th>입력</th><th>출력+생각</th><th>검색</th><th>예상 원화</th></tr></thead>
-        <tbody>{% for item in gemini_usage.daily %}<tr><td>{{ item.usage_date }}</td><td>{{ item.article_count }}</td><td>{{ item.call_count }}</td><td>{{ '{:,}'.format(item.input_tokens) }}</td><td>{{ '{:,}'.format(item.output_tokens + item.thought_tokens) }}</td><td>{{ item.search_query_count }}</td><td>₩{{ '{:,.2f}'.format(item.estimated_cost_krw) }}</td></tr>{% else %}<tr><td colspan="7" class="empty-state">{{ t('아직 저장된 사용량이 없습니다.') }}</td></tr>{% endfor %}</tbody>
-      </table></div>
-    </details>
-    <details>
-      <summary>최근 기사별 비용 보기</summary>
-      <div class="table-scroll"><table class="data-table">
-        <thead><tr><th>분석 시각</th><th>기사</th><th>단계</th><th>입력</th><th>출력</th><th>생각</th><th>검색</th><th>예상 원화</th></tr></thead>
-        <tbody>{% for item in gemini_usage.recent_articles %}<tr>
-          <td>{{ item.called_at|replace('T', ' ')|truncate(17, true, '') }}</td>
-          <td>{% if item.article_url %}<a href="{{ item.article_url }}" target="_blank" rel="noopener noreferrer"><strong>{{ item.article_title }}</strong></a>{% else %}<strong>{{ item.article_title }}</strong>{% endif %}{% if item.publisher %}<small class="self-label">{{ item.publisher }}</small>{% endif %}</td>
-          <td>{{ (item.request_stages or '-')|replace(',', ' + ') }} · {% if current_locale == 'en' %}{{ item.call_count }} calls{% else %}{{ item.call_count }}회{% endif %}</td>
-          <td>{{ '{:,}'.format(item.input_tokens) }}</td><td>{{ '{:,}'.format(item.output_tokens) }}</td><td>{{ '{:,}'.format(item.thought_tokens) }}</td><td>{{ item.search_query_count }}</td><td>₩{{ '{:,.2f}'.format(item.estimated_cost_krw) }}</td>
-        </tr>{% else %}<tr><td colspan="8" class="empty-state">{{ t('다음 해외 뉴스 분석부터 기사별 비용이 저장됩니다.') }}</td></tr>{% endfor %}</tbody>
-      </table></div>
-    </details>
-    <p class="page-description">{% if current_locale == 'en' %}Pricing basis: input ${{ gemini_usage.pricing.input_per_million_usd }} per 1M tokens, output (including reasoning) ${{ gemini_usage.pricing.output_per_million_usd }} per 1M tokens, and search ${{ gemini_usage.pricing.search_per_thousand_usd }} per 1,000 queries. The Google-account-wide monthly free search allowance and taxes cannot be verified, so this is an upper-bound estimate before those deductions and may differ from the actual charge.{% else %}계산 기준: 입력 ${{ gemini_usage.pricing.input_per_million_usd }}/100만 토큰, 출력(생각 포함) ${{ gemini_usage.pricing.output_per_million_usd }}/100만 토큰, 검색 ${{ gemini_usage.pricing.search_per_thousand_usd }}/1,000회. Google 계정 전체에 적용되는 월 무료 검색 할당량과 세금은 확인할 수 없어 차감하지 않은 상한 예상치이며 실제 청구액과 다를 수 있습니다.{% endif %}</p>
   </section>
 
   <section class="panel account-create-panel">

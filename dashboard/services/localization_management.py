@@ -45,6 +45,7 @@ PROMPT_MAX_ITEMS = 150
 PROMPT_MAX_CHARS = 60000
 ADMIN_ONLY_TEMPLATES = {
     "templates/admin_action_items.html",
+    "templates/ai_settings.html",
     "templates/admin_logs.html",
     "templates/localization_admin.html",
     "templates/localization_prompt.html",

@@ -1435,9 +1435,6 @@ def user_management():
             connection,
             [user["id"] for user in users if user["approval_status"] != "deleted"],
         )
-        gemini_usage_dashboard = gemini_usage.admin_dashboard(connection)
-        openai_usage = queries.get_today_usage_summary(connection)
-        openai_usage["call_limit"] = ai_insights.get_daily_call_limit(connection)
         return render_template(
             "user_management.html", users=users, error=error,
             success=success, csrf_token=get_csrf_token(),
@@ -1458,9 +1455,6 @@ def user_management():
             number_font=site_preferences.get_number_font(connection),
             number_font_choices=site_preferences.NUMBER_FONT_CHOICES,
             registration_auto_approval=_registration_auto_approval_enabled(connection),
-            gemini_usage=gemini_usage_dashboard,
-            openai_usage=openai_usage,
-            ai_purpose_settings=ai_runtime_settings.dashboard(connection),
         )
     finally:
         connection.close()
@@ -1500,6 +1494,25 @@ def update_registration_approval_policy():
     ))
 
 
+@auth_bp.get("/admin/ai-settings")
+@admin_required
+def ai_settings():
+    connection = dashboard_db()
+    try:
+        openai_usage = queries.get_today_usage_summary(connection)
+        openai_usage["call_limit"] = ai_insights.get_daily_call_limit(connection)
+        return render_template(
+            "ai_settings.html",
+            success=request.args.get("success"),
+            csrf_token=get_csrf_token(),
+            openai_usage=openai_usage,
+            ai_purpose_settings=ai_runtime_settings.dashboard(connection),
+            gemini_usage=gemini_usage.admin_dashboard(connection),
+        )
+    finally:
+        connection.close()
+
+
 @auth_bp.post("/admin/ai-usage/limit")
 @admin_required
 def update_openai_call_limit():
@@ -1512,7 +1525,7 @@ def update_openai_call_limit():
                 connection, request.form.get("call_limit"), session.get("user_id")
             )
         except ValueError as error:
-            return redirect(url_for("auth.user_management", success=str(error)))
+            return redirect(url_for("auth.ai_settings", success=str(error)))
         security_audit.log_event(
             connection, "OPENAI_DAILY_LIMIT_UPDATED", resource_type="site_settings",
             resource_id="openai_daily_call_limit", detail={"call_limit": value},
@@ -1521,7 +1534,7 @@ def update_openai_call_limit():
     finally:
         connection.close()
     return redirect(url_for(
-        "auth.user_management", success=f"OpenAI 일일 호출 한도를 {value:,}회로 변경했습니다."
+        "auth.ai_settings", success=f"OpenAI 일일 호출 한도를 {value:,}회로 변경했습니다."
     ))
 
 
@@ -1555,7 +1568,7 @@ def update_ai_purpose_settings():
                 ))
         except ValueError as error:
             connection.rollback()
-            return redirect(url_for("auth.user_management", success=str(error)))
+            return redirect(url_for("auth.ai_settings", success=str(error)))
         security_audit.log_event(
             connection,
             "AI_PURPOSE_SETTINGS_UPDATED",
@@ -1578,7 +1591,7 @@ def update_ai_purpose_settings():
     finally:
         connection.close()
     return redirect(url_for(
-        "auth.user_management", success="용도별 AI 설정을 저장했습니다."
+        "auth.ai_settings", success="용도별 AI 설정을 저장했습니다."
     ))
 
 
@@ -1603,7 +1616,7 @@ def reset_openai_daily_usage():
     finally:
         connection.close()
     return redirect(url_for(
-        "auth.user_management", success="오늘 OpenAI 한도 카운터를 초기화했습니다. 기존 사용량 기록은 보존됩니다."
+        "auth.ai_settings", success="오늘 OpenAI 한도 카운터를 초기화했습니다. 기존 사용량 기록은 보존됩니다."
     ))
 
 

@@ -147,6 +147,7 @@ NOINDEX_ENDPOINTS = {
     "auth.login",
     "auth.register",
     "auth.user_management",
+    "auth.ai_settings",
     "auth.admin_logs",
     "auth.admin_tasks",
     "dashboard_home",
@@ -1100,7 +1101,7 @@ def inject_globals():
                 current_user = dict(row)
                 role = current_user.get("role") or "user"
                 session["role"] = role
-                if role == "admin":
+                if role == "admin" and request.path.startswith("/admin"):
                     if connection is None:
                         connection = dashboard_db()
                     localization_management.scan_if_due(
@@ -1187,6 +1188,7 @@ def inject_globals():
         "auth.login": "로그인",
         "auth.register": "가입 신청",
         "auth.user_management": "관리자 페이지",
+        "auth.ai_settings": "API 설정",
         "auth.admin_logs": "관리자 로그",
         "auth.admin_tasks": "자동화 작업 현황",
         "auth.localization_dashboard": "Localization",
@@ -1365,6 +1367,7 @@ def _site_map_links():
             "endpoint": "paradian_portal_page",
             "children": [
                 {"label": "관리자 페이지", "endpoint": "auth.user_management"},
+                {"label": "API 설정", "endpoint": "auth.ai_settings"},
                 {"label": "로그", "endpoint": "auth.admin_logs"},
                 {"label": "자동화 작업", "endpoint": "auth.admin_tasks"},
                 {"label": "Localization", "endpoint": "auth.localization_dashboard"},

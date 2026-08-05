@@ -6,12 +6,16 @@
   <header class="page-header">
     <p class="page-eyebrow">Administration / Restricted Access</p>
     <h1 class="page-title">관리자 전용</h1>
-    <p class="page-description">사이트·계정·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
+    <p class="page-description">사이트·계정·API·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
   </header>
   <section class="paradian-menu-grid">
     <a href="{{ url_for('auth.user_management') }}">
       <span>Site Administration</span><h2>관리자 페이지</h2>
-      <p>가입 승인, 권한, 계정과 사이트 설정을 관리합니다.</p><b>열기 →</b>
+      <p>가입 승인, 권한, 계정과 사이트 표시 설정을 관리합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('auth.ai_settings') }}">
+      <span>API &amp; AI Operations</span><h2>API 설정</h2>
+      <p>AI 기능별 모델, 호출 한도, 사용량과 예상 비용을 관리합니다.</p><b>열기 →</b>
     </a>
     <a href="{{ url_for('auth.admin_logs') }}">
       <span>Security &amp; Activity Logs</span><h2>로그</h2>

@@ -473,6 +473,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert "Localization Management" in page_html
         assert "20260805-ai1" in page_html
         assert "전체 번역 필요" in page_html
+        assert "전체 번역 필요" not in client.get("/").get_data(as_text=True)
         assert '<option value="en" selected' in page_html
         assert "AI 번역 프롬프트 생성" in page_html
         assert '<option value="all" selected>전체 언어 한 번에</option>' in page_html
