@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}기업 비교{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+<main class="page-container company-comparison-page">
+  <header class="page-header company-comparison-header">
+    <div><p class="page-eyebrow">COMPANY INTELLIGENCE / COMPARISON</p><h1 class="page-title">기업 비교</h1><p class="page-description">주요 카지노 운영사의 매출액·영업이익·영업이익률을 같은 기준으로 비교합니다.</p></div>
+    <form method="get" class="company-comparison-filter" aria-label="기업 비교 기준 선택">
+      <input type="hidden" name="metric" value="{{ comparison.selected_metric }}">
+      <label for="company-comparison-year">기준 연도</label>
+      <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for year in comparison.years %}<option value="{{ year }}"{% if year == comparison.selected_year %} selected{% endif %}>{{ year }}년</option>{% endfor %}</select>
+    </form>
+  </header>
+
+  <nav class="company-comparison-metrics" aria-label="비교 지표">{% for key, metric in comparison.metrics.items() %}<a href="{{ url_for('company_comparison_page', year=comparison.selected_year, metric=key) }}"{% if key == comparison.selected_metric %} class="active" aria-current="page"{% endif %}>{{ metric.label }}</a>{% endfor %}</nav>
+
+  <section class="company-comparison-summary" aria-label="비교 요약">
+    <article><span>기본 비교 지표</span><strong>{{ comparison.metric.label }}</strong><small>{{ comparison.selected_year }}년 연간</small></article>
+    <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>6개 주요 운영사 중</small></article>
+    <article><span>최고 수치</span><strong>{% if comparison.leader %}{{ comparison.leader.name }}{% else %}-{% endif %}</strong><small>{% if comparison.leader %}{{ "{:,.1f}".format(comparison.leader.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</small></article>
+    <article><span>중앙값</span><strong>{% if comparison.median is not none %}{{ "{:,.1f}".format(comparison.median) }}{% else %}-{% endif %}</strong><small>{{ comparison.metric.unit }}</small></article>
+  </section>
+
+  <section class="panel company-comparison-chart">
+    <header><div><span>01</span><h2>{{ comparison.metric.label }} 비교</h2></div><p>{{ comparison.selected_year }}년 · {% if comparison.metric.unit == '%' %}비율{% else %}억원{% endif %}</p></header>
+    <div class="company-comparison-bars">
+      {% for item in comparison['items'] %}
+      <article class="company-comparison-row{% if item.is_negative %} is-negative{% endif %}{% if item.metric_value is none %} is-empty{% endif %}">
+        <b>{{ item.name }}</b>
+        <div class="company-comparison-track" style="--zero:{{ comparison.zero_percent }}%;--bar-left:{{ item.bar_left }}%;--bar-width:{{ item.bar_width }}%" role="img" aria-label="{{ item.name }} {{ comparison.metric.label }} {% if item.metric_value is not none %}{{ item.metric_value }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}"><i></i></div>
+        <strong>{% if item.metric_value is not none %}{{ "{:,.1f}".format(item.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</strong>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel company-comparison-table-panel">
+    <header><div><span>02</span><h2>운영사별 손익 비교</h2></div><p>단위 · 억원, %</p></header>
+    <div class="table-scroll-wrap"><table class="data-table company-comparison-table"><thead><tr><th scope="col">운영사</th><th scope="col">매출액</th><th scope="col">영업이익</th><th scope="col">영업이익률</th></tr></thead><tbody>
+      {% for item in comparison['items'] %}<tr><th scope="row">{{ item.name }}</th><td>{{ "{:,.1f}".format(item.revenue) if item.revenue is not none else '-' }}</td><td class="{% if item.operating_profit is not none and item.operating_profit < 0 %}is-negative{% endif %}">{{ "{:,.1f}".format(item.operating_profit) if item.operating_profit is not none else '-' }}</td><td class="{% if item.margin is not none and item.margin < 0 %}is-negative{% endif %}">{{ "{:.1f}%".format(item.margin) if item.margin is not none else '-' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <p class="company-comparison-note">운영 법인의 연결 또는 별도 손익계산서 기준입니다. 카지노 단일 영업장 실적과 다를 수 있으며, 영업이익률은 영업이익÷매출액으로 계산합니다. 중앙 DB에 해당 연도 자료가 없는 경우 임의 값을 채우지 않습니다.</p>
+</main>
+{% endblock %}

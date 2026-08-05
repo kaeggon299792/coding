@@ -6,6 +6,10 @@ LOCALIZED_SEO_PAGE_COPY = {
             "카지노 산업 시장점유율 | Casino IN",
             "국내 카지노 운영 법인의 매출액과 영업이익을 시장 구간별로 비교하고 최근 5개년 추이를 확인합니다.",
         ),
+        "company_comparison_page": (
+            "카지노 운영사 기업 비교 | Casino IN",
+            "주요 카지노 운영사의 매출액, 영업이익, 영업이익률을 연도별로 비교합니다.",
+        ),
         "company_benefits_page": (
             "카지노 기업 복리후생 비교 | Casino IN",
             "파라다이스, GKL, 강원랜드, 롯데관광개발 등 카지노 기업의 복지제도, 지원 금액·수준, 비고와 종료 이력을 비교합니다.",
@@ -19,6 +23,10 @@ LOCALIZED_SEO_PAGE_COPY = {
         "casino_market_share_page": (
             "Korean Casino Market Share | Casino IN",
             "Compare revenue and operating profit shares across Korean casino operators and review their five-year performance trends.",
+        ),
+        "company_comparison_page": (
+            "Casino Operator Financial Comparison | Casino IN",
+            "Compare annual revenue, operating profit, and operating margin across major Korean casino operators.",
         ),
         "company_benefits_page": (
             "Casino Company Employee Benefits | Casino IN",
@@ -53,6 +61,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "laws_page": ("韓国カジノ法令・規制 | Casino IN", "観光振興法、カジノ営業準則などの現行法令、条文、最近の改正履歴を確認できます。"),
         "legislation_page": ("韓国カジノ関連の立法動向 | Casino IN", "政府の立法予告と国会に提出されたカジノ・観光関連法案の発議、審査状況を追跡します。"),
         "companies_page": ("韓国カジノ企業の比較分析 | Casino IN", "パラダイス、GKL、カンウォンランド、ロッテ観光開発について、企業概要、財務、信用格付け、ニュースを比較します。"),
+        "company_comparison_page": ("韓国カジノ運営会社の財務比較 | Casino IN", "韓国の主要カジノ運営会社について、売上高、営業利益、営業利益率を年度別に比較します。"),
         "company_benefits_page": ("カジノ企業の福利厚生比較 | Casino IN", "韓国カジノ企業の福利厚生制度、支援金額・水準、備考、終了した制度の履歴を企業別に比較します。"),
         "company_news_page": ("カジノ企業別ニュース | Casino IN", "韓国の主要カジノ企業ニュースを企業、重要度、影響、AI分析カテゴリー別に比較します。"),
         "research_library_page": ("カジノ市場レポート・分析資料 | Casino IN", "証券会社レポート、産業調査資料、IR文書、AI分析を通じてカジノ市場の主要論点を確認できます。"),
@@ -81,6 +90,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "laws_page": ("南韓賭場法例及監管｜Casino IN", "查看《觀光振興法》、賭場營業準則等現行法例、條文及近期修訂紀錄。"),
         "legislation_page": ("南韓賭場立法動向｜Casino IN", "追蹤政府立法預告及國會提出的賭場、旅遊相關法案和審議進度。"),
         "companies_page": ("南韓賭場企業比較分析｜Casino IN", "比較Paradise、GKL、江原樂園及樂天觀光開發的公司概況、財務、信貸評級和新聞。"),
+        "company_comparison_page": ("南韓賭場營運商財務比較｜Casino IN", "按年度比較南韓主要賭場營運商的收入、營業溢利及營業利潤率。"),
         "company_benefits_page": ("賭場企業員工福利比較｜Casino IN", "比較南韓賭場企業的員工福利、津貼金額或水平、備註及已終止福利的紀錄。"),
         "company_news_page": ("賭場企業分類新聞｜Casino IN", "按公司、重要程度、影響及AI分析分類，比較南韓主要賭場企業新聞。"),
         "research_library_page": ("賭場市場報告及分析資料｜Casino IN", "查看證券行報告、產業研究、投資者關係文件及AI分析，掌握賭場市場重點。"),

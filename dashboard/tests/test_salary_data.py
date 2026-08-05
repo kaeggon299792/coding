@@ -3,6 +3,17 @@ from services import salary_data
 from services import casino_industry
 
 
+def test_all_casino_operators_are_checked_for_nps_metrics():
+    operator_codes = {
+        item["entity_code"] for item in casino_industry.list_operator_companies()
+    }
+    nps_codes = {
+        item["entity_code"] for item in salary_data.EMPLOYMENT_METRIC_SOURCES
+    }
+    assert operator_codes <= nps_codes
+    assert "kangwon_land" in nps_codes
+
+
 def test_salary_source_parsers():
     salary, period = salary_data._parse_jobkorea(
         '<meta name="title" content="파라다이스 연봉정보 - 평균연봉 8,024만원">'
@@ -56,6 +67,7 @@ def test_national_pension_official_api_metrics(monkeypatch):
         salary_data.EMPLOYMENT_METRIC_SOURCES[0]
     )
     assert item["salary_growth_rate"] == 10.0
+    assert item["estimated_average_salary_manwon"] == 13200
     assert item["turnover_rate"] == 12.0
     assert item["source_name"] == "국민연금 기준"
     assert item["source_url"] == salary_data.NPS_SOURCE_URL

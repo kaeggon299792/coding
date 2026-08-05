@@ -74,6 +74,57 @@ EMPLOYMENT_METRIC_SOURCES = (
         "address_keyword": "제주시",
         "source_name": "국민연금 기준",
     },
+    {
+        "entity_code": "paradise_segasammy", "entity_name": "㈜파라다이스세가사미",
+        "query_name": "파라다이스세가사미", "address_keyword": "중구",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "inspire", "entity_name": "㈜인스파이어 인티그레이티드 리조트",
+        "query_name": "인스파이어인티그레이티드리조트",
+        "business_prefix": "496860", "address_keyword": "중구",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "gvas", "entity_name": "㈜지바스",
+        "query_name": "지바스", "address_keyword": "평창군",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "golden_crown", "entity_name": "㈜골든크라운",
+        "query_name": "골든크라운", "address_keyword": "수성구",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "gilsang_changhwi", "entity_name": "길상창휘(유)",
+        "query_name": "길상창휘", "address_keyword": "제주시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "cheonghae", "entity_name": "㈜청해",
+        "query_name": "청해", "address_keyword": "서귀포시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "geonha", "entity_name": "㈜건하",
+        "query_name": "건하", "address_keyword": "제주시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "heaven", "entity_name": "헤븐㈜",
+        "query_name": "헤븐", "address_keyword": "제주시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "landing_entertainment", "entity_name": "람정엔터테인먼트코리아㈜",
+        "query_name": "람정엔터테인먼트코리아", "address_keyword": "서귀포시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
+    {
+        "entity_code": "geumsan", "entity_name": "㈜금산",
+        "query_name": "금산", "address_keyword": "제주시",
+        "source_name": "국민연금 기준", "optional": True,
+    },
 )
 
 REVIEW_SOURCES = (
@@ -632,6 +683,10 @@ def fetch_employment_metrics(source):
     timestamp = now_kst()
     return {
         **source,
+        "estimated_average_salary_manwon": (
+            round(salary_points[-1]["annual_salary"] / 10_000)
+            if salary_points else None
+        ),
         "salary_growth_rate": salary_growth_rate,
         "turnover_rate": turnover_rate,
         "growth_period_months": growth_period_months,
@@ -686,7 +741,7 @@ def build_benchmarks(companies):
 
 
 def fetch_all():
-    items, reviews, employment_metrics, errors = [], [], [], []
+    items, reviews, employment_metrics, errors, missing = [], [], [], [], []
     for source in SOURCES:
         try:
             items.append(fetch_source(source))
@@ -704,13 +759,32 @@ def fetch_all():
         try:
             employment_metrics.append(fetch_employment_metrics(source))
         except Exception as error:  # noqa: BLE001 - 기존 정상 지표는 유지한다.
-            errors.append({
+            target = missing if source.get("optional") else errors
+            target.append({
                 "entity_code": f"{source['entity_code']}.employment",
                 "error": str(error),
             })
+    benchmark_items = build_benchmarks(items)
+    existing_salary_codes = {item["entity_code"] for item in items}
+    for employment in employment_metrics:
+        estimated_salary = employment.get("estimated_average_salary_manwon")
+        if employment["entity_code"] in existing_salary_codes or estimated_salary is None:
+            continue
+        items.append({
+            "entity_code": employment["entity_code"],
+            "entity_name": employment["entity_name"],
+            "entity_type": "company",
+            "average_salary_manwon": estimated_salary,
+            "source_name": "국민연금 기준(추정)",
+            "source_url": employment["source_url"],
+            "source_period": employment["source_period"],
+            "collected_date": employment["collected_date"],
+            "fetched_at": employment["fetched_at"],
+        })
     return {
-        "items": [*items, *build_benchmarks(items)],
+        "items": [*items, *benchmark_items],
         "reviews": reviews,
         "employment_metrics": employment_metrics,
         "errors": errors,
+        "missing": missing,
     }

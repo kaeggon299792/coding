@@ -45,6 +45,7 @@ from services import (
     casino_industry,
     casino_market_share,
     casino_statistics,
+    company_comparison,
     company_intelligence,
     content_translation,
     document_library,
@@ -135,6 +136,7 @@ INDEXABLE_ENDPOINTS = {
     "laws_page",
     "legislation_page",
     "companies_page",
+    "company_comparison_page",
     "company_benefits_page",
     "company_news_page",
     "research_library_page",
@@ -176,6 +178,7 @@ SITEMAP_STATIC_ENDPOINTS = (
     "tourism_trend_page", "economic_trend_page", "holiday_calendar_page",
     "salary_trend_page", "recruitment_page", "company_recruitment_guide_page",
     "disclosures_page", "laws_page", "legislation_page", "companies_page",
+    "company_comparison_page",
     "company_benefits_page", "company_news_page", "research_library_page",
     "tips.list_page", "tips.sites_page", "tips.glossary_page", "credits_page",
 )
@@ -473,6 +476,7 @@ ENDPOINT_PERMISSIONS = {
     "laws_page": "laws",
     "legislation_page": "laws",
     "companies_page": "companies",
+    "company_comparison_page": "companies",
     "company_benefits_page": "companies",
     "company_recruitment_guide_page": "companies",
     "company_news_page": "companies",
@@ -502,6 +506,7 @@ PUBLIC_READ_ENDPOINTS = {
     "laws_page",
     "legislation_page",
     "companies_page",
+    "company_comparison_page",
     "company_benefits_page",
     "company_recruitment_guide_page",
     "company_news_page",
@@ -605,6 +610,7 @@ def _breadcrumb_schema(endpoint, locale, title, canonical_path):
         "economic_trend_page": ("시장 정보", "/market/casino-industry"),
         "holiday_calendar_page": ("시장 정보", "/market/casino-industry"),
         "companies_page": ("기업정보", "/companies"),
+        "company_comparison_page": ("기업정보", "/companies"),
         "company_benefits_page": ("기업정보", "/companies"),
         "company_recruitment_guide_page": ("기업정보", "/companies"),
         "company_news_page": ("기업정보", "/companies"),
@@ -1168,6 +1174,7 @@ def inject_globals():
         "laws_page": "법률·규제",
         "legislation_page": "입법동향",
         "companies_page": "주요 국내기업",
+        "company_comparison_page": "기업 비교",
         "company_benefits_page": "복리후생",
         "company_news_page": "기업별 뉴스",
         "research_library_page": "기업별 리포트",
@@ -1289,6 +1296,7 @@ def _site_map_links():
             "endpoint": "companies_page",
             "children": [
                 {"label": "주요 국내기업", "endpoint": "companies_page"},
+                {"label": "기업 비교", "endpoint": "company_comparison_page"},
                 {"label": "복리후생", "endpoint": "company_benefits_page"},
                 {"label": "기업별 뉴스", "endpoint": "company_news_page"},
                 {"label": "기업별 공시", "endpoint": "disclosures_page"},
@@ -4012,6 +4020,22 @@ def companies_page():
                 company.get("aliases", []), g.locale
             )
         return render_template("companies.html", companies=companies, days=days)
+    finally:
+        connection.close()
+
+
+@app.route("/companies/comparison")
+def company_comparison_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "company_comparison.html",
+            comparison=company_comparison.build_dashboard(
+                connection,
+                request.args.get("year"),
+                request.args.get("metric"),
+            ),
+        )
     finally:
         connection.close()
 

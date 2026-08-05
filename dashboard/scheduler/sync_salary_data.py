@@ -1,4 +1,4 @@
-"""카지노 4사 평균연봉과 비교지표를 일 1회 DB에 누적한다."""
+"""카지노 운영 법인의 연봉·평점·국민연금 고용지표를 일 1회 누적한다."""
 
 import sys
 from pathlib import Path
@@ -34,8 +34,9 @@ def run():
         queries.finish_analysis_run(connection, run_id, status, detail)
         sync_alerts.notify_issue("salary_sync", status, errors)
         logger.info(
-            "연봉·평점 정보 동기화 완료: 연봉 %d건, 평점 %d건, 오류 %d건",
-            len(result["items"]), len(result["reviews"]), len(errors),
+            "연봉·평점 정보 동기화 완료: 연봉 %d건, 평점 %d건, 공개자료 없음 %d건, 오류 %d건",
+            len(result["items"]), len(result["reviews"]),
+            len(result.get("missing", [])), len(errors),
         )
     except Exception as error:
         queries.finish_analysis_run(connection, run_id, "failed", str(error))

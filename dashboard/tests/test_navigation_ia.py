@@ -59,6 +59,7 @@ def test_canonical_routes_and_legacy_redirect_map_match_navigation():
     for route in (
         '/news', '/news/overseas', '/market/casino-industry', '/market/stocks',
         '/companies/disclosures', '/companies/reports', '/companies/salary-ratings',
+        '/companies/comparison',
         '/companies/recruitment', '/resources/source-data', '/board/bug-reports',
         '/laws', '/companies', '/search', '/sitemap',
     ):
@@ -75,6 +76,7 @@ def test_changed_templates_compile_in_flask():
 
     for template in (
         "_topbar.html", "_data_subnav.html", "public_home.html", "companies.html",
+        "company_comparison.html",
         "disclosures.html", "company_news.html", "action_items.html",
         "action_item_detail.html", "laws.html", "account.html", "sitemap.html",
     ):
