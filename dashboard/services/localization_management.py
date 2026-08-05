@@ -48,6 +48,7 @@ ADMIN_ONLY_TEMPLATES = {
     "templates/admin_logs.html",
     "templates/localization_admin.html",
     "templates/localization_prompt.html",
+    "templates/localization_work.html",
     "templates/localization_qa.html",
     "templates/user_management.html",
     "templates/official_docs/settings.html",

@@ -16,6 +16,25 @@
   <section class="panel account-create-panel">
     <div class="section-heading">
       <div>
+        <h2>가입 승인 정책</h2>
+        <p>신규 아이디·비밀번호 가입과 Google 가입에 동일하게 적용됩니다. 기존 승인 대기 계정의 상태는 바뀌지 않습니다.</p>
+      </div>
+      <span>{{ '자동 승인' if registration_auto_approval else '수동 승인' }}</span>
+    </div>
+    <form method="post" action="{{ url_for('auth.update_registration_approval_policy') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>신규 가입 처리</span><select name="approval_mode" required>
+        <option value="automatic" {% if registration_auto_approval %}selected{% endif %}>자동 승인 (기본값)</option>
+        <option value="manual" {% if not registration_auto_approval %}selected{% endif %}>관리자 수동 승인</option>
+      </select></label>
+      <button class="btn btn-primary" type="submit">가입 승인 정책 저장</button>
+    </form>
+    <p class="page-note">자동 승인 상태에서도 가입 횟수 제한, 이메일 형식 검사, 비밀번호 정책, 감사 로그와 텔레그램 알림은 그대로 적용됩니다.</p>
+  </section>
+
+  <section class="panel account-create-panel">
+    <div class="section-heading">
+      <div>
         <h2>OpenAI 호출 한도</h2>
         <p>오늘의 한도 판정용 호출 횟수를 관리합니다. 초기화해도 원본 사용량·비용 기록은 삭제되지 않습니다.</p>
       </div>

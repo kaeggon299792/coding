@@ -131,6 +131,15 @@ def test_admin_can_immediately_anonymize_another_account(client):
 
 
 def test_registration_sends_secure_admin_review_link(client, monkeypatch):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_at)
+           VALUES ('registration_auto_approval','0','2026-08-05T00:00:00+09:00')"""
+    )
+    connection.commit()
+    connection.close()
     sent = []
     monkeypatch.setattr(
         "auth.telegram_alert.send_alert",
@@ -166,8 +175,6 @@ def test_registration_sends_secure_admin_review_link(client, monkeypatch):
     assert approval_attempt.status_code == 302
     assert "/login" in approval_attempt.headers["Location"]
 
-    from extensions import dashboard_db
-
     connection = dashboard_db()
     pending = connection.execute(
         "SELECT is_active, approval_status FROM dashboard_users WHERE id=2"
@@ -175,3 +182,77 @@ def test_registration_sends_secure_admin_review_link(client, monkeypatch):
     connection.close()
     assert pending["is_active"] == 0
     assert pending["approval_status"] == "pending"
+
+
+def test_registration_defaults_to_auto_approval(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        "auth.telegram_alert.send_alert",
+        lambda message, *, force=False: sent.append((message, force)) or True,
+    )
+    csrf = _get_csrf(client, "/register")
+    response = client.post(
+        "/register",
+        data={
+            "username": "auto.user",
+            "email": "auto@example.com",
+            "password": "Strong-password-123!",
+            "csrf_token": csrf,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "registered=approved" in response.headers["Location"]
+
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    user = connection.execute(
+        "SELECT is_active,approval_status FROM dashboard_users WHERE username='auto.user'"
+    ).fetchone()
+    connection.close()
+    assert (user["is_active"], user["approval_status"]) == (1, "approved")
+    assert len(sent) == 1
+    assert "자동 승인 완료" in sent[0][0]
+    assert "Strong-password" not in sent[0][0]
+
+
+def test_admin_can_change_registration_approval_policy(client):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute(
+        "UPDATE dashboard_users SET role='admin',is_active=1,approval_status='approved' WHERE username='admin'"
+    )
+    connection.commit()
+    connection.close()
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    csrf = _get_csrf(client, "/admin/users")
+    assert client.post(
+        "/admin/site-settings/registration-approval",
+        data={"csrf_token": "wrong", "approval_mode": "manual"},
+    ).status_code == 400
+    response = client.post(
+        "/admin/site-settings/registration-approval",
+        data={"csrf_token": csrf, "approval_mode": "manual"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    connection = dashboard_db()
+    setting = connection.execute(
+        "SELECT setting_value FROM site_settings WHERE setting_key='registration_auto_approval'"
+    ).fetchone()["setting_value"]
+    audit = connection.execute(
+        "SELECT action FROM security_audit_log WHERE action='REGISTRATION_APPROVAL_POLICY_UPDATED'"
+    ).fetchone()
+    connection.close()
+    assert setting == "0"
+    assert audit["action"] == "REGISTRATION_APPROVAL_POLICY_UPDATED"

@@ -70,7 +70,7 @@ def test_google_login_redirects_to_provider(google_client, monkeypatch):
     assert response.headers["Location"].startswith("https://accounts.google.com/")
 
 
-def test_google_callback_creates_pending_user_without_starting_session(
+def test_google_callback_defaults_to_auto_approval_and_starts_session(
     google_client, monkeypatch
 ):
     client, auth_module, db_path = google_client
@@ -81,9 +81,9 @@ def test_google_callback_creates_pending_user_without_starting_session(
     _mock_callback(monkeypatch, auth_module, _userinfo())
 
     response = client.get("/auth/google/callback", follow_redirects=False)
-    assert response.status_code == 403
+    assert response.status_code == 302
     with client.session_transaction() as flask_session:
-        assert "user_id" not in flask_session
+        assert flask_session.get("user_id")
         assert "access_token" not in flask_session
         assert "id_token" not in flask_session
 
@@ -95,12 +95,48 @@ def test_google_callback_creates_pending_user_without_starting_session(
     connection.close()
     assert row["google_sub"] == "google-sub-123"
     assert row["email"] == "google.user@example.com"
-    assert row["is_active"] == 0
-    assert row["approval_status"] == "pending"
-    assert row["last_login_at"] is None
+    assert row["is_active"] == 1
+    assert row["approval_status"] == "approved"
+    assert row["last_login_at"] is not None
     assert len(alerts) == 1
     assert "Google" in alerts[0]
-    assert f"pending_user={row['id']}" in alerts[0]
+    assert "자동 승인 완료" in alerts[0]
+
+
+def test_google_callback_stays_pending_when_manual_approval_is_selected(
+    google_client, monkeypatch
+):
+    client, auth_module, db_path = google_client
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_at)
+           VALUES ('registration_auto_approval','0','2026-08-05T00:00:00+09:00')"""
+    )
+    connection.commit()
+    connection.close()
+    alerts = []
+    monkeypatch.setattr(
+        auth_module.telegram_alert,
+        "send_alert",
+        lambda message, force=False: alerts.append(message) or True,
+    )
+    _mock_callback(monkeypatch, auth_module, _userinfo())
+    response = client.get("/auth/google/callback", follow_redirects=False)
+    assert response.status_code == 403
+    with client.session_transaction() as flask_session:
+        assert "user_id" not in flask_session
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    row = connection.execute(
+        "SELECT is_active,approval_status FROM dashboard_users WHERE google_sub=?",
+        ("google-sub-123",),
+    ).fetchone()
+    connection.close()
+    assert (row["is_active"], row["approval_status"]) == (0, "pending")
+    assert len(alerts) == 1
+    assert "관리자 승인 대기" in alerts[0]
 
 
 def test_google_callback_rejects_unverified_email(google_client, monkeypatch):
@@ -197,6 +233,15 @@ def test_existing_pending_google_account_cannot_login_or_repeat_alert(
     google_client, monkeypatch
 ):
     client, auth_module, db_path = google_client
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_at)
+           VALUES ('registration_auto_approval','0','2026-08-05T00:00:00+09:00')"""
+    )
+    connection.commit()
+    connection.close()
     alerts = []
     monkeypatch.setattr(
         auth_module.telegram_alert, "send_alert", lambda message, force=False: alerts.append(message) or True

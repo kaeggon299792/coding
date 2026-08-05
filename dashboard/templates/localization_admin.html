@@ -6,6 +6,7 @@
   <header class="page-header localization-heading">
     <div><p class="page-eyebrow">ADMINISTRATION / LOCALIZATION</p><h1 class="page-title">Localization Management</h1><p class="page-description">사용자 노출 문자열의 번역 상태와 참조 위치를 관리하고, 일본어·광둥어 미번역 항목을 API로 즉시 번역합니다.</p></div>
     <div class="localization-actions">
+      <a class="btn" href="{{ url_for('auth.localization_work', language=('en' if language_code == 'all' else language_code)) }}">Work 자동화 화면</a>
       <form class="localization-api-run" method="post" action="{{ url_for('auth.localization_api_translate') }}" data-api-translation-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <select name="language_code" aria-label="API 번역 대상 언어" required>{% for language in api_translation_languages %}<option value="{{ language.language_code }}"{% if language.language_code == language_code %} selected{% endif %}>{{ language.display_name }}</option>{% endfor %}</select>

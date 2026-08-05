@@ -458,9 +458,11 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
 
     with app_module.app.test_client() as client:
         assert client.get("/admin/localization").status_code in {302, 401}
+        assert client.get("/admin/localization/work").status_code in {302, 401}
         with client.session_transaction() as browser_session:
             browser_session.update(user_id=user_id, username="lms-user", role="user")
         assert client.get("/admin/localization").status_code == 403
+        assert client.get("/admin/localization/work").status_code == 403
         with client.session_transaction() as browser_session:
             browser_session.clear()
             browser_session.update(user_id=admin_id, username="lms-admin", role="admin",
@@ -469,7 +471,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert response.status_code == 200
         page_html = response.get_data(as_text=True)
         assert "Localization Management" in page_html
-        assert "20260805-audit1" in page_html
+        assert "20260805-work1" in page_html
         assert "전체 번역 필요" in page_html
         assert '<option value="en" selected' in page_html
         assert "AI 번역 프롬프트 생성" in page_html
@@ -481,6 +483,27 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert ' checked> AI 번역 대상 선택' in page_html
         assert '<details class="localization-results">' in page_html
         assert '<details class="panel localization-item">' in page_html
+        assert "Work 자동화 화면" in page_html
+        work_page = client.get("/admin/localization/work?language=en&limit=25")
+        assert work_page.status_code == 200
+        work_html = work_page.get_data(as_text=True)
+        assert "Localization Work" in work_html
+        assert "현재 대기 묶음 불러오기" in work_html
+        assert "이 묶음 클립보드 복사" in work_html
+        assert 'name="translation_payload"' in work_html
+        assert 'name="return_to" value="work"' in work_html
+        assert client.post("/admin/localization/import-ai", data={
+            "csrf_token": "wrong", "language_code": "en", "return_to": "work",
+            "translation_payload": "ID=MENU_HOME\n\nEN:\nHome",
+        }).status_code == 400
+        work_import = client.post("/admin/localization/import-ai", data={
+            "csrf_token": "a" * 64, "language_code": "en", "return_to": "work",
+            "limit": "25", "translation_payload": "ID=UNKNOWN_KEY\n\nEN:\nHome",
+        }, follow_redirects=False)
+        assert work_import.status_code == 302
+        assert "/admin/localization/work?" in work_import.headers["Location"]
+        assert "language=en" in work_import.headers["Location"]
+        assert "limit=25" in work_import.headers["Location"]
         all_languages = client.get("/admin/localization?language=all&status=Pending")
         assert all_languages.status_code == 200
         all_languages_html = all_languages.get_data(as_text=True)

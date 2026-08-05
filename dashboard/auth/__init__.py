@@ -39,6 +39,7 @@ LOGIN_IP_MAX_FAILURES = 10
 SESSION_IDLE_TIMEOUT = timedelta(minutes=config.SESSION_IDLE_MINUTES)
 SESSION_ABSOLUTE_TIMEOUT = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
 REMEMBER_COOKIE_NAME = "casino_in_remember"
+REGISTRATION_AUTO_APPROVAL_KEY = "registration_auto_approval"
 def _profile_image_suffix(data):
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return ".png"
@@ -615,6 +616,35 @@ def _unique_google_username(connection, email, google_sub):
     return candidate
 
 
+def _registration_auto_approval_enabled(connection):
+    """Return the registration policy; absence intentionally means auto approval."""
+
+    row = connection.execute(
+        "SELECT setting_value FROM site_settings WHERE setting_key=?",
+        (REGISTRATION_AUTO_APPROVAL_KEY,),
+    ).fetchone()
+    if row is None:
+        return True
+    return str(row["setting_value"]).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _set_registration_auto_approval(connection, enabled, actor_id):
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_by,updated_at)
+           VALUES (?,?,?,?)
+           ON CONFLICT(setting_key) DO UPDATE SET
+               setting_value=excluded.setting_value,
+               updated_by=excluded.updated_by,
+               updated_at=excluded.updated_at""",
+        (
+            REGISTRATION_AUTO_APPROVAL_KEY,
+            "1" if enabled else "0",
+            actor_id,
+            now_kst().isoformat(),
+        ),
+    )
+
+
 def _upsert_google_user(connection, userinfo):
     """Create, link, or refresh a Google user identified by the stable OIDC sub."""
 
@@ -642,6 +672,7 @@ def _upsert_google_user(connection, userinfo):
 
     if row is None:
         username = _unique_google_username(connection, email, google_sub)
+        auto_approved = _registration_auto_approval_enabled(connection)
         unusable_password = generate_password_hash(
             secrets.token_urlsafe(48), method="scrypt"
         )
@@ -650,10 +681,12 @@ def _upsert_google_user(connection, userinfo):
             INSERT INTO dashboard_users
                 (username, password_hash, role, is_active, created_at, updated_at,
                  landing_page, email, approval_status, google_sub, name, picture_url)
-            VALUES (?, ?, 'user', 0, ?, ?, 'dashboard', ?, 'pending', ?, ?, ?)
+            VALUES (?, ?, 'user', ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)
             """,
             (
-                username, unusable_password, now_iso, now_iso, email,
+                username, unusable_password, 1 if auto_approved else 0,
+                now_iso, now_iso, email,
+                "approved" if auto_approved else "pending",
                 google_sub, name, picture_url,
             ),
         )
@@ -692,7 +725,9 @@ def _upsert_google_user(connection, userinfo):
     return dict(row), created, linked_existing_account
 
 
-def _send_registration_review_alert(user_id, username, email, provider="local"):
+def _send_registration_review_alert(
+    user_id, username, email, provider="local", *, auto_approved=False
+):
     review_path = url_for("auth.user_management", pending_user=user_id)
     review_url = (
         f"{config.DASHBOARD_PUBLIC_URL.rstrip('/')}{review_path}#user-{user_id}"
@@ -704,9 +739,14 @@ def _send_registration_review_alert(user_id, username, email, provider="local"):
         f"• 이메일: {html.escape(email)}\n"
         f"• 가입 방식: {provider_label}\n"
         f"• 신청 시각: {now_kst().strftime('%Y-%m-%d %H:%M:%S KST')}\n"
-        "• 상태: 관리자 승인 대기\n\n"
-        f'<a href="{html.escape(review_url, quote=True)}">가입 신청 검토·승인</a>\n'
-        "※ 관리자 로그인 후 검토 화면이 열리며, 실제 승인은 CSRF 보호 버튼으로 처리됩니다."
+        f"• 상태: {'자동 승인 완료' if auto_approved else '관리자 승인 대기'}\n\n"
+        f'<a href="{html.escape(review_url, quote=True)}">'
+        f"{'가입 계정 확인' if auto_approved else '가입 신청 검토·승인'}</a>\n"
+        + (
+            "※ 자동 가입승인 정책에 따라 즉시 활성화됐습니다."
+            if auto_approved
+            else "※ 관리자 로그인 후 검토 화면이 열리며, 실제 승인은 CSRF 보호 버튼으로 처리됩니다."
+        )
     )
     if not telegram_alert.send_alert(alert_message, force=True):
         current_app.logger.error(
@@ -804,21 +844,31 @@ def google_callback():
     try:
         user, created, linked = _upsert_google_user(connection, userinfo)
         if created:
+            auto_approved = user.get("approval_status") == "approved"
             security_audit.log_event(
                 connection,
-                "GOOGLE_REGISTRATION_PENDING",
+                (
+                    "GOOGLE_REGISTRATION_AUTO_APPROVED"
+                    if auto_approved
+                    else "GOOGLE_REGISTRATION_PENDING"
+                ),
                 "dashboard_user",
                 user["id"],
-                {"username": user["username"], "approval_status": "pending"},
+                {
+                    "username": user["username"],
+                    "approval_status": user["approval_status"],
+                },
             )
             connection.commit()
             _send_registration_review_alert(
-                user["id"], user["username"], user["email"], provider="google"
+                user["id"], user["username"], user["email"], provider="google",
+                auto_approved=auto_approved,
             )
-            return _google_login_error(
-                "가입 신청이 접수되었습니다. 관리자가 승인하면 Google 계정으로 로그인할 수 있습니다.",
-                403,
-            )
+            if not auto_approved:
+                return _google_login_error(
+                    "가입 신청이 접수되었습니다. 관리자가 승인하면 Google 계정으로 로그인할 수 있습니다.",
+                    403,
+                )
         if not user.get("is_active", 1) or user.get("approval_status") != "approved":
             connection.rollback()
             current_app.logger.warning(
@@ -912,16 +962,19 @@ def register():
             ), 400
 
         now_iso = now_kst().isoformat()
+        auto_approved = _registration_auto_approval_enabled(connection)
         cursor = connection.execute(
             """
             INSERT INTO dashboard_users
                 (username, email, password_hash, role, is_active, created_at,
                  updated_at, password_changed_at, landing_page, approval_status)
-            VALUES (?, ?, ?, 'user', 0, ?, ?, ?, 'dashboard', 'pending')
+            VALUES (?, ?, ?, 'user', ?, ?, ?, ?, 'dashboard', ?)
             """,
             (
                 username, email, generate_password_hash(password, method="scrypt"),
+                1 if auto_approved else 0,
                 now_iso, now_iso, now_iso,
+                "approved" if auto_approved else "pending",
             ),
         )
         default_permissions = {"bug_reports", "disclosures", "laws", "companies"}
@@ -934,13 +987,20 @@ def register():
             "SELF_REGISTRATION",
             "dashboard_user",
             cursor.lastrowid,
-            {"username": username, "approval_status": "pending"},
+            {
+                "username": username,
+                "approval_status": "approved" if auto_approved else "pending",
+                "automatic_approval": auto_approved,
+            },
         )
         connection.commit()
         _send_registration_review_alert(
-            cursor.lastrowid, username, email, provider="local"
+            cursor.lastrowid, username, email, provider="local",
+            auto_approved=auto_approved,
         )
-        return redirect(url_for("auth.login", registered="1"))
+        return redirect(url_for(
+            "auth.login", registered="approved" if auto_approved else "1"
+        ))
     except sqlite3.IntegrityError:
         connection.rollback()
         return render_template(
@@ -968,6 +1028,8 @@ def login():
                 if request.args.get("password_changed") == "1"
                 else "가입 신청이 접수되었습니다. 관리자가 승인하면 로그인할 수 있습니다."
                 if request.args.get("registered") == "1"
+                else "가입과 자동 승인이 완료되었습니다. 지금 로그인할 수 있습니다."
+                if request.args.get("registered") == "approved"
                 else None
             ),
         )
@@ -1394,11 +1456,46 @@ def user_management():
             site_font_choices=site_preferences.FONT_CHOICES,
             number_font=site_preferences.get_number_font(connection),
             number_font_choices=site_preferences.NUMBER_FONT_CHOICES,
+            registration_auto_approval=_registration_auto_approval_enabled(connection),
             gemini_usage=gemini_usage_dashboard,
             openai_usage=openai_usage,
         )
     finally:
         connection.close()
+
+
+@auth_bp.post("/admin/site-settings/registration-approval")
+@admin_required
+def update_registration_approval_policy():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    mode = (request.form.get("approval_mode") or "").strip()
+    if mode not in {"automatic", "manual"}:
+        abort(400)
+    enabled = mode == "automatic"
+    connection = dashboard_db()
+    try:
+        _set_registration_auto_approval(
+            connection, enabled, session.get("user_id")
+        )
+        security_audit.log_event(
+            connection,
+            "REGISTRATION_APPROVAL_POLICY_UPDATED",
+            resource_type="site_settings",
+            resource_id=REGISTRATION_AUTO_APPROVAL_KEY,
+            detail={"automatic_approval": enabled},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.user_management",
+        success=(
+            "신규 가입을 자동 승인하도록 설정했습니다."
+            if enabled
+            else "신규 가입을 관리자 수동 승인으로 설정했습니다."
+        ),
+    ))
 
 
 @auth_bp.post("/admin/ai-usage/limit")
@@ -1612,6 +1709,62 @@ def localization_dashboard():
             import_result=request.args.get("imported"),
             glossary=glossary,
             api_translation_languages=api_translation_languages,
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.get("/admin/localization/work")
+@admin_required
+def localization_work():
+    """Small, deterministic translation batches for an hourly browser workflow."""
+
+    allowed_limits = {25, 50, 100, 150}
+    limit = request.args.get("limit", 100, type=int)
+    if limit not in allowed_limits:
+        limit = 100
+    language_code = (request.args.get("language") or "en").strip()
+    connection = dashboard_db()
+    try:
+        languages = [dict(row) for row in connection.execute(
+            """SELECT language_code, display_name
+               FROM localization_languages
+               WHERE is_active=1 AND is_source=0
+               ORDER BY language_code"""
+        ).fetchall()]
+        language_codes = {item["language_code"] for item in languages}
+        if language_code not in language_codes:
+            language_code = languages[0]["language_code"] if languages else "en"
+        rows, total = localization_management.list_strings(
+            connection,
+            language_code=language_code,
+            status="Pending",
+            sort="priority",
+            page=1,
+            per_page=limit,
+        )
+        chunks = []
+        if rows:
+            chunks = localization_management.generate_translation_chunks(
+                connection,
+                language_code,
+                [row["id"] for row in rows],
+                mode="prompt",
+                style="casino",
+                max_items=limit,
+            )
+        return render_template(
+            "localization_work.html",
+            languages=languages,
+            language_code=language_code,
+            limit=limit,
+            allowed_limits=sorted(allowed_limits),
+            total=total,
+            batch_count=len(rows),
+            chunks=chunks,
+            csrf_token=get_csrf_token(),
+            import_result=request.args.get("imported"),
+            error=request.args.get("error"),
         )
     finally:
         connection.close()
@@ -1834,6 +1987,14 @@ def localization_import_ai():
                 )
         except ValueError as exc:
             connection.rollback()
+            if request.form.get("return_to") == "work" and language_code != "all":
+                limit = request.form.get("limit", 100, type=int)
+                if limit not in {25, 50, 100, 150}:
+                    limit = 100
+                return redirect(url_for(
+                    "auth.localization_work", language=language_code,
+                    limit=limit, error=str(exc),
+                ))
             return redirect(url_for(
                 "auth.localization_dashboard", language=language_code, error=str(exc)
             ))
@@ -1848,6 +2009,14 @@ def localization_import_ai():
         f"AI 번역 {result['updated']}건 반영 · {result['errors']}건 제외"
         + (f" ({language_result})" if language_result else "")
     )
+    if request.form.get("return_to") == "work" and language_code != "all":
+        limit = request.form.get("limit", 100, type=int)
+        if limit not in {25, 50, 100, 150}:
+            limit = 100
+        return redirect(url_for(
+            "auth.localization_work", language=language_code, limit=limit,
+            imported=import_message,
+        ))
     return redirect(url_for(
         "auth.localization_dashboard", language=("en" if language_code == "all" else language_code),
         imported=import_message,

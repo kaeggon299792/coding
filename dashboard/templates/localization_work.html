@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Localization Work{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container localization-admin localization-work-page" data-i18n-ignore>
+  <header class="page-header localization-heading">
+    <div>
+      <p class="page-eyebrow">ADMINISTRATION / LOCALIZATION WORK</p>
+      <h1 class="page-title">Localization Work</h1>
+      <p class="page-description">시간별 자동화가 언어별 미번역 묶음을 복사하고, AI 응답을 같은 화면에서 바로 반영할 수 있습니다.</p>
+    </div>
+    <a class="btn" href="{{ url_for('auth.localization_dashboard', language=language_code) }}">Localization 관리로 돌아가기</a>
+  </header>
+
+  {% if import_result %}<div class="localization-notice">{{ import_result }}</div>{% endif %}
+  {% if error %}<div class="localization-alert">{{ error }}</div>{% endif %}
+
+  <section class="panel localization-work-control">
+    <form method="get">
+      <label><span>작업 언어</span><select name="language">
+        {% for language in languages %}<option value="{{ language.language_code }}" {% if language.language_code == language_code %}selected{% endif %}>{{ language.display_name }} ({{ language.language_code }})</option>{% endfor %}
+      </select></label>
+      <label><span>한 번에 가져올 항목</span><select name="limit">
+        {% for value in allowed_limits %}<option value="{{ value }}" {% if value == limit %}selected{% endif %}>{{ value }}개</option>{% endfor %}
+      </select></label>
+      <button class="btn btn-primary" type="submit">현재 대기 묶음 불러오기</button>
+    </form>
+    <div class="localization-work-summary">
+      <span>현재 언어 전체 Pending <strong>{{ total }}</strong>건</span>
+      <span>이번 작업 대상 <strong>{{ batch_count }}</strong>건</span>
+      <span>클립보드 묶음 <strong>{{ chunks|length }}</strong>개</span>
+    </div>
+    <p class="page-note">고정 URL: <code>{{ url_for('auth.localization_work', language=language_code, limit=limit, _external=True) }}</code></p>
+  </section>
+
+  {% for chunk in chunks %}
+  <section class="panel localization-work-chunk">
+    <header>
+      <div><span>WORK BATCH</span><h2>묶음 {{ loop.index }} / {{ chunks|length }}</h2></div>
+      <button class="btn btn-primary" type="button" data-copy-target="work-prompt-{{ loop.index }}">이 묶음 클립보드 복사</button>
+    </header>
+    <div class="localization-work-pair">
+      <div>
+        <label for="work-prompt-{{ loop.index }}">AI에 전달할 프롬프트</label>
+        <pre id="work-prompt-{{ loop.index }}">{{ chunk }}</pre>
+      </div>
+      <form method="post" action="{{ url_for('auth.localization_import_ai') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="language_code" value="{{ language_code }}">
+        <input type="hidden" name="return_to" value="work">
+        <input type="hidden" name="limit" value="{{ limit }}">
+        <label>AI 번역 결과 붙여넣기<textarea name="translation_payload" rows="18" maxlength="2000000" placeholder="AI가 반환한 ID와 {{ language_code }} 번역 결과를 그대로 붙여넣으세요." required></textarea></label>
+        <button class="btn btn-primary" type="submit">이 묶음 번역 반영</button>
+      </form>
+    </div>
+  </section>
+  {% else %}
+  <section class="panel empty-state"><h2>현재 대기 중인 번역이 없습니다.</h2><p>{{ language_code }} 번역은 모두 완료됐습니다.</p></section>
+  {% endfor %}
+</main>
+{% include "_footer.html" %}
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll('[data-copy-target]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    try {
+      await navigator.clipboard.writeText(target.textContent);
+      button.textContent = '복사됨';
+    } catch (error) {
+      button.textContent = '복사 실패';
+    }
+  });
+});
+</script>
+{% endblock %}
