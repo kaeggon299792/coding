@@ -56,6 +56,35 @@
     </form>
   </section>
 
+  <section class="panel account-create-panel" id="ai-purpose-settings">
+    <div class="section-heading">
+      <div>
+        <h2>용도별 AI 설정</h2>
+        <p>API 키는 서버 환경변수에 안전하게 보관하고, 여기서는 기능별 모델·활성화·독립 일일 한도만 관리합니다.</p>
+      </div>
+      <span>{{ ai_purpose_settings|length }}개 용도</span>
+    </div>
+    <form method="post" action="{{ url_for('auth.update_ai_purpose_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="table-scroll"><table class="data-table ai-purpose-table">
+        <thead><tr><th>용도</th><th>사용</th><th>모델</th><th>오늘 사용</th><th>독립 일일 한도</th><th>추가 기준</th></tr></thead>
+        <tbody>{% for item in ai_purpose_settings %}<tr>
+          <td><strong>{{ item.label }}</strong><small class="self-label">{{ item.description }}</small></td>
+          <td><label class="news-check"><input type="checkbox" name="{{ item.purpose }}_enabled" value="1" {% if item.enabled %}checked{% endif %}><span>활성</span></label></td>
+          <td><input name="{{ item.purpose }}_model" value="{{ item.model }}" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._:-]{0,79}" autocomplete="off" required aria-label="{{ item.label }} 모델"></td>
+          <td><strong>{{ '{:,}'.format(item.usage.call_count) }}회</strong><small class="self-label">${{ '{:,.4f}'.format(item.usage.total_cost) }}</small></td>
+          <td><input type="number" name="{{ item.purpose }}_daily_call_limit" min="1" max="100000" value="{{ item.daily_call_limit }}" required aria-label="{{ item.label }} 일일 호출 한도"></td>
+          <td>{% if item.purpose == 'news_importance' %}
+            <label><span>중요 표시</span><input type="number" name="news_importance_importance_threshold" min="0" max="100" value="{{ item.importance_threshold }}" required></label>
+            <label><span>웹 검증</span><input type="number" name="news_importance_web_importance_threshold" min="0" max="100" value="{{ item.web_importance_threshold }}" required></label>
+          {% else %}<span class="muted">-</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      <p class="page-note">독립 한도 외에 위의 전체 OpenAI 안전 한도와 전체 예상 비용 한도도 함께 적용됩니다. 수동 재분석 기능의 기존 한도 우회 정책은 유지됩니다.</p>
+      <button class="btn btn-primary" type="submit">용도별 AI 설정 저장</button>
+    </form>
+  </section>
+
   <section class="panel">
     <div class="section-heading">
       <div>

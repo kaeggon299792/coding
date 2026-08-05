@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import config
 from dashboard_db import queries
-from services import ai_insights, localization_management
+from services import ai_insights, ai_runtime_settings, localization_management
 from utils import now_kst
 
 
@@ -293,9 +293,15 @@ def run_manual_batch(
     """Scan and immediately translate all pending rows for an admin request."""
     if language_code not in configured_languages():
         raise ValueError("자동 번역이 설정된 일본어 또는 광둥어를 선택해주세요.")
+    runtime_settings = ai_runtime_settings.get_request_settings(
+        connection, f"localization_translation_{language_code}",
+        config.OPENAI_TRANSLATION_MODEL,
+    )
+    if not runtime_settings["enabled"]:
+        raise RuntimeError("사이트 번역 API 호출이 관리자 설정에서 비활성화되어 있습니다.")
     if not config.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다.")
-    if not config.OPENAI_TRANSLATION_MODEL:
+    if not runtime_settings["model"]:
         raise RuntimeError("번역 API 모델이 설정되지 않았습니다.")
     run_id = _claim_run(connection, f"manual:{language_code}")
     try:
@@ -345,14 +351,20 @@ def run_tracked_daily(connection, project_root, *, call_openai=None):
 
 
 def run_daily(connection, project_root, *, scan=True, call_openai=None):
+    runtime_settings = ai_runtime_settings.get_request_settings(
+        connection, "localization_translation_scheduled",
+        config.OPENAI_TRANSLATION_MODEL,
+    )
+    if not runtime_settings["enabled"]:
+        raise RuntimeError("Localization translation is disabled by the administrator")
     if not config.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not configured")
-    if not config.OPENAI_TRANSLATION_MODEL:
+    if not runtime_settings["model"]:
         raise RuntimeError("OPENAI_TRANSLATION_MODEL is not configured")
 
     summary = {
         "scan": localization_management.scan_project(connection, project_root) if scan else None,
-        "model": config.OPENAI_TRANSLATION_MODEL,
+        "model": runtime_settings["model"],
         "languages": {},
         "stopped_reason": None,
     }

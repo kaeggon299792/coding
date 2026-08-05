@@ -19,7 +19,7 @@ import logging
 
 import config
 from dashboard_db import queries
-from services import telegram_alert
+from services import ai_runtime_settings, telegram_alert
 from utils import now_kst
 
 logger = logging.getLogger("dashboard")
@@ -92,7 +92,16 @@ def _get_client():
     return _client
 
 
-def _check_daily_limits(connection):
+def _check_daily_limits(connection, request_type):
+    purpose_settings = ai_runtime_settings.get_request_settings(connection, request_type)
+    purpose_usage = ai_runtime_settings.get_purpose_usage(
+        connection, purpose_settings["purpose"]
+    )
+    if purpose_usage["call_count"] >= purpose_settings["daily_call_limit"]:
+        raise DailyLimitExceeded(
+            f"{purpose_settings['label']} 일일 호출 한도"
+            f"({purpose_settings['daily_call_limit']}회)에 도달했습니다."
+        )
     summary = queries.get_today_usage_summary(connection)
     call_limit = get_daily_call_limit(connection)
     if summary["call_count"] >= call_limit:
@@ -104,8 +113,14 @@ def _check_daily_limits(connection):
 def _notify_daily_limit(connection, request_type, error):
     summary = queries.get_today_usage_summary(connection)
     call_limit = get_daily_call_limit(connection)
+    purpose_settings = ai_runtime_settings.get_request_settings(connection, request_type)
+    purpose_usage = ai_runtime_settings.get_purpose_usage(
+        connection, purpose_settings["purpose"]
+    )
     limit_type = (
-        "call_count"
+        f"purpose_call_count:{purpose_settings['purpose']}"
+        if purpose_usage["call_count"] >= purpose_settings["daily_call_limit"]
+        else "call_count"
         if summary["call_count"] >= call_limit
         else "estimated_cost"
     )
@@ -117,6 +132,9 @@ def _notify_daily_limit(connection, request_type, error):
         "🚨 <b>CASINO IN GPT 내부 한도 초과</b>\n\n"
         f"• 차단 사유: {html.escape(str(error))}\n"
         f"• 요청 기능: {html.escape(request_type)}\n"
+        f"• 용도: {html.escape(purpose_settings['label'])}\n"
+        f"• 용도별 호출: {purpose_usage['call_count']:,} / "
+        f"{purpose_settings['daily_call_limit']:,}회\n"
         f"• 현재 호출: {summary['call_count']:,} / {call_limit:,}회\n"
         f"• 예상 비용: ${summary['total_cost']:.4f} / ${config.DAILY_OPENAI_BUDGET_USD:.2f}\n"
         f"• 발생 시각: {now_kst().strftime('%Y-%m-%d %H:%M:%S KST')}\n\n"
@@ -128,11 +146,13 @@ def _notify_daily_limit(connection, request_type, error):
         queries.release_ai_limit_alert(connection, limit_type)
 
 
-def _estimate_cost(input_tokens, output_tokens, model=None, web_search=False):
-    if model == config.OPENAI_NEWS_MODEL:
+def _estimate_cost(
+    input_tokens, output_tokens, model=None, web_search=False, purpose=None
+):
+    if purpose == "news_importance" or model == config.OPENAI_NEWS_MODEL:
         input_rate = config.OPENAI_NEWS_INPUT_COST_PER_1M
         output_rate = config.OPENAI_NEWS_OUTPUT_COST_PER_1M
-    elif model == config.OPENAI_TRANSLATION_MODEL:
+    elif purpose == "translation" or model == config.OPENAI_TRANSLATION_MODEL:
         input_rate = config.OPENAI_TRANSLATION_INPUT_COST_PER_1M
         output_rate = config.OPENAI_TRANSLATION_OUTPUT_COST_PER_1M
     else:
@@ -162,13 +182,18 @@ def _call(
 ):
     """공통 호출 헬퍼. 실패해도 예외를 던지지 않고 (data, error) 튜플을 반환한다."""
 
-    selected_model = model or config.OPENAI_INSIGHT_MODEL
+    purpose_settings = ai_runtime_settings.get_request_settings(
+        connection, request_type, model or config.OPENAI_INSIGHT_MODEL
+    )
+    if not purpose_settings["enabled"]:
+        return None, f"{purpose_settings['label']} API 호출이 관리자 설정에서 비활성화되어 있습니다."
+    selected_model = purpose_settings["model"]
     if not config.OPENAI_API_KEY or not selected_model:
         return None, "OPENAI_API_KEY 또는 사용할 모델이 설정되지 않았습니다."
 
     if not bypass_daily_limits:
         try:
-            _check_daily_limits(connection)
+            _check_daily_limits(connection, request_type)
         except DailyLimitExceeded as error:
             _notify_daily_limit(connection, request_type, error)
             return None, str(error)
@@ -219,7 +244,8 @@ def _call(
             for tool in (tools or [])
         )
         cost = _estimate_cost(
-            input_tokens, output_tokens, selected_model, web_search=uses_web_search
+            input_tokens, output_tokens, selected_model, web_search=uses_web_search,
+            purpose=purpose_settings["purpose"],
         )
         queries.record_api_usage(
             connection, selected_model, request_type, input_tokens, output_tokens, cost, success,
@@ -456,11 +482,19 @@ def extract_official_document_fields(
     connection, pdf_bytes, filename, managers, categories, folders
 ):
     """Extract registration form suggestions from text or image-based PDFs."""
-    if not config.OPENAI_API_KEY or not config.OPENAI_INSIGHT_MODEL:
+    request_type = "official_document_prefill"
+    purpose_settings = ai_runtime_settings.get_request_settings(
+        connection, request_type, config.OPENAI_INSIGHT_MODEL
+    )
+    if not purpose_settings["enabled"]:
+        return None, f"{purpose_settings['label']} API 호출이 관리자 설정에서 비활성화되어 있습니다."
+    selected_model = purpose_settings["model"]
+    if not config.OPENAI_API_KEY or not selected_model:
         return None, "OPENAI_API_KEY 또는 OPENAI_INSIGHT_MODEL이 설정되지 않았습니다."
     try:
-        _check_daily_limits(connection)
+        _check_daily_limits(connection, request_type)
     except DailyLimitExceeded as error:
+        _notify_daily_limit(connection, request_type, error)
         return None, str(error)
 
     category_codes = [item["code"] for item in categories] or ["OTHER"]
@@ -523,7 +557,7 @@ def extract_official_document_fields(
     try:
         encoded = base64.b64encode(pdf_bytes).decode("ascii")
         response = _get_client().responses.create(
-            model=config.OPENAI_INSIGHT_MODEL,
+            model=selected_model,
             input=[{
                 "role": "user",
                 "content": [
@@ -558,11 +592,14 @@ def extract_official_document_fields(
     finally:
         queries.record_api_usage(
             connection,
-            config.OPENAI_INSIGHT_MODEL,
-            "official_document_prefill",
+            selected_model,
+            request_type,
             input_tokens,
             output_tokens,
-            _estimate_cost(input_tokens, output_tokens),
+            _estimate_cost(
+                input_tokens, output_tokens, selected_model,
+                purpose=purpose_settings["purpose"],
+            ),
             success,
             request_summary=f"PDF: {filename}",
             response_summary=(

@@ -54,7 +54,7 @@ def test_manual_document_analysis_can_bypass_internal_daily_limit(
     monkeypatch.setattr(
         ai_insights,
         "_check_daily_limits",
-        lambda connection: (_ for _ in ()).throw(
+        lambda connection, request_type: (_ for _ in ()).throw(
             ai_insights.DailyLimitExceeded("daily limit")
         ),
     )
@@ -130,6 +130,50 @@ def test_admin_limit_setting_and_reset_preserve_usage_log(db_connection):
     assert db_connection.execute(
         "SELECT COUNT(*) FROM api_usage WHERE request_type='test-call'"
     ).fetchone()[0] == 1
+
+
+def test_purpose_settings_use_independent_models_and_limits(db_connection):
+    from services import ai_runtime_settings
+
+    saved = ai_runtime_settings.save_purpose_settings(
+        db_connection,
+        "news_importance",
+        {
+            "enabled": "1",
+            "model": "gpt-news-purpose-test",
+            "daily_call_limit": "7",
+            "importance_threshold": "65",
+            "web_importance_threshold": "82",
+        },
+    )
+    db_connection.commit()
+    assert saved["model"] == "gpt-news-purpose-test"
+    assert saved["daily_call_limit"] == 7
+    assert saved["importance_threshold"] == 65
+    assert saved["web_importance_threshold"] == 82
+    assert ai_runtime_settings.classify_request_type(
+        "overseas_news_translation_analysis_ko"
+    ) == "news_importance"
+    assert ai_runtime_settings.classify_request_type(
+        "localization_translation_ja"
+    ) == "translation"
+
+    for index in range(2):
+        queries.record_api_usage(
+            db_connection, "model", "overseas_news_translation_analysis_ko",
+            1, 1, 0.01, True,
+        )
+    queries.record_api_usage(
+        db_connection, "model", "localization_translation_ja", 1, 1, 0.02, True,
+    )
+    news_usage = ai_runtime_settings.get_purpose_usage(
+        db_connection, "news_importance"
+    )
+    translation_usage = ai_runtime_settings.get_purpose_usage(
+        db_connection, "translation"
+    )
+    assert news_usage == {"call_count": 2, "total_cost": 0.02}
+    assert translation_usage == {"call_count": 1, "total_cost": 0.02}
 
 
 def test_log_retention_removes_only_entries_older_than_30_days(db_connection):

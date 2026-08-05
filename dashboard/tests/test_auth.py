@@ -256,3 +256,62 @@ def test_admin_can_change_registration_approval_policy(client):
     connection.close()
     assert setting == "0"
     assert audit["action"] == "REGISTRATION_APPROVAL_POLICY_UPDATED"
+
+
+def test_admin_can_change_ai_settings_by_purpose(client):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute(
+        "UPDATE dashboard_users SET role='admin',is_active=1,approval_status='approved' WHERE username='admin'"
+    )
+    connection.commit()
+    connection.close()
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    page = client.get("/admin/users")
+    assert page.status_code == 200
+    assert "용도별 AI 설정" in page.get_data(as_text=True)
+    csrf = _get_csrf(client, "/admin/users")
+    payload = {"csrf_token": csrf}
+    purposes = {
+        "translation": "gpt-translation-test",
+        "news_importance": "gpt-news-test",
+        "disclosure_ir": "gpt-disclosure-test",
+        "research": "gpt-research-test",
+        "legal": "gpt-legal-test",
+        "executive": "gpt-executive-test",
+    }
+    for purpose, model in purposes.items():
+        payload[f"{purpose}_enabled"] = "1"
+        payload[f"{purpose}_model"] = model
+        payload[f"{purpose}_daily_call_limit"] = "25"
+    payload["news_importance_importance_threshold"] = "64"
+    payload["news_importance_web_importance_threshold"] = "80"
+
+    invalid = dict(payload, csrf_token="invalid")
+    assert client.post("/admin/ai-settings/purposes", data=invalid).status_code == 400
+    response = client.post(
+        "/admin/ai-settings/purposes", data=payload, follow_redirects=False
+    )
+    assert response.status_code == 302
+    connection = dashboard_db()
+    settings = dict(connection.execute(
+        "SELECT setting_key,setting_value FROM site_settings WHERE setting_key LIKE 'ai_purpose_%'"
+    ).fetchall())
+    audit = connection.execute(
+        "SELECT action FROM security_audit_log WHERE action='AI_PURPOSE_SETTINGS_UPDATED'"
+    ).fetchone()
+    connection.close()
+    assert settings["ai_purpose_news_importance_model"] == "gpt-news-test"
+    assert settings["ai_purpose_news_importance_daily_call_limit"] == "25"
+    assert settings["ai_purpose_news_importance_importance_threshold"] == "64"
+    assert settings["ai_purpose_news_importance_web_importance_threshold"] == "80"
+    assert audit["action"] == "AI_PURPOSE_SETTINGS_UPDATED"

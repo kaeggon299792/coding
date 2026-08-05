@@ -26,6 +26,10 @@ def _connection():
             id INTEGER PRIMARY KEY CHECK (id=1), last_checked_at TEXT,
             last_changed_at TEXT, last_status TEXT, last_error TEXT, updated_at TEXT NOT NULL
         );
+        CREATE TABLE site_settings (
+            setting_key TEXT PRIMARY KEY, setting_value TEXT,
+            updated_by INTEGER, updated_at TEXT
+        );
         """
     )
     return connection
@@ -146,3 +150,23 @@ def test_list_filters_region_and_searches_korean_title():
     assert rows[0]["region"] == "japan"
     assert overseas_news.count_articles(connection, important_only=True) == 1
     assert overseas_news.list_articles(connection, impact="positive")[0]["article_key"] == "a"
+
+
+def test_important_filter_uses_admin_threshold():
+    connection = _connection()
+    connection.executemany(
+        """INSERT INTO overseas_news_articles (
+               article_key,region,original_title,publisher,original_url,source_feed,
+               collected_at,translation_status,importance_score,ai_analysis
+           ) VALUES (?,'macau',?,'A',?,'feed',datetime('now'),'translated',?,'분석')""",
+        [
+            ("score-70", "Score 70", "https://a", 70),
+            ("score-80", "Score 80", "https://b", 80),
+        ],
+    )
+    connection.execute(
+        """INSERT INTO site_settings(setting_key,setting_value,updated_at)
+           VALUES ('ai_purpose_news_importance_importance_threshold','75',datetime('now'))"""
+    )
+    assert overseas_news.count_articles(connection, important_only=True) == 1
+    assert overseas_news.stats(connection)["important_count"] == 1

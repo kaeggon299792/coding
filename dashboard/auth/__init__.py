@@ -26,7 +26,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
-    ai_insights, gemini_usage, localization_auto_translation, localization_management,
+    ai_insights, ai_runtime_settings, gemini_usage, localization_auto_translation,
+    localization_management,
     security_audit, site_preferences, task_registry, telegram_alert,
 )
 import config
@@ -1459,6 +1460,7 @@ def user_management():
             registration_auto_approval=_registration_auto_approval_enabled(connection),
             gemini_usage=gemini_usage_dashboard,
             openai_usage=openai_usage,
+            ai_purpose_settings=ai_runtime_settings.dashboard(connection),
         )
     finally:
         connection.close()
@@ -1520,6 +1522,63 @@ def update_openai_call_limit():
         connection.close()
     return redirect(url_for(
         "auth.user_management", success=f"OpenAI 일일 호출 한도를 {value:,}회로 변경했습니다."
+    ))
+
+
+@auth_bp.post("/admin/ai-settings/purposes")
+@admin_required
+def update_ai_purpose_settings():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    saved = []
+    try:
+        try:
+            for purpose in ai_runtime_settings.PURPOSES:
+                prefix = f"{purpose}_"
+                values = {
+                    "enabled": request.form.get(f"{prefix}enabled"),
+                    "model": request.form.get(f"{prefix}model"),
+                    "daily_call_limit": request.form.get(f"{prefix}daily_call_limit"),
+                }
+                if purpose == "news_importance":
+                    values.update({
+                        "importance_threshold": request.form.get(
+                            f"{prefix}importance_threshold"
+                        ),
+                        "web_importance_threshold": request.form.get(
+                            f"{prefix}web_importance_threshold"
+                        ),
+                    })
+                saved.append(ai_runtime_settings.save_purpose_settings(
+                    connection, purpose, values, session.get("user_id")
+                ))
+        except ValueError as error:
+            connection.rollback()
+            return redirect(url_for("auth.user_management", success=str(error)))
+        security_audit.log_event(
+            connection,
+            "AI_PURPOSE_SETTINGS_UPDATED",
+            resource_type="site_settings",
+            resource_id="ai_purpose",
+            detail={
+                item["purpose"]: {
+                    "enabled": item["enabled"],
+                    "model": item["model"],
+                    "daily_call_limit": item["daily_call_limit"],
+                    **({
+                        "importance_threshold": item["importance_threshold"],
+                        "web_importance_threshold": item["web_importance_threshold"],
+                    } if item["purpose"] == "news_importance" else {}),
+                }
+                for item in saved
+            },
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.user_management", success="용도별 AI 설정을 저장했습니다."
     ))
 
 

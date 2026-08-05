@@ -12,7 +12,7 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 import config
 from defusedxml import ElementTree
-from services import ai_insights
+from services import ai_insights, ai_runtime_settings
 from services.http_utils import get_with_hard_timeout
 
 logger = logging.getLogger("dashboard")
@@ -170,7 +170,13 @@ def _save_analysis(connection, article_id, fields, analyzed_at, *, basis, web_ve
             analyzed_at, analyzed_at, canonical_url, basis,
             "web_verified" if web_verified else "rss_only",
             _safe_source_citations(fields) if web_verified else "[]",
-            config.OPENAI_NEWS_MODEL, analyzed_at, config.OPENAI_NEWS_MODEL,
+            ai_runtime_settings.get_purpose_settings(
+                connection, "news_importance"
+            )["model"],
+            analyzed_at,
+            ai_runtime_settings.get_purpose_settings(
+                connection, "news_importance"
+            )["model"],
             analyzed_at if web_verified else None, article_id,
         ),
     )
@@ -238,7 +244,7 @@ def _analyze_pending(connection, limit=None):
                     basis="rss_batch" if index == 0 else "rss_batch_deduplicated",
                 )
                 analyzed_count += 1
-            if int(fields.get("importance_score") or 0) >= config.OPENAI_NEWS_WEB_IMPORTANCE_THRESHOLD:
+            if int(fields.get("importance_score") or 0) >= ai_runtime_settings.web_importance_threshold(connection):
                 important.append((item, fields, members))
         connection.commit()
 
@@ -330,7 +336,10 @@ def sync(connection, per_feed=25, translate_limit=None):
     }
 
 
-def _article_filters(days=30, region="", term="", category="", impact="", important_only=False):
+def _article_filters(
+    connection, days=30, region="", term="", category="", impact="",
+    important_only=False,
+):
     clauses = ["COALESCE(published_at, collected_at) >= datetime('now', ?)"]
     params = [f"-{max(1, int(days))} days"]
     if region in {"macau", "japan"}:
@@ -353,7 +362,8 @@ def _article_filters(days=30, region="", term="", category="", impact="", import
         clauses.append("impact_direction=?")
         params.append(impact)
     if important_only:
-        clauses.append("COALESCE(importance_score, 0) >= 60")
+        clauses.append("COALESCE(importance_score, 0) >= ?")
+        params.append(ai_runtime_settings.importance_threshold(connection))
     return clauses, params
 
 
@@ -362,7 +372,7 @@ def list_articles(
     important_only=False, limit=10, offset=0,
 ):
     clauses, params = _article_filters(
-        days, region, term, category, impact, important_only
+        connection, days, region, term, category, impact, important_only
     )
     params.extend([max(1, min(int(limit), 100)), max(0, int(offset))])
     articles = [
@@ -394,7 +404,7 @@ def count_articles(
     connection, days=30, region="", term="", category="", impact="", important_only=False,
 ):
     clauses, params = _article_filters(
-        days, region, term, category, impact, important_only
+        connection, days, region, term, category, impact, important_only
     )
     row = connection.execute(
         f"SELECT COUNT(*) AS count FROM overseas_news_articles WHERE {' AND '.join(clauses)}",
@@ -404,6 +414,7 @@ def count_articles(
 
 
 def stats(connection, days=30):
+    threshold = ai_runtime_settings.importance_threshold(connection)
     row = connection.execute(
         """
         SELECT COUNT(*) AS total_count,
@@ -412,12 +423,12 @@ def stats(connection, days=30):
                SUM(CASE WHEN ai_analysis IS NOT NULL THEN 1 ELSE 0 END) AS analyzed_count,
                SUM(CASE WHEN analysis_basis LIKE 'rss_batch%' THEN 1 ELSE 0 END) AS batch_count,
                SUM(CASE WHEN analysis_basis='web_search' THEN 1 ELSE 0 END) AS web_verified_count,
-               SUM(CASE WHEN COALESCE(importance_score, 0) >= 60 THEN 1 ELSE 0 END) AS important_count,
+               SUM(CASE WHEN COALESCE(importance_score, 0) >= ? THEN 1 ELSE 0 END) AS important_count,
                SUM(CASE WHEN impact_direction='negative' THEN 1 ELSE 0 END) AS negative_count
         FROM overseas_news_articles
         WHERE COALESCE(published_at, collected_at) >= datetime('now', ?)
         """,
-        (f"-{max(1, int(days))} days",),
+        (threshold, f"-{max(1, int(days))} days"),
     ).fetchone()
     return dict(row) if row else {}
 
