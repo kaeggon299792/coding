@@ -6,7 +6,7 @@
 {% else %}
 <header class="error-public-header">
   <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ MANAGEMENT DASHBOARD</span></a>
-  <a class="public-login-link" href="{{ url_for('auth.login') }}">로그인</a>
+  <a class="public-login-link" href="{{ url_for('auth.login', next=request.script_root ~ request.full_path.rstrip('?')) }}">로그인</a>
 </header>
 {% endif %}
 <main class="error-shell sitemap-page">

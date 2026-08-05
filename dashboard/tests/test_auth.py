@@ -65,6 +65,46 @@ def test_api_settings_redirects_anonymous_user_to_login(client):
     assert "/login" in response.headers["Location"]
 
 
+def test_login_returns_to_page_immediately_before_login(client):
+    page = client.get("/laws?view=recent")
+    assert page.status_code == 200
+    assert "/login?next=/laws?view%3Drecent" in page.get_data(as_text=True)
+
+    csrf = _get_csrf(client, "/login?next=/laws?view=recent")
+    response = client.post(
+        "/login?next=/laws?view=recent",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/laws?view=recent"
+
+
+def test_english_login_link_preserves_locale_and_query(client):
+    page = client.get("/en/laws?view=recent")
+    assert page.status_code == 200
+    assert "/en/login?next=/en/laws?view%3Drecent" in page.get_data(as_text=True)
+
+
+def test_login_rejects_external_return_url(client):
+    csrf = _get_csrf(client, "/login?next=https://evil.example/steal")
+    response = client.post(
+        "/login?next=https://evil.example/steal",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "evil.example" not in response.headers["Location"]
+
+
 def test_full_login_then_access_dashboard(client):
     csrf = _get_csrf(client, "/login")
     client.post(

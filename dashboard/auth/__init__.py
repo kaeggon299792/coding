@@ -479,7 +479,13 @@ def login_required(view):
                 ) else "로그인이 필요합니다."
                 return jsonify({"success": False, "message": message}), 401
             if getattr(g, "session_expired", False):
-                return redirect(url_for("auth.login", expired="1"))
+                return redirect(
+                    url_for(
+                        "auth.login",
+                        expired="1",
+                        next=f"{request.script_root}{request.full_path.rstrip('?')}",
+                    )
+                )
             return redirect(
                 url_for(
                     "auth.login",
@@ -489,7 +495,13 @@ def login_required(view):
         if not refresh_current_session():
             if request.path.startswith("/api/"):
                 return jsonify({"success": False, "message": "세션이 만료되었습니다."}), 401
-            return redirect(url_for("auth.login", expired="1"))
+            return redirect(
+                url_for(
+                    "auth.login",
+                    expired="1",
+                    next=f"{request.script_root}{request.full_path.rstrip('?')}",
+                )
+            )
         return view(*args, **kwargs)
 
     return wrapped
