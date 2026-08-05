@@ -105,6 +105,54 @@ def test_login_rejects_external_return_url(client):
     assert "evil.example" not in response.headers["Location"]
 
 
+def test_logout_stays_on_current_public_page(client):
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    page = client.get("/laws?view=recent")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "/logout?next=/laws?view%3Drecent" in html
+    csrf = re.search(r'name="csrf_token" value="([a-f0-9]+)"', html).group(1)
+
+    response = client.post(
+        "/logout?next=/laws?view=recent",
+        data={"csrf_token": csrf},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/laws?view=recent"
+    with client.session_transaction() as flask_session:
+        assert "user_id" not in flask_session
+
+
+def test_logout_rejects_external_return_url(client):
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    csrf = _get_csrf(client, "/laws")
+    response = client.post(
+        "/logout?next=https://evil.example/steal",
+        data={"csrf_token": csrf},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
+    assert "evil.example" not in response.headers["Location"]
+
+
 def test_full_login_then_access_dashboard(client):
     csrf = _get_csrf(client, "/login")
     client.post(

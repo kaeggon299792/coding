@@ -1137,6 +1137,7 @@ def reject_unsupported_login_variant(unsupported_variant):
 def logout():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
+    next_path = _safe_local_next(request.args.get("next")) or url_for("public_home")
     connection = dashboard_db()
     try:
         security_audit.log_event(
@@ -1150,7 +1151,7 @@ def logout():
     finally:
         connection.close()
     session.clear()
-    response = make_response(redirect(url_for("public_home")))
+    response = make_response(redirect(next_path))
     response.delete_cookie(
         REMEMBER_COOKIE_NAME, secure=True, httponly=True, samesite="Lax", path="/"
     )

@@ -41,7 +41,7 @@
     {% endif %}
     <span class="topbar-meta">{{ now_str }}</span>
     {% if current_username %}
-    <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
+    <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}" style="display:inline">
       <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
       <button class="btn btn-text" type="submit">로그아웃</button>
     </form>
