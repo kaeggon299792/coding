@@ -23,7 +23,7 @@
 .tips-list-side{display:grid;justify-items:end;gap:7px;color:var(--brand-text-muted);font-size:.78rem}.tips-list-side b{margin-top:8px;color:var(--brand-text-primary);font-size:1.2rem;font-weight:400}
 .tips-empty{text-align:center;border:1px dashed var(--brand-border-strong);padding:70px 20px}
 .form-message{padding:12px;border:1px solid #8d3035}.btn-danger{border-color:#8d3035;color:#ef777e}
-.tips-sites-hero h1{font-size:clamp(2.8rem,7vw,5.4rem)}
+.tips-library-hero.tips-sites-hero h1{font-size:var(--text-2xl);line-height:1.15;letter-spacing:-.025em}
 .site-admin-panel{margin:0 0 18px;border:1px solid var(--brand-border);background:var(--brand-surface)}
 .site-admin-panel>summary{padding:17px 20px;color:var(--brand-text-primary);cursor:pointer;font-weight:700}
 .site-admin-panel[open]>summary{border-bottom:1px solid var(--brand-border)}
