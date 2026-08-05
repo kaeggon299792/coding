@@ -1567,16 +1567,37 @@ def localization_dashboard():
         languages = [dict(row) for row in connection.execute(
             "SELECT * FROM localization_languages WHERE is_active=1 ORDER BY is_source DESC, language_code"
         ).fetchall()]
-        if language_code not in {item["language_code"] for item in languages} or language_code == "ko":
+        if language_code != "all" and (
+            language_code not in {item["language_code"] for item in languages}
+            or language_code == "ko"
+        ):
             language_code = "en"
-        summary = localization_management.dashboard_summary(connection, language_code)
-        rows, total = localization_management.list_strings(
-            connection, language_code=language_code, query=query, status=status,
-            priority=priority, sort=sort, page=page, per_page=page_size,
-        )
+        if language_code == "all":
+            summary = localization_management.dashboard_summary_all(connection)
+            rows, total = localization_management.list_strings_all(
+                connection, query=query, status=status, priority=priority,
+                sort=sort, page=page, per_page=page_size,
+            )
+        else:
+            summary = localization_management.dashboard_summary(connection, language_code)
+            rows, total = localization_management.list_strings(
+                connection, language_code=language_code, query=query, status=status,
+                priority=priority, sort=sort, page=page, per_page=page_size,
+            )
+        language_names = {
+            item["language_code"]: item["display_name"] for item in languages
+        }
         for item in rows:
+            item["target_language_code"] = item.get("target_language_code") or language_code
+            item["target_language_name"] = (
+                item.get("target_language_name")
+                or language_names.get(item["target_language_code"], item["target_language_code"])
+            )
             item["references"] = localization_management.references(connection, item["id"])
-        glossary = localization_management.list_glossary(connection, language_code)
+        glossary = (
+            [] if language_code == "all"
+            else localization_management.list_glossary(connection, language_code)
+        )
         api_translation_languages = [
             language for language in languages
             if language["language_code"]
@@ -1602,6 +1623,9 @@ def localization_update(string_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     language_code = (request.form.get("language_code") or "en").strip()
+    return_language_code = (
+        request.form.get("return_language_code") or language_code
+    ).strip()
     status = (request.form.get("status") or "Completed").strip()
     connection = dashboard_db()
     try:
@@ -1616,10 +1640,10 @@ def localization_update(string_id):
         connection.commit()
     except ValueError as exc:
         connection.rollback()
-        return redirect(url_for("auth.localization_dashboard", language=language_code, error=str(exc)))
+        return redirect(url_for("auth.localization_dashboard", language=return_language_code, error=str(exc)))
     finally:
         connection.close()
-    return redirect(url_for("auth.localization_dashboard", language=language_code, saved="1"))
+    return redirect(url_for("auth.localization_dashboard", language=return_language_code, saved="1"))
 
 
 @auth_bp.post("/admin/localization/scan")

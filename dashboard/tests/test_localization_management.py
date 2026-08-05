@@ -480,6 +480,14 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert ' checked> AI 번역 대상 선택' in page_html
         assert '<details class="localization-results">' in page_html
         assert '<details class="panel localization-item">' in page_html
+        all_languages = client.get("/admin/localization?language=all&status=Pending")
+        assert all_languages.status_code == 200
+        all_languages_html = all_languages.get_data(as_text=True)
+        assert '<option value="all" selected>전체 언어</option>' in all_languages_html
+        assert "English (en)" in all_languages_html
+        assert "日本語 (ja)" in all_languages_html
+        assert "廣東話 (yue-HK)" in all_languages_html
+        assert 'name="language_code" value="all"' not in all_languages_html
         all_statuses = client.get("/admin/localization?status=")
         assert all_statuses.status_code == 200
         status_filter = all_statuses.get_data(as_text=True).split(

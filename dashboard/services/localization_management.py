@@ -436,6 +436,41 @@ def dashboard_summary(connection, language_code="en"):
             "recent_counts": recent_counts, "events": [dict(row) for row in events]}
 
 
+def dashboard_summary_all(connection):
+    """Summarize every active target-language/string pair."""
+    counts = {row["status"]: row["count"] for row in connection.execute(
+        """SELECT CASE WHEN s.status='Ignored' THEN 'Ignored'
+                       ELSE COALESCE(t.status, 'Pending') END AS status,
+                  COUNT(*) AS count
+           FROM localization_strings s
+           JOIN localization_languages l ON l.is_active=1 AND l.is_source=0
+           LEFT JOIN localization_translations t
+             ON t.string_id=s.id AND t.language_code=l.language_code
+           WHERE s.deleted_at IS NULL
+           GROUP BY CASE WHEN s.status='Ignored' THEN 'Ignored'
+                         ELSE COALESCE(t.status, 'Pending') END"""
+    ).fetchall()}
+    total = sum(counts.values())
+    completed = counts.get("Completed", 0)
+    coverage = round(completed * 100 / total, 2) if total else 100.0
+    health = "Excellent" if coverage >= 98 else "Good" if coverage >= 90 else "Needs Review"
+    since = (now_kst() - timedelta(hours=24)).isoformat(timespec="seconds")
+    recent_counts = {row["event_type"]: row["count"] for row in connection.execute(
+        "SELECT event_type, COUNT(*) AS count FROM localization_events WHERE created_at>=? GROUP BY event_type",
+        (since,),
+    ).fetchall()}
+    events = connection.execute(
+        """SELECT e.*, s.language_key, s.source_text FROM localization_events e
+           LEFT JOIN localization_strings s ON s.id=e.string_id
+           WHERE e.created_at>=? ORDER BY e.created_at DESC LIMIT 30""",
+        (since,),
+    ).fetchall()
+    return {"counts": counts, "total": total, "completed": completed,
+            "pending": counts.get("Pending", 0), "ignored": counts.get("Ignored", 0),
+            "coverage": coverage, "health": health,
+            "recent_counts": recent_counts, "events": [dict(row) for row in events]}
+
+
 def list_strings(connection, *, language_code="en", query="", status="", priority="",
                  sort="newest", page=1, per_page=50):
     clauses = ["s.deleted_at IS NULL"]
@@ -469,6 +504,50 @@ def list_strings(connection, *, language_code="en", query="", status="", priorit
                    (SELECT COUNT(*) FROM localization_references r WHERE r.string_id=s.id) AS reference_count
             FROM localization_strings s
             LEFT JOIN localization_translations t ON t.string_id=s.id AND t.language_code=?
+            WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?""",
+        (*params, per_page, offset),
+    ).fetchall()
+    return [dict(row) for row in rows], total
+
+
+def list_strings_all(connection, *, query="", status="", priority="",
+                     sort="newest", page=1, per_page=50):
+    """List one row per active target language and source string."""
+    clauses = ["s.deleted_at IS NULL", "l.is_active=1", "l.is_source=0"]
+    params = []
+    if query:
+        clauses.append("(s.source_text LIKE ? OR s.language_key LIKE ? OR s.page_name LIKE ? OR s.string_type LIKE ? OR l.display_name LIKE ?)")
+        needle = f"%{query[:200]}%"
+        params.extend([needle] * 5)
+    effective_status = "CASE WHEN s.status='Ignored' THEN 'Ignored' ELSE COALESCE(t.status, 'Pending') END"
+    if status in ALLOWED_STATUS:
+        clauses.append(f"({effective_status})=?")
+        params.append(status)
+    if priority in ALLOWED_PRIORITY:
+        clauses.append("s.priority=?")
+        params.append(priority)
+    order = {
+        "oldest": "s.created_at ASC, l.language_code",
+        "page": "s.page_name, s.language_key, l.language_code",
+        "type": "s.string_type, s.language_key, l.language_code",
+        "priority": "CASE s.priority WHEN 'Critical' THEN 0 WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, s.updated_at DESC, l.language_code",
+    }.get(sort, "s.updated_at DESC, l.language_code")
+    where = " AND ".join(clauses)
+    joins = """JOIN localization_languages l
+                 LEFT JOIN localization_translations t
+                   ON t.string_id=s.id AND t.language_code=l.language_code"""
+    total = connection.execute(
+        f"SELECT COUNT(*) FROM localization_strings s {joins} WHERE {where}",
+        params,
+    ).fetchone()[0]
+    offset = (max(1, page) - 1) * per_page
+    rows = connection.execute(
+        f"""SELECT s.*, t.translated_text, ({effective_status}) AS effective_status,
+                   t.last_translated_at,
+                   l.language_code AS target_language_code,
+                   l.display_name AS target_language_name,
+                   (SELECT COUNT(*) FROM localization_references r WHERE r.string_id=s.id) AS reference_count
+            FROM localization_strings s {joins}
             WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?""",
         (*params, per_page, offset),
     ).fetchall()
