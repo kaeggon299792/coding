@@ -269,6 +269,65 @@ def test_japanese_import_does_not_accept_english_output_label():
     ).fetchone()[0] == 0
 
 
+def test_single_language_import_stops_before_other_language_labels_and_fence():
+    db = connection()
+    string_id = lms.register_string(
+        db, "기업 비교", page="Companies", component="Title",
+        language_key="COMPANY_COMPARE_TITLE",
+    )
+    result = lms.import_ai_translation_text(
+        db,
+        """```text
+ID=COMPANY_COMPARE_TITLE
+
+EN:
+Compare companies
+JA:
+企業比較
+YUE:
+企業比較
+```""",
+        "en",
+    )
+    assert result == {"updated": 1, "errors": 0}
+    assert db.execute(
+        """SELECT translated_text FROM localization_translations
+           WHERE string_id=? AND language_code='en'""",
+        (string_id,),
+    ).fetchone()[0] == "Compare companies"
+
+
+def test_repair_mixed_translation_records_splits_languages_and_removes_fences():
+    db = connection()
+    mixed_id = lms.register_string(
+        db, "입법동향 설명", page="Laws", component="Description",
+        language_key="LAWS_DESCRIPTION",
+    )
+    fenced_id = lms.register_string(
+        db, "기업 비교", page="Companies", component="Title",
+        language_key="COMPANY_COMPARE_FENCED",
+    )
+    lms.save_translation(
+        db, mixed_id, "en",
+        "English description\n\nJA:\n日本語の説明\n\nYUE:\n廣東話說明\n```",
+    )
+    lms.save_translation(db, fenced_id, "en", "Compare companies\n```")
+
+    result = lms.repair_mixed_translation_records(db)
+
+    assert result["repaired_rows"] == 4
+    rows = db.execute(
+        """SELECT string_id, language_code, translated_text
+           FROM localization_translations ORDER BY string_id, language_code"""
+    ).fetchall()
+    assert [tuple(row) for row in rows] == [
+        (mixed_id, "en", "English description"),
+        (mixed_id, "ja", "日本語の説明"),
+        (mixed_id, "yue-HK", "廣東話說明"),
+        (fenced_id, "en", "Compare companies"),
+    ]
+
+
 def test_glossary_can_be_updated_and_deactivated():
     db = connection()
     lms.save_glossary(db, "리서치", "Research", "en")

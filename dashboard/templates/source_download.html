@@ -9,8 +9,8 @@
     <h1 class="page-title">원천 데이터 다운</h1>
     <p class="page-description">{{ t('사이트에서 수집하는 숫자 데이터를 중앙 DB에 계속 누적하고, 일자·월·연도 단위로 조회해 Excel에 바로 붙여넣을 수 있습니다.') }}</p>
     <div class="source-repository-stats" aria-label="{{ t('누적 데이터 현황') }}">
-      <span><b>{{ source_view.stats.series_count or 0 }}</b>{% if current_locale == 'en' %} data series{% else %}개 데이터 종류{% endif %}</span>
-      <span><b>{{ "{:,}".format(source_view.stats.point_count or 0) }}</b>{% if current_locale == 'en' %} accumulated values{% else %}개 누적값{% endif %}</span>
+      <span><b>{{ source_view.stats.series_count or 0 }}</b> {{ t('데이터 종류') }}</span>
+      <span><b>{{ "{:,}".format(source_view.stats.point_count or 0) }}</b> {{ t('누적값') }}</span>
       <span>{{ source_view.stats.first_date or '-' }} ~ {{ source_view.stats.last_date or '-' }}</span>
     </div>
     <p class="page-note">{{ t('새로운 수집값은 기존 원본 DB와 함께 이 저장소에도 자동 기록됩니다. 경영실적 데이터는 관리자에게만 표시됩니다.') }}</p>
@@ -51,7 +51,7 @@
       {% endfor %}
       {% if source_view.categories|length > 4 %}
       <details class="source-series-more">
-        <summary>{{ t('나머지 데이터 항목 보기') }} <span>{% if current_locale == 'en' %}{{ source_view.categories|length - 4 }} categories{% else %}{{ source_view.categories|length - 4 }}개 분류{% endif %}</span></summary>
+        <summary>{{ t('나머지 데이터 항목 보기') }} <span>{{ source_view.categories|length - 4 }} {{ t('분류') }}</span></summary>
         <div class="source-series-more-grid">
           {% for category, items in source_view.categories.items() %}
           {% if loop.index > 4 %}
@@ -76,7 +76,7 @@
 
   <section class="panel source-table-panel">
     <div class="source-section-heading">
-      <div><p class="page-eyebrow">MATRIX</p><h2>{% if current_locale == 'en' %}{{ {'daily':'Daily','monthly':'Monthly','yearly':'Yearly'}[source_view.grain] }} data table{% else %}{{ {'daily':'일자별','monthly':'월별','yearly':'연도별'}[source_view.grain] }} 데이터 표{% endif %}</h2></div>
+      <div><p class="page-eyebrow">MATRIX</p><h2>{{ t({'daily':'일자별 데이터 표','monthly':'월별 데이터 표','yearly':'연도별 데이터 표'}[source_view.grain]) }}</h2></div>
       <div class="source-actions">
         <button class="button" type="button" id="copy-source-matrix">{{ t('표 복사') }}</button>
         <button class="button" type="button" id="copy-source-raw">{{ t('원본 목록 복사') }}</button>

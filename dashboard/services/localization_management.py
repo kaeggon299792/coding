@@ -890,9 +890,7 @@ def import_ai_translation_text_all(connection, payload, actor_id=None):
             errors += 1
             continue
         for value in values:
-            translation = re.sub(
-                r"\n?\s*-{8,}\s*$", "", value.group(2)
-            ).strip()
+            translation = _clean_ai_translation_value(value.group(2))
             if not translation:
                 errors += 1
                 continue
@@ -923,6 +921,17 @@ def detect_ai_translation_languages(connection, payload):
     return detected
 
 
+def _clean_ai_translation_value(value):
+    """Remove clipboard wrappers without altering Markdown inside a translation."""
+    text = re.sub(r"\n?\s*-{8,}\s*$", "", str(value or "")).strip()
+    lines = text.splitlines()
+    if lines and re.fullmatch(r"\s*```(?:text)?\s*", lines[0], re.IGNORECASE):
+        lines.pop(0)
+    if lines and re.fullmatch(r"\s*```\s*", lines[-1]):
+        lines.pop()
+    return "\n".join(lines).strip()
+
+
 def import_ai_translation_text(connection, payload, language_code="en", actor_id=None):
     text = str(payload or "")
     if not text.strip():
@@ -937,6 +946,16 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         f"CONTENT_{output_label}",
     )
     label_pattern = "|".join(re.escape(label) for label in accepted_labels)
+    # A single-language Work form may receive a combined EN/JA/YUE response.
+    # Other language labels must terminate the selected value, never become part
+    # of it. The combined importer remains responsible for saving those blocks.
+    all_labels = []
+    for language in _active_prompt_languages(connection):
+        label = language["output_label"]
+        all_labels.extend((label, f"TITLE_{label}", f"CONTENT_{label}"))
+    all_label_pattern = "|".join(
+        re.escape(label) for label in dict.fromkeys(all_labels)
+    )
     pattern = re.compile(
         r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)"
         r"(?=^\s*ID\s*=|\Z)"
@@ -949,7 +968,7 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
             item.group(1): item.group(2).strip()
             for item in re.finditer(
                 rf"(?ms)^\s*({label_pattern})\s*:\s*\r?\n(.*?)"
-                rf"(?=^\s*(?:{label_pattern})\s*:|\Z)",
+                rf"(?=^\s*(?:{all_label_pattern})\s*:|\Z)",
                 match.group(2),
             )
         }
@@ -959,9 +978,7 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
             or values.get(f"TITLE_{output_label}")
             or ""
         )
-        translation = re.sub(
-            r"\n?\s*-{8,}\s*$", "", translated_value
-        ).strip()
+        translation = _clean_ai_translation_value(translated_value)
         if language_key in seen or not translation:
             errors += 1; continue
         seen.add(language_key)
@@ -983,6 +1000,61 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         )
     connection.commit()
     return {"updated": updated, "errors": errors}
+
+
+def repair_mixed_translation_records(connection):
+    """Split legacy combined AI responses and remove stray closing fences.
+
+    This is intentionally an explicit maintenance operation; normal requests do
+    not rewrite stored content. Existing rows are only changed when a line-level
+    active language label or an outer code fence is present.
+    """
+    languages = _active_prompt_languages(connection)
+    by_label = {item["output_label"]: item["language_code"] for item in languages}
+    label_pattern = "|".join(re.escape(label) for label in by_label)
+    marker_pattern = re.compile(rf"(?m)^\s*({label_pattern})\s*:\s*\r?\n")
+    rows = connection.execute(
+        """SELECT string_id, language_code, translated_text, status
+           FROM localization_translations
+           WHERE translated_text IS NOT NULL"""
+    ).fetchall()
+    repaired_rows = split_values = 0
+    for row in rows:
+        original = str(row["translated_text"] or "")
+        markers = list(marker_pattern.finditer(original))
+        values = {}
+        if markers:
+            prefix = _clean_ai_translation_value(original[:markers[0].start()])
+            if prefix:
+                values[row["language_code"]] = prefix
+            for index, marker in enumerate(markers):
+                end = markers[index + 1].start() if index + 1 < len(markers) else len(original)
+                value = _clean_ai_translation_value(original[marker.end():end])
+                if value:
+                    values[by_label[marker.group(1)]] = value
+        else:
+            cleaned = _clean_ai_translation_value(original)
+            if cleaned != original.strip():
+                values[row["language_code"]] = cleaned
+        if not values:
+            continue
+        for language_code, value in values.items():
+            existing = connection.execute(
+                """SELECT translated_text FROM localization_translations
+                   WHERE string_id=? AND language_code=?""",
+                (row["string_id"], language_code),
+            ).fetchone()
+            if existing and str(existing["translated_text"] or "").strip() == value:
+                continue
+            save_translation(
+                connection, row["string_id"], language_code, value,
+                status="Completed", record_event=False,
+            )
+            repaired_rows += 1
+            if language_code != row["language_code"]:
+                split_values += 1
+    connection.commit()
+    return {"repaired_rows": repaired_rows, "split_values": split_values}
 
 
 def qa_report(connection, language_code="en"):
