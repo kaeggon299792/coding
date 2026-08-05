@@ -17,7 +17,6 @@
     </form>
   </header>
 
-  <p class="casino-ms-source">{{ market_share.source_note }}</p>
   {% for comparison in market_share.comparisons %}
   <section class="panel casino-ms-section">
     <header><div><span>0{{ loop.index }}</span><h2>{{ comparison.title }}</h2></div><p>{{ comparison.subtitle }}</p></header>

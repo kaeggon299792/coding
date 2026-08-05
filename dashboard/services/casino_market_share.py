@@ -107,5 +107,4 @@ def build_dashboard(connection, selected_year=None, exclude_kangwon=False):
         "trend_years": trend_years,
         "trend": trend,
         "exclude_kangwon": bool(exclude_kangwon),
-        "source_note": "중앙 DB의 VALUESearch 법인별 손익계산서(연간, 억원). 카지노 사업장 단독 실적이 아닌 운영 법인 전체 실적 기준입니다.",
     }
