@@ -1180,10 +1180,21 @@ def my_account():
     try:
         user = connection.execute(
             """
-            SELECT id, username, email, name, picture_url, google_sub, role,
-                   created_at, updated_at, last_login_at, approval_status,
-                   deletion_requested_at, deletion_scheduled_at
-            FROM dashboard_users WHERE id=?
+            SELECT dashboard_users.id, dashboard_users.username,
+                   dashboard_users.email, dashboard_users.name,
+                   dashboard_users.picture_url, dashboard_users.google_sub,
+                   dashboard_users.role, dashboard_users.membership_level,
+                   dashboard_users.created_at, dashboard_users.updated_at,
+                   dashboard_users.last_login_at, dashboard_users.approval_status,
+                   dashboard_users.deletion_requested_at,
+                   dashboard_users.deletion_scheduled_at,
+                   membership_grades.label AS membership_label,
+                   membership_grades.description AS membership_description,
+                   membership_grades.icon_path AS membership_icon_path
+            FROM dashboard_users
+            LEFT JOIN membership_grades
+              ON membership_grades.code = dashboard_users.membership_level
+            WHERE dashboard_users.id=?
             """,
             (session["user_id"],),
         ).fetchone()

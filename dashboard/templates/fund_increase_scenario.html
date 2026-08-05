@@ -30,7 +30,7 @@
   <section class="fund-scenario-kpis" aria-label="시나리오 핵심 지표">
     <article><span>분석 기준</span><strong>{{ scenario.base_year }}년</strong><small>각 법인 연간 손익계산서</small></article>
     <article><span>분석 운영사</span><strong>{{ scenario.available_count }}개사</strong><small>중앙 재무 DB 연동</small></article>
-    <article class="is-alert"><span>추가 기금 부담</span><strong>{{ "{:,.1f}".format(scenario.total_additional_fund) }}억원</strong><small>4개사 단순 합산 추정</small></article>
+    <article class="is-alert"><span>추가 기금 부담</span><strong>{{ "{:,.1f}".format(scenario.total_additional_fund) }}억원</strong><small>{{ scenario.available_count }}개 운영사 단순 합산 추정</small></article>
     <article><span>예상 영업이익 합계</span><strong>{{ "{:,.1f}".format(scenario.total_projected_profit) }}억원</strong><small>기존 {{ "{:,.1f}".format(scenario.total_current_profit) }}억원</small></article>
   </section>
 
@@ -69,7 +69,7 @@
 
   <section class="fund-scenario-panel">
     <header class="fund-panel-heading">
-      <div><span>02 / PROFIT COMPARISON</span><h2>기존 대비 예상 영업이익</h2></div>
+      <div><span>02 / PROFIT COMPARISON</span><h2>{{ scenario.available_count }}개 운영사 수익 영향 비교</h2></div>
       <p>회색: 2025 공시 · 적색: 인상 시나리오</p>
     </header>
     <div class="fund-profit-chart">

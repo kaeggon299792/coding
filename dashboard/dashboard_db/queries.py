@@ -454,6 +454,114 @@ def count_community_posts(connection, board_type="community"):
     ).fetchone()[0]
 
 
+def create_diary_entry(
+    connection, author_id, author_username, diary_date, mood_code, title, content,
+):
+    title = (title or "").strip()
+    content = (content or "").strip()
+    if not title or len(title) > 150:
+        raise ValueError("제목은 1~150자로 입력해주세요.")
+    if not content or len(content) > 10_000:
+        raise ValueError("내용은 1~10,000자로 입력해주세요.")
+    now_iso = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """
+        INSERT INTO community_posts
+            (author_id, author_username, title, content, board_type,
+             diary_date, mood_code, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'diary', ?, ?, ?, ?)
+        """,
+        (
+            author_id, author_username, title, content, diary_date, mood_code,
+            now_iso, now_iso,
+        ),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def list_diary_entries(connection, owner_id, limit=20, offset=0):
+    rows = connection.execute(
+        """
+        SELECT id, title, content, diary_date, mood_code, created_at, updated_at
+        FROM community_posts
+        WHERE author_id=? AND board_type='diary' AND is_deleted=0
+        ORDER BY diary_date DESC, id DESC
+        LIMIT ? OFFSET ?
+        """,
+        (owner_id, max(1, min(int(limit), 100)), max(0, int(offset))),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def count_diary_entries(connection, owner_id):
+    return connection.execute(
+        """SELECT COUNT(*) FROM community_posts
+           WHERE author_id=? AND board_type='diary' AND is_deleted=0""",
+        (owner_id,),
+    ).fetchone()[0]
+
+
+def get_diary_entry(connection, entry_id, owner_id):
+    row = connection.execute(
+        """SELECT * FROM community_posts
+           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
+        (entry_id, owner_id),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def update_diary_entry(
+    connection, entry_id, owner_id, diary_date, mood_code, title, content,
+):
+    title = (title or "").strip()
+    content = (content or "").strip()
+    if not title or len(title) > 150:
+        raise ValueError("제목은 1~150자로 입력해주세요.")
+    if not content or len(content) > 10_000:
+        raise ValueError("내용은 1~10,000자로 입력해주세요.")
+    cursor = connection.execute(
+        """UPDATE community_posts
+           SET diary_date=?, mood_code=?, title=?, content=?, updated_at=?
+           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
+        (
+            diary_date, mood_code, title, content,
+            now_kst().isoformat(timespec="seconds"), entry_id, owner_id,
+        ),
+    )
+    if not cursor.rowcount:
+        raise ValueError("일기를 찾을 수 없습니다.")
+    connection.commit()
+
+
+def delete_diary_entry(connection, entry_id, owner_id):
+    now_iso = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """UPDATE community_posts
+           SET is_deleted=1, deleted_at=?, deleted_by=?, updated_at=?
+           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
+        (now_iso, owner_id, now_iso, entry_id, owner_id),
+    )
+    if not cursor.rowcount:
+        raise ValueError("일기를 찾을 수 없습니다.")
+    connection.commit()
+
+
+def register_diary_image(connection, filename, owner_id):
+    connection.execute(
+        "INSERT INTO diary_images(filename, owner_id, created_at) VALUES (?, ?, ?)",
+        (filename, owner_id, now_kst().isoformat(timespec="seconds")),
+    )
+    connection.commit()
+
+
+def diary_image_owned_by(connection, filename, owner_id):
+    return connection.execute(
+        "SELECT 1 FROM diary_images WHERE filename=? AND owner_id=?",
+        (filename, owner_id),
+    ).fetchone() is not None
+
+
 def set_community_post_pinned(connection, post_id, is_pinned):
     now_iso = now_kst().isoformat(timespec="seconds")
     cursor = connection.execute(

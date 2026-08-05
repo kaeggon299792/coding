@@ -12,6 +12,8 @@ ROWS = [
     {"company_name": "인스파이어", "account_code": "125000", "fiscal_date": "2025-09-30", "amount": -10_000_000_000},
     {"company_name": "파라다이스세가사미", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 500_000_000_000},
     {"company_name": "파라다이스세가사미", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
+    {"company_name": "롯데관광개발", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 276_000_000_000},
+    {"company_name": "롯데관광개발", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": -25_000_000_000},
 ]
 
 
@@ -28,6 +30,10 @@ def test_scenario_one_applies_incremental_five_percent_to_all_revenue(monkeypatc
     assert paradise["projected_profit"] == 200.0
     assert paradise["projected_margin"] == 5.0
     assert paradise["margin_change"] == -5.0
+    assert result["available_count"] == 5
+    lotte = next(item for item in result["items"] if item["company_name"] == "롯데관광개발")
+    assert lotte["projected_profit"] == -388.0
+    assert lotte["is_projected_loss"] is True
 
 
 def test_scenario_two_only_applies_increase_above_3000_eok(monkeypatch):

@@ -171,6 +171,8 @@ NOINDEX_ENDPOINTS = {
     "community_board_page",
     "notice_board_page",
     "community_post_page",
+    "diary_board_page",
+    "diary_entry_page",
     "not_found_page",
 }
 LOCALIZATION_DISCOVERY_ENDPOINTS = INDEXABLE_ENDPOINTS | {
@@ -1205,6 +1207,9 @@ def inject_globals():
         "community_board_page": "자유 게시판",
         "create_community_post_route": "자유 게시판",
         "notice_board_page": "공지사항",
+        "diary_board_page": "나의 일기장",
+        "diary_entry_page": "나의 일기장",
+        "edit_diary_entry_route": "나의 일기장",
         "create_notice_post_route": "공지사항",
         "community_post_page": "자유 게시판",
         "admin_action_items_page": "미처리 과제",
@@ -4498,6 +4503,230 @@ def _community_attachment_url(raw_value, kind):
     return value
 
 
+_DIARY_MOODS = {
+    "great": ("😄", "아주 좋음"),
+    "good": ("🙂", "좋음"),
+    "calm": ("😌", "평온함"),
+    "tired": ("😮‍💨", "피곤함"),
+    "sad": ("😔", "속상함"),
+}
+
+
+def _diary_form_data(source):
+    diary_date = (source.get("diary_date") or "").strip()
+    mood_code = (source.get("mood_code") or "").strip()
+    title = (source.get("title") or "").strip()
+    content = (source.get("content") or "").strip()
+    try:
+        datetime.strptime(diary_date, "%Y-%m-%d")
+    except ValueError as error:
+        raise ValueError("날짜를 올바르게 선택해주세요.") from error
+    if mood_code not in _DIARY_MOODS:
+        raise ValueError("오늘의 기분을 선택해주세요.")
+    return {
+        "diary_date": diary_date,
+        "mood_code": mood_code,
+        "title": title,
+        "content": content,
+    }
+
+
+def _diary_board_context(connection, page=1, error=None, form_data=None):
+    page_size = 20
+    owner_id = session["user_id"]
+    total = queries.count_diary_entries(connection, owner_id)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(int(page), total_pages))
+    return {
+        "entries": queries.list_diary_entries(
+            connection, owner_id, page_size, (page - 1) * page_size
+        ),
+        "total": total,
+        "page": page,
+        "total_pages": total_pages,
+        "moods": _DIARY_MOODS,
+        "csrf_token": get_csrf_token(),
+        "error": error,
+        "form_data": form_data or {"diary_date": today_kst_str(), "mood_code": "calm"},
+    }
+
+
+@app.route("/board/diary", methods=["GET", "POST"])
+@login_required
+def diary_board_page():
+    connection = dashboard_db()
+    try:
+        try:
+            page = int(request.args.get("page", 1))
+        except (TypeError, ValueError):
+            page = 1
+        if request.method == "GET":
+            return render_template(
+                "diary_board.html", **_diary_board_context(connection, page=page)
+            )
+        raw_form = {
+            key: (request.form.get(key) or "")
+            for key in ("diary_date", "mood_code", "title", "content")
+        }
+        if not validate_csrf(request.form.get("csrf_token", "")):
+            return render_template(
+                "diary_board.html",
+                **_diary_board_context(
+                    connection, error="요청이 만료되었습니다. 다시 시도해주세요.",
+                    form_data=raw_form,
+                ),
+            ), 400
+        try:
+            form_data = _diary_form_data(raw_form)
+            entry_id = queries.create_diary_entry(
+                connection,
+                session["user_id"],
+                session.get("username") or "",
+                **form_data,
+            )
+        except ValueError as error:
+            return render_template(
+                "diary_board.html",
+                **_diary_board_context(
+                    connection, error=str(error), form_data=raw_form
+                ),
+            ), 400
+        security_audit.log_event(
+            connection, "DIARY_ENTRY_CREATE", "diary_entry", entry_id,
+            {"diary_date": form_data["diary_date"]},
+        )
+        connection.commit()
+        return redirect(url_for("diary_entry_page", entry_id=entry_id))
+    finally:
+        connection.close()
+
+
+@app.get("/board/diary/<int:entry_id>")
+@login_required
+def diary_entry_page(entry_id):
+    connection = dashboard_db()
+    try:
+        entry = queries.get_diary_entry(connection, entry_id, session["user_id"])
+        if not entry:
+            abort(404)
+        return render_template(
+            "diary_entry.html", entry=entry,
+            mood=_DIARY_MOODS.get(entry.get("mood_code"), ("•", "미선택")),
+            entry_html=_render_community_markdown(entry["content"]),
+            csrf_token=get_csrf_token(),
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/board/diary/<int:entry_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_diary_entry_route(entry_id):
+    connection = dashboard_db()
+    try:
+        entry = queries.get_diary_entry(connection, entry_id, session["user_id"])
+        if not entry:
+            abort(404)
+        error = None
+        status = 200
+        form_data = entry
+        if request.method == "POST":
+            raw_form = {
+                key: (request.form.get(key) or "")
+                for key in ("diary_date", "mood_code", "title", "content")
+            }
+            form_data = raw_form
+            if not validate_csrf(request.form.get("csrf_token", "")):
+                error = "요청이 만료되었습니다. 다시 시도해주세요."
+                status = 400
+            else:
+                try:
+                    clean = _diary_form_data(raw_form)
+                    queries.update_diary_entry(
+                        connection, entry_id, session["user_id"], **clean
+                    )
+                except ValueError as exc:
+                    error = str(exc)
+                    status = 400
+                else:
+                    security_audit.log_event(
+                        connection, "DIARY_ENTRY_UPDATE", "diary_entry", entry_id
+                    )
+                    connection.commit()
+                    return redirect(url_for("diary_entry_page", entry_id=entry_id))
+        return render_template(
+            "diary_edit.html", entry=entry, form_data=form_data, moods=_DIARY_MOODS,
+            error=error, csrf_token=get_csrf_token(),
+        ), status
+    finally:
+        connection.close()
+
+
+@app.post("/board/diary/<int:entry_id>/delete")
+@login_required
+def delete_diary_entry_route(entry_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        try:
+            queries.delete_diary_entry(connection, entry_id, session["user_id"])
+        except ValueError:
+            abort(404)
+        security_audit.log_event(
+            connection, "DIARY_ENTRY_DELETE", "diary_entry", entry_id
+        )
+        connection.commit()
+        return redirect(url_for("diary_board_page"))
+    finally:
+        connection.close()
+
+
+@app.post("/board/diary/images")
+@login_required
+def upload_diary_image_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return jsonify({"error": "요청이 만료되었습니다. 새로고침 후 다시 시도해주세요."}), 400
+    try:
+        filename = editor_images.save_pasted_image(
+            request.files.get("image"), config.DIARY_IMAGE_DIR,
+            config.DIARY_IMAGE_MAX_BYTES,
+        )
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    connection = dashboard_db()
+    try:
+        try:
+            queries.register_diary_image(connection, filename, session["user_id"])
+            security_audit.log_event(
+                connection, "DIARY_IMAGE_UPLOAD", "diary_image", filename
+            )
+            connection.commit()
+        except Exception:
+            (Path(config.DIARY_IMAGE_DIR) / filename).unlink(missing_ok=True)
+            raise
+    finally:
+        connection.close()
+    return jsonify({"url": url_for("diary_image_file", filename=filename)})
+
+
+@app.get("/board/diary/images/<filename>")
+@login_required
+def diary_image_file(filename):
+    if not re.fullmatch(r"[0-9a-f]{32}\.(?:png|jpg|gif|webp)", filename):
+        abort(404)
+    connection = dashboard_db()
+    try:
+        if not queries.diary_image_owned_by(connection, filename, session["user_id"]):
+            abort(404)
+    finally:
+        connection.close()
+    path = Path(config.DIARY_IMAGE_DIR) / filename
+    if not path.is_file():
+        abort(404)
+    return send_file(path, conditional=True, max_age=0)
+
+
 @app.get("/board")
 def community_board_page():
     try:
@@ -4670,6 +4899,8 @@ def community_post_page(post_id):
         )
         if not post:
             abort(404)
+        if post["board_type"] == "diary":
+            abort(404)
         if not membership.can_board(
             connection, post["board_type"], "read",
             session.get("user_id"), session.get("role"),
@@ -4705,6 +4936,8 @@ def edit_community_post_route(post_id):
     try:
         post = queries.get_community_post(connection, post_id)
         if not post:
+            abort(404)
+        if post["board_type"] == "diary":
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "write",
@@ -4776,6 +5009,8 @@ def create_community_comment_route(post_id):
         )
         if not post:
             abort(404)
+        if post["board_type"] == "diary":
+            abort(404)
         if not membership.can_board(
             connection, post["board_type"], "comment",
             session.get("user_id"), session.get("role"),
@@ -4829,6 +5064,9 @@ def recommend_community_post_route(post_id):
         abort(400)
     connection = dashboard_db()
     try:
+        post = queries.get_community_post(connection, post_id)
+        if not post or post["board_type"] == "diary":
+            abort(404)
         try:
             recommended, count = queries.toggle_community_post_recommendation(
                 connection, post_id, session["user_id"]
@@ -4884,6 +5122,8 @@ def delete_community_post_route(post_id):
     try:
         post = queries.get_community_post(connection, post_id)
         if not post:
+            abort(404)
+        if post["board_type"] == "diary":
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "write",

@@ -32,6 +32,7 @@ dashboard/logs/
 
 # Runtime uploads, backups, and generated deployment workspaces
 dashboard/static/uploads/
+dashboard/data/diary_images/
 dashboard/data/research_library/
 dashboard/backups/
 backups/

@@ -16,6 +16,7 @@ COMPANIES = (
     ("GKL", "GKL"),
     ("인스파이어", "인스파이어"),
     ("파라다이스세가사미", "파라다이스시티"),
+    ("롯데관광개발", "롯데관광개발"),
 )
 
 
@@ -30,7 +31,7 @@ def _margin(profit, revenue):
 
 
 def build_dashboard(connection, selected_scenario=None):
-    """Return both scenarios and the selected four-company comparison."""
+    """Return both scenarios and the selected operator comparison."""
 
     scenario_key = "2" if str(selected_scenario) == "2" else "1"
     values = {}

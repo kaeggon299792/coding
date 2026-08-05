@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}나의 일기장{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_board_subnav.html" %}
+<main class="page-container diary-page">
+  <header class="page-header diary-hero">
+    <div><p class="page-eyebrow">PRIVATE / MY DIARY</p><h1 class="page-title">나의 일기장</h1><p class="page-description">나에게만 보이는 기록입니다. 날짜와 기분, 오늘의 생각을 남겨보세요.</p></div>
+    <span class="diary-private-mark">PRIVATE</span>
+  </header>
+  {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+  <details class="panel diary-compose"{% if error %} open{% endif %}>
+    <summary class="btn btn-primary">오늘 기록하기</summary>
+    <form method="post" action="{{ url_for('diary_board_page') }}" class="diary-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="diary-form-row">
+        <label><span>날짜</span><input type="date" name="diary_date" required value="{{ form_data.diary_date or '' }}"></label>
+        <fieldset><legend>오늘의 기분</legend><div class="diary-mood-options">{% for code, mood in moods.items() %}<label><input type="radio" name="mood_code" value="{{ code }}"{% if form_data.mood_code == code %} checked{% endif %} required><span aria-hidden="true">{{ mood[0] }}</span><small>{{ mood[1] }}</small></label>{% endfor %}</div></fieldset>
+      </div>
+      <label><span>제목</span><input type="text" name="title" maxlength="150" required value="{{ form_data.title or '' }}" placeholder="오늘을 한 문장으로 남겨보세요"></label>
+      <label><span>내용 <em>Markdown · 이미지 붙여넣기 지원</em></span><textarea id="diary-content" name="content" maxlength="10000" rows="11" required data-image-paste data-image-paste-scope="diary" data-image-paste-endpoint="{{ url_for('upload_diary_image_route') }}" data-image-paste-csrf="{{ csrf_token }}" placeholder="내용을 입력하거나 그림을 복사한 뒤 Ctrl+V로 붙여넣으세요.">{{ form_data.content or '' }}</textarea><small class="image-paste-status" data-image-paste-status="diary-content" role="status" aria-live="polite"></small></label>
+      <div class="diary-form-footer"><small>이 글과 붙여넣은 이미지는 로그인한 본인만 열 수 있습니다.</small><button class="btn btn-primary" type="submit">일기 저장</button></div>
+    </form>
+  </details>
+  <section class="panel diary-list-panel">
+    <div class="section-heading"><div><p class="section-kicker">ARCHIVE</p><h2>나의 기록</h2></div><span>{{ total }}건</span></div>
+    {% if entries %}<div class="diary-entry-grid">{% for entry in entries %}{% set mood = moods.get(entry.mood_code, ('•','미선택')) %}<a href="{{ url_for('diary_entry_page', entry_id=entry.id) }}"><time datetime="{{ entry.diary_date }}">{{ entry.diary_date }}</time><span class="diary-entry-mood" aria-label="{{ mood[1] }}">{{ mood[0] }}</span><h3>{{ entry.title }}</h3><p>{{ entry.content|striptags|truncate(100, true, '…') }}</p></a>{% endfor %}</div>{% else %}<div class="community-empty"><span aria-hidden="true">✦</span><h3>아직 남긴 기록이 없습니다</h3><p>첫 일기를 작성해보세요.</p></div>{% endif %}
+    {% if total_pages > 1 %}<nav class="news-pagination" aria-label="일기장 페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('diary_board_page', page=page-1) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for('diary_board_page', page=page+1) }}">다음</a>{% endif %}</nav>{% endif %}
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260806-diary1" defer></script>{% endblock %}

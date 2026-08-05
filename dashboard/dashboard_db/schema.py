@@ -567,6 +567,8 @@ def migrate(connection):
         connection, "community_posts", "view_count",
         "INTEGER NOT NULL DEFAULT 0",
     )
+    _ensure_column(connection, "community_posts", "diary_date", "TEXT")
+    _ensure_column(connection, "community_posts", "mood_code", "TEXT")
     connection.execute(
         "UPDATE community_posts SET board_type='community' "
         "WHERE board_type IS NULL OR TRIM(board_type)=''"
@@ -582,6 +584,23 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_posts_board_pinned_created "
         "ON community_posts(is_deleted, board_type, is_pinned DESC, created_at DESC, id DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_community_diary_owner_date "
+        "ON community_posts(author_id, board_type, is_deleted, diary_date DESC, id DESC)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS diary_images (
+            filename TEXT PRIMARY KEY,
+            owner_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_diary_images_owner_created "
+        "ON diary_images(owner_id, created_at DESC)"
     )
 
     # ---- community_comments ----
