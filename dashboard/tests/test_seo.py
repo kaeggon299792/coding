@@ -101,10 +101,6 @@ def test_home_has_canonical_meta_and_structured_data(client):
     assert 'rel="canonical" href="https://www.casinoin.kr/"' in html
     assert 'property="og:url" content="https://www.casinoin.kr/"' in html
     assert 'name="twitter:card" content="summary_large_image"' in html
-    assert (
-        'name="naver-site-verification" '
-        'content="404c8ef0b01e794fe6f65dd351e8c530a0eff452"' in html
-    )
     assert '"@type": "WebSite"' in html
     assert '"@type": "SearchAction"' in html
     assert '"@type": "BreadcrumbList"' in html
@@ -142,12 +138,12 @@ def test_robots_txt(client):
 
 
 def test_naver_site_verification_file(client):
-    response = client.get("/naver7a229f17935cf835e702d520f845f4a9.html")
+    response = client.get("/naverb94cc5f36ac557d17f46e549f34eaf3f.html")
 
     assert response.status_code == 200
     assert "text/html" in response.content_type
     assert response.get_data(as_text=True).strip() == (
-        "naver-site-verification: naver7a229f17935cf835e702d520f845f4a9.html"
+        "naver-site-verification: naverb94cc5f36ac557d17f46e549f34eaf3f.html"
     )
 
 

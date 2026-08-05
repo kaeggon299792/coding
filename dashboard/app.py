@@ -1499,12 +1499,12 @@ def _build_sitemap_entries(connection):
     return entries
 
 
-@app.route("/naver7a229f17935cf835e702d520f845f4a9.html")
+@app.route("/naverb94cc5f36ac557d17f46e549f34eaf3f.html")
 def naver_site_verification():
     return send_file(
         Path(app.root_path)
         / "verification"
-        / "naver7a229f17935cf835e702d520f845f4a9.html",
+        / "naverb94cc5f36ac557d17f46e549f34eaf3f.html",
         mimetype="text/html",
     )
 
