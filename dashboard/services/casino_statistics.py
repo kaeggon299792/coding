@@ -128,17 +128,24 @@ def build_visitors() -> dict:
     foreign_values = [row["foreign_visitors"] for row in rows]
     casino_values = [row["casino_visitors"] for row in rows]
     share_values = [row["share"] for row in rows]
+    revenue_by_year = {year: casino for year, _, _, casino, _, _ in REVENUE_HISTORY}
+    revenue_values = [revenue_by_year.get(year) for year in years]
+    revenue_maximum = max(value for value in revenue_values if value is not None)
     return {
         "rows": rows,
         "latest": rows[-1],
         "foreign_points": _polyline(foreign_values, maximum=maximum),
         "casino_points": _polyline(casino_values, maximum=maximum),
+        "revenue_points": _polyline(revenue_values, maximum=revenue_maximum),
         "share_points": _polyline(share_values, height=150),
         "foreign_area_points": _area_points(foreign_values, maximum=maximum),
         "casino_area_points": _area_points(casino_values, maximum=maximum),
         "share_area_points": _area_points(share_values, height=150),
         "foreign_chart_points": _chart_points(foreign_values, years, maximum=maximum),
         "casino_chart_points": _chart_points(casino_values, years, maximum=maximum),
+        "revenue_chart_points": _chart_points(
+            revenue_values, years, maximum=revenue_maximum
+        ),
         "share_chart_points": _chart_points(share_values, years, height=150),
         "year_ticks": _year_ticks(years),
         "share_year_ticks": _year_ticks(years),
