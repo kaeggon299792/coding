@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote, urlsplit
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Element, SubElement, register_namespace, tostring
 
 import bleach
 import markdown
@@ -168,33 +168,21 @@ LOCALIZATION_DISCOVERY_ENDPOINTS = INDEXABLE_ENDPOINTS | {
     "notice_board_page",
     "community_post_page",
 }
-SITEMAP_STATIC_ENDPOINTS = {
-    "public_home": {"changefreq": "daily", "priority": "1.0"},
-    "casino_industry_page": {"changefreq": "monthly", "priority": "0.95"},
-    "casino_visitors_page": {"changefreq": "yearly", "priority": "0.82"},
-    "casino_revenue_page": {"changefreq": "yearly", "priority": "0.82"},
-    "casino_fund_page": {"changefreq": "yearly", "priority": "0.8"},
-    "related_news_page": {"changefreq": "hourly", "priority": "0.9"},
-    "overseas_news_page": {"changefreq": "daily", "priority": "0.88"},
-    "market_trend_page": {"changefreq": "daily", "priority": "0.85"},
-    "tourism_trend_page": {"changefreq": "monthly", "priority": "0.85"},
-    "economic_trend_page": {"changefreq": "daily", "priority": "0.85"},
-    "holiday_calendar_page": {"changefreq": "monthly", "priority": "0.7"},
-    "salary_trend_page": {"changefreq": "daily", "priority": "0.7"},
-    "recruitment_page": {"changefreq": "daily", "priority": "0.75"},
-    "company_recruitment_guide_page": {"changefreq": "monthly", "priority": "0.72"},
-    "disclosures_page": {"changefreq": "daily", "priority": "0.9"},
-    "laws_page": {"changefreq": "daily", "priority": "0.9"},
-    "legislation_page": {"changefreq": "daily", "priority": "0.88"},
-    "companies_page": {"changefreq": "daily", "priority": "0.85"},
-    "company_benefits_page": {"changefreq": "monthly", "priority": "0.72"},
-    "company_news_page": {"changefreq": "hourly", "priority": "0.85"},
-    "research_library_page": {"changefreq": "weekly", "priority": "0.8"},
-    "tips.list_page": {"changefreq": "weekly", "priority": "0.8"},
-    "tips.sites_page": {"changefreq": "weekly", "priority": "0.65"},
-    "tips.glossary_page": {"changefreq": "monthly", "priority": "0.72"},
-    "credits_page": {"changefreq": "weekly", "priority": "0.5"},
-}
+SITEMAP_STATIC_ENDPOINTS = (
+    "public_home", "casino_industry_page", "casino_market_share_page",
+    "casino_visitors_page", "casino_revenue_page", "casino_fund_page",
+    "related_news_page", "overseas_news_page", "market_trend_page",
+    "tourism_trend_page", "economic_trend_page", "holiday_calendar_page",
+    "salary_trend_page", "recruitment_page", "company_recruitment_guide_page",
+    "disclosures_page", "laws_page", "legislation_page", "companies_page",
+    "company_benefits_page", "company_news_page", "research_library_page",
+    "tips.list_page", "tips.sites_page", "tips.glossary_page", "credits_page",
+)
+SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
+XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
+SITEMAP_PUBLIC_URL = "https://www.casinoin.kr"
+register_namespace("", SITEMAP_NAMESPACE)
+register_namespace("xhtml", XHTML_NAMESPACE)
 SEO_PAGE_COPY = {
     "ko": {
         "public_home": (
@@ -549,14 +537,19 @@ def _clean_text_snippet(value, limit=180):
 
 def _date_only(value):
     if not value:
-        return today_kst_str()
-    return str(value)[:10]
+        return None
+    candidate = str(value).strip()[:10]
+    try:
+        datetime.strptime(candidate, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+    return candidate
 
 
 def _alternate_absolute_urls(path):
     localized_paths = alternate_paths(path)
     return {
-        locale: f"{CANONICAL_URL}{localized_path}"
+        locale: f"{SITEMAP_PUBLIC_URL}{localized_path}"
         for locale, localized_path in localized_paths.items()
     }
 
@@ -1384,44 +1377,44 @@ def sitemap_page():
     return render_template("sitemap.html", site_map_links=_site_map_links())
 
 
-def _sitemap_url_entry(path, lastmod, changefreq, priority):
+def _sitemap_url_entry(path, lastmod=None):
     urls = _alternate_absolute_urls(path)
+    alternates = {**urls, "x-default": urls["ko"]}
+    date_value = _date_only(lastmod)
     entries = []
     for locale in SUPPORTED_LOCALES:
-        locale_path = urls[locale]
         entries.append({
-            "loc": locale_path,
-            "lastmod": _date_only(lastmod),
-            "changefreq": changefreq,
-            "priority": priority,
+            "loc": urls[locale],
+            "lastmod": date_value,
+            "alternates": alternates,
         })
     return entries
 
 
 def _build_sitemap_entries(connection):
     entries = []
+    try:
+        news_lastmod = news_reader.last_updated_at()
+    except Exception:
+        logger.warning("사이트맵 뉴스 최신시각 조회 실패", exc_info=True)
+        news_lastmod = None
     static_lastmods = {
         "public_home": max(
             filter(
                 None,
                 (
-                    news_reader.last_updated_at(),
+                    news_lastmod,
                     _max_timestamp(connection, "law_updates", "fetched_at"),
                     _max_timestamp(connection, "dart_disclosures", "fetched_at"),
                 ),
             ),
-            default=today_kst_str(),
+            default=None,
         ),
-        "casino_industry_page": today_kst_str(),
-        "casino_visitors_page": today_kst_str(),
-        "casino_revenue_page": today_kst_str(),
-        "casino_fund_page": today_kst_str(),
-        "related_news_page": news_reader.last_updated_at() or today_kst_str(),
+        "related_news_page": news_lastmod,
         "overseas_news_page": _max_timestamp(connection, "overseas_news_articles", "collected_at"),
         "market_trend_page": _max_timestamp(connection, "market_quotes", "fetched_at"),
         "tourism_trend_page": _max_timestamp(connection, "tourism_visitor_stats", "fetched_at"),
         "economic_trend_page": _max_timestamp(connection, "economic_series", "fetched_at"),
-        "holiday_calendar_page": today_kst_str(),
         "salary_trend_page": _max_timestamp(connection, "salary_snapshots", "fetched_at"),
         "recruitment_page": _max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
         "company_recruitment_guide_page": _max_timestamp(
@@ -1441,7 +1434,7 @@ def _build_sitemap_entries(connection):
                     ),
                 ),
             ),
-            default=today_kst_str(),
+            default=None,
         ),
         "companies_page": max(
             filter(
@@ -1451,12 +1444,12 @@ def _build_sitemap_entries(connection):
                     _max_timestamp(connection, "research_documents", "updated_at"),
                 ),
             ),
-            default=today_kst_str(),
+            default=None,
         ),
         "company_benefits_page": _max_timestamp(
             connection, "company_benefits", "updated_at"
         ),
-        "company_news_page": news_reader.last_updated_at() or today_kst_str(),
+        "company_news_page": news_lastmod,
         "research_library_page": _max_timestamp(connection, "research_documents", "updated_at"),
         "tips.list_page": _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
         "tips.sites_page": _max_timestamp(connection, "related_sites", "updated_at", "is_deleted=0 AND is_public=1"),
@@ -1469,36 +1462,40 @@ def _build_sitemap_entries(connection):
                     _max_timestamp(connection, "tips_articles", "updated_at", "is_deleted=0 AND draft=0"),
                 ),
             ),
-            default=today_kst_str(),
+            default=None,
         ),
     }
-    for endpoint, meta in SITEMAP_STATIC_ENDPOINTS.items():
+    for endpoint in SITEMAP_STATIC_ENDPOINTS:
         entries.extend(
             _sitemap_url_entry(
                 _neutral_url_for(endpoint),
-                static_lastmods.get(endpoint) or today_kst_str(),
-                meta["changefreq"],
-                meta["priority"],
+                static_lastmods.get(endpoint),
             )
         )
 
-    tip_rows = connection.execute(
-        """
-        SELECT slug, updated_at, published_date, title, summary, body
-        FROM tips_articles
-        WHERE is_deleted=0 AND draft=0
-        ORDER BY published_date DESC, created_at DESC
-        """
-    ).fetchall()
+    try:
+        tip_rows = connection.execute(
+            """
+            SELECT slug, updated_at, published_date
+            FROM tips_articles
+            WHERE is_deleted=0 AND draft=0
+              AND slug IS NOT NULL AND TRIM(slug)<>''
+            ORDER BY published_date DESC, created_at DESC
+            """
+        ).fetchall()
+    except sqlite3.Error:
+        logger.warning("사이트맵 공개 자료 조회 실패", exc_info=True)
+        tip_rows = []
     for row in tip_rows:
-        entries.extend(
-            _sitemap_url_entry(
-                _neutral_url_for("tips.detail_page", slug=row["slug"]),
-                row["updated_at"] or row["published_date"],
-                "monthly",
-                "0.7",
+        try:
+            entries.extend(
+                _sitemap_url_entry(
+                    _neutral_url_for("tips.detail_page", slug=row["slug"]),
+                    row["updated_at"] or row["published_date"],
+                )
             )
-        )
+        except (TypeError, ValueError):
+            logger.warning("사이트맵 자료 URL 생성 실패 slug=%r", row["slug"])
     return entries
 
 
@@ -1513,7 +1510,7 @@ def robots_txt():
         lines.extend(
             f"Disallow: {locale_prefix}{path}" for path in protected_paths
         )
-    lines.extend(("", f"Sitemap: {CANONICAL_URL}/sitemap.xml"))
+    lines.extend(("", f"Sitemap: {SITEMAP_PUBLIC_URL}/sitemap.xml"))
     return app.response_class("\n".join(lines), mimetype="text/plain")
 
 
@@ -1524,15 +1521,24 @@ def sitemap_xml():
         entries = _build_sitemap_entries(connection)
     finally:
         connection.close()
-    urlset = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+    urlset = Element(f"{{{SITEMAP_NAMESPACE}}}urlset")
     for entry in entries:
-        url_node = SubElement(urlset, "url")
-        SubElement(url_node, "loc").text = entry["loc"]
-        SubElement(url_node, "lastmod").text = entry["lastmod"]
-        SubElement(url_node, "changefreq").text = entry["changefreq"]
-        SubElement(url_node, "priority").text = entry["priority"]
+        url_node = SubElement(urlset, f"{{{SITEMAP_NAMESPACE}}}url")
+        SubElement(url_node, f"{{{SITEMAP_NAMESPACE}}}loc").text = entry["loc"]
+        if entry["lastmod"]:
+            SubElement(url_node, f"{{{SITEMAP_NAMESPACE}}}lastmod").text = entry["lastmod"]
+        for language_code, href in entry["alternates"].items():
+            SubElement(
+                url_node,
+                f"{{{XHTML_NAMESPACE}}}link",
+                {"rel": "alternate", "hreflang": language_code, "href": href},
+            )
     xml = tostring(urlset, encoding="utf-8", xml_declaration=True)
-    return app.response_class(xml, mimetype="application/xml")
+    response = app.response_class(
+        xml, content_type="application/xml; charset=utf-8"
+    )
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return response
 
 
 def _max_timestamp(connection, table, column, where_clause="", params=()):

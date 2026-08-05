@@ -57,6 +57,29 @@ def client(monkeypatch, tmp_path):
             "2026-07-31T09:30:00+09:00",
         ),
     )
+    connection.executemany(
+        """INSERT INTO tips_articles
+               (id,slug,title,published_date,updated_date,draft,is_deleted,
+                created_at,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (
+            (
+                "tip-seo-draft", "seo-draft-tip", "비공개 초안",
+                "2026-08-01", "2026-08-01", 1, 0,
+                "2026-08-01T09:00:00+09:00", "2026-08-01T09:00:00+09:00",
+            ),
+            (
+                "tip-seo-deleted", "seo-deleted-tip", "삭제 자료",
+                "2026-08-01", "2026-08-01", 0, 1,
+                "2026-08-01T09:00:00+09:00", "2026-08-01T09:00:00+09:00",
+            ),
+            (
+                "tip-seo-invalid-date", "seo-invalid-date-tip", "날짜 오류 공개 자료",
+                "not-a-date", "not-a-date", 0, 0,
+                "2026-08-01T09:00:00+09:00", "not-a-date",
+            ),
+        ),
+    )
     connection.commit()
     connection.close()
 
@@ -119,17 +142,22 @@ def test_sitemap_xml(client):
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "application/xml" in response.content_type
+    assert response.content_type == "application/xml; charset=utf-8"
     assert "<urlset" in body
     assert "https://www.casinoin.kr/" in body
     assert "https://www.casinoin.kr/en/" in body
     assert "https://www.casinoin.kr/resources/seo-test-tip" in body
     assert "https://www.casinoin.kr/en/resources/seo-test-tip" in body
+    assert "https://www.casinoin.kr/resources/seo-invalid-date-tip" in body
+    assert "seo-draft-tip" not in body
+    assert "seo-deleted-tip" not in body
     assert "/search" not in body
     assert "/board/bug-reports" not in body
     assert "casino.shingoon.me" not in body
     assert "/performance/" not in body
     assert "/tips/" not in body
+    assert "<changefreq>" not in body
+    assert "<priority>" not in body
 
     root = ET.fromstring(response.data)
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -137,6 +165,59 @@ def test_sitemap_xml(client):
     assert "https://www.casinoin.kr/" in urls
     assert "https://www.casinoin.kr/ja/" in urls
     assert "https://www.casinoin.kr/yue-hk/" in urls
+    assert all(url.startswith("https://www.casinoin.kr/") for url in urls)
+    assert len(urls) == len(set(urls))
+    forbidden_fragments = (
+        "/admin", "/login", "/logout", "/register", "/api/", "/search",
+        "/download", "/reanalyze", "/delete", "/edit", "/upload",
+        "/official-docs", "/board", "?",
+    )
+    assert not any(
+        fragment in url for url in urls for fragment in forbidden_fragments
+    )
+
+    url_nodes = root.findall("sm:url", ns)
+    public_tip = next(
+        node for node in url_nodes
+        if node.find("sm:loc", ns).text == "https://www.casinoin.kr/resources/seo-test-tip"
+    )
+    assert public_tip.find("sm:lastmod", ns).text == "2026-07-31"
+    invalid_date_tip = next(
+        node for node in url_nodes
+        if node.find("sm:loc", ns).text == "https://www.casinoin.kr/resources/seo-invalid-date-tip"
+    )
+    assert invalid_date_tip.find("sm:lastmod", ns) is None
+
+    xhtml_ns = "{http://www.w3.org/1999/xhtml}link"
+    alternates = public_tip.findall(xhtml_ns)
+    assert {item.attrib["hreflang"] for item in alternates} == {
+        "ko", "en", "ja", "yue-HK", "x-default",
+    }
+    assert all(item.attrib["href"].startswith("https://www.casinoin.kr/") for item in alternates)
+
+
+def test_sitemap_representative_urls_are_public_and_canonical(client):
+    sitemap = ET.fromstring(client.get("/sitemap.xml").data)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locations = [node.text for node in sitemap.findall("sm:url/sm:loc", ns)]
+    korean_paths = [
+        location.removeprefix("https://www.casinoin.kr")
+        for location in locations
+        if not location.startswith((
+            "https://www.casinoin.kr/en/",
+            "https://www.casinoin.kr/ja/",
+            "https://www.casinoin.kr/yue-hk/",
+        ))
+    ]
+    for path in korean_paths:
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 200, path
+    for path in (
+        "/en/", "/ja/market/casino-industry/market-share",
+        "/yue-hk/resources/seo-test-tip",
+    ):
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 200, path
 
 
 def test_every_static_indexable_page_has_locale_specific_search_copy():
