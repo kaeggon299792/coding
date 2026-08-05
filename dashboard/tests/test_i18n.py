@@ -14,6 +14,7 @@ def test_source_series_compound_labels_translate_korean_frequency_tokens():
     )
     assert "연누계" not in translate_source_label(source, "ja")
     assert "입장객" not in translate_source_label(source, "yue-HK")
+    assert translate_source_label("월별 데이터 표", "ja") == "月別 データ表"
 
 
 @pytest.fixture

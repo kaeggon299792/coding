@@ -187,16 +187,19 @@ def translate_source_label(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
             "분기누계": "Quarter-to-date", "연누계": "Year-to-date",
             "분기별": "Quarterly", "연간": "Annual", "월별": "Monthly",
             "전체 입장객": "Total visitors", "입장객": "Visitors",
+            "데이터 표": "data table",
         },
         "ja": {
             "분기누계": "四半期累計", "연누계": "年初来累計",
             "분기별": "四半期別", "연간": "年間", "월별": "月別",
             "전체 입장객": "総入場者数", "입장객": "入場者数",
+            "데이터 표": "データ表",
         },
         "yue-HK": {
             "분기누계": "季度累計", "연누계": "年初至今累計",
             "분기별": "按季度", "연간": "全年", "월별": "按月",
             "전체 입장객": "總入場人次", "입장객": "入場人次",
+            "데이터 표": "資料表",
         },
     }
     for source, target in replacements.get(locale, {}).items():
