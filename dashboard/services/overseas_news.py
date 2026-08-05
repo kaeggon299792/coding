@@ -10,9 +10,8 @@ import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
-from xml.etree import ElementTree
-
 import config
+from defusedxml import ElementTree
 from services import ai_insights
 from services.http_utils import get_with_hard_timeout
 

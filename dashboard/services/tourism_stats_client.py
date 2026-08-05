@@ -1,10 +1,11 @@
 """한국문화관광연구원 방한외래관광객통계 Open API 클라이언트."""
 
 import logging
-import xml.etree.ElementTree as ElementTree
 from datetime import date
 
 import requests
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 import config
 from services.http_utils import HardTimeoutError, get_with_hard_timeout
@@ -50,7 +51,7 @@ def fetch_month(ym, nat_cd=None):
 
     try:
         root = ElementTree.fromstring(response.content)
-    except ElementTree.ParseError:
+    except (ElementTree.ParseError, DefusedXmlException):
         return {"ok": False, "error": "API 응답이 올바른 XML이 아닙니다."}
     result_code = (root.findtext(".//resultCode") or "").strip()
     if result_code not in ("", "0000"):

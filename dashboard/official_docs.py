@@ -13,7 +13,6 @@ from flask import (
 
 import config
 from auth import get_csrf_token, login_required, validate_csrf
-from dashboard_db import queries
 from extensions import dashboard_db
 from services import official_document_manager as manager
 from services import ai_insights

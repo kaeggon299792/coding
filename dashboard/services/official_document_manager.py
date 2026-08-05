@@ -3,7 +3,6 @@
 import hashlib
 import json
 import re
-import sqlite3
 import unicodedata
 import uuid
 from datetime import date, datetime, timedelta

@@ -648,9 +648,6 @@ def build_company_comparison(connection, days=90):
             connection, profile["name"], period_limit=2
         )
         market_quote = _market_quote_for_company(profile, research, market_quotes)
-        disclosure_analyses = queries.list_latest_disclosure_analyses(
-            connection, (item["id"] for item in disclosures)
-        )
         companies.append(
             {
                 **profile,

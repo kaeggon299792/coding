@@ -9,7 +9,7 @@ DART_API_KEY가 없거나 DART 서버 호출이 실패해도 이전에 저장된
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

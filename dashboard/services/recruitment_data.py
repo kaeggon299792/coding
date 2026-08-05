@@ -155,7 +155,6 @@ def collect_source(source, limit=15):
             title = _meta(detail, "og:title") or _plain_text(
                 re.search(r"<title[^>]*>(.*?)</title>", detail, re.I | re.S).group(1)
             )
-            description = _meta(detail, "description") or _meta(detail, "og:description")
             raw_text = _plain_text(detail)[:30000]
             identifier = hashlib.sha256(url.encode()).hexdigest()[:24]
             rules = _rule_analysis(raw_text)

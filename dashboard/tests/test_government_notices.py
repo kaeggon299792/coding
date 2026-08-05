@@ -74,6 +74,25 @@ def test_api_auth_error_is_reported(monkeypatch):
     }
 
 
+def test_xml_entities_are_rejected_without_expansion(monkeypatch):
+    class EntityResponse:
+        status_code = 200
+        content = b'<!DOCTYPE x [<!ENTITY payload "expanded">]><result>&payload;</result>'
+
+    monkeypatch.setattr("config.LAWMAKING_API_OC", "approved-user")
+    monkeypatch.setattr(
+        "services.government_notice_client.get_with_hard_timeout",
+        lambda *args, **kwargs: EntityResponse(),
+    )
+
+    result = government_notice_client.search_notices("casino")
+
+    assert result == {
+        "ok": False,
+        "error": "정부입법예고 API 응답이 XML 형식이 아닙니다.",
+    }
+
+
 def test_legislation_filters_source_status_importance_and_query():
     government = [{
         "notice_name": "관광진흥법 시행령 입법예고",

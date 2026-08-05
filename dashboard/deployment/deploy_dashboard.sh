@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
 PYTHON="${PYTHON:-/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python}"
-TARGET_REF="${1:-origin/feature/dashboard-tips-integration}"
+TARGET_REF="${1:-origin/main}"
 
 cd "${APP_DIR}"
 BACKUP_PATH="$("${APP_DIR}/deployment/backup_dashboard.sh")"
@@ -36,7 +36,7 @@ assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 connection.close()
 PY
 
-touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/dashboard_shingoon_me_wsgi.py
+touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/www_casinoin_kr_wsgi.py
 nohup "${APP_DIR}/deployment/post_deploy_verify.sh" "${BACKUP_PATH}" >/dev/null 2>&1 &
 
 printf '%s\n' \

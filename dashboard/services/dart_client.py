@@ -12,10 +12,11 @@ DART 서버 연결 실패/키 오류가 대시보드 전체 장애로 번지지 
 
 import io
 import logging
-import xml.etree.ElementTree as ElementTree
 import zipfile
 
 import requests
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 import config
 from services.http_utils import HardTimeoutError, get_with_hard_timeout
@@ -133,7 +134,7 @@ def fetch_corp_code_map():
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
             xml_bytes = archive.read(archive.namelist()[0])
         root = ElementTree.fromstring(xml_bytes)
-    except (zipfile.BadZipFile, ElementTree.ParseError) as error:
+    except (zipfile.BadZipFile, ElementTree.ParseError, DefusedXmlException) as error:
         return {"ok": False, "error": f"고유번호 목록 파싱 실패: {error} (API 키 오류 응답일 수 있음)"}
 
     companies = []

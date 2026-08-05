@@ -28,7 +28,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from auth import (
-    MENU_PERMISSIONS,
     admin_required,
     auth_bp,
     current_menu_permissions,
@@ -762,6 +761,9 @@ def _seo_defaults():
 @app.before_request
 def establish_request_security():
     g.locale = locale_from_environ(request.environ)
+    # Redirect and error responses also pass through the CSP hook, so create
+    # the nonce before any early return.
+    g.csp_nonce = secrets.token_urlsafe(18)
     host = request.host.split(":", 1)[0].lower()
     if not app.testing and host not in config.TRUSTED_HOSTS:
         abort(400)
@@ -777,7 +779,6 @@ def establish_request_security():
     # Apply revocation, expiry, active-state and role changes before public or
     # protected route functions can consume stale session data.
     refresh_current_session()
-    g.csp_nonce = secrets.token_urlsafe(18)
 
 
 @app.after_request
@@ -1200,7 +1201,6 @@ def inject_globals():
             request.endpoint, "Management Dashboard"
         )
     current_menu_name = translate_text(current_menu_name, locale)
-    seo_paths = alternate_paths(request.path)
     switch_paths = alternate_paths(
         request.path, request.query_string.decode("utf-8", errors="ignore")
     )

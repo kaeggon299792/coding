@@ -13,7 +13,7 @@
 ```bash
 cd /home/kaekun/coding-dashboard/dashboard
 chmod +x deployment/*.sh
-./deployment/deploy_dashboard.sh origin/feature/dashboard-tips-integration
+./deployment/deploy_dashboard.sh origin/main
 ```
 
 배포 스크립트는 다음 순서로 처리합니다.
@@ -40,7 +40,7 @@ tail -n 80 "$(awk '{for(i=1;i<=NF;i++) if($i ~ /^log=/){sub(/^log=/,"",$i); prin
 ```bash
 ./deployment/backup_dashboard.sh
 ./deployment/rollback_dashboard.sh /home/kaekun/backups/management-dashboard/<timestamp>
-touch app.py /var/www/casino_shingoon_me_wsgi.py /var/www/dashboard_shingoon_me_wsgi.py
+touch app.py /var/www/casino_shingoon_me_wsgi.py /var/www/www_casinoin_kr_wsgi.py
 ```
 
 ## 배포 직후 확인

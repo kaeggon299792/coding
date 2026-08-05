@@ -20,7 +20,7 @@ fi
 
 printf '\nFull post-deploy tests failed. Starting automatic rollback.\n' >> "${LOG_FILE}"
 if "${APP_DIR}/deployment/rollback_dashboard.sh" "${BACKUP_PATH}" >> "${LOG_FILE}" 2>&1; then
-  touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/dashboard_shingoon_me_wsgi.py
+  touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/www_casinoin_kr_wsgi.py
   printf 'ROLLED_BACK %s log=%s backup=%s\n' "$(date --iso-8601=seconds)" "${LOG_FILE}" "${BACKUP_PATH}" > "${STATUS_FILE}"
 else
   printf 'ROLLBACK_FAILED %s log=%s backup=%s\n' "$(date --iso-8601=seconds)" "${LOG_FILE}" "${BACKUP_PATH}" > "${STATUS_FILE}"

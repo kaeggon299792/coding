@@ -199,6 +199,9 @@ def test_old_dashboard_host_redirects_to_canonical_domain(client):
         response.headers["Location"]
         == "https://www.casinoin.kr/news?ref=legacy"
     )
+    csp = response.headers["Content-Security-Policy"]
+    assert re.search(r"script-src 'self' 'nonce-[A-Za-z0-9_-]+'", csp)
+    assert "'nonce-' " not in csp
 
 
 @pytest.mark.parametrize(

@@ -2,9 +2,9 @@
 
 import logging
 import re
-import xml.etree.ElementTree as ET
-
 import requests
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 import config
 from services.http_utils import HardTimeoutError, get_with_hard_timeout
@@ -69,7 +69,7 @@ def search_notices(keyword, status=None):
         return {"ok": False, "error": f"HTTP {response.status_code}"}
     try:
         root = ET.fromstring(response.content)
-    except ET.ParseError:
+    except (ET.ParseError, DefusedXmlException):
         return {"ok": False, "error": "정부입법예고 API 응답이 XML 형식이 아닙니다."}
     return_code = _text(root, "retMsg") or _text(root, "resultCode")
     if return_code and return_code not in {"0", "00", "200"}:

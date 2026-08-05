@@ -2,6 +2,10 @@
 
 LOCALIZED_SEO_PAGE_COPY = {
     "ko": {
+        "casino_market_share_page": (
+            "카지노 산업 시장점유율 | Casino IN",
+            "국내 카지노 운영 법인의 매출액과 영업이익을 시장 구간별로 비교하고 최근 5개년 추이를 확인합니다.",
+        ),
         "company_benefits_page": (
             "카지노 기업 복리후생 비교 | Casino IN",
             "파라다이스, GKL, 강원랜드, 롯데관광개발 등 카지노 기업의 복지제도, 지원 금액·수준, 비고와 종료 이력을 비교합니다.",
@@ -12,6 +16,10 @@ LOCALIZED_SEO_PAGE_COPY = {
         ),
     },
     "en": {
+        "casino_market_share_page": (
+            "Korean Casino Market Share | Casino IN",
+            "Compare revenue and operating profit shares across Korean casino operators and review their five-year performance trends.",
+        ),
         "company_benefits_page": (
             "Casino Company Employee Benefits | Casino IN",
             "Compare employee benefit programs, support amounts, notes, and discontinued benefits across major Korean casino companies.",
@@ -26,6 +34,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         ),
     },
     "ja": {
+        "casino_market_share_page": ("韓国カジノ産業の市場シェア | Casino IN", "韓国のカジノ運営会社について、売上高と営業利益の市場シェアおよび直近5年間の推移を比較します。"),
         "public_home": ("Casino IN | カジノ産業情報・分析", "韓国と海外のカジノ企業、訪韓客、為替、開示、市場動向、採用、法規制などの産業データをまとめて確認できます。"),
         "casino_industry_page": ("韓国カジノ産業の現況 | Casino IN", "韓国の外国人専用カジノと内国人向け施設について、運営会社、地域分布、売上高、利用者数を比較します。"),
         "casino_visitors_page": ("韓国カジノの年間利用者数 | Casino IN", "韓国カジノの内国人・外国人利用者数、年度別推移、前年比増減率を確認できます。"),
@@ -53,6 +62,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "credits_page": ("データ出典・著作権 | Casino IN", "Casino INで使用するデータの出典、更新周期、最終確認日時、著作権と利用上の注意を案内します。"),
     },
     "yue-HK": {
+        "casino_market_share_page": ("南韓賭場產業市場佔有率｜Casino IN", "比較南韓賭場營運商的收入及營業溢利市場佔有率，並查看最近五年的業績走勢。"),
         "public_home": ("Casino IN｜賭場產業資訊及分析", "集中查看南韓及海外賭場企業、訪韓旅客、匯率、公司公告、市場走勢、招聘及法規等產業資料。"),
         "casino_industry_page": ("南韓賭場產業概況｜Casino IN", "比較南韓外國人專用賭場及本地人設施的營運公司、地區分布、收入和入場人次。"),
         "casino_visitors_page": ("南韓賭場年度入場人次｜Casino IN", "查看南韓賭場本地及外國旅客的年度入場人次、歷年走勢和按年變化。"),
