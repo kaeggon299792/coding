@@ -61,7 +61,7 @@
       <section class="research-profile">
         <div class="research-meta">
           <span><strong>종목</strong> {{ company.research.stock_code or "비상장" }}</span>
-          <span><strong>대표</strong> {{ company.research.ceo_names or "-" }}</span>
+          {% if company.research.ceo_names %}<span><strong>대표</strong> {{ company.research.ceo_names }}</span>{% endif %}
           <span><strong>설립</strong> {{ company.research.established_date or "-" }}</span>
           <span><strong>본사</strong> {{ company.research.headquarters or "-" }}</span>
         </div>

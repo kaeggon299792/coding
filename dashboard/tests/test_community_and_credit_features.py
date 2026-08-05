@@ -334,6 +334,8 @@ def test_company_detail_template_renders_responsive_executive_profiles():
     css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
     assert "company-executive-grid" in template
     assert "executive.birth_date" in template
+    assert "{% if executive.birth_date %}" in template
+    assert "{% if company_research.ceo_names %}" in template
     assert ".company-executive-grid { grid-template-columns: 1fr; }" in css
 
 

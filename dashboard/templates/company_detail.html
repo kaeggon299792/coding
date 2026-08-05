@@ -25,7 +25,7 @@
         <div><dt>{{ "Ticker" if current_locale == "en" else "종목코드" }}</dt><dd>{{ company_research.stock_code or "-" }}</dd></div>
         <div><dt>{{ "Legal name" if current_locale == "en" else "상호" }}</dt><dd>{{ company_research.legal_name or company_name }}</dd></div>
         <div><dt>{{ "Legal name (EN)" if current_locale == "en" else "영문상호" }}</dt><dd>{{ company_research.legal_name_eng or "-" }}</dd></div>
-        <div><dt>CEO</dt><dd>{{ company_research.ceo_names or "-" }}</dd></div>
+        {% if company_research.ceo_names %}<div><dt>CEO</dt><dd>{{ company_research.ceo_names }}</dd></div>{% endif %}
         <div><dt>{{ "Headquarters" if current_locale == "en" else "본사" }}</dt><dd>{{ company_research.headquarters or "-" }}</dd></div>
         <div><dt>{{ "Established" if current_locale == "en" else "설립일" }}</dt><dd>{{ company_research.established_date or "-" }}</dd></div>
         <div><dt>{{ "Fiscal month" if current_locale == "en" else "회계월" }}</dt><dd>{{ company_research.fiscal_month or "-" }}</dd></div>
@@ -82,11 +82,11 @@
       <article class="company-executive-card">
         <header><h3>{{ executive.executive_name }}</h3><p>{{ executive.title }}{% if executive.appointed_on %} · {{ "Appointed" if current_locale == "en" else "취임" }} {{ executive.appointed_on }}{% endif %}</p></header>
         <dl class="company-key-matrix">
-          <div><dt>{{ "Office address" if current_locale == "en" else "직장주소" }}</dt><dd>{{ executive.workplace_address or "-" }}</dd></div>
-          <div><dt>{{ "Date of birth" if current_locale == "en" else "생년월일" }}</dt><dd>{{ executive.birth_date or "-" }}</dd></div>
-          <div><dt>{{ "High school" if current_locale == "en" else "출신고교" }}</dt><dd>{{ executive.high_school or "-" }}</dd></div>
-          <div><dt>{{ "University" if current_locale == "en" else "출신대학" }}</dt><dd>{{ executive.university or "-" }}</dd></div>
-          <div><dt>{{ "Major" if current_locale == "en" else "전공" }}</dt><dd>{{ executive.major or "-" }}</dd></div>
+          {% if executive.workplace_address %}<div><dt>{{ "Office address" if current_locale == "en" else "직장주소" }}</dt><dd>{{ executive.workplace_address }}</dd></div>{% endif %}
+          {% if executive.birth_date %}<div><dt>{{ "Date of birth" if current_locale == "en" else "생년월일" }}</dt><dd>{{ executive.birth_date }}</dd></div>{% endif %}
+          {% if executive.high_school %}<div><dt>{{ "High school" if current_locale == "en" else "출신고교" }}</dt><dd>{{ executive.high_school }}</dd></div>{% endif %}
+          {% if executive.university %}<div><dt>{{ "University" if current_locale == "en" else "출신대학" }}</dt><dd>{{ executive.university }}</dd></div>{% endif %}
+          {% if executive.major %}<div><dt>{{ "Major" if current_locale == "en" else "전공" }}</dt><dd>{{ executive.major }}</dd></div>{% endif %}
         </dl>
       </article>
       {% endfor %}
