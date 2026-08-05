@@ -572,15 +572,22 @@ def get_admin_dashboard_metrics(connection, date_key):
                         deletion_requested_at IS NULL
                         AND SUBSTR(deleted_at, 1, 10) = ?
                    )
-            ) AS withdrawals
+            ) AS withdrawals,
+            (
+                SELECT COUNT(*)
+                FROM security_audit_log
+                WHERE action LIKE 'SECURITY_%'
+                  AND SUBSTR(created_at, 1, 10) = ?
+            ) AS security_events
         """,
-        (date_key, date_key, date_key, date_key, date_key),
+        (date_key, date_key, date_key, date_key, date_key, date_key),
     ).fetchone()
     return dict(row) if row else {
         "new_members": 0,
         "total_members": 0,
         "new_posts": 0,
         "withdrawals": 0,
+        "security_events": 0,
     }
 
 
