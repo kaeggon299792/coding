@@ -53,6 +53,10 @@ def test_board_policy_cannot_make_write_easier_than_read(db_connection):
         membership.update_board_permission(
             db_connection, "community", "platinum", "gold", "platinum", 1
         )
+    with pytest.raises(ValueError, match="Gold 이상"):
+        membership.update_board_permission(
+            db_connection, "source_data", "silver", "black", "black", 1
+        )
 
 
 class _Upload:

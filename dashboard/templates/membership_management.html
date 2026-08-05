@@ -49,7 +49,7 @@
         <div><small>{{ policy.board_key|upper }}</small><h3>{{ policy.board_label }}</h3></div>
         {% set action_labels = [('read_grade', '접근')] if policy.board_key == 'source_data' else [('read_grade', '읽기'), ('write_grade', '글쓰기'), ('comment_grade', '댓글')] %}
         {% for action, label in action_labels %}
-        <label><span>{{ label }} 최소 등급</span><select name="{{ action }}">{% for grade in grades %}<option value="{{ grade.code }}"{% if policy[action] == grade.code %} selected{% endif %}>{{ grade.label }} ({{ grade.code|capitalize }})</option>{% endfor %}</select></label>
+        <label><span>{{ label }} 최소 등급</span><select name="{{ action }}">{% for grade in grades %}{% if policy.board_key != 'source_data' or grade.code != 'silver' %}<option value="{{ grade.code }}"{% if policy[action] == grade.code %} selected{% endif %}>{{ grade.label }} ({{ grade.code|capitalize }})</option>{% endif %}{% endfor %}</select></label>
         {% endfor %}
         {% if policy.board_key == 'source_data' %}<input type="hidden" name="write_grade" value="{{ policy.write_grade }}"><input type="hidden" name="comment_grade" value="{{ policy.comment_grade }}">{% endif %}
         <button class="btn btn-primary" type="submit">권한 저장</button>

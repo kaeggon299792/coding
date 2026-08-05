@@ -102,6 +102,8 @@ def update_board_permission(
     levels = (read_grade, write_grade, comment_grade)
     if any(level not in GRADE_CODES for level in levels):
         raise ValueError("올바른 등급을 선택해주세요.")
+    if board_key == "source_data" and read_grade == "silver":
+        raise ValueError("원천 데이터는 가입 회원(Gold 이상)만 접근할 수 있습니다.")
     ranks = {row["code"]: row["rank_order"] for row in list_grades(connection)}
     if ranks[write_grade] < ranks[read_grade] or ranks[comment_grade] < ranks[read_grade]:
         raise ValueError("글쓰기·댓글 등급은 읽기 등급보다 낮을 수 없습니다.")
