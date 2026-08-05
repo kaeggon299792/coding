@@ -1,6 +1,7 @@
 import hashlib
 import re
 import sqlite3
+from datetime import timedelta
 from http.cookies import SimpleCookie
 
 import pytest
@@ -161,6 +162,88 @@ def test_password_change_revokes_remember_login(account_client):
     assert revoked_at
 
 
+def test_google_password_change_requires_recent_authentication(account_client):
+    client, db_path = account_client
+    _login(client)
+    from utils import now_kst
+
+    connection = sqlite3.connect(db_path)
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()[0]
+    connection.execute(
+        "UPDATE dashboard_users SET google_sub='google-test-user' WHERE id=?",
+        (employee_id,),
+    )
+    connection.execute(
+        "UPDATE dashboard_active_sessions SET created_at=? WHERE user_id=?",
+        ((now_kst() - timedelta(minutes=30)).isoformat(), employee_id),
+    )
+    original_hash = connection.execute(
+        "SELECT password_hash FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    response = client.post(
+        "/account/password",
+        data={
+            "csrf_token": _csrf(client, "/account"),
+            "current_password": "",
+            "new_password": "New-password-123!",
+            "new_password_confirmation": "New-password-123!",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "error=" in response.headers["Location"]
+    connection = sqlite3.connect(db_path)
+    current_hash = connection.execute(
+        "SELECT password_hash FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()[0]
+    connection.close()
+    assert current_hash == original_hash
+
+
+def test_admin_password_reset_revokes_remember_login(account_client):
+    client, db_path = account_client
+    _login(client, remember=True)
+    with client.session_transaction() as flask_session:
+        flask_session.clear()
+    client.delete_cookie("casino_in_remember")
+
+    response = client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "admin-password-123!",
+            "csrf_token": _csrf(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    connection = sqlite3.connect(db_path)
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()[0]
+    connection.close()
+
+    response = client.post(
+        f"/admin/users/{employee_id}/password",
+        data={"csrf_token": _csrf(client, "/admin/users"), "new_password": "Reset-password-123!"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    connection = sqlite3.connect(db_path)
+    active_tokens = connection.execute(
+        "SELECT COUNT(*) FROM remember_login_tokens WHERE user_id=? AND revoked_at IS NULL",
+        (employee_id,),
+    ).fetchone()[0]
+    connection.close()
+    assert active_tokens == 0
+
+
 def test_admin_page_renders_separately_with_font_selector(account_client):
     client, _ = account_client
     response = client.post(
@@ -181,6 +264,17 @@ def test_admin_page_renders_separately_with_font_selector(account_client):
     assert "프리텐다드" in html
     assert "고운바탕" in html
     assert "함렛" in html
+    assert "three.r149.min.js" not in html
+
+
+def test_webgl_bundle_is_limited_to_home(account_client):
+    client, _ = account_client
+    home = client.get("/").get_data(as_text=True)
+    login = client.get("/login").get_data(as_text=True)
+    assert "three.r149.min.js" in home
+    assert "casino-wave-webgl-v2.js" in home
+    assert "three.r149.min.js" not in login
+    assert "casino-wave-webgl-v2.js" not in login
 
 
 def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):

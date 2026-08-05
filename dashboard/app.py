@@ -92,6 +92,7 @@ _last_activity_log_retention_cleanup = 0.0
 _localization_render_scan_at = {}
 
 ANONYMOUS_ACTIVITY_DEDUPE_MINUTES = 5
+AUTHENTICATED_ACTIVITY_DEDUPE_MINUTES = 1
 ANONYMOUS_ACTIVITY_PER_IP_DAILY_LIMIT = 200
 ANONYMOUS_ACTIVITY_GLOBAL_DAILY_LIMIT = 5000
 
@@ -978,6 +979,22 @@ def log_user_activity(response):
                 or per_ip_count >= ANONYMOUS_ACTIVITY_PER_IP_DAILY_LIMIT
                 or global_count >= ANONYMOUS_ACTIVITY_GLOBAL_DAILY_LIMIT
             ):
+                return response
+        elif request.method in {"GET", "HEAD"}:
+            dedupe_since = (
+                now_kst() - timedelta(minutes=AUTHENTICATED_ACTIVITY_DEDUPE_MINUTES)
+            ).isoformat(timespec="seconds")
+            duplicate = connection.execute(
+                """
+                SELECT 1 FROM security_audit_log
+                WHERE user_id=? AND action='PAGE_VIEW'
+                  AND resource_type='endpoint' AND resource_id=?
+                  AND created_at>=?
+                LIMIT 1
+                """,
+                (session.get("user_id"), resource_id, dedupe_since),
+            ).fetchone()
+            if duplicate:
                 return response
 
         security_audit.log_event(
@@ -3296,10 +3313,13 @@ def upload_ir_document():
                 connection, document_id, document_type="ir"
             )
             if document:
-                document_library.remove_file(document["stored_filename"])
                 queries.delete_research_document(
                     connection, document_id, document_type="ir"
                 )
+                try:
+                    document_library.remove_file(document["stored_filename"])
+                except OSError:
+                    logger.exception("실패한 IR 업로드 파일 정리 실패: %s", document_id)
         elif saved_file:
             document_library.remove_file(saved_file)
         logger.exception("IR 업로드 처리 실패")
@@ -3430,8 +3450,11 @@ def delete_ir_document(document_id):
         )
         if not document:
             abort(404)
-        document_library.remove_file(document["stored_filename"])
         queries.delete_research_document(connection, document_id, document_type="ir")
+        try:
+            document_library.remove_file(document["stored_filename"])
+        except OSError:
+            logger.exception("삭제된 IR 자료의 파일 정리 실패: %s", document_id)
         return redirect(url_for("disclosures_page", notice="IR 자료를 삭제했습니다."))
     finally:
         connection.close()
@@ -4941,6 +4964,7 @@ def research_library_page():
             abort(403)
     connection = dashboard_db()
     saved_file = None
+    document_id = None
     try:
         if request.method == "POST":
             if not validate_csrf(request.form.get("csrf_token", "")):
@@ -5056,7 +5080,15 @@ def research_library_page():
             "library.html", **_library_context(connection, str(error))
         ), 400
     except Exception:
-        if saved_file:
+        if document_id:
+            document = queries.get_research_document(connection, document_id)
+            if document:
+                queries.delete_research_document(connection, document_id)
+                try:
+                    document_library.remove_file(document["stored_filename"])
+                except OSError:
+                    logger.exception("실패한 리서치 업로드 파일 정리 실패: %s", document_id)
+        elif saved_file:
             document_library.remove_file(saved_file)
         logger.exception("리서치 업로드 처리 실패")
         return render_template(
@@ -5174,8 +5206,11 @@ def delete_research_document(document_id):
         document = queries.get_research_document(connection, document_id)
         if not document:
             abort(404)
-        document_library.remove_file(document["stored_filename"])
         queries.delete_research_document(connection, document_id)
+        try:
+            document_library.remove_file(document["stored_filename"])
+        except OSError:
+            logger.exception("삭제된 리서치 자료의 파일 정리 실패: %s", document_id)
         return redirect(url_for("research_library_page", notice="자료를 삭제했습니다."))
     finally:
         connection.close()

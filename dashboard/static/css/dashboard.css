@@ -2610,3 +2610,7 @@ body.cinematic-home .topbar,body.cinematic-home .public-header{position:relative
   .casino-subnav a{position:relative}
   .official-subnav a:hover{color:var(--brand-text-primary);border-bottom-color:var(--brand-highlight);text-decoration:none}
 }
+/* Prevent intrinsic KPI text widths from pushing the casino industry page wider than the viewport. */
+.casino-industry-hero > * { min-width: 0; }
+.casino-industry-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.casino-industry-summary article { min-width: 0; }

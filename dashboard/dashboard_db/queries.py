@@ -134,9 +134,10 @@ def get_user_permissions(connection, user_id, permission_codes):
         (user_id,),
     ).fetchall()
     saved = {row["permission_code"]: bool(row["allowed"]) for row in rows}
-    # Existing accounts keep their current access until an administrator saves
-    # an explicit permission matrix for them.
-    return {code: saved.get(code, True) for code in permission_codes}
+    # Missing rows must never grant access. Administrators bypass this matrix
+    # in the authentication layer; every ordinary account is fail-closed until
+    # an explicit permission row is present.
+    return {code: saved.get(code, False) for code in permission_codes}
 
 
 def replace_user_permissions(connection, user_id, permission_codes, allowed_codes, updated_by):

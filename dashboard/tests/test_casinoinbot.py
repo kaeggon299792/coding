@@ -35,3 +35,29 @@ def test_initial_state_marks_only_already_due_slots(monkeypatch, tmp_path):
     assert state["law_sync"] == "2026-08-06"
     assert state["dart_sync"] == "2026-08-06T17"
     assert "salary_sync" not in state
+
+
+def test_failed_schedule_spawn_is_not_marked_complete(monkeypatch, tmp_path):
+    schedule = next(item for item in casinoinbot.SCHEDULES if item.name == "law_sync")
+    monkeypatch.setattr(casinoinbot, "SCHEDULES", (schedule,))
+    monkeypatch.setattr(casinoinbot, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(casinoinbot, "STATE_FILE", tmp_path / "state.json")
+    supervisor = casinoinbot.Supervisor.__new__(casinoinbot.Supervisor)
+    supervisor.scheduled = {}
+    supervisor.settings = {"law_sync": {"enabled": True}}
+    supervisor.state = {}
+    supervisor.last_error_alert = {}
+    supervisor._start = lambda *_args: (_ for _ in ()).throw(OSError("missing executable"))
+    supervisor._notify_error = lambda *_args: None
+
+    supervisor.maintain_schedules(datetime(2026, 8, 6, 12, 0, tzinfo=timezone.utc))
+
+    assert supervisor.state == {}
+    assert not (tmp_path / "state.json").exists()
+
+
+def test_invalid_saved_task_number_falls_back_to_default():
+    setting = casinoinbot.automation_settings._validated(
+        "email_monitor", {"interval_minutes": "broken"}
+    )
+    assert setting["interval_minutes"] == 5

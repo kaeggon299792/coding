@@ -8,15 +8,13 @@ from utils import now_kst
 
 
 def client_ip():
-    """Return the client address reported by the production reverse proxy."""
+    """Return the address supplied by the trusted PythonAnywhere proxy chain."""
     if not has_request_context():
         return ""
-    return str(
-        request.headers.get("CF-Connecting-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
-        or request.remote_addr
-        or ""
-    )[:100]
+    # Forwarding headers are attacker-controlled when the origin hostname is
+    # reached directly. PythonAnywhere already exposes the effective client as
+    # remote_addr, matching the login-rate-limit implementation.
+    return str(request.remote_addr or "")[:100]
 
 
 def log_event(

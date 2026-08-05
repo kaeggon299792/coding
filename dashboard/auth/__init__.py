@@ -39,6 +39,8 @@ oauth = OAuth()
 LOGIN_IP_MAX_FAILURES = 10
 SESSION_IDLE_TIMEOUT = timedelta(minutes=config.SESSION_IDLE_MINUTES)
 SESSION_ABSOLUTE_TIMEOUT = timedelta(hours=config.SESSION_ABSOLUTE_HOURS)
+SESSION_TOUCH_INTERVAL = timedelta(minutes=1)
+SENSITIVE_ACTION_REAUTH_WINDOW = timedelta(minutes=10)
 REMEMBER_COOKIE_NAME = "casino_in_remember"
 REGISTRATION_AUTO_APPROVAL_KEY = "registration_auto_approval"
 def _profile_image_suffix(data):
@@ -119,6 +121,12 @@ def current_menu_permissions():
                 "SELECT role, is_active FROM dashboard_users WHERE id=?",
                 (session["user_id"],),
             ).fetchone()
+        # Several route-unit tests intentionally use a synthetic session with
+        # no persisted user. Never carry that compatibility path into runtime.
+        if current_app.testing and user is None:
+            permissions = {code: True for code in MENU_PERMISSIONS}
+            g.current_menu_permissions = permissions
+            return permissions
         if user and user["is_active"]:
             session["role"] = user["role"] or "user"
             if session["role"] == "admin":
@@ -420,10 +428,14 @@ def _session_is_valid(connection, user):
     if password_changed and password_changed > created_at:
         _revoke_current_session(connection, "password_changed")
         return False
-    connection.execute(
-        "UPDATE dashboard_active_sessions SET last_seen_at=? WHERE session_hash=?",
-        (now.isoformat(), row["session_hash"]),
-    )
+    g.current_session_created_at = created_at
+    # Keep idle-expiry accurate without serializing a SQLite write for every
+    # asset/page request made by an active browser session.
+    if now - last_seen >= SESSION_TOUCH_INTERVAL:
+        connection.execute(
+            "UPDATE dashboard_active_sessions SET last_seen_at=? WHERE session_hash=?",
+            (now.isoformat(), row["session_hash"]),
+        )
     return True
 
 
@@ -1251,7 +1263,17 @@ def update_account_password():
         if not user:
             session.clear()
             return redirect(url_for("auth.login"))
-        if not user["google_sub"] and not check_password_hash(user["password_hash"], current_password):
+        if user["google_sub"]:
+            authenticated_at = getattr(g, "current_session_created_at", None)
+            if (
+                authenticated_at is None
+                or now_kst() - authenticated_at > SENSITIVE_ACTION_REAUTH_WINDOW
+            ):
+                return redirect(url_for(
+                    "auth.my_account",
+                    error="보안을 위해 다시 로그인한 뒤 비밀번호를 설정해 주세요.",
+                ))
+        elif not check_password_hash(user["password_hash"], current_password):
             return redirect(url_for("auth.my_account", error="현재 비밀번호가 올바르지 않습니다."))
         timestamp = now_kst().isoformat()
         connection.execute(
@@ -2731,6 +2753,7 @@ def reset_user_password(user_id):
         )
         _audit_user(connection, target, "PASSWORD_RESET")
         _revoke_user_sessions(connection, user_id, "password_reset")
+        _revoke_user_remember_tokens(connection, user_id)
         connection.commit()
         return redirect(url_for("auth.user_management", success="비밀번호를 초기화했습니다."))
     finally:

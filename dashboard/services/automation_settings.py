@@ -32,13 +32,17 @@ def _validated(task_key, raw):
         value["enabled"] = bool(raw.get("enabled", default["enabled"]))
         value["notify_error"] = bool(raw.get("notify_error", default["notify_error"]))
         value["notify_success"] = bool(raw.get("notify_success", default["notify_success"]))
-        if default["timing"] == "continuous":
-            value["interval_minutes"] = max(1, min(1440, int(raw.get("interval_minutes", default["interval_minutes"]))))
-        elif default["timing"] == "hourly":
-            value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
-        else:
-            value["hour_utc"] = max(0, min(23, int(raw.get("hour_utc", default["hour_utc"]))))
-            value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
+        try:
+            if default["timing"] == "continuous":
+                value["interval_minutes"] = max(1, min(1440, int(raw.get("interval_minutes", default["interval_minutes"]))))
+            elif default["timing"] == "hourly":
+                value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
+            else:
+                value["hour_utc"] = max(0, min(23, int(raw.get("hour_utc", default["hour_utc"]))))
+                value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
+        except (TypeError, ValueError):
+            # A partially edited/corrupt setting must not stop CASINOINBOT.
+            value.update(default)
     return value
 
 

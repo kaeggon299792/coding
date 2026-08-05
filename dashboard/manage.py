@@ -17,6 +17,7 @@ DART 고유번호(corp_code)는 https://opendart.fss.or.kr 에서 회사명으�
 
 import argparse
 import getpass
+import re
 import sys
 
 from werkzeug.security import generate_password_hash
@@ -24,6 +25,16 @@ from werkzeug.security import generate_password_hash
 import config
 from dashboard_db import queries
 from extensions import dashboard_db
+from utils import now_kst
+
+
+def _valid_password(value):
+    return (
+        len(value) >= 10
+        and re.search(r"[A-Za-z]", value)
+        and re.search(r"\d", value)
+        and re.search(r"[^A-Za-z0-9]", value)
+    )
 
 
 def create_user(username):
@@ -32,8 +43,8 @@ def create_user(username):
     if password != password_confirm:
         print("비밀번호가 일치하지 않습니다.", file=sys.stderr)
         return 1
-    if len(password) < 8:
-        print("비밀번호는 8자 이상이어야 합니다.", file=sys.stderr)
+    if not _valid_password(password):
+        print("비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.", file=sys.stderr)
         return 1
 
     connection = dashboard_db()
@@ -41,9 +52,23 @@ def create_user(username):
         existing = queries.get_user_by_username(connection, username)
         password_hash = generate_password_hash(password)
         if existing:
+            changed_at = now_kst().isoformat()
             connection.execute(
-                "UPDATE dashboard_users SET password_hash = ? WHERE username = ?",
-                (password_hash, username),
+                """UPDATE dashboard_users
+                   SET password_hash=?, password_changed_at=?, updated_at=?
+                   WHERE username=?""",
+                (password_hash, changed_at, changed_at, username),
+            )
+            connection.execute(
+                """UPDATE dashboard_active_sessions
+                   SET revoked_at=?, revoke_reason='cli_password_reset'
+                   WHERE user_id=? AND revoked_at IS NULL""",
+                (changed_at, existing["id"]),
+            )
+            connection.execute(
+                """UPDATE remember_login_tokens SET revoked_at=?
+                   WHERE user_id=? AND revoked_at IS NULL""",
+                (changed_at, existing["id"]),
             )
             connection.commit()
             print(f"기존 계정 '{username}'의 비밀번호를 재설정했습니다.")

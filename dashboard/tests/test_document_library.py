@@ -157,6 +157,61 @@ def test_library_upload_route_saves_and_analyzes(monkeypatch, tmp_path):
     assert document["ai_summary"] == "외래객 회복이 핵심이다."
 
 
+def test_library_upload_unexpected_analysis_error_cleans_row_and_file(monkeypatch, tmp_path):
+    db_path = tmp_path / "library_cleanup.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+
+    import app as app_module
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    queries.upsert_monitored_company(connection, "GKL", "00557508")
+    connection.close()
+    monkeypatch.setattr(
+        "services.document_library.save_and_extract",
+        lambda uploaded: {
+            "original_filename": "gkl-report.pdf",
+            "stored_filename": "stored.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 100,
+            "sha256": "e" * 64,
+            "page_count": 5,
+            "extracted_text": "GKL 외래객 회복",
+            "extraction_status": "complete",
+            "path": tmp_path / "stored.pdf",
+        },
+    )
+    monkeypatch.setattr(
+        "services.ai_insights.analyze_research_document",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("provider failure")),
+    )
+    removed = []
+    monkeypatch.setattr("services.document_library.remove_file", removed.append)
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 1
+            session["username"] = "admin"
+            session["csrf_token"] = "c" * 64
+        response = client.post(
+            "/companies/reports",
+            data={
+                "csrf_token": "c" * 64,
+                "company_name": "GKL",
+                "title": "GKL 전망",
+                "document": (BytesIO(b"fake"), "gkl-report.pdf"),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 500
+    connection = dashboard_db()
+    assert queries.list_research_documents(connection) == []
+    connection.close()
+    assert removed == ["stored.pdf"]
+
+
 @pytest.mark.parametrize(
     ("analysis", "analysis_error", "expected_title", "expected_ai_title"),
     (

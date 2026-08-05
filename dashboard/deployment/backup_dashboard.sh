@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
 BACKUP_ROOT="${BACKUP_ROOT:-/home/kaekun/backups/management-dashboard}"
@@ -8,6 +9,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 TARGET="${BACKUP_ROOT}/${STAMP}"
 
 mkdir -p "${TARGET}"
+chmod 700 "${BACKUP_ROOT}" "${TARGET}"
 cd "${APP_DIR}"
 
 set -a
@@ -28,6 +30,7 @@ with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
     if result != "ok":
         raise SystemExit(f"backup integrity check failed: {result}")
 PY
+chmod 600 "${TARGET}/dashboard.db"
 
 git rev-parse HEAD > "${TARGET}/git-commit.txt"
 sha256sum "${TARGET}/dashboard.db" > "${TARGET}/SHA256SUMS"
@@ -38,4 +41,5 @@ tar \
   --exclude='dashboard/logs' \
   -czf "${TARGET}/source-before.tar.gz" \
   -C "$(dirname "${APP_DIR}")" dashboard
+chmod 600 "${TARGET}/git-commit.txt" "${TARGET}/SHA256SUMS" "${TARGET}/source-before.tar.gz"
 printf '%s\n' "${TARGET}"

@@ -17,10 +17,13 @@
 
     const show = (point, clientX, clientY) => {
       const value = Number(point.dataset.value);
-      tooltip.innerHTML =
-        `<b>${point.dataset.year}년</b>` +
-        `<span>${point.dataset.label}</span>` +
-        `<strong>${numberFormatter.format(value)}${point.dataset.unit || ""}</strong>`;
+      const year = document.createElement("b");
+      const label = document.createElement("span");
+      const formattedValue = document.createElement("strong");
+      year.textContent = `${point.dataset.year}년`;
+      label.textContent = point.dataset.label || "";
+      formattedValue.textContent = `${numberFormatter.format(value)}${point.dataset.unit || ""}`;
+      tooltip.replaceChildren(year, label, formattedValue);
       tooltip.classList.add("is-visible");
       tooltip.setAttribute("aria-hidden", "false");
 

@@ -284,10 +284,17 @@ class Supervisor:
                 continue
             if schedule.name in self.scheduled:
                 continue
-            # Save before spawning so a supervisor restart cannot duplicate a run.
+            try:
+                process = self._start(schedule, setting)
+            except OSError as exc:
+                log(f"scheduled task failed to start: {schedule.name}: {exc}")
+                self._notify_error(schedule.name, f"예약 작업 시작 실패: {exc}")
+                continue
+            # Record the slot only after the child was started successfully.
+            # This preserves retryability when an executable is temporarily
+            # unavailable while still preventing duplicate successful starts.
             self.state[schedule.name] = slot
             save_state(self.state)
-            process = self._start(schedule, setting)
             self.scheduled[schedule.name] = (slot, process)
             log(f"scheduled task started: {schedule.name} slot={slot} pid={process.pid}")
 
@@ -316,7 +323,13 @@ class Supervisor:
         try:
             while not self.stopping:
                 if time.monotonic() - self.settings_loaded_at >= 30:
-                    self.settings = self._load_settings()
+                    try:
+                        self.settings = self._load_settings()
+                    except Exception as exc:
+                        # Keep the last validated settings during a transient DB
+                        # problem instead of terminating every managed worker.
+                        log(f"task settings refresh failed; keeping previous values: {type(exc).__name__}")
+                        self._notify_error("settings", f"작업 설정 조회 실패: {type(exc).__name__}")
                     self.settings_loaded_at = time.monotonic()
                 self.maintain_workers()
                 self.maintain_schedules(datetime.now(timezone.utc))

@@ -36,6 +36,8 @@ def client(monkeypatch, tmp_path):
         "admin",
         generate_password_hash("correct-horse-battery-staple"),
     )
+    connection.execute("UPDATE dashboard_users SET role='admin' WHERE username='admin'")
+    connection.commit()
     connection.close()
 
     app_module.app.config["TESTING"] = True
