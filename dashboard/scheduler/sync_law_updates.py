@@ -246,9 +246,44 @@ def run():
 
             text_result = law_client.get_law_text(mst)
             if not text_result.get("ok"):
-                logger.error("'%s' 법령 본문 조회 실패: %s", law_row["law_name"], text_result.get("error"))
-                queries.log_error(connection, "law_sync", "get_law_text", text_result.get("error", ""))
-                error_count += 1
+                public_result = law_client.get_public_law_metadata(law_row["law_name"])
+                if not public_result.get("ok"):
+                    logger.error("'%s' 법령 본문 조회 실패: %s", law_row["law_name"], text_result.get("error"))
+                    queries.log_error(connection, "law_sync", "get_law_text", text_result.get("error", ""))
+                    error_count += 1
+                    continue
+
+                public_mst = str(public_result["mst"])
+                if public_mst == str(law_row.get("mst")):
+                    continue
+
+                queries.upsert_monitored_law(
+                    connection, law_row["law_name"], law_id=law_row.get("law_id"),
+                    mst=public_mst,
+                )
+                previous_hash = queries.get_latest_law_snapshot_hash(connection, law_row["id"])
+                status = "변경 감지(재확인 필요)" if previous_hash else "시행 중"
+                queries.save_law_update(
+                    connection,
+                    monitored_law_id=law_row["id"],
+                    snapshot_hash=f"mst:{public_mst}",
+                    effective_date=public_result.get("effective_date"),
+                    promulgation_date=public_result.get("promulgation_date"),
+                    status=status,
+                    raw_summary={
+                        "effective_date": public_result.get("effective_date"),
+                        "promulgation_date": public_result.get("promulgation_date"),
+                        "source": "public_law_page",
+                    },
+                )
+                changed_count += 1
+                if previous_hash is not None:
+                    telegram_alert.send_alert(
+                        _build_alert_message(
+                            law_row["law_name"], status,
+                            public_result.get("effective_date"), None,
+                        )
+                    )
                 continue
 
             law_data = text_result["law"]

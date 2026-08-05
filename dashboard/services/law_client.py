@@ -16,6 +16,8 @@ PythonAnywhere 환경에서 응답이 청크 단위로 아주 느리게 내려�
 
 import hashlib
 import logging
+import re
+from urllib.parse import parse_qs, quote, urlparse
 
 import requests
 
@@ -64,6 +66,12 @@ def _get(path, params):
         data = response.json()
     except ValueError:
         return {"ok": False, "error": "응답이 JSON 형식이 아닙니다(키 오류 시 HTML 오류 페이지가 올 수 있음)."}
+
+    if isinstance(data, dict) and data.get("result") and not (
+        data.get("LawSearch") or data.get("법령")
+    ):
+        message = data.get("msg") or data.get("result") or "법령정보 API 오류"
+        return {"ok": False, "error": str(message)}
 
     return {"ok": True, "data": data}
 
@@ -122,6 +130,45 @@ def get_law_text(mst):
     if not result.get("ok"):
         return result
     return {"ok": True, "law": result["data"]}
+
+
+def get_public_law_metadata(law_name):
+    """인증 API 장애 시 공개 국가법령정보센터 현행법령 페이지를 확인한다."""
+    try:
+        response = get_with_hard_timeout(
+            f"https://www.law.go.kr/법령/{quote(str(law_name or ''))}",
+            hard_timeout_seconds=config.LAW_REQUEST_TIMEOUT_SECONDS,
+            timeout=config.LAW_REQUEST_TIMEOUT_SECONDS,
+        )
+    except (HardTimeoutError, requests.RequestException) as error:
+        return {"ok": False, "error": f"공개 법령 페이지 조회 실패: {type(error).__name__}"}
+
+    if response.status_code != 200:
+        return {"ok": False, "error": f"공개 법령 페이지 HTTP {response.status_code}"}
+
+    query = parse_qs(urlparse(response.url).query)
+    mst = (query.get("lsiSeq") or [None])[0]
+    text = response.text or ""
+    effective = re.search(r"\[시행\s*(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\]", text)
+    promulgation = re.search(
+        r"\[(?:법률|대통령령|총리령|부령)[^\]]*?,\s*"
+        r"(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.,",
+        text,
+    )
+    if not mst:
+        return {"ok": False, "error": "공개 법령 페이지에서 현행 법령번호를 찾지 못했습니다."}
+
+    def compact(match):
+        return "".join(
+            (match.group(1), match.group(2).zfill(2), match.group(3).zfill(2))
+        ) if match else None
+
+    return {
+        "ok": True,
+        "mst": mst,
+        "effective_date": compact(effective),
+        "promulgation_date": compact(promulgation),
+    }
 
 
 def compute_snapshot_hash(law_data):
