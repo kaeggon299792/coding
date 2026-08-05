@@ -2601,3 +2601,12 @@ body.cinematic-home .topbar,body.cinematic-home .public-header{position:relative
 .task-setting-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 20px;border-top:1px solid var(--brand-border);background:var(--brand-bg)}.task-setting-footer p{margin:0;color:var(--brand-text-muted);font-size:9px;line-height:1.55}.task-setting-footer p b{margin-right:7px;color:var(--brand-text-primary)}.task-setting-submit{flex:0 0 auto;justify-self:auto;min-height:38px}
 @media(max-width:1040px){.task-setting-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.task-setting-heading,.task-setting-footer{align-items:flex-start;flex-direction:column}.task-setting-heading{padding:16px}.task-setting-saved{white-space:normal}.task-setting-grid{grid-template-columns:1fr;padding:14px}.task-setting-grid>label{min-height:96px}.task-setting-footer{padding:14px 16px}.task-setting-submit{width:100%}}
+
+/* Desktop submenus use the same hover underline cue as the primary navigation. */
+@media(hover:hover) and (pointer:fine){
+  .data-subnav a::after,.casino-subnav a::after,.tips-subnav a::after{position:absolute;right:16px;bottom:-1px;left:16px;height:2px;background:var(--brand-highlight);content:"";transform:scaleX(0);transform-origin:center;transition:transform .16s ease}
+  .data-subnav a::after{right:20px;left:20px}
+  .data-subnav a:hover::after,.data-subnav a.active::after,.casino-subnav a:hover::after,.casino-subnav a.active::after,.tips-subnav a:hover::after,.tips-subnav a.is-active::after{transform:scaleX(1)}
+  .casino-subnav a{position:relative}
+  .official-subnav a:hover{color:var(--brand-text-primary);border-bottom-color:var(--brand-highlight);text-decoration:none}
+}
