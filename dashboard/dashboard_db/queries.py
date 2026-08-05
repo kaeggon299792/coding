@@ -536,6 +536,45 @@ def get_admin_dashboard_metrics(connection, date_key):
     }
 
 
+def get_admin_dashboard_activity(connection, date_key):
+    """Return seven days of member and board activity for the admin chart."""
+    rows = connection.execute(
+        """
+        WITH RECURSIVE days(day) AS (
+            SELECT DATE(?, '-6 days')
+            UNION ALL
+            SELECT DATE(day, '+1 day') FROM days WHERE day < DATE(?)
+        )
+        SELECT
+            day,
+            (
+                SELECT COUNT(*) FROM dashboard_users
+                WHERE SUBSTR(created_at, 1, 10) = day
+            ) AS new_members,
+            (
+                SELECT COUNT(*) FROM community_posts
+                WHERE is_deleted = 0 AND SUBSTR(created_at, 1, 10) = day
+            ) + (
+                SELECT COUNT(*) FROM action_items
+                WHERE source_type = 'bug_report'
+                  AND SUBSTR(created_at, 1, 10) = day
+            ) AS new_posts,
+            (
+                SELECT COUNT(*) FROM dashboard_users
+                WHERE SUBSTR(deletion_requested_at, 1, 10) = day
+                   OR (
+                        deletion_requested_at IS NULL
+                        AND SUBSTR(deleted_at, 1, 10) = day
+                   )
+            ) AS withdrawals
+        FROM days
+        ORDER BY day
+        """,
+        (date_key, date_key),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def record_unique_community_post_view(connection, post_id, viewer_hash):
     cursor = connection.execute(
         """INSERT OR IGNORE INTO community_post_views(post_id,viewer_hash,created_at)

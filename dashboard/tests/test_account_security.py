@@ -245,3 +245,6 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):
     assert 'data-metric="total-members">2<' in html
     assert 'data-metric="new-posts">2<' in html
     assert 'data-metric="withdrawals">1<' in html
+    assert "최근 7일 활동" in html
+    assert html.count('class="admin-activity-day"') == 7
+    assert "7일 신규 가입" in html

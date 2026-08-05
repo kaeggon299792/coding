@@ -2076,9 +2076,32 @@ def paradian_portal_page():
     connection = dashboard_db()
     try:
         today = now_kst().date().isoformat()
+        activity = queries.get_admin_dashboard_activity(connection, today)
+        activity_max = max(
+            (
+                value
+                for item in activity
+                for value in (
+                    item["new_members"], item["new_posts"], item["withdrawals"]
+                )
+            ),
+            default=0,
+        )
+        for item in activity:
+            item["label"] = item["day"][5:].replace("-", ".")
+            for key in ("new_members", "new_posts", "withdrawals"):
+                item[f"{key}_height"] = (
+                    max(6, round(item[key] / activity_max * 100))
+                    if item[key] and activity_max else 0
+                )
         return render_template(
             "paradian_portal.html",
             admin_metrics=queries.get_admin_dashboard_metrics(connection, today),
+            admin_activity=activity,
+            activity_totals={
+                key: sum(item[key] for item in activity)
+                for key in ("new_members", "new_posts", "withdrawals")
+            },
             metric_date=today,
         )
     finally:

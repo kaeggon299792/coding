@@ -17,27 +17,57 @@
       <time datetime="{{ metric_date }}">{{ metric_date }}</time>
     </div>
     <div class="admin-overview-grid">
-      <article>
-        <span>New Members</span>
-        <strong data-metric="new-members">{{ admin_metrics.new_members }}</strong>
-        <p>오늘 생성된 계정</p>
+      <article class="admin-metric-card is-members">
+        <div class="admin-metric-top"><span>New Members</span><i aria-hidden="true">＋</i></div>
+        <div class="admin-metric-value"><strong data-metric="new-members">{{ admin_metrics.new_members }}</strong><em>명</em></div>
+        <p><b>오늘</b> 생성된 계정</p>
       </article>
-      <article>
-        <span>Total Members</span>
-        <strong data-metric="total-members">{{ admin_metrics.total_members }}</strong>
-        <p>탈퇴 대기·완료 계정 제외</p>
+      <article class="admin-metric-card is-total">
+        <div class="admin-metric-top"><span>Total Members</span><i aria-hidden="true">◎</i></div>
+        <div class="admin-metric-value"><strong data-metric="total-members">{{ admin_metrics.total_members }}</strong><em>명</em></div>
+        <p><b>현재</b> 탈퇴 대기·완료 제외</p>
       </article>
-      <article>
-        <span>New Posts</span>
-        <strong data-metric="new-posts">{{ admin_metrics.new_posts }}</strong>
-        <p>오늘 등록된 게시판 글</p>
+      <article class="admin-metric-card is-posts">
+        <div class="admin-metric-top"><span>New Posts</span><i aria-hidden="true">▤</i></div>
+        <div class="admin-metric-value"><strong data-metric="new-posts">{{ admin_metrics.new_posts }}</strong><em>건</em></div>
+        <p><b>오늘</b> 등록된 게시판 글</p>
       </article>
-      <article>
-        <span>Withdrawals</span>
-        <strong data-metric="withdrawals">{{ admin_metrics.withdrawals }}</strong>
-        <p>오늘 접수된 탈퇴</p>
+      <article class="admin-metric-card is-withdrawals">
+        <div class="admin-metric-top"><span>Withdrawals</span><i aria-hidden="true">−</i></div>
+        <div class="admin-metric-value"><strong data-metric="withdrawals">{{ admin_metrics.withdrawals }}</strong><em>명</em></div>
+        <p><b>오늘</b> 접수된 탈퇴</p>
       </article>
     </div>
+    <section class="admin-activity-panel" aria-labelledby="admin-activity-title">
+      <header>
+        <div>
+          <span>7-Day Activity</span>
+          <h3 id="admin-activity-title">최근 7일 활동</h3>
+        </div>
+        <div class="admin-activity-legend" aria-label="차트 범례">
+          <span class="is-members">가입</span><span class="is-posts">게시글</span><span class="is-withdrawals">탈퇴</span>
+        </div>
+      </header>
+      <div class="admin-activity-body">
+        <div class="admin-activity-chart" role="img" aria-label="최근 7일 가입, 게시글, 탈퇴 건수 막대 차트">
+          {% for item in admin_activity %}
+          <div class="admin-activity-day" title="{{ item.day }} · 가입 {{ item.new_members }} · 게시글 {{ item.new_posts }} · 탈퇴 {{ item.withdrawals }}">
+            <div class="admin-activity-bars">
+              <i class="is-members" style="--activity-height:{{ item.new_members_height }}%"><span>{{ item.new_members }}</span></i>
+              <i class="is-posts" style="--activity-height:{{ item.new_posts_height }}%"><span>{{ item.new_posts }}</span></i>
+              <i class="is-withdrawals" style="--activity-height:{{ item.withdrawals_height }}%"><span>{{ item.withdrawals }}</span></i>
+            </div>
+            <time datetime="{{ item.day }}">{{ item.label }}</time>
+          </div>
+          {% endfor %}
+        </div>
+        <dl class="admin-activity-totals">
+          <div><dt>7일 신규 가입</dt><dd>{{ activity_totals.new_members }}<small>명</small></dd></div>
+          <div><dt>7일 신규 글</dt><dd>{{ activity_totals.new_posts }}<small>건</small></dd></div>
+          <div><dt>7일 탈퇴</dt><dd>{{ activity_totals.withdrawals }}<small>명</small></dd></div>
+        </dl>
+      </div>
+    </section>
   </section>
   <section class="paradian-menu-grid">
     <a href="{{ url_for('auth.user_management') }}">
