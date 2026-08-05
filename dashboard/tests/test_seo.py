@@ -103,7 +103,7 @@ def test_home_has_canonical_meta_and_structured_data(client):
     assert 'name="twitter:card" content="summary_large_image"' in html
     assert (
         'name="naver-site-verification" '
-        'content="e98b4870dab546b9693a715b7406a701363ea436"' in html
+        'content="404c8ef0b01e794fe6f65dd351e8c530a0eff452"' in html
     )
     assert '"@type": "WebSite"' in html
     assert '"@type": "SearchAction"' in html
