@@ -44,6 +44,27 @@ SOURCES = (
     },
 )
 
+# 국민연금 월별 사업장 자료를 가공해 공개하는 고용 지표입니다. 수집 페이지의
+# 브랜드명은 내부 source_url에만 보존하고 화면의 출처는 원자료 기준으로 표시합니다.
+EMPLOYMENT_METRIC_SOURCES = (
+    {
+        "entity_code": "paradise", "entity_name": "파라다이스",
+        "url": "https://jlab.incruit.com/inc/99717",
+        "source_name": "국민연금 기준",
+    },
+    {
+        "entity_code": "kangwon_land", "entity_name": "강원랜드",
+        "url": "https://jlab.incruit.com/inc/0000146872",
+        "source_name": "국민연금 기준",
+    },
+    {
+        "entity_code": "lotte_tour",
+        "entity_name": "롯데관광개발(드림타워 카지노 운영법인)",
+        "url": "https://jlab.incruit.com/inc/139931",
+        "source_name": "국민연금 기준",
+    },
+)
+
 REVIEW_SOURCES = (
     {
         "entity_code": "paradise",
@@ -280,6 +301,8 @@ def merge_operator_cards(items, operators):
             "trend_points": "",
             "trend_area_points": "",
             "monthly_change": None,
+            "salary_growth_rate": None,
+            "turnover_rate": None,
         })
         item.update({
             "operator_name": operator["operator_name"],
@@ -341,6 +364,21 @@ def _plain_text(document):
     return re.sub(
         r"\s+", " ", html_module.unescape(re.sub(r"<[^>]+>", " ", without_scripts))
     ).strip()
+
+
+def _parse_employment_metrics(document):
+    """국민연금 기반 1년 연봉 성장률과 최근 12개월 퇴사율을 추출한다."""
+    text = _plain_text(document)
+    growth = re.search(
+        r"연봉\s*성장\s*\((?:1y|1년)\)\s*([+-]?\d+(?:\.\d+)?)%",
+        text, re.IGNORECASE,
+    )
+    turnover = re.search(
+        r"퇴사율\s*\(연환산\)\s*(\d+(?:\.\d+)?)%", text, re.IGNORECASE,
+    )
+    if not growth or not turnover:
+        raise ValueError("국민연금 기반 연봉성장률·퇴사율을 찾지 못했습니다.")
+    return float(growth.group(1)), float(turnover.group(1))
 
 
 def _parse_blind_rating(document):
@@ -451,6 +489,33 @@ def fetch_review_source(source):
     }
 
 
+def fetch_employment_metrics(source):
+    response = get_with_hard_timeout(
+        source["url"],
+        hard_timeout_seconds=max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 30),
+        retry_attempts=2,
+        timeout=(5, max(config.SALARY_REQUEST_TIMEOUT_SECONDS, 30)),
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 Chrome/126 Safari/537.36"
+            ),
+            "Accept-Language": "ko-KR,ko;q=0.9",
+        },
+    )
+    response.raise_for_status()
+    response.encoding = response.apparent_encoding or response.encoding
+    salary_growth_rate, turnover_rate = _parse_employment_metrics(response.text)
+    timestamp = now_kst()
+    return {
+        **source,
+        "salary_growth_rate": salary_growth_rate,
+        "turnover_rate": turnover_rate,
+        "collected_date": timestamp.date().isoformat(),
+        "fetched_at": timestamp.isoformat(),
+    }
+
+
 def build_benchmarks(companies):
     if not companies:
         return []
@@ -495,7 +560,7 @@ def build_benchmarks(companies):
 
 
 def fetch_all():
-    items, reviews, errors = [], [], []
+    items, reviews, employment_metrics, errors = [], [], [], []
     for source in SOURCES:
         try:
             items.append(fetch_source(source))
@@ -509,8 +574,17 @@ def fetch_all():
                 "entity_code": f"{source['entity_code']}.{source['source_code']}",
                 "error": str(error),
             })
+    for source in EMPLOYMENT_METRIC_SOURCES:
+        try:
+            employment_metrics.append(fetch_employment_metrics(source))
+        except Exception as error:  # noqa: BLE001 - 기존 정상 지표는 유지한다.
+            errors.append({
+                "entity_code": f"{source['entity_code']}.employment",
+                "error": str(error),
+            })
     return {
         "items": [*items, *build_benchmarks(items)],
         "reviews": reviews,
+        "employment_metrics": employment_metrics,
         "errors": errors,
     }

@@ -34,6 +34,20 @@
       <div class="salary-value is-empty"><strong>{{ t('공개 정보 없음') }}</strong></div>
       <div class="salary-source-note">확인 가능한 평균연봉 자료를 찾지 못했습니다.</div>
       {% endif %}
+      {% if item.salary_growth_rate is not none or item.turnover_rate is not none %}
+      <div class="salary-employment-metrics" aria-label="{{ item.entity_name }} 국민연금 고용 지표">
+        <div>
+          <span>{{ 'Salary growth' if current_locale == 'en' else '연봉성장률' }}</span>
+          <strong class="{% if item.salary_growth_rate is not none and item.salary_growth_rate > 0 %}is-up{% elif item.salary_growth_rate is not none and item.salary_growth_rate < 0 %}is-down{% endif %}">{{ "%+.1f"|format(item.salary_growth_rate) if item.salary_growth_rate is not none else '-' }}%</strong>
+          <small>{{ '1 year · National Pension data' if current_locale == 'en' else '1년 · 국민연금 기준' }}</small>
+        </div>
+        <div>
+          <span>{{ 'Turnover rate' if current_locale == 'en' else '퇴사율' }}</span>
+          <strong>{{ "%.1f"|format(item.turnover_rate) if item.turnover_rate is not none else '-' }}%</strong>
+          <small>{{ 'Annualized · National Pension data' if current_locale == 'en' else '연환산 · 국민연금 기준' }}</small>
+        </div>
+      </div>
+      {% endif %}
       {% if item.review_ratings %}
       <div class="employer-rating-grid" aria-label="{{ item.entity_name }} {{ t('기업 평점') }}">
         {% for review in item.review_ratings %}

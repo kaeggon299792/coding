@@ -2615,6 +2615,37 @@ def upsert_employer_review_snapshot(connection, item):
     connection.commit()
 
 
+def upsert_employment_metric_snapshot(connection, item):
+    """국민연금 기반 고용 지표를 기존 통합 숫자 저장소에 누적한다."""
+    metrics = (
+        ("salary_growth_rate", "salary_growth_1y", "1년 연봉 성장률"),
+        ("turnover_rate", "turnover_rate_annualized", "퇴사율(연환산)"),
+    )
+    for field, suffix, label in metrics:
+        key = f"employment.{item['entity_code']}.{suffix}"
+        upsert_source_data_series(
+            connection,
+            series_key=key,
+            category="연봉·평점",
+            label=f"{item['entity_name']} {label}",
+            unit="%",
+            frequency="monthly",
+            aggregation="last",
+            source_name="국민연금 기준",
+            source_url=item.get("source_url") or item.get("url"),
+        )
+        upsert_source_data_point(
+            connection,
+            series_key=key,
+            observation_date=item["collected_date"][:10],
+            value=item.get(field),
+            source_record_key=(
+                f"{item['entity_code']}:{suffix}:{item['collected_date'][:10]}"
+            ),
+        )
+    connection.commit()
+
+
 def list_salary_dashboard(connection):
     latest_rows = connection.execute(
         """
@@ -2647,6 +2678,37 @@ def list_salary_dashboard(connection):
     reviews_by_entity = {}
     for review in latest_reviews:
         reviews_by_entity.setdefault(review["entity_code"], []).append(dict(review))
+    employment_rows = connection.execute(
+        """
+        SELECT p.series_key, p.value, p.observation_date, s.source_url
+        FROM source_data_points p
+        JOIN source_data_series s ON s.series_key=p.series_key
+        JOIN (
+            SELECT series_key, MAX(observation_date) AS latest_date
+            FROM source_data_points
+            WHERE series_key LIKE 'employment.%'
+            GROUP BY series_key
+        ) latest ON latest.series_key=p.series_key
+                AND latest.latest_date=p.observation_date
+        WHERE p.series_key LIKE 'employment.%'
+        """
+    ).fetchall()
+    employment_by_entity = {}
+    for row in employment_rows:
+        parts = row["series_key"].split(".", 2)
+        if len(parts) != 3:
+            continue
+        entity = employment_by_entity.setdefault(parts[1], {
+            "employment_metrics_source": "국민연금 기준",
+            "employment_metrics_source_url": row["source_url"],
+            "employment_metrics_date": row["observation_date"],
+        })
+        field = {
+            "salary_growth_1y": "salary_growth_rate",
+            "turnover_rate_annualized": "turnover_rate",
+        }.get(parts[2])
+        if field:
+            entity[field] = row["value"]
     salary_entity_codes = {item["entity_code"] for item in items}
     for entity_code, reviews in reviews_by_entity.items():
         if entity_code in salary_entity_codes:
@@ -2664,6 +2726,7 @@ def list_salary_dashboard(connection):
         })
     for item in items:
         item["review_ratings"] = reviews_by_entity.get(item["entity_code"], [])
+        item.update(employment_by_entity.get(item["entity_code"], {}))
         monthly = connection.execute(
             """
             SELECT s.collected_date, s.average_salary_manwon

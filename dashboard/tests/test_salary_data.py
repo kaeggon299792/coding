@@ -28,6 +28,31 @@ def test_employer_review_parsers():
     assert (rating, count) == (3.2, 88)
 
 
+def test_national_pension_employment_metric_parser():
+    growth, turnover = salary_data._parse_employment_metrics(
+        "<div>연봉 성장 (1y)</div><b>+6.1%</b>"
+        "<div>국민연금 기준</div><div>퇴사율 (연환산)</div><b>13.1%</b>"
+    )
+    assert (growth, turnover) == (6.1, 13.1)
+
+
+def test_employment_metrics_use_central_repository(tmp_path):
+    connection = schema.connect(tmp_path / "employment.db")
+    queries.upsert_employment_metric_snapshot(connection, {
+        "entity_code": "paradise", "entity_name": "파라다이스",
+        "salary_growth_rate": 6.1, "turnover_rate": 13.1,
+        "source_url": "https://example.com/nps",
+        "collected_date": "2026-08-05",
+    })
+    rows = connection.execute(
+        "SELECT series_key, source_name FROM source_data_series "
+        "WHERE series_key LIKE 'employment.paradise.%' ORDER BY series_key"
+    ).fetchall()
+    assert len(rows) == 2
+    assert {row["source_name"] for row in rows} == {"국민연금 기준"}
+    connection.close()
+
+
 def test_salary_snapshots_keep_monthly_history(tmp_path):
     connection = schema.connect(tmp_path / "salary.db")
     base = {

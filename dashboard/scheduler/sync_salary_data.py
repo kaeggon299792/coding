@@ -22,6 +22,8 @@ def run():
             queries.upsert_salary_snapshot(connection, item)
         for review in result["reviews"]:
             queries.upsert_employer_review_snapshot(connection, review)
+        for item in result["employment_metrics"]:
+            queries.upsert_employment_metric_snapshot(connection, item)
         errors = [
             f"{item['entity_code']}: {item['error']}" for item in result["errors"]
         ]

@@ -2360,6 +2360,16 @@ html[lang="en"] .table-scroll:before{content:"Swipe horizontally to view all col
 .casino-chart-hitpoint.share:hover,.casino-chart-hitpoint.share:focus,.casino-chart-hitpoint.total:hover,.casino-chart-hitpoint.total:focus{stroke:var(--brand-highlight)}
 .market-quote-card.is-primary{background:linear-gradient(145deg,rgba(var(--brand-highlight-rgb),.12),var(--brand-bg));box-shadow:inset 0 2px var(--brand-highlight)}
 .salary-card.is-benchmark{border-color:rgba(49,130,246,.58);background:linear-gradient(145deg,rgba(49,130,246,.10),var(--brand-surface) 55%)}
+
+/* National Pension employment metrics */
+.salary-employment-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--brand-border)}
+.salary-employment-metrics>div{display:grid;gap:5px;padding:13px 14px;min-width:0}
+.salary-employment-metrics>div+div{border-left:1px solid var(--brand-border)}
+.salary-employment-metrics span,.salary-employment-metrics small{color:var(--brand-text-muted);font-size:10px}
+.salary-employment-metrics strong{font-family:var(--font-display);font-size:21px;line-height:1}
+.salary-employment-metrics strong.is-up{color:#22bd58}
+.salary-employment-metrics strong.is-down{color:#4d9eff}
+@media(max-width:380px){.salary-employment-metrics{grid-template-columns:1fr}.salary-employment-metrics>div+div{border-left:0;border-top:1px solid var(--brand-border)}}
 .salary-sparkline{color:#3182f6}
 .salary-change.is-up{color:#f04452}.salary-change.is-down{color:#3182f6}
 .employer-rating:hover{border-color:#3182f6}
