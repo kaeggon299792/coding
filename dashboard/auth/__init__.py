@@ -1791,10 +1791,7 @@ def localization_dashboard():
 def localization_work():
     """Small, deterministic translation batches for an hourly browser workflow."""
 
-    allowed_limits = {25, 50, 100, 150}
-    limit = request.args.get("limit", 100, type=int)
-    if limit not in allowed_limits:
-        limit = 100
+    limit = 50
     language_code = (request.args.get("language") or "en").strip()
     connection = dashboard_db()
     try:
@@ -1830,7 +1827,7 @@ def localization_work():
             languages=languages,
             language_code=language_code,
             limit=limit,
-            allowed_limits=sorted(allowed_limits),
+            allowed_limits=(limit,),
             total=total,
             batch_count=len(rows),
             chunks=chunks,
@@ -2060,12 +2057,9 @@ def localization_import_ai():
         except ValueError as exc:
             connection.rollback()
             if request.form.get("return_to") == "work" and language_code != "all":
-                limit = request.form.get("limit", 100, type=int)
-                if limit not in {25, 50, 100, 150}:
-                    limit = 100
                 return redirect(url_for(
                     "auth.localization_work", language=language_code,
-                    limit=limit, error=str(exc),
+                    limit=50, error=str(exc),
                 ))
             return redirect(url_for(
                 "auth.localization_dashboard", language=language_code, error=str(exc)
@@ -2082,11 +2076,8 @@ def localization_import_ai():
         + (f" ({language_result})" if language_result else "")
     )
     if request.form.get("return_to") == "work" and language_code != "all":
-        limit = request.form.get("limit", 100, type=int)
-        if limit not in {25, 50, 100, 150}:
-            limit = 100
         return redirect(url_for(
-            "auth.localization_work", language=language_code, limit=limit,
+            "auth.localization_work", language=language_code, limit=50,
             imported=import_message,
         ))
     return redirect(url_for(

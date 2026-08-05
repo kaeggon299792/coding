@@ -20,14 +20,14 @@
       <label><span>작업 언어</span><select name="language">
         {% for language in languages %}<option value="{{ language.language_code }}" {% if language.language_code == language_code %}selected{% endif %}>{{ language.display_name }} ({{ language.language_code }})</option>{% endfor %}
       </select></label>
-      <label><span>한 번에 가져올 항목</span><select name="limit">
+      <label><span>클립보드 묶음 크기</span><select name="limit" aria-label="클립보드 묶음 크기">
         {% for value in allowed_limits %}<option value="{{ value }}" {% if value == limit %}selected{% endif %}>{{ value }}개</option>{% endfor %}
       </select></label>
       <button class="btn btn-primary" type="submit">현재 대기 묶음 불러오기</button>
     </form>
     <div class="localization-work-summary">
       <span>현재 언어 전체 Pending <strong>{{ total }}</strong>건</span>
-      <span>이번 작업 대상 <strong>{{ batch_count }}</strong>건</span>
+      <span>이번 작업 대상 <strong>{{ batch_count }}</strong>건 <small>최대 50개</small></span>
       <span>클립보드 묶음 <strong>{{ chunks|length }}</strong>개</span>
     </div>
     <p class="page-note">고정 URL: <code>{{ url_for('auth.localization_work', language=language_code, limit=limit, _external=True) }}</code></p>
