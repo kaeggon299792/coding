@@ -291,10 +291,32 @@ REVIEW_SOURCES = (
         "kind": "blind",
     },
     {
+        "entity_code": "gvas",
+        "entity_name": "㈜지바스",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 지바스",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/374661/reviews/"
+            "%EC%A7%80%EB%B0%94%EC%8A%A4"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "golden_crown",
+        "entity_name": "㈜골든크라운",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 골든크라운",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/149947/reviews/"
+            "%EA%B3%A8%EB%93%A0%ED%81%AC%EB%9D%BC%EC%9A%B4"
+        ),
+        "kind": "jobplanet",
+    },
+    {
         "entity_code": "golden_crown",
         "entity_name": "㈜골든크라운",
         "source_code": "jobplanet_interburgo",
-        "source_name": "잡플래닛 · 호텔인터불고엑스코(참고)",
+        "source_name": "잡플래닛 · 호텔인터불고엑스코(영업장 참고)",
         "url": (
             "https://www.jobplanet.co.kr/companies/141004/reviews/"
             "%ED%98%B8%ED%85%94%EC%9D%B8%ED%84%B0%EB%B6%88%EA%B3%A0%EC%97%91%EC%8A%A4%EC%BD%94"
@@ -305,12 +327,56 @@ REVIEW_SOURCES = (
         "entity_code": "golden_crown",
         "entity_name": "㈜골든크라운",
         "source_code": "blind_interburgo",
-        "source_name": "블라인드 · 인터불고엑스코(참고)",
+        "source_name": "블라인드 · 인터불고엑스코(영업장 참고)",
         "url": (
             "https://www.teamblind.com/kr/company/"
             "%EC%9D%B8%ED%84%B0%EB%B6%88%EA%B3%A0%EC%97%91%EC%8A%A4%EC%BD%94/reviews"
         ),
         "kind": "blind",
+    },
+    {
+        "entity_code": "gilsang_changhwi",
+        "entity_name": "길상창휘(유)",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 길상창휘",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/325987/reviews/"
+            "%EA%B8%B8%EC%83%81%EC%B0%BD%ED%9C%98"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "cheonghae",
+        "entity_name": "㈜청해",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 청해",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/452082/reviews/"
+            "%EC%B2%AD%ED%95%B4"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "geonha",
+        "entity_name": "㈜건하",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 건하",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/443347/reviews/"
+            "%EA%B1%B4%ED%95%98"
+        ),
+        "kind": "jobplanet",
+    },
+    {
+        "entity_code": "landing_entertainment",
+        "entity_name": "람정엔터테인먼트코리아㈜",
+        "source_code": "jobplanet",
+        "source_name": "잡플래닛 · 람정엔터테인먼트코리아",
+        "url": (
+            "https://www.jobplanet.co.kr/companies/337538/reviews/"
+            "%EB%9E%8C%EC%A0%95%EC%97%94%ED%84%B0%ED%85%8C%EC%9D%B8%EB%A8%BC%ED%8A%B8%EC%BD%94%EB%A6%AC%EC%95%84"
+        ),
+        "kind": "jobplanet",
     },
     {
         "entity_code": "paradise",

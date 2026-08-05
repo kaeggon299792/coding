@@ -192,8 +192,14 @@ def test_venue_specific_rating_sources_are_included():
     assert sources[("paradise_segasammy", "blind")]["source_name"].endswith("파라다이스세가사미")
     assert "/companies/393355/reviews/" in sources[("inspire", "jobplanet")]["url"]
     assert sources[("inspire", "blind")]["source_name"].endswith("인스파이어")
+    assert "/companies/374661/reviews/" in sources[("gvas", "jobplanet")]["url"]
+    assert "/companies/149947/reviews/" in sources[("golden_crown", "jobplanet")]["url"]
     assert "/companies/141004/reviews/" in sources[("golden_crown", "jobplanet_interburgo")]["url"]
-    assert "(참고)" in sources[("golden_crown", "blind_interburgo")]["source_name"]
+    assert "영업장 참고" in sources[("golden_crown", "blind_interburgo")]["source_name"]
+    assert "/companies/325987/reviews/" in sources[("gilsang_changhwi", "jobplanet")]["url"]
+    assert "/companies/452082/reviews/" in sources[("cheonghae", "jobplanet")]["url"]
+    assert "/companies/443347/reviews/" in sources[("geonha", "jobplanet")]["url"]
+    assert "/companies/337538/reviews/" in sources[("landing_entertainment", "jobplanet")]["url"]
     assert "/companies/361539/reviews/" in sources[("paradise", "jobplanet_glad")]["url"]
     assert "글래드호텔앤리조트(참고)" in sources[("paradise", "blind_glad")]["source_name"]
 
