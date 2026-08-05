@@ -43,13 +43,18 @@
     <header><div><span>04</span><h2>최근 5개년 추이</h2></div><p>2021–2025 법인별 연간 실적{% if market_share.exclude_kangwon %} · 강원랜드 제외{% endif %}</p></header>
     <div class="casino-ms-trend-grid">
       {% for metric, label in [('revenue', '매출액 추이'), ('operating_profit', '영업이익 추이')] %}
-      <article>
+      <article class="casino-ms-trend-chart">
         <h3>{{ label }}</h3>
-        <svg viewBox="0 0 800 250" role="img" aria-label="{{ label }} 선그래프">
+        <svg class="casino-interactive-chart" viewBox="0 0 800 250" role="img" aria-label="{{ label }} 선그래프">
           {% for x in [24,212,400,588,776] %}<line x1="{{ x }}" y1="24" x2="{{ x }}" y2="220" class="casino-ms-gridline"/>{% endfor %}
-          {% for item in market_share.trend %}<polyline class="casino-ms-line line-{{ loop.index }}" fill="none" vector-effect="non-scaling-stroke" points="{{ item[metric ~ '_polyline'] }}"/>{% endfor %}
+          {% for item in market_share.trend %}
+          {% set line_index = loop.index %}
+          <polyline class="casino-ms-line line-{{ line_index }}" fill="none" vector-effect="non-scaling-stroke" points="{{ item[metric ~ '_polyline'] }}"/>
+          {% for point in item[metric ~ '_chart_points'] %}<circle class="casino-chart-hitpoint casino-ms-hitpoint line-{{ line_index }}" cx="{{ point.x }}" cy="{{ point.y }}" r="9" tabindex="0" aria-label="{{ point.year }}년 {{ item.name }} {{ label }} {{ point.value }}억원" data-year="{{ point.year }}" data-label="{{ item.name }} {{ label }}" data-value="{{ point.value }}" data-unit="억원"/>{% endfor %}
+          {% endfor %}
           {% for year in market_share.trend_years %}<text x="{{ 24 + loop.index0 * 188 }}" y="244" text-anchor="middle">{{ year }}</text>{% endfor %}
         </svg>
+        <div class="casino-chart-tooltip" role="status" aria-live="polite"></div>
         <div class="casino-ms-legend">{% for item in market_share.trend %}<span class="legend-{{ loop.index }}">{{ item.name }}</span>{% endfor %}</div>
       </article>
       {% endfor %}
@@ -57,3 +62,4 @@
   </section>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/casino-charts.js') }}?v=20260805-1" defer></script>{% endblock %}

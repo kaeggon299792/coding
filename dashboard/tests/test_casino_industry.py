@@ -40,7 +40,30 @@ def test_casino_industry_page_is_public(client):
     assert "2,263,762".encode() in response.data
 
 
-def test_casino_market_share_page_is_public(client):
+def test_casino_market_share_page_is_public(client, monkeypatch):
+    point = {"year": 2024, "value": 123.4, "x": 24, "y": 32}
+    monkeypatch.setattr(
+        "app.casino_market_share.build_dashboard",
+        lambda connection, selected_year, exclude_kangwon: {
+            "years": [2024],
+            "selected_year": 2024,
+            "comparisons": [{
+                "title": "테스트 시장",
+                "subtitle": "툴팁 테스트",
+                "revenue_items": [{"name": "테스트 카지노", "revenue": 123.4, "share": 100}],
+                "profit_items": [{"name": "테스트 카지노", "operating_profit": 12.3, "share": 100}],
+            }],
+            "trend_years": [2024],
+            "trend": [{
+                "name": "테스트 카지노",
+                "revenue_polyline": "24.0,32.0",
+                "operating_profit_polyline": "24.0,32.0",
+                "revenue_chart_points": [point],
+                "operating_profit_chart_points": [point],
+            }],
+            "exclude_kangwon": exclude_kangwon,
+        },
+    )
     response = client.get("/market/casino-industry/market-share?year=2024")
     assert response.status_code == 200
     assert b"casino-ms-page" in response.data
@@ -48,7 +71,10 @@ def test_casino_market_share_page_is_public(client):
     assert b'onchange="this.form.submit()"' in response.data
     assert "중앙 DB의 VALUESearch".encode() not in response.data
     assert b'class="casino-ms-track"' in response.data
-    assert b'<svg viewBox="0 0 800 250"' in response.data
+    assert b'<svg class="casino-interactive-chart" viewBox="0 0 800 250"' in response.data
+    assert b"casino-chart-hitpoint casino-ms-hitpoint" in response.data
+    assert b"casino-chart-tooltip" in response.data
+    assert b"js/casino-charts.js" in response.data
 
     excluded = client.get(
         "/market/casino-industry/market-share?year=2024&exclude_kangwon=1"
@@ -72,6 +98,12 @@ def test_market_share_uses_central_financial_values(monkeypatch):
     assert result["selected_year"] == 2025
     assert result["comparisons"][0]["revenue_items"][0]["name"] == "외래객"
     assert result["comparisons"][0]["revenue_items"][0]["share"] == 33.3
+    assert result["trend"][0]["revenue_chart_points"][-1] == {
+        "year": 2025,
+        "value": 1000.0,
+        "x": 776,
+        "y": 32.0,
+    }
 
     excluded = casino_market_share.build_dashboard(object(), 2025, True)
     assert excluded["exclude_kangwon"] is True

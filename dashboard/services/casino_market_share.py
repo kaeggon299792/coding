@@ -94,10 +94,19 @@ def build_dashboard(connection, selected_year=None, exclude_kangwon=False):
         low, high = min(present or [0]), max(present or [1])
         span = max(high - low, 1)
         for item in trend:
-            item[f"{metric}_polyline"] = " ".join(
-                f"{24 + index * 188:.1f},{216 - ((point[metric] or 0) - low) / span * 184:.1f}"
+            chart_points = [
+                {
+                    "year": point["year"],
+                    "value": point[metric],
+                    "x": round(24 + index * 188, 1),
+                    "y": round(216 - (point[metric] - low) / span * 184, 1),
+                }
                 for index, point in enumerate(item["points"])
                 if point[metric] is not None
+            ]
+            item[f"{metric}_chart_points"] = chart_points
+            item[f"{metric}_polyline"] = " ".join(
+                f'{point["x"]:.1f},{point["y"]:.1f}' for point in chart_points
             )
 
     return {

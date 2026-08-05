@@ -4,7 +4,9 @@
   });
 
   document.querySelectorAll(".casino-interactive-chart").forEach((chart) => {
-    const panel = chart.closest(".casino-history-chart, .casino-share-chart");
+    const panel = chart.closest(
+      ".casino-history-chart, .casino-share-chart, .casino-ms-trend-chart"
+    );
     const tooltip = panel?.querySelector(".casino-chart-tooltip");
     if (!panel || !tooltip) return;
 
