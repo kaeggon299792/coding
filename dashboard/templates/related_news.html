@@ -35,7 +35,7 @@
       <div class="section-heading"><div><p class="page-eyebrow">News Archive</p><h2>뉴스 목록</h2></div><span>{% if current_locale == 'en' %}{{ news_total_count }} items · Page {{ news_page }} of {{ news_page_count }}{% else %}총 {{ news_total_count }}건 · {{ news_page }}/{{ news_page_count }}페이지{% endif %}</span></div>
       {% if articles %}
         {% for item in articles %}
-        <article class="news-card">
+        <article class="news-card" id="news-{{ item.article_id }}">
           <div class="news-card-meta">
             <span>{{ t(item.category or '미분류') }}</span>
             {% if item.impact_direction %}<span class="impact-badge is-{{ item.impact_direction|lower }}">{{ t({'positive':'긍정', 'negative':'부정', 'neutral':'중립', 'mixed':'혼합'}.get(item.impact_direction|lower, item.impact_direction)) }}</span>{% endif %}

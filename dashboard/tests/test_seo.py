@@ -196,6 +196,110 @@ def test_sitemap_xml(client):
     assert all(item.attrib["href"].startswith("https://www.casinoin.kr/") for item in alternates)
 
 
+def test_rss_xml_contains_only_public_canonical_content(client, monkeypatch):
+    from dashboard_db import queries
+    from extensions import dashboard_db
+
+    monkeypatch.setattr(
+        "services.rss_feed.news_reader.list_articles",
+        lambda **kwargs: [
+            {
+                "article_id": 701,
+                "title": "공개 카지노 산업 뉴스",
+                "publisher": "테스트 언론사",
+                "original_url": "https://external.example/article",
+                "published_at": "2026-08-05T09:00:00+09:00",
+                "collected_at": "2026-08-05T09:10:00+09:00",
+                "latest_summary": "카지노 산업의 최신 변화를 정리한 공개 뉴스입니다.",
+            }
+        ],
+    )
+
+    connection = dashboard_db()
+    user_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='admin'"
+    ).fetchone()[0]
+    notice_id = queries.create_community_post(
+        connection,
+        author_id=user_id,
+        author_username="admin",
+        title="RSS 공개 공지",
+        content="네이버 검색 수집을 위한 공개 공지 본문입니다.",
+        board_type="notice",
+    )
+    connection.execute(
+        """
+        INSERT INTO community_posts
+            (author_id, author_username, title, content, board_type,
+             is_deleted, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'notice', 1, ?, ?)
+        """,
+        (
+            user_id,
+            "admin",
+            "RSS 삭제 공지",
+            "삭제된 공지는 RSS에 나오면 안 됩니다.",
+            "2026-08-05T08:00:00+09:00",
+            "2026-08-05T08:00:00+09:00",
+        ),
+    )
+    connection.execute(
+        """
+        INSERT INTO research_documents (
+            document_type, company_name, title, publisher, report_date,
+            original_filename, stored_filename, mime_type, file_size, sha256,
+            extraction_status, ai_summary, created_at, updated_at
+        ) VALUES ('research', ?, ?, ?, ?, ?, ?, 'application/pdf', ?, ?,
+                  'completed', ?, ?, ?)
+        """,
+        (
+            "파라다이스",
+            "RSS 공개 리서치",
+            "테스트 증권사",
+            "2026-08-04",
+            "rss-research.pdf",
+            "rss-research-stored.pdf",
+            1024,
+            "rss-research-sha256",
+            "공개 리서치의 AI 분석 요약입니다.",
+            "2026-08-04T10:00:00+09:00",
+            "2026-08-04T10:00:00+09:00",
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    response = client.get("/rss.xml")
+
+    assert response.status_code == 200
+    assert response.content_type == "application/rss+xml; charset=utf-8"
+    root = ET.fromstring(response.data)
+    assert root.tag == "rss"
+    assert root.attrib["version"] == "2.0"
+    channel = root.find("channel")
+    assert channel is not None
+    items = channel.findall("item")
+    titles = [item.findtext("title") for item in items]
+    links = [item.findtext("link") for item in items]
+    assert "공개 카지노 산업 뉴스" in titles
+    assert "RSS 공개 공지" in titles
+    assert "RSS 공개 리서치" in titles
+    assert "RSS 삭제 공지" not in titles
+    assert f"https://www.casinoin.kr/board/{notice_id}" in links
+    assert "https://www.casinoin.kr/news#news-701" in links
+    assert all(link.startswith("https://www.casinoin.kr/") for link in links)
+    assert len(items) <= 50
+    body = response.get_data(as_text=True)
+    assert "external.example" not in body
+    assert not any(
+        fragment in link
+        for link in links
+        for fragment in ("/admin", "/login", "/api/", "/download", "/edit")
+    )
+    assert all(item.findtext("description") for item in items)
+    assert all(item.findtext("pubDate") for item in items)
+
+
 def test_sitemap_representative_urls_are_public_and_canonical(client):
     sitemap = ET.fromstring(client.get("/sitemap.xml").data)
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}

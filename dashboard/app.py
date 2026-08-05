@@ -56,6 +56,7 @@ from services import (
     overseas_news,
     official_document_manager,
     performance_parser,
+    rss_feed,
     salary_data,
     security_audit,
     site_preferences,
@@ -1536,6 +1537,21 @@ def sitemap_xml():
     xml = tostring(urlset, encoding="utf-8", xml_declaration=True)
     response = app.response_class(
         xml, content_type="application/xml; charset=utf-8"
+    )
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return response
+
+
+@app.route("/rss.xml")
+def rss_xml():
+    connection = dashboard_db()
+    try:
+        items = rss_feed.build_public_items(connection, SITEMAP_PUBLIC_URL)
+    finally:
+        connection.close()
+    response = app.response_class(
+        rss_feed.render(items, SITEMAP_PUBLIC_URL),
+        content_type="application/rss+xml; charset=utf-8",
     )
     response.headers["Cache-Control"] = "public, max-age=900"
     return response

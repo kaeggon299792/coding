@@ -8,6 +8,7 @@
 <meta name="description" content="{{ seo_description }}">
 <meta name="robots" content="{{ seo_robots }}">
 <link rel="canonical" href="{{ seo_canonical_url }}">
+<link rel="alternate" type="application/rss+xml" title="CASINO IN RSS" href="https://www.casinoin.kr/rss.xml">
 {% for locale_code, locale_url in seo_hreflang_urls.items() if locale_code != 'x-default' %}<link rel="alternate" hreflang="{{ locale_code }}" href="{{ locale_url }}">
 {% endfor %}
 <link rel="alternate" hreflang="x-default" href="{{ seo_hreflang_urls['x-default'] }}">

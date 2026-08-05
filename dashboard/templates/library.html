@@ -73,7 +73,7 @@
   {% if documents %}
   <div class="library-grid">
     {% for doc in documents %}
-    <article class="library-card">
+    <article class="library-card" id="research-{{ doc.id }}">
       <div class="library-card-head">
         <div>
           {% for company_name in doc.company_names %}<span class="badge high">{{ company_name }}</span>{% endfor %}
