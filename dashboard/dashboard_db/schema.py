@@ -16,11 +16,32 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080603
+SCHEMA_VERSION = 2026080604
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
     "경영기획", "데이터 분석", "PC·시스템", "기타",
+)
+
+CREDIT_SOURCE_SEEDS = (
+    ("domestic_news", "뉴스", "카지노 관련 뉴스", "news_history.db / AI 이슈 요약 아카이브", "", "외부 수집 DB 반영 주기에 따름", "domestic_news", "대시보드는 읽기 전용으로 연동하며, 원본 뉴스 DB의 최종 수집 시각을 표시합니다.", 10),
+    ("overseas_news", "뉴스", "마카오·일본 해외 뉴스 / 한글 번역", "Google News RSS 검색 결과 / OpenAI 번역", "https://news.google.com/", "매일 자동 수집·번역", "overseas_news", "기사 제목·언론사·발행일·원문 링크를 저장하며 기사 전문은 복제하지 않습니다.", 20),
+    ("dart", "기업정보", "DART 공시 / AI 요약", "금융감독원 DART", "https://dart.fss.or.kr/", "매일 정기 동기화", "dart", "관심 기업 공시 원문과 저장된 AI 분석 결과를 함께 표시합니다.", 30),
+    ("laws", "법률·규제", "국가법령정보", "국가법령정보센터", "https://www.law.go.kr/", "매일 정기 동기화", "laws", "법령 본문, 변경 이력, AI 요약을 모니터링합니다.", 40),
+    ("assembly_bills", "법률·규제", "국회 의안정보", "국회 열린국회정보 Open API", "https://open.assembly.go.kr/portal/openapi/ALLBILLV2", "매일 정기 동기화", "assembly_bills", "카지노 관련 입법을 필터링하고 산업 영향도를 함께 저장합니다.", 50),
+    ("government_notices", "법률·규제", "정부입법예고", "법제처 국민참여입법센터", "https://opinion.lawmaking.go.kr/", "매일 정기 동기화", "government_notices", "정부입법예고와 첨부자료 링크를 함께 관리합니다.", 60),
+    ("domestic_market", "시장 정보", "국내 주가·지수", "공공데이터포털 API", "https://www.data.go.kr/", "배치 + 화면 진입 시 자동 확인", "domestic_market", "국내 4개 카지노 기업과 KOSPI를 자동 확인하며, 오래된 시세는 페이지 진입 시 즉시 재조회합니다.", 70),
+    ("global_market", "시장 정보", "해외 주가", "Yahoo Finance", "https://finance.yahoo.com/", "10분 캐시 기준 자동 갱신", "global_market", "마카오 주요 카지노 운영사 4개 종목을 자동 갱신하며, 실패 시 마지막 정상값을 유지합니다.", 80),
+    ("tourism", "시장 정보", "관광객 추이", "한국문화관광연구원 출입국관광통계서비스 API", "http://openapi.tour.go.kr/", "매일 정기 동기화", "tourism", "국가별 방한 관광객 수와 예측치를 함께 시각화합니다.", 90),
+    ("oil", "시장 정보", "유가정보", "한국석유공사 Opinet", "https://www.opinet.co.kr/", "배치 + 화면 진입 시 자동 갱신", "oil", "보통휘발유·경유·부탄 평균가를 자동 갱신하며, 오래된 데이터는 화면 진입 시 재수집합니다.", 100),
+    ("exchange", "시장 정보", "환율", "한국수출입은행 Open API", "https://www.koreaexim.go.kr/", "배치 + 화면 진입 시 자동 갱신", "exchange", "USD·JPY·CNH·EUR 기준 환율을 자동 갱신하며, 오래된 데이터는 화면 진입 시 재수집합니다.", 110),
+    ("salary", "기업정보", "연봉", "잡코리아 / OpenBizData", "https://www.jobkorea.co.kr/", "매일 정기 동기화", "salary", "카지노 4사와 업계 비교 기준을 월별 스냅샷으로 누적합니다.", 120),
+    ("recruitment", "기업정보", "채용", "잡코리아 / 사람인 / 인크루트", "https://www.jobkorea.co.kr/", "매일 정기 동기화", "recruitment", "AI가 고용형태, 처우, 확인 필요 사항을 카드형으로 요약합니다.", 130),
+    ("research", "기업정보", "업로드 PDF 분석 자료", "사용자 업로드 원문 + AI 추출", "", "등록/재분석 시 즉시 반영", "research", "제목은 직접 입력값 우선, 비우면 GPT 제안 제목을 우선 적용합니다.", 140),
+    ("tips", "자료실", "업무 자료 게시판", "관리자/사용자 직접 작성", "", "저장 즉시 반영", "tips", "Markdown, 코드블록, 목차, 첨부파일, 댓글 기능을 지원합니다.", 150),
+    ("related_sites", "자료실", "관련 사이트 링크", "관리자 등록 링크 아카이브", "", "저장 즉시 반영", "related_sites", "카테고리별 외부 사이트와 설명을 함께 정리합니다.", 160),
+    ("official_docs", "관리자 전용", "공문·자료관리", "내부 접수 자료 / Y드라이브 연계", "", "등록 즉시 반영", "official_docs", "삭제 자료는 즉시 물리 삭제하지 않고 보존 정책에 따라 관리합니다.", 170),
+    ("performance", "관리자 전용", "경영 실적", "텔레그램 성과 메시지 수집", "", "메시지 수신 / 수집 작업 기준", "performance", "성공적으로 수집된 최신 보고 메시지 기준 시각을 표시합니다.", 180),
 )
 
 CASINO_GLOSSARY_SEED_TERMS = (
@@ -1406,6 +1427,43 @@ def migrate(connection):
     _ensure_column(connection, "economic_series", "changed_at", "TEXT")
     connection.execute(
         "UPDATE economic_series SET changed_at=fetched_at WHERE changed_at IS NULL"
+    )
+
+    # ---- credit_sources (출처 및 저작권 페이지 관리) ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS credit_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            menu TEXT NOT NULL,
+            dataset TEXT NOT NULL,
+            source_name TEXT NOT NULL,
+            source_url TEXT NOT NULL DEFAULT '',
+            cadence TEXT NOT NULL,
+            freshness_key TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            created_by INTEGER,
+            updated_by INTEGER
+        )
+        """
+    )
+    credit_seed_time = datetime.now(timezone.utc).isoformat()
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO credit_sources (
+            source_key, menu, dataset, source_name, source_url, cadence,
+            freshness_key, notes, sort_order, is_active, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        """,
+        [row + (credit_seed_time, credit_seed_time) for row in CREDIT_SOURCE_SEEDS],
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_credit_sources_active_order "
+        "ON credit_sources(is_active, sort_order, id)"
     )
 
     # ---- source_data_repository (통합 숫자 데이터 누적 저장소) ----

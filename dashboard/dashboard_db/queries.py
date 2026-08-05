@@ -3475,3 +3475,72 @@ def log_error(connection, stage, error_type, error_message):
         (now_kst().isoformat(), stage, error_type, (error_message or "")[:2000]),
     )
     connection.commit()
+
+
+# credit_sources
+
+def list_credit_sources(connection, include_inactive=False):
+    where = "" if include_inactive else "WHERE is_active=1"
+    return [
+        dict(row) for row in connection.execute(
+            f"SELECT * FROM credit_sources {where} ORDER BY sort_order, id"
+        ).fetchall()
+    ]
+
+
+def get_credit_source(connection, source_id):
+    row = connection.execute(
+        "SELECT * FROM credit_sources WHERE id=?", (int(source_id),)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_credit_source(connection, values, actor_id):
+    now = now_kst().isoformat()
+    cursor = connection.execute(
+        """
+        INSERT INTO credit_sources (
+            source_key, menu, dataset, source_name, source_url, cadence,
+            freshness_key, notes, sort_order, is_active,
+            created_at, updated_at, created_by, updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+        """,
+        (
+            values["source_key"], values["menu"], values["dataset"],
+            values["source_name"], values["source_url"], values["cadence"],
+            values["freshness_key"], values["notes"], values["sort_order"],
+            now, now, actor_id, actor_id,
+        ),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def update_credit_source(connection, source_id, values, actor_id):
+    connection.execute(
+        """
+        UPDATE credit_sources
+        SET menu=?, dataset=?, source_name=?, source_url=?, cadence=?,
+            freshness_key=?, notes=?, sort_order=?, is_active=?,
+            updated_at=?, updated_by=?
+        WHERE id=?
+        """,
+        (
+            values["menu"], values["dataset"], values["source_name"],
+            values["source_url"], values["cadence"], values["freshness_key"],
+            values["notes"], values["sort_order"], values["is_active"],
+            now_kst().isoformat(), actor_id, int(source_id),
+        ),
+    )
+    connection.commit()
+
+
+def hide_credit_source(connection, source_id, actor_id):
+    connection.execute(
+        """
+        UPDATE credit_sources
+        SET is_active=0, updated_at=?, updated_by=? WHERE id=?
+        """,
+        (now_kst().isoformat(), actor_id, int(source_id)),
+    )
+    connection.commit()

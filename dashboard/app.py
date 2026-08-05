@@ -1251,6 +1251,10 @@ def inject_globals():
         "unified_search_page": "통합검색",
         "sitemap_page": "사이트맵",
         "credits_page": "출처 및 저작권",
+        "credits_management_page": "출처 관리",
+        "create_credit_source_route": "출처 관리",
+        "edit_credit_source_route": "출처 관리",
+        "hide_credit_source_route": "출처 관리",
         "auth.my_account": "내 계정",
         "auth.login": "로그인",
         "auth.register": "가입 신청",
@@ -1767,7 +1771,7 @@ def _refresh_economic_series_if_needed(connection):
     return queries.list_economic_series(connection)
 
 
-def _credits_rows(connection):
+def _legacy_credits_rows(connection):
     rows = []
 
     def push(
@@ -2001,6 +2005,286 @@ def _credits_rows(connection):
     )
 
     return rows
+
+
+def _credit_freshness(connection):
+    news_updated_at = news_reader.last_updated_at()
+    overseas_state = overseas_news.sync_state(connection)
+    dart_state = queries.get_data_freshness(
+        connection, "dart_disclosures", "dart_sync", "fetched_at"
+    )
+    law_sync = queries.get_latest_completed_run(connection, "law_sync") or {}
+    law_checked_at = law_sync.get("finished_at")
+    market_state = _market_freshness(queries.list_market_quotes(connection))
+    tourism_state = queries.get_data_freshness(
+        connection, "tourism_visitor_stats", "tourism_stats_sync"
+    )
+    economic_state = _economic_freshness(queries.list_economic_series(connection))
+    salary_sync = queries.get_latest_completed_run(connection, "salary_sync") or {}
+    recruitment_sync = (
+        queries.get_latest_completed_run(connection, "recruitment_sync") or {}
+    )
+    return {
+        "domestic_news": (news_updated_at, news_updated_at),
+        "overseas_news": (
+            overseas_state.get("last_checked_at"),
+            overseas_state.get("last_changed_at"),
+        ),
+        "dart": (dart_state.get("checked_at"), dart_state.get("changed_at")),
+        "laws": (
+            law_checked_at,
+            _max_timestamp(connection, "law_updates", "fetched_at"),
+        ),
+        "assembly_bills": (
+            law_checked_at,
+            _max_timestamp(connection, "legislative_bills", "updated_at"),
+        ),
+        "government_notices": (
+            law_checked_at,
+            _max_timestamp(
+                connection, "government_legislative_notices", "updated_at"
+            ),
+        ),
+        "domestic_market": (
+            market_state.get("domestic_checked_at"),
+            market_state.get("domestic_checked_at"),
+        ),
+        "global_market": (
+            market_state.get("global_checked_at"),
+            market_state.get("global_checked_at"),
+        ),
+        "tourism": (
+            tourism_state.get("checked_at"), tourism_state.get("changed_at")
+        ),
+        "oil": (
+            economic_state.get("oil_checked_at"),
+            economic_state.get("oil_changed_at"),
+        ),
+        "exchange": (
+            economic_state.get("exchange_checked_at"),
+            economic_state.get("exchange_changed_at"),
+        ),
+        "salary": (
+            salary_sync.get("finished_at"),
+            _max_timestamp(connection, "salary_snapshots", "fetched_at"),
+        ),
+        "recruitment": (
+            recruitment_sync.get("finished_at"),
+            _max_timestamp(connection, "recruitment_jobs", "last_seen_at"),
+        ),
+        "research": (
+            _max_timestamp(connection, "research_documents", "analyzed_at"),
+            _max_timestamp(connection, "research_documents", "updated_at"),
+        ),
+        "tips": (
+            _max_timestamp(
+                connection, "tips_articles", "updated_at", "is_deleted=0"
+            ),
+            _max_timestamp(
+                connection, "tips_articles", "updated_at", "is_deleted=0"
+            ),
+        ),
+        "related_sites": (
+            _max_timestamp(
+                connection, "related_sites", "updated_at", "is_deleted=0"
+            ),
+            _max_timestamp(
+                connection, "related_sites", "updated_at", "is_deleted=0"
+            ),
+        ),
+        "official_docs": (
+            _max_timestamp(
+                connection, "official_documents", "updated_at", "is_active=1"
+            ),
+            _max_timestamp(
+                connection, "official_documents", "updated_at", "is_active=1"
+            ),
+        ),
+        "performance": (
+            _max_timestamp(connection, "performance_reports", "created_at"),
+            _max_timestamp(connection, "performance_reports", "report_date"),
+        ),
+    }
+
+
+def _credits_rows(connection):
+    freshness = _credit_freshness(connection)
+    rows = queries.list_credit_sources(connection)
+    for row in rows:
+        checked_at, changed_at = freshness.get(
+            row.get("freshness_key"), (None, None)
+        )
+        row["checked_at"] = _format_minute(checked_at)
+        row["changed_at"] = _format_minute(changed_at)
+    return rows
+
+
+CREDIT_FRESHNESS_OPTIONS = (
+    ("", "수동 항목(시각 표시 안 함)"),
+    ("domestic_news", "국내 뉴스"),
+    ("overseas_news", "해외 뉴스"),
+    ("dart", "DART 공시"),
+    ("laws", "국가법령정보"),
+    ("assembly_bills", "국회 의안"),
+    ("government_notices", "정부입법예고"),
+    ("domestic_market", "국내 시세"),
+    ("global_market", "해외 시세"),
+    ("tourism", "관광객 통계"),
+    ("oil", "유가"),
+    ("exchange", "환율"),
+    ("salary", "연봉"),
+    ("recruitment", "채용"),
+    ("research", "PDF 분석"),
+    ("tips", "자료실"),
+    ("related_sites", "관련 사이트"),
+    ("official_docs", "공문·자료"),
+    ("performance", "경영 실적"),
+)
+
+
+def _credit_source_form_values(existing=None):
+    values = {
+        "menu": " ".join((request.form.get("menu") or "").split()),
+        "dataset": " ".join((request.form.get("dataset") or "").split()),
+        "source_name": " ".join(
+            (request.form.get("source_name") or "").split()
+        ),
+        "source_url": (request.form.get("source_url") or "").strip(),
+        "cadence": " ".join((request.form.get("cadence") or "").split()),
+        "freshness_key": (request.form.get("freshness_key") or "").strip(),
+        "notes": (request.form.get("notes") or "").strip(),
+        "is_active": 1 if request.form.get("is_active") == "1" else 0,
+    }
+    limits = {
+        "menu": 80,
+        "dataset": 160,
+        "source_name": 200,
+        "source_url": 500,
+        "cadence": 120,
+        "notes": 1000,
+    }
+    for field in ("menu", "dataset", "source_name", "cadence"):
+        if not values[field]:
+            raise ValueError("메뉴, 데이터, 출처, 업데이트 주기를 모두 입력해주세요.")
+    if any(len(values[field]) > limit for field, limit in limits.items()):
+        raise ValueError("입력 가능한 글자 수를 초과했습니다.")
+    if values["source_url"]:
+        parsed = urlsplit(values["source_url"])
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.username
+            or parsed.password
+        ):
+            raise ValueError("출처 URL은 정상적인 HTTP(S) 주소만 입력할 수 있습니다.")
+    allowed_freshness = {key for key, _ in CREDIT_FRESHNESS_OPTIONS}
+    if values["freshness_key"] not in allowed_freshness:
+        raise ValueError("올바른 자동 시각 연동 항목을 선택해주세요.")
+    try:
+        values["sort_order"] = int(request.form.get("sort_order") or 100)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("표시 순서는 숫자로 입력해주세요.") from exc
+    if not 0 <= values["sort_order"] <= 9999:
+        raise ValueError("표시 순서는 0~9999 범위로 입력해주세요.")
+    values["source_key"] = (
+        existing["source_key"] if existing else f"custom_{secrets.token_hex(8)}"
+    )
+    return values
+
+
+@app.get("/admin/credits")
+@admin_required
+def credits_management_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "credits_management.html",
+            sources=queries.list_credit_sources(connection, include_inactive=True),
+            freshness_options=CREDIT_FRESHNESS_OPTIONS,
+            csrf_token=get_csrf_token(),
+        )
+    finally:
+        connection.close()
+
+
+@app.post("/admin/credits")
+@admin_required
+def create_credit_source_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        try:
+            values = _credit_source_form_values()
+            values["is_active"] = 1
+            source_id = queries.create_credit_source(
+                connection, values, session.get("user_id")
+            )
+        except (ValueError, sqlite3.IntegrityError) as exc:
+            connection.rollback()
+            flash(str(exc), "error")
+        else:
+            security_audit.log_event(
+                connection, "CREDIT_SOURCE_CREATE", "credit_source", source_id,
+                {"dataset": values["dataset"]},
+            )
+            connection.commit()
+            flash("출처 항목을 등록했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("credits_management_page"))
+
+
+@app.post("/admin/credits/<int:source_id>/edit")
+@admin_required
+def edit_credit_source_route(source_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        existing = queries.get_credit_source(connection, source_id)
+        if not existing:
+            abort(404)
+        try:
+            values = _credit_source_form_values(existing)
+            queries.update_credit_source(
+                connection, source_id, values, session.get("user_id")
+            )
+        except ValueError as exc:
+            connection.rollback()
+            flash(str(exc), "error")
+        else:
+            security_audit.log_event(
+                connection, "CREDIT_SOURCE_UPDATE", "credit_source", source_id,
+                {"dataset": values["dataset"], "is_active": values["is_active"]},
+            )
+            connection.commit()
+            flash("출처 항목을 수정했습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("credits_management_page"))
+
+
+@app.post("/admin/credits/<int:source_id>/hide")
+@admin_required
+def hide_credit_source_route(source_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        source = queries.get_credit_source(connection, source_id)
+        if not source:
+            abort(404)
+        queries.hide_credit_source(connection, source_id, session.get("user_id"))
+        security_audit.log_event(
+            connection, "CREDIT_SOURCE_HIDE", "credit_source", source_id,
+            {"dataset": source["dataset"]},
+        )
+        connection.commit()
+        flash("출처 항목을 공개 목록에서 숨겼습니다.", "success")
+    finally:
+        connection.close()
+    return redirect(url_for("credits_management_page"))
 
 
 @app.route("/credits")

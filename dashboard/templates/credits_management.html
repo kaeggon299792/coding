@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}출처 관리 | Casino IN{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container credits-management-page">
+  <header class="page-header">
+    <p class="page-eyebrow">ADMINISTRATION / SOURCES</p>
+    <h1 class="page-title">출처 관리</h1>
+    <p class="page-description">공개 출처 페이지의 데이터셋·기관·링크·갱신 주기를 관리합니다. 자동 시각 연동은 실제 운영 DB의 최신 상태를 사용합니다.</p>
+    <div class="page-header-actions"><a class="btn btn-secondary" href="{{ url_for('credits_page') }}">공개 페이지 보기</a></div>
+  </header>
+
+  <details class="panel credits-editor" open>
+    <summary>새 출처 등록</summary>
+    <form class="credits-editor-form" method="post" action="{{ url_for('create_credit_source_route') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>메뉴</span><input name="menu" maxlength="80" required></label>
+      <label><span>데이터</span><input name="dataset" maxlength="160" required></label>
+      <label><span>출처</span><input name="source_name" maxlength="200" required></label>
+      <label><span>출처 URL</span><input type="url" name="source_url" maxlength="500" placeholder="https://"></label>
+      <label><span>업데이트 주기</span><input name="cadence" maxlength="120" required></label>
+      <label><span>자동 시각 연동</span><select name="freshness_key">{% for value, label in freshness_options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label><span>표시 순서</span><input type="number" name="sort_order" min="0" max="9999" value="100" required></label>
+      <label class="wide"><span>비고</span><textarea name="notes" rows="3" maxlength="1000"></textarea></label>
+      <div class="wide credits-editor-actions"><button class="btn btn-primary" type="submit">출처 등록</button></div>
+    </form>
+  </details>
+
+  <section class="credits-admin-list" aria-labelledby="credits-admin-list-title">
+    <div class="section-heading"><div><h2 id="credits-admin-list-title">등록된 출처</h2><p>수정 내용은 공개 페이지에 즉시 반영됩니다.</p></div><span>{{ sources|length }}건</span></div>
+    <div class="credits-admin-grid">
+      {% for source in sources %}
+      <details class="panel credits-admin-card{% if not source.is_active %} is-inactive{% endif %}">
+        <summary><span><small>{{ source.menu }} · #{{ source.sort_order }}</small><strong>{{ source.dataset }}</strong></span><b>{{ '공개' if source.is_active else '숨김' }}</b></summary>
+        <form class="credits-editor-form" method="post" action="{{ url_for('edit_credit_source_route', source_id=source.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label><span>메뉴</span><input name="menu" value="{{ source.menu }}" maxlength="80" required></label>
+          <label><span>데이터</span><input name="dataset" value="{{ source.dataset }}" maxlength="160" required></label>
+          <label><span>출처</span><input name="source_name" value="{{ source.source_name }}" maxlength="200" required></label>
+          <label><span>출처 URL</span><input type="url" name="source_url" value="{{ source.source_url }}" maxlength="500"></label>
+          <label><span>업데이트 주기</span><input name="cadence" value="{{ source.cadence }}" maxlength="120" required></label>
+          <label><span>자동 시각 연동</span><select name="freshness_key">{% for value, label in freshness_options %}<option value="{{ value }}"{% if source.freshness_key == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <label><span>표시 순서</span><input type="number" name="sort_order" min="0" max="9999" value="{{ source.sort_order }}" required></label>
+          <label class="credits-active-toggle"><input type="checkbox" name="is_active" value="1"{% if source.is_active %} checked{% endif %}><span>공개 표시</span></label>
+          <label class="wide"><span>비고</span><textarea name="notes" rows="3" maxlength="1000">{{ source.notes }}</textarea></label>
+          <div class="wide credits-editor-actions"><button class="btn btn-primary" type="submit">저장</button></div>
+        </form>
+        {% if source.is_active %}<form method="post" action="{{ url_for('hide_credit_source_route', source_id=source.id) }}" onsubmit="return confirm('이 출처를 공개 목록에서 숨길까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">목록에서 숨기기</button></form>{% endif %}
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
