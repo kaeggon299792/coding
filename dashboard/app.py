@@ -1499,6 +1499,16 @@ def _build_sitemap_entries(connection):
     return entries
 
 
+@app.route("/naver7a229f17935cf835e702d520f845f4a9.html")
+def naver_site_verification():
+    return send_file(
+        Path(app.root_path)
+        / "verification"
+        / "naver7a229f17935cf835e702d520f845f4a9.html",
+        mimetype="text/html",
+    )
+
+
 @app.route("/robots.txt")
 def robots_txt():
     lines = ["User-agent: *", "Allow: /", ""]

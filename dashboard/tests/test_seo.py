@@ -137,6 +137,16 @@ def test_robots_txt(client):
     assert "\nDisallow: /\n" not in f"\n{body}\n"
 
 
+def test_naver_site_verification_file(client):
+    response = client.get("/naver7a229f17935cf835e702d520f845f4a9.html")
+
+    assert response.status_code == 200
+    assert "text/html" in response.content_type
+    assert response.get_data(as_text=True).strip() == (
+        "naver-site-verification: naver7a229f17935cf835e702d520f845f4a9.html"
+    )
+
+
 def test_sitemap_xml(client):
     response = client.get("/sitemap.xml")
     body = response.get_data(as_text=True)
