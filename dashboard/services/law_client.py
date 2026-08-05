@@ -15,9 +15,10 @@ PythonAnywhere 환경에서 응답이 청크 단위로 아주 느리게 내려�
 """
 
 import hashlib
+import html
 import logging
 import re
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 import requests
 
@@ -149,6 +150,31 @@ def get_public_law_metadata(law_name):
     query = parse_qs(urlparse(response.url).query)
     mst = (query.get("lsiSeq") or [None])[0]
     text = response.text or ""
+    if not mst:
+        frame = re.search(
+            r"<(?:iframe|a)[^>]+(?:src|href)=[\"']([^\"']*lsiSeq=\d+[^\"']*)[\"']",
+            text,
+            re.IGNORECASE,
+        )
+        if frame:
+            detail_url = urljoin(response.url, html.unescape(frame.group(1)))
+            try:
+                response = get_with_hard_timeout(
+                    detail_url,
+                    hard_timeout_seconds=config.LAW_REQUEST_TIMEOUT_SECONDS,
+                    timeout=config.LAW_REQUEST_TIMEOUT_SECONDS,
+                )
+            except (HardTimeoutError, requests.RequestException) as error:
+                return {"ok": False, "error": f"공개 법령 본문 조회 실패: {type(error).__name__}"}
+            if response.status_code != 200:
+                return {"ok": False, "error": f"공개 법령 본문 HTTP {response.status_code}"}
+            query = parse_qs(urlparse(response.url).query)
+            mst = (query.get("lsiSeq") or [None])[0]
+            if not mst:
+                mst_match = re.search(r"lsiSeq=(\d+)", detail_url)
+                mst = mst_match.group(1) if mst_match else None
+            text = response.text or ""
+
     effective = re.search(r"\[시행\s*(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\]", text)
     promulgation = re.search(
         r"\[(?:법률|대통령령|총리령|부령)[^\]]*?,\s*"

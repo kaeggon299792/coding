@@ -95,3 +95,29 @@ def test_public_law_metadata_parses_current_version(monkeypatch):
     assert result["mst"] == "279659"
     assert result["effective_date"] == "20260512"
     assert result["promulgation_date"] == "20251111"
+
+
+def test_public_law_metadata_follows_embedded_official_page(monkeypatch):
+    class LandingResponse:
+        status_code = 200
+        url = "https://www.law.go.kr/법령/관광진흥법"
+        text = (
+            '<iframe src="/LSW/lsInfoP.do?lsiSeq=279659&amp;efYd=20260512">'
+            "</iframe>"
+        )
+
+    class DetailResponse:
+        status_code = 200
+        url = "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279659&efYd=20260512"
+        text = "관광진흥법 [시행 2026. 5. 12.] [법률 제21087호, 2025. 11. 11., 일부개정]"
+
+    responses = iter((LandingResponse(), DetailResponse()))
+    monkeypatch.setattr(
+        law_client, "get_with_hard_timeout", lambda *a, **k: next(responses)
+    )
+
+    result = law_client.get_public_law_metadata("관광진흥법")
+
+    assert result["ok"] is True
+    assert result["mst"] == "279659"
+    assert result["effective_date"] == "20260512"
