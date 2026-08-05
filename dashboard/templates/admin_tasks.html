@@ -53,22 +53,22 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="task_key" value="{{ task.key }}">
             <div class="task-setting-heading">
-              <div><span>CASINOINBOT CONTROL</span><b>작업별 실행·알림 설정</b></div>
+              <div><span>CASINOINBOT CONTROL</span><b>작업별 실행·알림 설정</b><small>이 작업에만 적용되는 실행 조건과 텔레그램 알림 기준입니다.</small></div>
               {% if request.args.get('saved') == task.key %}<small class="task-setting-saved">저장 완료 · 다음 점검 주기부터 적용</small>{% endif %}
             </div>
             <div class="task-setting-grid">
-              <label class="task-setting-toggle"><input type="checkbox" name="enabled" value="1"{% if task.settings.enabled %} checked{% endif %}><span>작업 실행</span><small>끄면 CASINOINBOT이 해당 작업을 시작하지 않습니다.</small></label>
-              <label class="task-setting-toggle"><input type="checkbox" name="notify_error" value="1"{% if task.settings.notify_error %} checked{% endif %}><span>오류 알림</span><small>실패·예외가 있을 때만 텔레그램으로 알립니다.</small></label>
-              <label class="task-setting-toggle"><input type="checkbox" name="notify_success" value="1"{% if task.settings.notify_success %} checked{% endif %}><span>정상 완료 알림</span><small>기본값은 꺼짐입니다. 무변화·특이사항 없음은 보내지 않습니다.</small></label>
+              <label class="task-setting-toggle"><input type="checkbox" name="enabled" value="1"{% if task.settings.enabled %} checked{% endif %}><span class="task-setting-copy"><b>작업 실행</b><small>끄면 CASINOINBOT이 해당 작업을 시작하지 않습니다.</small></span></label>
+              <label class="task-setting-toggle"><input type="checkbox" name="notify_error" value="1"{% if task.settings.notify_error %} checked{% endif %}><span class="task-setting-copy"><b>오류 알림</b><small>실패·예외가 있을 때만 텔레그램으로 알립니다.</small></span></label>
+              <label class="task-setting-toggle"><input type="checkbox" name="notify_success" value="1"{% if task.settings.notify_success %} checked{% endif %}><span class="task-setting-copy"><b>정상 완료 알림</b><small>무변화·특이사항 없음 알림은 보내지 않습니다.</small></span></label>
               {% if task.settings.timing == 'continuous' %}
-              <label><span>반복 주기</span><div class="task-setting-input"><input type="number" name="interval_minutes" min="1" max="1440" value="{{ task.settings.interval_minutes }}"><em>분</em></div></label>
+              <label class="task-setting-schedule"><span class="task-setting-copy"><b>반복 주기</b><small>CASINOINBOT이 다시 확인할 간격입니다.</small></span><div class="task-setting-input"><input type="number" name="interval_minutes" min="1" max="1440" value="{{ task.settings.interval_minutes }}"><em>분</em></div></label>
               {% elif task.settings.timing == 'hourly' %}
-              <label><span>매시간 실행 분(UTC)</span><div class="task-setting-input"><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
+              <label class="task-setting-schedule"><span class="task-setting-copy"><b>매시간 실행 분</b><small>UTC 기준, 매시간 선택한 분에 실행합니다.</small></span><div class="task-setting-input"><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
               {% else %}
-              <label><span>실행 시각(UTC)</span><div class="task-setting-input"><input type="number" name="hour_utc" min="0" max="23" value="{{ task.settings.hour_utc }}"><em>시</em><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
+              <label class="task-setting-schedule"><span class="task-setting-copy"><b>실행 시각</b><small>UTC 기준으로 매일 실행할 시간을 지정합니다.</small></span><div class="task-setting-input"><input type="number" name="hour_utc" min="0" max="23" value="{{ task.settings.hour_utc }}" aria-label="실행 시"><em>시</em><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}" aria-label="실행 분"><em>분</em></div></label>
               {% endif %}
             </div>
-            <button class="btn task-setting-submit" type="submit">이 작업 설정 저장</button>
+            <footer class="task-setting-footer"><p><b>알림 원칙</b> 오류가 있을 때만 알림을 보내며, 정상 완료 알림은 필요한 작업에만 켜주세요.</p><button class="btn btn-primary task-setting-submit" type="submit">이 작업 설정 저장</button></footer>
           </form>
           {% endif %}
           <dl class="task-status-grid">
