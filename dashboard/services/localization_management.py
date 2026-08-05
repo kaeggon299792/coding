@@ -255,6 +255,9 @@ def scan_project(connection, project_root):
          ("company_name", "legal_name", "ceo_names", "headquarters", "business_summary",
           "strategy_summary", "key_assets_json", "opportunities_json", "risks_json",
           "financials_json", "sources_json"), "기업정보", "Company", ""),
+        ("company_benefit", "company_benefits",
+         ("company_name", "benefit_name", "support_value", "benefit_level", "notes"),
+         "기업정보", "Company Benefit", ""),
         ("law", "monitored_laws", ("law_name", "notes"), "법령·규제", "Law", "active=1"),
         ("law_analysis", "law_analysis",
          ("ai_summary", "affected_scope", "company_impact", "action_needed"),
@@ -869,7 +872,6 @@ def import_ai_translation_text_all(connection, payload, actor_id=None):
         raise ValueError("붙여넣기 내용은 2MB 이하여야 합니다.")
     languages = _active_prompt_languages(connection)
     by_label = {item["output_label"]: item["language_code"] for item in languages}
-    label_pattern = "|".join(re.escape(label) for label in by_label)
     block_pattern = re.compile(
         r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)(?=^\s*ID\s*=|\Z)"
     )
@@ -881,20 +883,16 @@ def import_ai_translation_text_all(connection, payload, actor_id=None):
             "SELECT id FROM localization_strings WHERE language_key=? AND deleted_at IS NULL",
             (language_key,),
         ).fetchone()
-        values = list(re.finditer(
-            rf"(?ms)^\s*({label_pattern})\s*:\s*\r?\n(.*?)"
-            rf"(?=^\s*(?:{label_pattern})\s*:|\Z)",
-            block.group(2),
-        ))
+        values = _extract_ai_labeled_values(block.group(2), by_label)
         if not row or not values:
             errors += 1
             continue
-        for value in values:
-            translation = _clean_ai_translation_value(value.group(2))
+        for label, raw_value in values.items():
+            translation = _clean_ai_translation_value(raw_value)
             if not translation:
                 errors += 1
                 continue
-            language_code = by_label[value.group(1)]
+            language_code = by_label[label]
             try:
                 save_translation(
                     connection, row["id"], language_code, translation,
@@ -914,10 +912,13 @@ def detect_ai_translation_languages(connection, payload):
     """Return target languages explicitly labelled in an AI response."""
     text = str(payload or "")
     detected = set()
+    labels = {}
     for language in _active_prompt_languages(connection):
-        label = re.escape(language["output_label"])
-        if re.search(rf"(?m)^\s*(?:TITLE_|CONTENT_)?{label}\s*:", text):
-            detected.add(language["language_code"])
+        label = language["output_label"]
+        for candidate in (label, f"TITLE_{label}", f"CONTENT_{label}"):
+            labels[candidate] = language["language_code"]
+    for marker in _ai_label_markers(text, labels):
+        detected.add(labels[marker.group(1)])
     return detected
 
 
@@ -930,6 +931,27 @@ def _clean_ai_translation_value(value):
     if lines and re.fullmatch(r"\s*```\s*", lines[-1]):
         lines.pop()
     return "\n".join(lines).strip()
+
+
+def _ai_label_markers(value, labels):
+    """Find language labels whether the LLM puts them on new or shared lines."""
+    label_pattern = "|".join(re.escape(label) for label in labels)
+    if not label_pattern:
+        return []
+    return list(re.finditer(
+        rf"(?m)(?:^|[ \t\r\n]+)({label_pattern})\s*:\s*(?:\r?\n|[ \t]+)",
+        str(value or ""),
+    ))
+
+
+def _extract_ai_labeled_values(value, labels):
+    markers = _ai_label_markers(value, labels)
+    result = {}
+    text = str(value or "")
+    for index, marker in enumerate(markers):
+        end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
+        result[marker.group(1)] = text[marker.end():end].strip()
+    return result
 
 
 def import_ai_translation_text(connection, payload, language_code="en", actor_id=None):
@@ -945,7 +967,6 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
         f"TITLE_{output_label}",
         f"CONTENT_{output_label}",
     )
-    label_pattern = "|".join(re.escape(label) for label in accepted_labels)
     # A single-language Work form may receive a combined EN/JA/YUE response.
     # Other language labels must terminate the selected value, never become part
     # of it. The combined importer remains responsible for saving those blocks.
@@ -953,9 +974,6 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
     for language in _active_prompt_languages(connection):
         label = language["output_label"]
         all_labels.extend((label, f"TITLE_{label}", f"CONTENT_{label}"))
-    all_label_pattern = "|".join(
-        re.escape(label) for label in dict.fromkeys(all_labels)
-    )
     pattern = re.compile(
         r"(?ms)^\s*ID\s*=\s*([^\r\n]+)\s*\r?\n(.*?)"
         r"(?=^\s*ID\s*=|\Z)"
@@ -964,14 +982,9 @@ def import_ai_translation_text(connection, payload, language_code="en", actor_id
     for match in pattern.finditer(text):
         matched += 1
         language_key = match.group(1).strip()[:200]
-        values = {
-            item.group(1): item.group(2).strip()
-            for item in re.finditer(
-                rf"(?ms)^\s*({label_pattern})\s*:\s*\r?\n(.*?)"
-                rf"(?=^\s*(?:{all_label_pattern})\s*:|\Z)",
-                match.group(2),
-            )
-        }
+        values = _extract_ai_labeled_values(
+            match.group(2), dict.fromkeys(all_labels)
+        )
         translated_value = (
             values.get(output_label)
             or values.get(f"CONTENT_{output_label}")
@@ -1006,13 +1019,11 @@ def repair_mixed_translation_records(connection):
     """Split legacy combined AI responses and remove stray closing fences.
 
     This is intentionally an explicit maintenance operation; normal requests do
-    not rewrite stored content. Existing rows are only changed when a line-level
-    active language label or an outer code fence is present.
+    not rewrite stored content. Existing rows are only changed when a language
+    label or an outer code fence is present.
     """
     languages = _active_prompt_languages(connection)
     by_label = {item["output_label"]: item["language_code"] for item in languages}
-    label_pattern = "|".join(re.escape(label) for label in by_label)
-    marker_pattern = re.compile(rf"(?m)^\s*({label_pattern})\s*:\s*\r?\n")
     rows = connection.execute(
         """SELECT string_id, language_code, translated_text, status
            FROM localization_translations
@@ -1021,7 +1032,7 @@ def repair_mixed_translation_records(connection):
     repaired_rows = split_values = 0
     for row in rows:
         original = str(row["translated_text"] or "")
-        markers = list(marker_pattern.finditer(original))
+        markers = _ai_label_markers(original, by_label)
         values = {}
         if markers:
             prefix = _clean_ai_translation_value(original[:markers[0].start()])

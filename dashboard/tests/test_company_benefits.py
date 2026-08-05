@@ -115,7 +115,7 @@ def test_company_benefits_navigation_and_template_contract():
     assert "company_benefits_page" in subnav
     assert ">복리후생</a>" in subnav
     assert "benefit.ended_on" in template
-    assert "<s>{{ benefit.benefit_name }}</s>" in template
+    assert "<s>{{ t(benefit.benefit_name) }}</s>" in template
     assert 'name="effective_from"' not in template
     assert template.count('name="ended_on"') == 1
     assert "종료 이력 남기기" in template

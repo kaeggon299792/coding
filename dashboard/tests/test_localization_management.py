@@ -328,6 +328,39 @@ def test_repair_mixed_translation_records_splits_languages_and_removes_fences():
     ]
 
 
+def test_inline_language_labels_are_split_for_import_and_legacy_repair():
+    db = connection()
+    string_id = lms.register_string(
+        db, "기업별 복리후생", page="Companies", component="Title",
+        language_key="COMPANY_BENEFITS_INLINE",
+    )
+    result = lms.import_ai_translation_text_all(
+        db,
+        "ID=COMPANY_BENEFITS_INLINE\nEN: Company Benefits JA: 企業別福利厚生 YUE: 企業福利",
+    )
+    assert result["updated"] == 3
+    assert lms.detect_ai_translation_languages(
+        db, "EN: Company Benefits JA: 企業別福利厚生 YUE: 企業福利"
+    ) == {"en", "ja", "yue-HK"}
+
+    db.execute(
+        """UPDATE localization_translations SET translated_text=?
+           WHERE string_id=? AND language_code='en'""",
+        ("Company Benefits JA: 企業別福利厚生 YUE: 企業福利", string_id),
+    )
+    lms.repair_mixed_translation_records(db)
+    rows = db.execute(
+        """SELECT language_code, translated_text FROM localization_translations
+           WHERE string_id=? ORDER BY language_code""",
+        (string_id,),
+    ).fetchall()
+    assert [tuple(row) for row in rows] == [
+        ("en", "Company Benefits"),
+        ("ja", "企業別福利厚生"),
+        ("yue-HK", "企業福利"),
+    ]
+
+
 def test_glossary_can_be_updated_and_deactivated():
     db = connection()
     lms.save_glossary(db, "리서치", "Research", "en")
