@@ -31,7 +31,6 @@
           <defs><linearGradient id="detail-market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".26"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
           <polygon points="{{ quote.trend_area_points }}" fill="url(#detail-market-gradient-{{ loop.index }})"/>
           <polyline points="{{ quote.trend_points }}"/>
-          {% set final_point = quote.trend_points.split(' ')[-1].split(',') %}<circle cx="{{ final_point[0] }}" cy="{{ final_point[1] }}" r="1.6"/>
         </svg>
         {% endif %}
         <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">
@@ -72,7 +71,6 @@
           <defs><linearGradient id="global-market-gradient-{{ loop.index }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".26"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
           <polygon points="{{ quote.trend_area_points }}" fill="url(#global-market-gradient-{{ loop.index }})"/>
           <polyline points="{{ quote.trend_points }}"/>
-          {% set final_point = quote.trend_points.split(' ')[-1].split(',') %}<circle cx="{{ final_point[0] }}" cy="{{ final_point[1] }}" r="1.6"/>
         </svg>
         {% endif %}
         <div class="market-change {% if (quote.change_rate or 0) > 0 %}is-up{% elif (quote.change_rate or 0) < 0 %}is-down{% endif %}">

@@ -87,3 +87,9 @@ def test_page_loader_has_no_forced_completion_delay():
     base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
     assert "setTimeout(finish, 240)" not in base
     assert 'loader.classList.add("is-hidden")' in base
+
+
+def test_market_sparklines_do_not_render_distorted_endpoint_circles():
+    markup = (ROOT / "templates" / "market_trend.html").read_text(encoding="utf-8")
+    assert "<circle" not in markup
+    assert "final_point" not in markup
