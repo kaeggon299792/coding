@@ -46,7 +46,9 @@ def _chart_geometry(items):
     return zero
 
 
-def build_dashboard(connection, selected_year=None, selected_metric=None):
+def build_dashboard(
+    connection, selected_year=None, selected_metric=None, include_kangwon=False
+):
     years = [2023, 2024, 2025]
     try:
         selected_year = int(selected_year)
@@ -70,6 +72,8 @@ def build_dashboard(connection, selected_year=None, selected_metric=None):
 
     items = []
     for company, label in COMPANIES:
+        if company == "강원랜드" and not include_kangwon:
+            continue
         financials = values.get((company, selected_year), {})
         revenue = financials.get("revenue")
         operating_profit = financials.get("operating_profit")
@@ -113,4 +117,6 @@ def build_dashboard(connection, selected_year=None, selected_metric=None):
         "available_count": len(present),
         "leader": present[0] if present else None,
         "median": round(median(values_for_summary), 1) if values_for_summary else None,
+        "include_kangwon": bool(include_kangwon),
+        "operator_count": len(items),
     }

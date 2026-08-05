@@ -28,6 +28,8 @@ def test_company_comparison_defaults_to_margin(monkeypatch):
     assert result["selected_year"] == 2025
     assert result["selected_metric"] == "margin"
     assert result["available_count"] == 2
+    assert result["include_kangwon"] is False
+    assert all(item["name"] != "강원랜드" for item in result["items"])
     assert result["items"][0]["name"] == "파라다이스"
     assert result["items"][0]["margin"] == 12.0
     inspire = next(item for item in result["items"] if item["name"] == "인스파이어")
@@ -47,11 +49,17 @@ def test_company_comparison_metric_and_year_validation(monkeypatch):
     assert result["available_count"] == 0
     assert result["leader"] is None
 
+    included = company_comparison.build_dashboard(
+        object(), "2024", "revenue", include_kangwon=True
+    )
+    assert included["include_kangwon"] is True
+    assert any(item["name"] == "강원랜드" for item in included["items"])
+
 
 def test_company_comparison_page_is_public(client, monkeypatch):
     monkeypatch.setattr(
         "app.company_comparison.build_dashboard",
-        lambda connection, year, metric: {
+        lambda connection, year, metric, include_kangwon: {
             "years": [2025], "selected_year": 2025,
             "metrics": company_comparison.METRICS, "selected_metric": "margin",
             "metric": company_comparison.METRICS["margin"],
@@ -62,6 +70,7 @@ def test_company_comparison_page_is_public(client, monkeypatch):
             "zero_percent": 0, "available_count": 1,
             "leader": {"name": "테스트 카지노", "metric_value": 10.0},
             "median": 10.0,
+            "include_kangwon": include_kangwon, "operator_count": 1,
         },
     )
     response = client.get("/companies/comparison")
@@ -69,3 +78,4 @@ def test_company_comparison_page_is_public(client, monkeypatch):
     assert b"company-comparison-page" in response.data
     assert "영업이익률 비교".encode() in response.data
     assert b'name="metric" value="margin"' in response.data
+    assert b'name="include_kangwon" value="1"' in response.data

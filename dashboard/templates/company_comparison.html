@@ -10,14 +10,15 @@
       <input type="hidden" name="metric" value="{{ comparison.selected_metric }}">
       <label for="company-comparison-year">기준 연도</label>
       <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for year in comparison.years %}<option value="{{ year }}"{% if year == comparison.selected_year %} selected{% endif %}>{{ year }}년</option>{% endfor %}</select>
+      <label class="company-comparison-toggle"><input type="checkbox" name="include_kangwon" value="1"{% if comparison.include_kangwon %} checked{% endif %} onchange="this.form.submit()"> 강원랜드 포함</label>
     </form>
   </header>
 
-  <nav class="company-comparison-metrics" aria-label="비교 지표">{% for key, metric in comparison.metrics.items() %}<a href="{{ url_for('company_comparison_page', year=comparison.selected_year, metric=key) }}"{% if key == comparison.selected_metric %} class="active" aria-current="page"{% endif %}>{{ metric.label }}</a>{% endfor %}</nav>
+  <nav class="company-comparison-metrics" aria-label="비교 지표">{% for key, metric in comparison.metrics.items() %}<a href="{{ url_for('company_comparison_page', year=comparison.selected_year, metric=key, include_kangwon=1) if comparison.include_kangwon else url_for('company_comparison_page', year=comparison.selected_year, metric=key) }}"{% if key == comparison.selected_metric %} class="active" aria-current="page"{% endif %}>{{ metric.label }}</a>{% endfor %}</nav>
 
   <section class="company-comparison-summary" aria-label="비교 요약">
     <article><span>기본 비교 지표</span><strong>{{ comparison.metric.label }}</strong><small>{{ comparison.selected_year }}년 연간</small></article>
-    <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>6개 주요 운영사 중</small></article>
+    <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>{{ comparison.operator_count }}개 주요 운영사 중{% if not comparison.include_kangwon %} · 강원랜드 제외{% endif %}</small></article>
     <article><span>최고 수치</span><strong>{% if comparison.leader %}{{ comparison.leader.name }}{% else %}-{% endif %}</strong><small>{% if comparison.leader %}{{ "{:,.1f}".format(comparison.leader.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</small></article>
     <article><span>중앙값</span><strong>{% if comparison.median is not none %}{{ "{:,.1f}".format(comparison.median) }}{% else %}-{% endif %}</strong><small>{{ comparison.metric.unit }}</small></article>
   </section>
