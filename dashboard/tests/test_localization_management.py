@@ -327,6 +327,10 @@ YUE:
         ("ja", "企業情報"),
         ("yue-HK", "公司資料"),
     ]
+    assert lms.detect_ai_translation_languages(db, "JA:\n企業情報") == {"ja"}
+    assert lms.detect_ai_translation_languages(
+        db, "EN:\nCompany\nJA:\n企業\nYUE:\n公司"
+    ) == {"en", "ja", "yue-HK"}
 
 
 def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path):
@@ -469,6 +473,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert '<option value="en" selected' in page_html
         assert "AI 번역 프롬프트 생성" in page_html
         assert '<option value="all" selected>전체 언어 한 번에</option>' in page_html
+        assert '<option value="all" selected>전체 언어</option>' in page_html
         assert "<option selected>Pending</option>" in page_html
         assert 'name="string_ids"' in page_html
         assert 'name="string_ids" value=' in page_html

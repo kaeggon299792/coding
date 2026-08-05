@@ -831,6 +831,17 @@ def import_ai_translation_text_all(connection, payload, actor_id=None):
     return {"updated": updated, "errors": errors, "languages": per_language}
 
 
+def detect_ai_translation_languages(connection, payload):
+    """Return target languages explicitly labelled in an AI response."""
+    text = str(payload or "")
+    detected = set()
+    for language in _active_prompt_languages(connection):
+        label = re.escape(language["output_label"])
+        if re.search(rf"(?m)^\s*(?:TITLE_|CONTENT_)?{label}\s*:", text):
+            detected.add(language["language_code"])
+    return detected
+
+
 def import_ai_translation_text(connection, payload, language_code="en", actor_id=None):
     text = str(payload or "")
     if not text.strip():

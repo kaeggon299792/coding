@@ -1794,7 +1794,12 @@ def localization_import_ai():
     connection = dashboard_db()
     try:
         try:
-            if language_code == "all":
+            detected_languages = localization_management.detect_ai_translation_languages(
+                connection, translation_payload
+            )
+            if language_code == "all" or (
+                detected_languages and detected_languages != {language_code}
+            ):
                 result = localization_management.import_ai_translation_text_all(
                     connection, translation_payload, session.get("user_id"),
                 )
@@ -1810,9 +1815,18 @@ def localization_import_ai():
             ))
     finally:
         connection.close()
+    language_result = " · ".join(
+        f"{code} {count}건"
+        for code, count in (result.get("languages") or {}).items()
+        if count
+    )
+    import_message = (
+        f"AI 번역 {result['updated']}건 반영 · {result['errors']}건 제외"
+        + (f" ({language_result})" if language_result else "")
+    )
     return redirect(url_for(
         "auth.localization_dashboard", language=("en" if language_code == "all" else language_code),
-        imported=f"AI 번역 {result['updated']}건 반영 · {result['errors']}건 제외",
+        imported=import_message,
     ))
 
 
