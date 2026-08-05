@@ -101,6 +101,10 @@ def test_home_has_canonical_meta_and_structured_data(client):
     assert 'rel="canonical" href="https://www.casinoin.kr/"' in html
     assert 'property="og:url" content="https://www.casinoin.kr/"' in html
     assert 'name="twitter:card" content="summary_large_image"' in html
+    assert (
+        'name="naver-site-verification" '
+        'content="e98b4870dab546b9693a715b7406a701363ea436"' in html
+    )
     assert '"@type": "WebSite"' in html
     assert '"@type": "SearchAction"' in html
     assert '"@type": "BreadcrumbList"' in html
