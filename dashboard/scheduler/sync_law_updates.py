@@ -39,14 +39,20 @@ def _build_alert_message(law_name, status, effective_date, ai_summary):
 
 
 def _ensure_mst(connection, law_row):
-    if law_row.get("mst"):
-        return law_row["mst"]
-
+    """Resolve the latest exact law version, retaining the saved MST on API failure."""
     search_result = law_client.search_law(law_row["law_name"])
     if not search_result.get("ok") or not search_result.get("candidates"):
-        return None
+        return law_row.get("mst")
 
-    best = search_result["candidates"][0]
+    best = law_client.select_exact_candidate(
+        search_result["candidates"], law_row["law_name"]
+    )
+    if not best:
+        return law_row.get("mst")
+
+    if str(best.get("mst")) == str(law_row.get("mst")):
+        return law_row.get("mst")
+
     queries.upsert_monitored_law(
         connection, law_row["law_name"], law_id=best.get("law_id"), mst=best.get("mst")
     )

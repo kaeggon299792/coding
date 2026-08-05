@@ -28,6 +28,26 @@ def test_extract_dates_reads_basic_info():
     assert dates["effective_date"] == "20260701"
 
 
+def test_select_exact_candidate_ignores_similarly_named_laws():
+    candidates = [
+        {"law_name": "관광진흥법 시행령", "mst": "999", "promulgation_date": "20260801"},
+        {"law_name": "관광진흥법", "mst": "100", "promulgation_date": "20250701"},
+        {"law_name": "관광진흥법", "mst": "101", "promulgation_date": "20260730"},
+    ]
+
+    selected = law_client.select_exact_candidate(candidates, "관광진흥법")
+
+    assert selected["mst"] == "101"
+
+
+def test_select_exact_candidate_returns_none_without_exact_match():
+    selected = law_client.select_exact_candidate(
+        [{"law_name": "관광진흥법 시행규칙", "mst": "123"}], "관광진흥법"
+    )
+
+    assert selected is None
+
+
 def test_network_error_does_not_raise(monkeypatch):
     import requests
 

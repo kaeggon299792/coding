@@ -93,6 +93,29 @@ def search_law(law_name):
     return {"ok": True, "candidates": candidates}
 
 
+def select_exact_candidate(candidates, law_name):
+    """검색 결과에서 요청한 법령명과 정확히 일치하는 현행본을 선택한다."""
+    expected = "".join(str(law_name or "").split())
+    exact_matches = [
+        candidate
+        for candidate in candidates or []
+        if "".join(str(candidate.get("law_name") or "").split()) == expected
+        and candidate.get("mst")
+    ]
+    if not exact_matches:
+        return None
+
+    # API가 연혁을 함께 반환하는 경우 공포일자/시행일자가 가장 최신인 항목을 쓴다.
+    return max(
+        exact_matches,
+        key=lambda candidate: (
+            str(candidate.get("promulgation_date") or ""),
+            str(candidate.get("effective_date") or ""),
+            str(candidate.get("mst") or ""),
+        ),
+    )
+
+
 def get_law_text(mst):
     """법령 본문(조문 포함)을 조회한다."""
     result = _get("lawService.do", {"target": "law", "type": "JSON", "MST": mst})
