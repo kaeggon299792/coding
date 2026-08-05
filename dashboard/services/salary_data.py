@@ -52,22 +52,26 @@ NPS_SOURCE_URL = "https://www.data.go.kr/data/3046071/openapi.do"
 EMPLOYMENT_METRIC_SOURCES = (
     {
         "entity_code": "paradise", "entity_name": "파라다이스",
-        "query_name": "파라다이스", "address_keyword": "중구",
+        "query_name": "파라다이스", "business_prefix": "203814",
+        "address_keyword": "중구",
         "source_name": "국민연금 기준",
     },
     {
         "entity_code": "gkl", "entity_name": "GKL",
-        "query_name": "그랜드코리아레저", "address_keyword": "강남구",
+        "query_name": "그랜드코리아레저", "business_prefix": "104819",
+        "address_keyword": "강남구",
         "source_name": "국민연금 기준",
     },
     {
         "entity_code": "kangwon_land", "entity_name": "강원랜드",
-        "query_name": "강원랜드", "address_keyword": "정선군",
+        "query_name": "강원랜드", "business_prefix": "225811",
+        "address_keyword": "정선군",
         "source_name": "국민연금 기준",
     },
     {
         "entity_code": "lotte_tour", "entity_name": "롯데관광개발",
-        "query_name": "롯데관광개발", "address_keyword": "제주시",
+        "query_name": "롯데관광개발", "business_prefix": "101811",
+        "address_keyword": "제주시",
         "source_name": "국민연금 기준",
     },
 )
@@ -421,6 +425,14 @@ def _select_nps_history(rows, source):
         if target in _normalized_workplace_name(row.get("wkplNm"))
         or _normalized_workplace_name(row.get("wkplNm")) in target
     ]
+    business_prefix = source.get("business_prefix")
+    business_matches = [
+        row for row in candidates
+        if business_prefix
+        and str(row.get("bzowrRgstNo") or "").replace("*", "").startswith(business_prefix)
+    ]
+    if business_matches:
+        candidates = business_matches
     address_keyword = source.get("address_keyword")
     address_matches = [
         row for row in candidates
@@ -572,11 +584,10 @@ def fetch_review_source(source):
 
 
 def fetch_employment_metrics(source):
-    base_rows = _nps_request(
-        "getBassInfoSearchV2",
-        wkplNm=source["query_name"],
-        numOfRows=100,
-    )
+    search_params = {"wkplNm": source["query_name"], "numOfRows": 100}
+    if source.get("business_prefix"):
+        search_params["bzowrRgstNo"] = source["business_prefix"]
+    base_rows = _nps_request("getBassInfoSearchV2", **search_params)
     history = _select_nps_history(base_rows, source)
     monthly = []
     for row in history:
