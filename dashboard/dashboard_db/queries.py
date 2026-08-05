@@ -489,6 +489,53 @@ def update_community_post(
     connection.commit()
 
 
+def get_admin_dashboard_metrics(connection, date_key):
+    """Return the administrator overview counts in one database query."""
+    row = connection.execute(
+        """
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM dashboard_users
+                WHERE SUBSTR(created_at, 1, 10) = ?
+            ) AS new_members,
+            (
+                SELECT COUNT(*)
+                FROM dashboard_users
+                WHERE COALESCE(approval_status, 'approved')
+                      NOT IN ('withdrawal_pending', 'deleted')
+            ) AS total_members,
+            (
+                SELECT COUNT(*)
+                FROM community_posts
+                WHERE is_deleted = 0
+                  AND SUBSTR(created_at, 1, 10) = ?
+            ) + (
+                SELECT COUNT(*)
+                FROM action_items
+                WHERE source_type = 'bug_report'
+                  AND SUBSTR(created_at, 1, 10) = ?
+            ) AS new_posts,
+            (
+                SELECT COUNT(*)
+                FROM dashboard_users
+                WHERE SUBSTR(deletion_requested_at, 1, 10) = ?
+                   OR (
+                        deletion_requested_at IS NULL
+                        AND SUBSTR(deleted_at, 1, 10) = ?
+                   )
+            ) AS withdrawals
+        """,
+        (date_key, date_key, date_key, date_key, date_key),
+    ).fetchone()
+    return dict(row) if row else {
+        "new_members": 0,
+        "total_members": 0,
+        "new_posts": 0,
+        "withdrawals": 0,
+    }
+
+
 def record_unique_community_post_view(connection, post_id, viewer_hash):
     cursor = connection.execute(
         """INSERT OR IGNORE INTO community_post_views(post_id,viewer_hash,created_at)

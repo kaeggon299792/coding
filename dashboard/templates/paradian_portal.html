@@ -8,6 +8,37 @@
     <h1 class="page-title">관리자 전용</h1>
     <p class="page-description">사이트·계정·API·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
   </header>
+  <section class="admin-overview" aria-labelledby="admin-overview-title">
+    <div class="admin-overview-heading">
+      <div>
+        <p class="section-kicker">Member &amp; Board Overview</p>
+        <h2 id="admin-overview-title">오늘의 운영 현황</h2>
+      </div>
+      <time datetime="{{ metric_date }}">{{ metric_date }}</time>
+    </div>
+    <div class="admin-overview-grid">
+      <article>
+        <span>New Members</span>
+        <strong data-metric="new-members">{{ admin_metrics.new_members }}</strong>
+        <p>오늘 생성된 계정</p>
+      </article>
+      <article>
+        <span>Total Members</span>
+        <strong data-metric="total-members">{{ admin_metrics.total_members }}</strong>
+        <p>탈퇴 대기·완료 계정 제외</p>
+      </article>
+      <article>
+        <span>New Posts</span>
+        <strong data-metric="new-posts">{{ admin_metrics.new_posts }}</strong>
+        <p>오늘 등록된 게시판 글</p>
+      </article>
+      <article>
+        <span>Withdrawals</span>
+        <strong data-metric="withdrawals">{{ admin_metrics.withdrawals }}</strong>
+        <p>오늘 접수된 탈퇴</p>
+      </article>
+    </div>
+  </section>
   <section class="paradian-menu-grid">
     <a href="{{ url_for('auth.user_management') }}">
       <span>Site Administration</span><h2>관리자 페이지</h2>

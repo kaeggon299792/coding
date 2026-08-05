@@ -2071,9 +2071,18 @@ def dashboard_home():
 
 
 @app.route("/admin")
-@login_required
+@admin_required
 def paradian_portal_page():
-    return render_template("paradian_portal.html")
+    connection = dashboard_db()
+    try:
+        today = now_kst().date().isoformat()
+        return render_template(
+            "paradian_portal.html",
+            admin_metrics=queries.get_admin_dashboard_metrics(connection, today),
+            metric_date=today,
+        )
+    finally:
+        connection.close()
 
 
 # ============================================================

@@ -181,3 +181,67 @@ def test_admin_page_renders_separately_with_font_selector(account_client):
     assert "프리텐다드" in html
     assert "고운바탕" in html
     assert "함렛" in html
+
+
+def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):
+    client, db_path = account_client
+    _login(client)
+    assert client.get("/admin").status_code == 403
+
+    client.post("/logout", data={"csrf_token": _csrf(client, "/account")})
+    response = client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "admin-password-123!",
+            "csrf_token": _csrf(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    from utils import now_kst
+
+    today = now_kst().date().isoformat()
+    old_date = "2025-01-01T09:00:00+09:00"
+    connection = sqlite3.connect(db_path)
+    admin_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='admin'"
+    ).fetchone()[0]
+    connection.execute(
+        """
+        INSERT INTO community_posts
+            (author_id, author_username, title, content, created_at, updated_at,
+             is_deleted, board_type)
+        VALUES (?, 'admin', '오늘 공지', '내용', ?, ?, 0, 'notice')
+        """,
+        (admin_id, f"{today}T10:00:00+09:00", f"{today}T10:00:00+09:00"),
+    )
+    connection.execute(
+        """
+        INSERT INTO action_items
+            (title, source_type, created_at, updated_at, priority, status,
+             approved_by_user)
+        VALUES ('오늘 건의', 'bug_report', ?, ?, 'normal', 'not_started', 1)
+        """,
+        (f"{today}T11:00:00+09:00", f"{today}T11:00:00+09:00"),
+    )
+    connection.execute(
+        """
+        INSERT INTO dashboard_users
+            (username, password_hash, role, is_active, approval_status,
+             created_at, deletion_requested_at, deleted_at)
+        VALUES ('withdrawn', '!', 'user', 0, 'deleted', ?, ?, ?)
+        """,
+        (old_date, f"{today}T12:00:00+09:00", f"{today}T12:01:00+09:00"),
+    )
+    connection.commit()
+    connection.close()
+
+    page = client.get("/admin")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert 'data-metric="new-members">2<' in html
+    assert 'data-metric="total-members">2<' in html
+    assert 'data-metric="new-posts">2<' in html
+    assert 'data-metric="withdrawals">1<' in html
