@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_membership_badge.html" import identity %}
+{% block title %}회원등급 관리 | CASINO IN{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-shell membership-admin-page">
+  <header class="page-heading membership-heading">
+    <p class="eyebrow">ADMINISTRATION / MEMBERSHIP</p>
+    <div>
+      <div>
+        <h1>회원등급 관리</h1>
+        <p>회원등급과 게시판별 접근 기준, 프로필에 표시할 등급 아이콘을 관리합니다.</p>
+      </div>
+      <a class="btn btn-secondary" href="{{ url_for('auth.user_management') }}">계정 관리 →</a>
+    </div>
+  </header>
+
+  {% if success %}<div class="alert success" role="status">{{ success }}</div>{% endif %}
+  {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+
+  <section class="membership-section" aria-labelledby="grade-heading">
+    <header><p class="section-number">01 / GRADES</p><h2 id="grade-heading">등급 및 아이콘</h2><p>Silver는 비회원 방문자, Black은 관리자 전용입니다. SVG 또는 PNG(최대 512KB)를 사용할 수 있습니다.</p></header>
+    <div class="membership-grade-grid">
+      {% for grade in grades %}
+      <form class="membership-grade-card grade-{{ grade.code }}" method="post" action="{{ url_for('auth.update_membership_grade', grade_code=grade.code) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="membership-grade-preview">
+          <span class="membership-icon-preview"><img src="{{ url_for('static', filename=grade.icon_path) }}" alt="" width="42" height="42"></span>
+          <div><b>{{ grade.label }}</b><small>{{ grade.code|upper }} · LEVEL {{ grade.rank_order }}</small></div>
+        </div>
+        <label><span>등급명</span><input name="label" value="{{ grade.label }}" maxlength="30" required></label>
+        <label><span>설명</span><input name="description" value="{{ grade.description }}" maxlength="100" required></label>
+        <label class="membership-file-field"><span>아이콘 교체</span><input type="file" name="icon" accept=".svg,.png,image/svg+xml,image/png"></label>
+        <div class="membership-form-actions">
+          <button class="btn btn-primary" type="submit">저장</button>
+          <button class="btn btn-text" type="submit" name="reset_icon" value="1">기본 아이콘 복원</button>
+        </div>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="membership-section" aria-labelledby="policy-heading">
+    <header><p class="section-number">02 / BOARD ACCESS</p><h2 id="policy-heading">게시판별 등급 권한</h2><p>설정한 최소 등급보다 같거나 높은 회원만 해당 기능을 사용할 수 있습니다. 권한 검사는 화면 표시와 서버 요청 모두에 적용됩니다.</p></header>
+    <div class="membership-policy-grid">
+      {% for policy in board_permissions %}
+      <form class="membership-policy-card" method="post" action="{{ url_for('auth.update_membership_board', board_key=policy.board_key) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div><small>{{ policy.board_key|upper }}</small><h3>{{ policy.board_label }}</h3></div>
+        {% for action, label in [('read_grade', '읽기'), ('write_grade', '글쓰기'), ('comment_grade', '댓글')] %}
+        <label><span>{{ label }} 최소 등급</span><select name="{{ action }}">{% for grade in grades %}<option value="{{ grade.code }}"{% if policy[action] == grade.code %} selected{% endif %}>{{ grade.label }} ({{ grade.code|capitalize }})</option>{% endfor %}</select></label>
+        {% endfor %}
+        <button class="btn btn-primary" type="submit">권한 저장</button>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="membership-section" aria-labelledby="member-heading">
+    <header><p class="section-number">03 / MEMBERS</p><h2 id="member-heading">회원별 등급</h2><p>가입 회원의 기본 등급은 Gold입니다. 관리자 역할 계정은 Black으로 고정됩니다.</p></header>
+    <div class="membership-user-list">
+      {% for user in users %}
+      {% set grade = (grades|selectattr('code', 'equalto', user.membership_level)|list|first) %}
+      <form class="membership-user-row" method="post" action="{{ url_for('auth.update_membership_user', user_id=user.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="membership-user-identity">
+          {{ identity(user.username, user.name, user.picture_url, (grade.icon_path if grade else 'img/membership/gold.svg'), (grade.label if grade else 'Gold'), false) }}
+          <span><b>{{ user.name or user.username }}</b><small>{{ user.email or '이메일 미등록' }} · {{ '관리자' if user.role == 'admin' else '일반 회원' }}</small></span>
+        </div>
+        <label><span class="sr-only">{{ user.username }} 등급</span><select name="membership_level"{% if user.role == 'admin' %} disabled{% endif %}>{% for option in grades %}{% if option.code != 'black' or user.role == 'admin' %}<option value="{{ option.code }}"{% if (user.role == 'admin' and option.code == 'black') or (user.role != 'admin' and option.code == user.membership_level) %} selected{% endif %}>{{ option.label }} ({{ option.code|capitalize }})</option>{% endif %}{% endfor %}</select></label>
+        {% if user.role == 'admin' %}<input type="hidden" name="membership_level" value="black"><span class="membership-locked">관리자 고정</span>{% else %}<button class="btn btn-secondary" type="submit">변경</button>{% endif %}
+      </form>
+      {% else %}<p class="empty-state">표시할 회원이 없습니다.</p>{% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

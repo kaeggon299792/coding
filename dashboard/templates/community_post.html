@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_membership_badge.html" import identity %}
 {% block title %}{{ post.title }} · {{ '공지사항' if post.board_type == 'notice' else '자유 게시판' }}{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
@@ -10,7 +11,7 @@
     <header class="community-detail-header">
       <p class="page-eyebrow">{{ 'COMMUNITY / NOTICE' if post.board_type == 'notice' else 'COMMUNITY / POST' }} #{{ post.id }}</p>
       <h1>{{ post.title }}</h1>
-      <div class="community-post-meta"><strong>{{ post.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:16]|replace('T', ' ') }}</time><span>조회 {{ post.view_count or 0 }}</span></div>
+      <div class="community-post-meta">{{ identity(post.author_username, post.author_display_name, post.author_picture_url, post.author_membership_icon, post.author_membership_label, true) }}<time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:16]|replace('T', ' ') }}</time><span>조회 {{ post.view_count or 0 }}</span></div>
     </header>
     <div class="community-post-content community-markdown">{{ post_html }}</div>
     {% if post.image_url or post.pdf_url %}
@@ -53,7 +54,7 @@
     </div>
     {% if comment_error %}<div class="flash error" role="alert">{{ comment_error }}</div>{% endif %}
 
-    {% if current_username %}
+    {% if current_username and can_comment %}
     <form class="community-comment-form" method="post" action="{{ url_for('create_community_comment_route', post_id=post.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="community-comment-content">{{ current_username }} 님의 댓글</label>
@@ -61,14 +62,14 @@
       <div><small>최대 1,000자</small><button class="btn btn-primary" type="submit">댓글 등록</button></div>
     </form>
     {% else %}
-    <div class="community-comment-login"><p>댓글을 작성하려면 로그인이 필요합니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></div>
+    <div class="community-comment-login"><p>{% if current_username %}현재 회원등급에서는 댓글을 작성할 수 없습니다.{% else %}댓글을 작성하려면 로그인이 필요합니다.{% endif %}</p>{% if not current_username %}<a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a>{% endif %}</div>
     {% endif %}
 
     {% if comments %}
     <ol class="community-comment-list">
       {% for comment in comments %}
       <li>
-        <div class="community-comment-meta"><strong>{{ comment.author_username or '탈퇴한 사용자' }}</strong><time datetime="{{ comment.created_at or '' }}">{{ (comment.created_at or '')[:16]|replace('T', ' ') }}</time></div>
+        <div class="community-comment-meta">{{ identity(comment.author_username, comment.author_display_name, comment.author_picture_url, comment.author_membership_icon, comment.author_membership_label, true) }}<time datetime="{{ comment.created_at or '' }}">{{ (comment.created_at or '')[:16]|replace('T', ' ') }}</time></div>
         <p>{{ comment.content }}</p>
         {% if current_user_role == 'admin' or (current_user and current_user.id == comment.author_id) %}
         <form method="post" action="{{ url_for('delete_community_comment_route', post_id=post.id, comment_id=comment.id) }}" onsubmit="return confirm('댓글을 삭제할까요?');">

@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260805-company-comparison3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-membership1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -188,6 +188,31 @@ document.addEventListener("keydown", (event) => {
   }));
   window.addEventListener("resize", syncTopbarHeight, {passive: true});
   if (topbar && window.ResizeObserver) new ResizeObserver(syncTopbarHeight).observe(topbar);
+})();
+
+(() => {
+  const alignSubmenus = () => {
+    const desktop = window.matchMedia("(min-width: 761px)").matches;
+    document.querySelectorAll("[data-align-subnav]").forEach((nav) => {
+      const first = nav.querySelector(":scope > a");
+      if (!first) return;
+      first.style.marginLeft = "";
+      if (!desktop || !nav.classList.contains("is-compact")) return;
+      const activeMain = document.querySelector(".topbar-nav > a.active");
+      if (!activeMain) return;
+      const navBox = nav.getBoundingClientRect();
+      const mainBox = activeMain.getBoundingClientRect();
+      const links = [...nav.querySelectorAll(":scope > a")];
+      const linksWidth = links.reduce((sum, link) => sum + link.getBoundingClientRect().width, 0);
+      const toggle = nav.querySelector(".sticky-nav-toggle");
+      const available = navBox.width - (toggle?.getBoundingClientRect().width || 0);
+      const desired = mainBox.left + mainBox.width / 2 - navBox.left - linksWidth / 2;
+      first.style.marginLeft = `${Math.max(0, Math.min(desired, available - linksWidth))}px`;
+    });
+  };
+  window.addEventListener("resize", alignSubmenus, {passive: true});
+  document.addEventListener("DOMContentLoaded", alignSubmenus);
+  if (document.fonts?.ready) document.fonts.ready.then(alignSubmenus);
 })();
 
 (() => {

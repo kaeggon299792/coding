@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080501
+SCHEMA_VERSION = 2026080601
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -264,6 +264,18 @@ def migrate(connection):
         connection, "dashboard_users", "approval_status",
         "TEXT NOT NULL DEFAULT 'approved'",
     )
+    _ensure_column(
+        connection, "dashboard_users", "membership_level",
+        "TEXT NOT NULL DEFAULT 'gold'",
+    )
+    connection.execute(
+        "UPDATE dashboard_users SET membership_level='black' WHERE role='admin'"
+    )
+    connection.execute(
+        "UPDATE dashboard_users SET membership_level='gold' "
+        "WHERE role!='admin' AND (membership_level='black' OR membership_level NOT IN "
+        "('silver','gold','platinum','diamond','black'))"
+    )
     connection.execute(
         """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_dashboard_users_email_unique
@@ -313,6 +325,59 @@ def migrate(connection):
             PRIMARY KEY (user_id, permission_code)
         )
         """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS membership_grades (
+            code TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            description TEXT NOT NULL,
+            rank_order INTEGER NOT NULL UNIQUE,
+            icon_path TEXT NOT NULL,
+            updated_at TEXT,
+            updated_by INTEGER
+        )
+        """
+    )
+    membership_grade_seeds = (
+        ('silver', 'Silver', '방문자', 10, 'img/membership/silver.svg'),
+        ('gold', 'Gold', '가입 기본등급', 20, 'img/membership/gold.svg'),
+        ('platinum', 'Platinum', '프리미엄 회원', 30, 'img/membership/platinum.svg'),
+        ('diamond', 'Diamond', '최상위 회원', 40, 'img/membership/diamond.svg'),
+        ('black', 'Black', '최고 등급 · 관리자', 50, 'img/membership/black.svg'),
+    )
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO membership_grades
+            (code, label, description, rank_order, icon_path)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        membership_grade_seeds,
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS board_grade_permissions (
+            board_key TEXT PRIMARY KEY,
+            board_label TEXT NOT NULL,
+            read_grade TEXT NOT NULL DEFAULT 'silver',
+            write_grade TEXT NOT NULL DEFAULT 'gold',
+            comment_grade TEXT NOT NULL DEFAULT 'gold',
+            updated_at TEXT,
+            updated_by INTEGER
+        )
+        """
+    )
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO board_grade_permissions
+            (board_key, board_label, read_grade, write_grade, comment_grade)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            ('community', '자유 게시판', 'silver', 'gold', 'gold'),
+            ('notice', '공지사항', 'silver', 'black', 'gold'),
+            ('bug_reports', '버그 및 건의', 'silver', 'gold', 'gold'),
+        ),
     )
     connection.execute(
         """

@@ -562,7 +562,9 @@ def categories_page():
             dict(row) for row in connection.execute(
                 """SELECT category.*,
                           (SELECT COUNT(*) FROM tips_articles AS article
-                           WHERE article.category=category.name) AS article_count
+                           WHERE article.category=category.name
+                             AND article.is_deleted=0
+                             AND article.draft=0) AS article_count
                    FROM tips_categories AS category
                    ORDER BY category.sort_order, category.name COLLATE NOCASE"""
             ).fetchall()

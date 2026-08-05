@@ -51,8 +51,10 @@ from services import (
     document_library,
     economic_data,
     editor_images,
+    fund_increase_scenario,
     market_data,
     localization_management,
+    membership,
     news_reader,
     overseas_news,
     official_document_manager,
@@ -137,6 +139,7 @@ INDEXABLE_ENDPOINTS = {
     "disclosures_page",
     "laws_page",
     "legislation_page",
+    "fund_increase_scenario_page",
     "companies_page",
     "company_comparison_page",
     "company_benefits_page",
@@ -152,6 +155,7 @@ NOINDEX_ENDPOINTS = {
     "auth.login",
     "auth.register",
     "auth.user_management",
+    "auth.membership_management",
     "auth.ai_settings",
     "auth.admin_logs",
     "auth.admin_tasks",
@@ -179,7 +183,8 @@ SITEMAP_STATIC_ENDPOINTS = (
     "related_news_page", "overseas_news_page", "market_trend_page",
     "tourism_trend_page", "economic_trend_page", "holiday_calendar_page",
     "salary_trend_page", "recruitment_page", "company_recruitment_guide_page",
-    "disclosures_page", "laws_page", "legislation_page", "companies_page",
+    "disclosures_page", "laws_page", "legislation_page",
+    "fund_increase_scenario_page", "companies_page",
     "company_comparison_page",
     "company_benefits_page", "company_news_page", "research_library_page",
     "tips.list_page", "tips.sites_page", "tips.glossary_page", "credits_page",
@@ -258,6 +263,10 @@ SEO_PAGE_COPY = {
         "legislation_page": (
             "카지노 입법동향 | Casino IN",
             "카지노 관련 정부입법예고와 국회 발의·심사 의안을 분리해 확인합니다.",
+        ),
+        "fund_increase_scenario_page": (
+            "관광진흥개발기금 인상 시나리오 | Casino IN",
+            "2025년 카지노 운영사 재무자료를 기준으로 관광진흥개발기금 10%에서 15% 인상 시 영업이익 영향을 비교합니다.",
         ),
         "companies_page": (
             "국내외 카지노 기업 분석 | Casino IN",
@@ -381,6 +390,10 @@ SEO_PAGE_COPY = {
             "Casino Legislative Developments | Casino IN",
             "Track government legislative notices and casino-related National Assembly bills.",
         ),
+        "fund_increase_scenario_page": (
+            "Tourism Fund Increase Scenarios | Casino IN",
+            "Compare the operating-profit impact of a hypothetical Tourism Promotion and Development Fund increase from 10% to 15% using 2025 financial data.",
+        ),
         "companies_page": (
             "Casino Company Analysis | Casino IN",
             "Compare Paradise, GKL, Kangwon Land, Lotte Tour Development, and other casino-linked companies.",
@@ -477,6 +490,7 @@ ENDPOINT_PERMISSIONS = {
     "delete_ir_document": "disclosures",
     "laws_page": "laws",
     "legislation_page": "laws",
+    "fund_increase_scenario_page": "laws",
     "companies_page": "companies",
     "company_comparison_page": "companies",
     "company_benefits_page": "companies",
@@ -507,6 +521,7 @@ PUBLIC_READ_ENDPOINTS = {
     "download_ir_document",
     "laws_page",
     "legislation_page",
+    "fund_increase_scenario_page",
     "companies_page",
     "company_comparison_page",
     "company_benefits_page",
@@ -622,6 +637,7 @@ def _breadcrumb_schema(endpoint, locale, title, canonical_path):
         "recruitment_page": ("기업정보", "/companies"),
         "laws_page": ("법률·규제", "/laws"),
         "legislation_page": ("법률·규제", "/laws"),
+        "fund_increase_scenario_page": ("법률·규제", "/laws"),
         "tips.list_page": ("자료실", "/resources"),
         "tips.sites_page": ("자료실", "/resources"),
         "tips.glossary_page": ("자료실", "/resources"),
@@ -1112,7 +1128,8 @@ def inject_globals():
                 connection = dashboard_db()
                 row = connection.execute(
                     """
-                    SELECT id, username, role, name, picture_url, is_active
+                    SELECT id, username, role, name, picture_url, is_active,
+                           membership_level
                     FROM dashboard_users WHERE id=?
                     """,
                     (session["user_id"],),
@@ -1122,6 +1139,11 @@ def inject_globals():
                 current_user = dict(row)
                 role = current_user.get("role") or "user"
                 session["role"] = role
+                if connection is None:
+                    connection = dashboard_db()
+                current_user["membership"] = membership.user_grade(
+                    connection, current_user["id"], role
+                )
                 if role == "admin" and request.path.startswith("/admin"):
                     if connection is None:
                         connection = dashboard_db()
@@ -1194,6 +1216,7 @@ def inject_globals():
         "delete_ir_document": "기업별 공시",
         "laws_page": "법률·규제",
         "legislation_page": "입법동향",
+        "fund_increase_scenario_page": "기금인상 시나리오",
         "companies_page": "주요 국내기업",
         "company_comparison_page": "기업 비교",
         "company_benefits_page": "복리후생",
@@ -1210,6 +1233,7 @@ def inject_globals():
         "auth.login": "로그인",
         "auth.register": "가입 신청",
         "auth.user_management": "관리자 페이지",
+        "auth.membership_management": "회원등급 관리",
         "auth.ai_settings": "API 설정",
         "auth.admin_logs": "관리자 로그",
         "auth.admin_tasks": "자동화 작업 현황",
@@ -1335,6 +1359,7 @@ def _site_map_links():
             "children": [
                 {"label": "법령", "endpoint": "laws_page"},
                 {"label": "입법동향", "endpoint": "legislation_page"},
+                {"label": "기금인상 시나리오", "endpoint": "fund_increase_scenario_page"},
             ],
         },
         {
@@ -1391,6 +1416,7 @@ def _site_map_links():
             "endpoint": "paradian_portal_page",
             "children": [
                 {"label": "관리자 페이지", "endpoint": "auth.user_management"},
+                {"label": "회원등급 관리", "endpoint": "auth.membership_management"},
                 {"label": "API 설정", "endpoint": "auth.ai_settings"},
                 {"label": "로그", "endpoint": "auth.admin_logs"},
                 {"label": "자동화 작업", "endpoint": "auth.admin_tasks"},
@@ -2192,6 +2218,11 @@ def _visible_action_items(connection, status=None):
 def action_items_page():
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "bug_reports", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         status_filter = request.args.get("status") or None
         return render_template(
             "action_items.html",
@@ -2199,6 +2230,10 @@ def action_items_page():
             csrf_token=get_csrf_token(),
             status_filter=status_filter,
             is_admin=session.get("role") == "admin",
+            can_write=membership.can_board(
+                connection, "bug_reports", "write",
+                session.get("user_id"), session.get("role"),
+            ),
         )
     finally:
         connection.close()
@@ -2209,7 +2244,13 @@ def action_items_page():
 def create_action_item_route():
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "bug_reports", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         is_admin = session.get("role") == "admin"
+        can_write = True
         if not validate_csrf(request.form.get("csrf_token", "")):
             return render_template(
                 "action_items.html",
@@ -2217,6 +2258,7 @@ def create_action_item_route():
                 items=_visible_action_items(connection),
                 csrf_token=get_csrf_token(),
                 is_admin=is_admin,
+                can_write=can_write,
             ), 400
 
         title = (request.form.get("title") or "").strip()
@@ -2227,6 +2269,7 @@ def create_action_item_route():
                 items=_visible_action_items(connection),
                 csrf_token=get_csrf_token(),
                 is_admin=is_admin,
+                can_write=can_write,
             ), 400
 
         description = (request.form.get("description") or "").strip()
@@ -2239,6 +2282,7 @@ def create_action_item_route():
                 items=_visible_action_items(connection),
                 csrf_token=get_csrf_token(),
                 is_admin=is_admin,
+                can_write=can_write,
             ), 400
         if not description or len(description) > 5000:
             return render_template(
@@ -2247,6 +2291,7 @@ def create_action_item_route():
                 items=_visible_action_items(connection),
                 csrf_token=get_csrf_token(),
                 is_admin=is_admin,
+                can_write=can_write,
             ), 400
         priority = request.form.get("priority") or "보통"
         if priority not in {"긴급", "높음", "보통", "낮음"}:
@@ -2279,6 +2324,7 @@ def create_action_item_route():
                 items=_visible_action_items(connection),
                 csrf_token=get_csrf_token(),
                 is_admin=is_admin,
+                can_write=can_write,
             ), 429
         item_id = queries.create_action_item(
             connection,
@@ -2391,6 +2437,11 @@ def action_item_detail(item_id):
         item = queries.get_action_item(connection, item_id)
         if not item:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         if not can_access_bug_report(item):
             abort(403)
         queries.record_unique_action_item_view(
@@ -2405,6 +2456,10 @@ def action_item_detail(item_id):
             comments=comments,
             csrf_token=get_csrf_token(),
             is_admin=session.get("role") == "admin",
+            can_comment=membership.can_board(
+                connection, "bug_reports", "comment",
+                session.get("user_id"), session.get("role"),
+            ),
         )
     finally:
         connection.close()
@@ -2420,6 +2475,11 @@ def add_action_item_comment(item_id):
         item = queries.get_action_item(connection, item_id)
         if not item:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         if not can_access_bug_report(item):
             abort(403)
         try:
@@ -2448,6 +2508,11 @@ def edit_action_item_comment(item_id, comment_id):
         comment = queries.get_action_item_comment(connection, comment_id)
         if not item or not comment or comment["action_item_id"] != item_id or comment["is_deleted"]:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         if not can_access_bug_report(item):
             abort(403)
         if comment["author_id"] != session.get("user_id") and session.get("role") != "admin":
@@ -2475,6 +2540,11 @@ def delete_action_item_comment(item_id, comment_id):
         comment = queries.get_action_item_comment(connection, comment_id)
         if not item or not comment or comment["action_item_id"] != item_id or comment["is_deleted"]:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         if not can_access_bug_report(item):
             abort(403)
         if comment["author_id"] != session.get("user_id") and session.get("role") != "admin":
@@ -2497,6 +2567,11 @@ def update_action_item_route(item_id):
         item = queries.get_action_item(connection, item_id)
         if not item:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         is_admin = session.get("role") == "admin"
         if not is_admin and not can_access_bug_report(item):
             abort(403)
@@ -2555,6 +2630,11 @@ def delete_action_item_route(item_id):
         item = queries.get_action_item(connection, item_id)
         if not item:
             abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         if session.get("role") != "admin":
             abort(403)
         queries.delete_action_item(connection, item_id)
@@ -3400,6 +3480,20 @@ def laws_page():
                 latest_law_row["updated_at"]
             ) if latest_law_row and latest_law_row["updated_at"] else None,
             check_status=latest_law_sync.get("status") if latest_law_sync else None,
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/laws/fund-increase-scenarios")
+def fund_increase_scenario_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "fund_increase_scenario.html",
+            scenario=fund_increase_scenario.build_dashboard(
+                connection, request.args.get("scenario")
+            ),
         )
     finally:
         connection.close()
@@ -4270,10 +4364,9 @@ def _community_board_context(
         "form_data": form_data or {},
         "board_type": board_type,
         "is_notice_board": board_type == "notice",
-        "can_write": (
-            session.get("role") == "admin"
-            if board_type == "notice"
-            else bool(session.get("user_id"))
+        "can_write": membership.can_board(
+            connection, board_type, "write",
+            session.get("user_id"), session.get("role"),
         ),
         "create_endpoint": (
             "create_notice_post_route"
@@ -4327,8 +4420,19 @@ def upload_editor_image_route():
     scope = (request.form.get("scope") or "").strip()
     if scope not in {"community", "notice", "tips", "bug_report"}:
         return jsonify({"error": "허용되지 않은 작성 화면입니다."}), 400
-    if scope in {"notice", "tips"} and session.get("role") != "admin":
+    if scope == "tips" and session.get("role") != "admin":
         abort(403)
+    board_key = {"community": "community", "notice": "notice", "bug_report": "bug_reports"}.get(scope)
+    if board_key:
+        access_connection = dashboard_db()
+        try:
+            if not membership.can_board(
+                access_connection, board_key, "write",
+                session.get("user_id"), session.get("role"),
+            ):
+                abort(403)
+        finally:
+            access_connection.close()
     try:
         filename = editor_images.save_pasted_image(
             request.files.get("image"),
@@ -4379,6 +4483,11 @@ def community_board_page():
         page = 1
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "community", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         return render_template(
             "community_board.html",
             **_community_board_context(connection, page=page),
@@ -4395,6 +4504,11 @@ def notice_board_page():
         page = 1
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "notice", "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         return render_template(
             "community_board.html",
             **_community_board_context(
@@ -4410,6 +4524,11 @@ def notice_board_page():
 def create_community_post_route():
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "community", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         form_data = {
             "title": (request.form.get("title") or "").strip(),
             "content": (request.form.get("content") or "").strip(),
@@ -4469,6 +4588,11 @@ def create_community_post_route():
 def create_notice_post_route():
     connection = dashboard_db()
     try:
+        if not membership.can_board(
+            connection, "notice", "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         form_data = {
             "title": (request.form.get("title") or "").strip(),
             "content": (request.form.get("content") or "").strip(),
@@ -4523,6 +4647,11 @@ def community_post_page(post_id):
         )
         if not post:
             abort(404)
+        if not membership.can_board(
+            connection, post["board_type"], "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         queries.record_unique_community_post_view(
             connection, post_id, _community_viewer_hash()
         )
@@ -4534,6 +4663,10 @@ def community_post_page(post_id):
             post=post,
             post_html=_render_community_markdown(post["content"]),
             comments=queries.list_community_comments(connection, post_id),
+            can_comment=membership.can_board(
+                connection, post["board_type"], "comment",
+                session.get("user_id"), session.get("role"),
+            ),
             csrf_token=get_csrf_token(),
             comment_error=None,
             comment_content="",
@@ -4550,6 +4683,11 @@ def edit_community_post_route(post_id):
         post = queries.get_community_post(connection, post_id)
         if not post:
             abort(404)
+        if not membership.can_board(
+            connection, post["board_type"], "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         is_admin = session.get("role") == "admin"
         is_owner = int(post["author_id"]) == int(session["user_id"])
         if (post["board_type"] == "notice" and not is_admin) or (
@@ -4615,6 +4753,11 @@ def create_community_comment_route(post_id):
         )
         if not post:
             abort(404)
+        if not membership.can_board(
+            connection, post["board_type"], "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         content = (request.form.get("content") or "").strip()
         error = None
         if not validate_csrf(request.form.get("csrf_token", "")):
@@ -4647,6 +4790,7 @@ def create_community_comment_route(post_id):
             post=post,
             post_html=_render_community_markdown(post["content"]),
             comments=queries.list_community_comments(connection, post_id),
+            can_comment=True,
             csrf_token=get_csrf_token(),
             comment_error=error,
             comment_content=content,
@@ -4718,6 +4862,11 @@ def delete_community_post_route(post_id):
         post = queries.get_community_post(connection, post_id)
         if not post:
             abort(404)
+        if not membership.can_board(
+            connection, post["board_type"], "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
         is_owner = int(post["author_id"]) == int(session["user_id"])
         if session.get("role") != "admin" and not is_owner:
             abort(403)

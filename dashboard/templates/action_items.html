@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_membership_badge.html" import identity %}
 {% block title %}버그 및 건의{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
@@ -11,7 +12,7 @@
   </header>
   {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 
-  {% if current_username %}
+  {% if current_username and can_write %}
   <section class="panel bug-report-form-panel">
     <div class="section-heading"><div><h2>새 글 작성</h2><p>오류는 재현 방법을, 질문은 확인이 필요한 내용을 구체적으로 작성해주세요.</p></div></div>
     <form method="post" action="{{ url_for('create_action_item_route') }}" class="bug-report-form">
@@ -28,7 +29,7 @@
     </form>
   </section>
   {% else %}
-  <section class="public-action-notice"><p>게시글은 작성자와 관리자만 볼 수 있습니다. 새 글 작성은 로그인 후 이용해주세요.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>
+  <section class="public-action-notice"><p>{% if current_username %}현재 회원등급에서는 새 글을 작성할 수 없습니다.{% else %}게시글은 작성자와 관리자만 볼 수 있습니다. 새 글 작성은 로그인 후 이용해주세요.{% endif %}</p>{% if not current_username %}<a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a>{% endif %}</section>
   {% endif %}
 
   <section class="panel">
@@ -44,7 +45,7 @@
         <td><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span></td>
         <td><a class="bug-board-title" href="{{ url_for('action_item_detail', item_id=item.id) }}">{{ item.title }}</a>{% if item.bug_page %}<small>{{ item.bug_page }}</small>{% endif %}</td>
         <td><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span></td>
-        <td>{{ item.reported_by or ('AI/기존 기록' if item.ai_suggested else '-') }}</td>
+        <td>{% if item.reported_by %}{{ identity(item.reported_by, item.author_display_name, item.author_picture_url, item.author_membership_icon, item.author_membership_label, true) }}{% else %}{{ 'AI/기존 기록' if item.ai_suggested else '-' }}{% endif %}</td>
         <td>{{ item.view_count or 0 }}</td>
         <td>{{ item.owner or '-' }}</td>
         <td>{{ item.status }}</td>

@@ -2,7 +2,7 @@
 {% set market_endpoints = ('market_trend_page', 'casino_industry_page', 'casino_market_share_page', 'casino_visitors_page', 'casino_revenue_page', 'casino_fund_page', 'tourism_trend_page', 'economic_trend_page', 'holiday_calendar_page') %}
 {% set company_endpoints = ('companies_page', 'company_detail_page', 'company_comparison_page', 'company_benefits_page', 'create_company_benefit_route', 'edit_company_benefit_route', 'end_company_benefit_route', 'company_recruitment_guide_page', 'create_company_recruitment_guide_route', 'edit_company_recruitment_guide_route', 'company_news_page', 'disclosures_page', 'upload_ir_document', 'download_ir_document', 'reanalyze_ir_document', 'update_ir_document_title', 'delete_ir_document', 'research_library_page', 'download_research_document', 'reanalyze_research_document', 'update_research_document_title', 'delete_research_document', 'salary_trend_page', 'recruitment_page') %}
 {% set board_endpoints = ('action_items_page', 'create_action_item_route', 'action_item_detail', 'community_board_page', 'create_community_post_route', 'notice_board_page', 'create_notice_post_route', 'community_post_page') %}
-{% set admin_endpoints = ('paradian_portal_page', 'performance_page', 'admin_action_items_page', 'create_admin_action_item_route', 'auth.user_management', 'auth.ai_settings', 'auth.admin_logs', 'auth.admin_tasks', 'auth.localization_dashboard', 'auth.localization_work', 'auth.localization_qa') %}
+{% set admin_endpoints = ('paradian_portal_page', 'performance_page', 'admin_action_items_page', 'create_admin_action_item_route', 'auth.user_management', 'auth.membership_management', 'auth.ai_settings', 'auth.admin_logs', 'auth.admin_tasks', 'auth.localization_dashboard', 'auth.localization_work', 'auth.localization_qa') %}
 <div class="topbar">
   <div class="topbar-brand">
     <a class="brand-logo-link" href="{{ url_for('public_home') }}" aria-label="CASINO IN 홈">
@@ -15,7 +15,7 @@
     <a href="{{ url_for('related_news_page') }}"{% if request.endpoint in news_endpoints %} class="active" aria-current="true"{% endif %}>뉴스</a>
     <a href="{{ url_for('casino_industry_page') }}"{% if request.endpoint in market_endpoints %} class="active" aria-current="true"{% endif %}>시장 정보</a>
     <a href="{{ url_for('companies_page') }}"{% if request.endpoint in company_endpoints %} class="active" aria-current="true"{% endif %}>기업정보</a>
-    <a href="{{ url_for('laws_page') }}"{% if request.endpoint in ('laws_page', 'legislation_page') %} class="active" aria-current="true"{% endif %}>법률·규제</a>
+    <a href="{{ url_for('laws_page') }}"{% if request.endpoint in ('laws_page', 'legislation_page', 'fund_increase_scenario_page') %} class="active" aria-current="true"{% endif %}>법률·규제</a>
     <a href="{{ url_for('tips.list_page') }}"{% if request.blueprint == 'tips' or request.endpoint == 'source_download_page' %} class="active" aria-current="true"{% endif %}>자료실</a>
     <a href="{{ url_for('community_board_page') }}"{% if request.endpoint in board_endpoints %} class="active" aria-current="true"{% endif %}>게시판</a>
 
@@ -28,11 +28,14 @@
   <div class="topbar-actions">
     {% if current_user %}
       <a class="topbar-user" href="{{ url_for('auth.my_account') }}" title="{{ t('내 계정') }} · {{ current_user.name or current_user.username }}">
+        <span class="member-avatar-wrap">
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
         {% else %}
           <span class="topbar-avatar-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
         {% endif %}
+          {% if current_user.membership %}<img class="membership-badge-icon" src="{{ url_for('static', filename=current_user.membership.icon_path) }}" alt="{{ current_user.membership.label }} 등급" width="14" height="14">{% endif %}
+        </span>
         <span class="topbar-user-name">{{ current_user.name or current_user.username }}</span>
       </a>
     {% endif %}

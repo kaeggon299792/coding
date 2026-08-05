@@ -27,7 +27,7 @@ from dashboard_db import queries
 from extensions import dashboard_db
 from services import (
     ai_insights, ai_runtime_settings, automation_settings, gemini_usage, localization_auto_translation,
-    localization_management,
+    localization_management, membership,
     security_audit, security_monitor, site_preferences, task_registry, telegram_alert,
 )
 import config
@@ -446,7 +446,7 @@ def refresh_current_session():
         user = connection.execute(
             """
             SELECT id, username, role, name, picture_url, approval_status,
-                   is_active, password_changed_at
+                   is_active, password_changed_at, membership_level
             FROM dashboard_users WHERE id = ?
             """,
             (session["user_id"],),
@@ -1386,12 +1386,14 @@ def user_management():
                     cursor = connection.execute(
                         """
                         INSERT INTO dashboard_users
-                            (username, password_hash, role, is_active, created_at,
+                            (username, password_hash, role, membership_level,
+                             is_active, created_at,
                              updated_at, password_changed_at)
-                        VALUES (?, ?, ?, 1, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, 1, ?, ?, ?)
                         """,
                         (
                             username, generate_password_hash(password), role,
+                            "black" if role == "admin" else "gold",
                             now_kst().isoformat(), now_kst().isoformat(), now_kst().isoformat(),
                         ),
                     )
@@ -1411,6 +1413,7 @@ def user_management():
                 """
                 SELECT id, username, email, role, is_active, approval_status, created_at, updated_at,
                        last_login_at, password_changed_at, landing_page,
+                       membership_level,
                        deletion_requested_at, deletion_scheduled_at, deleted_at
                 FROM dashboard_users ORDER BY is_active DESC, role, username
                 """
@@ -1474,6 +1477,135 @@ def user_management():
         )
     finally:
         connection.close()
+
+
+@auth_bp.get("/admin/membership")
+@admin_required
+def membership_management():
+    connection = dashboard_db()
+    try:
+        users = [
+            dict(row) for row in connection.execute(
+                """
+                SELECT id, username, name, email, picture_url, role, is_active,
+                       approval_status, membership_level
+                FROM dashboard_users
+                WHERE COALESCE(approval_status, 'approved') != 'deleted'
+                ORDER BY role='admin' DESC, is_active DESC, username
+                """
+            ).fetchall()
+        ]
+        return render_template(
+            "membership_management.html",
+            users=users,
+            grades=membership.list_grades(connection),
+            board_permissions=membership.list_board_permissions(connection),
+            csrf_token=get_csrf_token(),
+            success=request.args.get("success"),
+            error=request.args.get("error"),
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.post("/admin/membership/users/<int:user_id>")
+@admin_required
+def update_membership_user(user_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        before = connection.execute(
+            "SELECT username, membership_level FROM dashboard_users WHERE id=?",
+            (user_id,),
+        ).fetchone()
+        try:
+            membership.update_user_grade(
+                connection, user_id, request.form.get("membership_level"),
+                session.get("user_id"),
+            )
+        except ValueError as error:
+            connection.rollback()
+            return redirect(url_for("auth.membership_management", error=str(error)))
+        security_audit.log_event(
+            connection, "MEMBERSHIP_GRADE_UPDATED", "dashboard_user", user_id,
+            {
+                "username": before["username"] if before else None,
+                "before": before["membership_level"] if before else None,
+                "after": request.form.get("membership_level"),
+            },
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("auth.membership_management", success="회원등급을 변경했습니다."))
+
+
+@auth_bp.post("/admin/membership/boards/<string:board_key>")
+@admin_required
+def update_membership_board(board_key):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        try:
+            membership.update_board_permission(
+                connection, board_key,
+                request.form.get("read_grade"),
+                request.form.get("write_grade"),
+                request.form.get("comment_grade"),
+                session.get("user_id"),
+            )
+        except ValueError as error:
+            connection.rollback()
+            return redirect(url_for("auth.membership_management", error=str(error)))
+        security_audit.log_event(
+            connection, "BOARD_GRADE_POLICY_UPDATED", "board", board_key,
+            {
+                "read_grade": request.form.get("read_grade"),
+                "write_grade": request.form.get("write_grade"),
+                "comment_grade": request.form.get("comment_grade"),
+            },
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("auth.membership_management", success="게시판 등급 권한을 변경했습니다."))
+
+
+@auth_bp.post("/admin/membership/grades/<string:grade_code>")
+@admin_required
+def update_membership_grade(grade_code):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        try:
+            membership.update_grade_text(
+                connection, grade_code, request.form.get("label"),
+                request.form.get("description"), session.get("user_id"),
+            )
+            if request.form.get("reset_icon") == "1":
+                membership.reset_grade_icon(
+                    connection, grade_code, session.get("user_id")
+                )
+            elif request.files.get("icon") and request.files["icon"].filename:
+                membership.save_grade_icon(
+                    connection, grade_code, request.files["icon"],
+                    session.get("user_id"),
+                )
+        except (ValueError, UnicodeDecodeError) as error:
+            connection.rollback()
+            return redirect(url_for("auth.membership_management", error=str(error)))
+        security_audit.log_event(
+            connection, "MEMBERSHIP_GRADE_SETTINGS_UPDATED",
+            "membership_grade", grade_code,
+            {"icon_updated": bool(request.files.get("icon") or request.form.get("reset_icon"))},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("auth.membership_management", success="등급 설정을 저장했습니다."))
 
 
 @auth_bp.post("/admin/site-settings/registration-approval")
@@ -2489,13 +2621,21 @@ def update_user_role(user_id):
     connection = dashboard_db()
     try:
         target = connection.execute(
-            "SELECT id, username, role FROM dashboard_users WHERE id=?", (user_id,)
+            "SELECT id, username, role, membership_level FROM dashboard_users WHERE id=?",
+            (user_id,),
         ).fetchone()
         if not target:
             return redirect(url_for("auth.user_management"))
         connection.execute(
-            "UPDATE dashboard_users SET role=?, updated_at=? WHERE id=?",
-            (role, now_kst().isoformat(), user_id),
+            "UPDATE dashboard_users SET role=?, membership_level=?, updated_at=? WHERE id=?",
+            (
+                role,
+                "black" if role == "admin" else (
+                    "gold" if target["membership_level"] == "black"
+                    else target["membership_level"]
+                ),
+                now_kst().isoformat(), user_id,
+            ),
         )
         _audit_user(
             connection, target, "ROLE_CHANGED",

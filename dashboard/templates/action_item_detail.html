@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_membership_badge.html" import identity %}
 {% block title %}{{ item.title }} · 버그 및 건의{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
@@ -12,7 +13,7 @@
       <div>
         <div class="bug-detail-badges"><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span><span class="status-badge">{{ item.status }}</span><span>비공개</span></div>
         <h1>{{ item.title }}</h1>
-        <p>{{ t('작성자') }} {{ item.reported_by or '-' }} · {{ t('등록') }} {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · {{ t('수정') }} {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %} · 조회 {{ item.view_count or 0 }}</p>
+        <p class="bug-author-line">{{ t('작성자') }} {{ identity(item.reported_by, item.author_display_name, item.author_picture_url, item.author_membership_icon, item.author_membership_label, true) }} · {{ t('등록') }} {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · {{ t('수정') }} {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %} · 조회 {{ item.view_count or 0 }}</p>
       </div>
     </header>
     <dl class="bug-detail-meta">
@@ -43,15 +44,15 @@
 
   <section class="panel bug-comments" id="comments">
     <header class="section-heading"><div><h2>댓글 <span>{{ comments|length }}</span></h2><p>작성자와 관리자가 답변과 진행 상황을 공유합니다.</p></div></header>
-    <form class="bug-comment-form" method="post" action="{{ url_for('add_action_item_comment', item_id=item.id) }}">
+    {% if can_comment %}<form class="bug-comment-form" method="post" action="{{ url_for('add_action_item_comment', item_id=item.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="bug-comment-content">댓글 작성</label>
       <textarea id="bug-comment-content" name="content" rows="4" maxlength="1000" required placeholder="답변이나 추가 내용을 입력해주세요."></textarea>
       <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
-    </form>
+    </form>{% else %}<p class="public-action-notice">현재 회원등급에서는 댓글을 작성할 수 없습니다.</p>{% endif %}
     {% if comments %}<div class="bug-comment-list">{% for comment in comments %}
       <article class="bug-comment">
-        <header><strong>{{ comment.author_name }}{% if comment.author_name == item.reported_by %} <span>작성자</span>{% endif %}</strong><time>{{ comment.created_at|replace('T',' ')|truncate(17, true, '') }}</time>{% if comment.updated_at != comment.created_at %}<small>수정됨</small>{% endif %}</header>
+        <header>{{ identity(comment.author_name, comment.author_display_name, comment.author_picture_url, comment.author_membership_icon, comment.author_membership_label, true) }}{% if comment.author_name == item.reported_by %}<span>작성자</span>{% endif %}<time>{{ comment.created_at|replace('T',' ')|truncate(17, true, '') }}</time>{% if comment.updated_at != comment.created_at %}<small>수정됨</small>{% endif %}</header>
         <p>{{ comment.content }}</p>
         {% if comment.author_id == session.user_id or is_admin %}<div class="bug-comment-actions">
           <details><summary>수정</summary><form method="post" action="{{ url_for('edit_action_item_comment', item_id=item.id, comment_id=comment.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><textarea name="content" rows="3" maxlength="1000" required>{{ comment.content }}</textarea><button class="btn btn-small" type="submit">저장</button></form></details>

@@ -207,30 +207,56 @@ def list_action_items(
     connection, status=None, only_pending_due=False, reported_by=None,
     source_type=None, exclude_source_type=None,
 ):
-    query = "SELECT * FROM action_items"
+    query = """
+        SELECT item.*,
+               COALESCE(author.membership_level, 'silver') AS author_membership_level,
+               COALESCE(grade.label, 'Silver') AS author_membership_label,
+               COALESCE(grade.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               author.picture_url AS author_picture_url,
+               author.name AS author_display_name
+        FROM action_items AS item
+        LEFT JOIN dashboard_users AS author ON author.username = item.reported_by
+        LEFT JOIN membership_grades AS grade
+               ON grade.code = COALESCE(author.membership_level, 'silver')
+    """
     params = []
     clauses = []
     if status:
-        clauses.append("status = ?")
+        clauses.append("item.status = ?")
         params.append(status)
     if reported_by is not None:
-        clauses.append("reported_by = ?")
+        clauses.append("item.reported_by = ?")
         params.append(reported_by)
     if source_type is not None:
-        clauses.append("source_type = ?")
+        clauses.append("item.source_type = ?")
         params.append(source_type)
     if exclude_source_type is not None:
-        clauses.append("source_type <> ?")
+        clauses.append("item.source_type <> ?")
         params.append(exclude_source_type)
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
-    query += " ORDER BY CASE priority WHEN '긴급' THEN 0 WHEN 'urgent' THEN 0 ELSE 1 END, due_date IS NULL, due_date ASC"
+    query += " ORDER BY CASE item.priority WHEN '긴급' THEN 0 WHEN 'urgent' THEN 0 ELSE 1 END, item.due_date IS NULL, item.due_date ASC"
     rows = connection.execute(query, params).fetchall()
     return [dict(row) for row in rows]
 
 
 def get_action_item(connection, item_id):
-    row = connection.execute("SELECT * FROM action_items WHERE id = ?", (item_id,)).fetchone()
+    row = connection.execute(
+        """
+        SELECT item.*,
+               COALESCE(author.membership_level, 'silver') AS author_membership_level,
+               COALESCE(grade.label, 'Silver') AS author_membership_label,
+               COALESCE(grade.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               author.picture_url AS author_picture_url,
+               author.name AS author_display_name
+        FROM action_items AS item
+        LEFT JOIN dashboard_users AS author ON author.username = item.reported_by
+        LEFT JOIN membership_grades AS grade
+               ON grade.code = COALESCE(author.membership_level, 'silver')
+        WHERE item.id = ?
+        """,
+        (item_id,),
+    ).fetchone()
     return dict(row) if row else None
 
 
@@ -264,9 +290,15 @@ def delete_action_item(connection, item_id):
 def list_action_item_comments(connection, item_id):
     rows = connection.execute(
         """
-        SELECT c.*, u.username AS author_name
+        SELECT c.*, u.username AS author_name,
+               COALESCE(u.membership_level, 'silver') AS author_membership_level,
+               COALESCE(g.label, 'Silver') AS author_membership_label,
+               COALESCE(g.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               u.picture_url AS author_picture_url,
+               u.name AS author_display_name
         FROM action_item_comments c
         JOIN dashboard_users u ON u.id = c.author_id
+        LEFT JOIN membership_grades g ON g.code = COALESCE(u.membership_level, 'silver')
         WHERE c.action_item_id = ? AND c.is_deleted = 0
         ORDER BY c.created_at ASC, c.id ASC
         """,
@@ -392,11 +424,19 @@ def list_community_posts(
     rows = connection.execute(
         """
         SELECT post.*,
+               COALESCE(author.membership_level, 'silver') AS author_membership_level,
+               COALESCE(grade.label, 'Silver') AS author_membership_label,
+               COALESCE(grade.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               author.picture_url AS author_picture_url,
+               author.name AS author_display_name,
                (SELECT COUNT(1) FROM community_post_recommendations AS recommendation
                 WHERE recommendation.post_id = post.id) AS recommendation_count,
                (SELECT COUNT(1) FROM community_comments AS comment
                 WHERE comment.post_id = post.id AND comment.is_deleted = 0) AS comment_count
         FROM community_posts AS post
+        LEFT JOIN dashboard_users AS author ON author.id = post.author_id
+        LEFT JOIN membership_grades AS grade
+               ON grade.code = COALESCE(author.membership_level, 'silver')
         WHERE post.is_deleted = 0 AND post.board_type = ?
         ORDER BY post.is_pinned DESC, post.created_at DESC, post.id DESC
         LIMIT ? OFFSET ?
@@ -432,6 +472,11 @@ def get_community_post(connection, post_id, user_id=None):
     row = connection.execute(
         """
         SELECT post.*,
+               COALESCE(author.membership_level, 'silver') AS author_membership_level,
+               COALESCE(grade.label, 'Silver') AS author_membership_label,
+               COALESCE(grade.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               author.picture_url AS author_picture_url,
+               author.name AS author_display_name,
                (SELECT COUNT(1) FROM community_post_recommendations AS recommendation
                 WHERE recommendation.post_id = post.id) AS recommendation_count,
                CASE WHEN ? IS NULL THEN 0 ELSE EXISTS(
@@ -439,6 +484,9 @@ def get_community_post(connection, post_id, user_id=None):
                    WHERE mine.post_id = post.id AND mine.user_id = ?
                ) END AS recommended_by_current_user
         FROM community_posts AS post
+        LEFT JOIN dashboard_users AS author ON author.id = post.author_id
+        LEFT JOIN membership_grades AS grade
+               ON grade.code = COALESCE(author.membership_level, 'silver')
         WHERE post.id = ? AND post.is_deleted = 0
         """,
         (user_id, user_id, post_id),
@@ -657,9 +705,18 @@ def create_community_comment(connection, post_id, author_id, author_username, co
 def list_community_comments(connection, post_id):
     rows = connection.execute(
         """
-        SELECT * FROM community_comments
-        WHERE post_id=? AND is_deleted=0
-        ORDER BY created_at ASC, id ASC
+        SELECT comment.*,
+               COALESCE(author.membership_level, 'silver') AS author_membership_level,
+               COALESCE(grade.label, 'Silver') AS author_membership_label,
+               COALESCE(grade.icon_path, 'img/membership/silver.svg') AS author_membership_icon,
+               author.picture_url AS author_picture_url,
+               author.name AS author_display_name
+        FROM community_comments AS comment
+        LEFT JOIN dashboard_users AS author ON author.id = comment.author_id
+        LEFT JOIN membership_grades AS grade
+               ON grade.code = COALESCE(author.membership_level, 'silver')
+        WHERE comment.post_id=? AND comment.is_deleted=0
+        ORDER BY comment.created_at ASC, comment.id ASC
         """,
         (post_id,),
     ).fetchall()

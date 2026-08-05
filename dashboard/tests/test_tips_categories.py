@@ -34,6 +34,22 @@ def test_admin_manages_tip_categories_and_renames_existing_articles(monkeypatch,
         "published_date": "2026-08-04", "featured": False, "draft": False,
         "cover_image": "",
     }, admin_id)
+    tips_content.save_tip(connection, {
+        "title": "임시 엑셀 자료", "slug": "draft-excel-tip", "summary": "",
+        "body": "본문", "category": "Excel", "tags": "",
+        "published_date": "2026-08-04", "featured": False, "draft": True,
+        "cover_image": "",
+    }, admin_id)
+    deleted = tips_content.save_tip(connection, {
+        "title": "삭제 엑셀 자료", "slug": "deleted-excel-tip", "summary": "",
+        "body": "본문", "category": "Excel", "tags": "",
+        "published_date": "2026-08-04", "featured": False, "draft": False,
+        "cover_image": "",
+    }, admin_id)
+    connection.execute(
+        "UPDATE tips_articles SET is_deleted=1 WHERE id=?", (deleted["id"],)
+    )
+    connection.commit()
     excel_id = connection.execute(
         "SELECT id FROM tips_categories WHERE name='Excel'"
     ).fetchone()["id"]
@@ -54,6 +70,8 @@ def test_admin_manages_tip_categories_and_renames_existing_articles(monkeypatch,
         assert page.status_code == 200
         assert "자료실 카테고리 관리" in page.get_data(as_text=True)
         assert "기존 엑셀 자료" not in page.get_data(as_text=True)
+        assert "등록 자료 1건" in page.get_data(as_text=True)
+        assert "등록 자료 3건" not in page.get_data(as_text=True)
 
         created = client.post(
             "/resources/categories",
