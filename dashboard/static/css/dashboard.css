@@ -2709,3 +2709,7 @@ html[data-theme="light"] .member-avatar-wrap,html[data-theme="light"] .account-a
 
 /* Flat profile treatment: retain the grade ring without cast shadows. */
 .member-avatar-wrap,.account-avatar-wrap{filter:none}.member-avatar-wrap:before,.account-avatar-wrap:before{box-shadow:none!important}
+
+/* Keep dense comparison dashboards comfortably inside the viewport. */
+.fund-scenario-page,.company-comparison-page{box-sizing:border-box;width:min(1200px,calc(100% - 48px));max-width:1200px;padding-right:0;padding-left:0}.fund-scenario-panel>.table-scroll-wrap,.company-comparison-table-panel>.table-scroll-wrap{box-sizing:border-box;width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}.fund-comparison-table,.company-comparison-table{max-width:none}
+@media(max-width:760px){.fund-scenario-page,.company-comparison-page{width:calc(100% - 28px);padding-right:0;padding-left:0}.fund-scenario-panel,.company-comparison-chart,.company-comparison-table-panel{max-width:100%}}
