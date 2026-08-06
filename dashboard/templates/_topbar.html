@@ -40,6 +40,18 @@
         </span>
       </summary>
       <div class="topbar-profile-popover">
+        <div class="topbar-profile-hero">
+          <span class="member-avatar-wrap topbar-profile-large-avatar grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
+            <span class="member-avatar-third-ring" aria-hidden="true"></span>
+            {% if current_user.picture_url %}
+              <img class="topbar-profile-photo" src="{{ current_user.picture_url }}" alt="{{ current_user.name or current_user.username }} 프로필 사진" width="76" height="76" referrerpolicy="no-referrer">
+            {% else %}
+              <span class="topbar-profile-photo topbar-profile-photo-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
+            {% endif %}
+            {% if current_user.membership %}<img class="membership-badge-icon" src="{{ url_for('static', filename=current_user.membership.icon_path) }}" alt="{{ current_user.membership.label }} 등급" width="22" height="22">{% endif %}
+          </span>
+          <strong class="topbar-profile-greeting">안녕하세요, {{ current_user.name or current_user.username }}님</strong>
+        </div>
         <div class="topbar-profile-grade"><span>현재 등급</span><strong>{{ current_user.membership.label if current_user.membership else 'Silver' }}</strong></div>
         <a href="{{ url_for('auth.my_account') }}">회원정보관리</a>
         <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}">

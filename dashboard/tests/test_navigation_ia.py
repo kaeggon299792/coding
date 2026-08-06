@@ -17,6 +17,17 @@ def test_primary_navigation_matches_confirmed_ia():
     assert ">기업 360°<" not in markup
 
 
+def test_profile_popover_has_large_avatar_and_personal_greeting():
+    markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    assert 'class="topbar-profile-hero"' in markup
+    assert 'class="topbar-profile-photo"' in markup
+    assert "안녕하세요, {{ current_user.name or current_user.username }}님" in markup
+    assert "topbar-profile-large-avatar" in markup
+    assert ".topbar-profile-photo{" in css
+    assert "width:76px;height:76px" in css
+
+
 def test_mobile_navigation_and_company_filters_are_present():
     topbar = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
     css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
