@@ -578,6 +578,54 @@ def _select_nps_history(rows, source):
     return [history[month] for month in sorted(history, reverse=True)[:13]][::-1]
 
 
+def _select_nps_month_groups(rows, source):
+    """Select monthly workplace rows, aggregating sites for known corporations."""
+    target = _normalized_workplace_name(source["query_name"])
+    candidates = [
+        row for row in rows
+        if target in _normalized_workplace_name(row.get("wkplNm"))
+        or _normalized_workplace_name(row.get("wkplNm")) in target
+    ]
+    business_prefix = source.get("business_prefix")
+    business_matches = [
+        row for row in candidates
+        if business_prefix
+        and str(row.get("bzowrRgstNo") or "").replace("*", "").startswith(
+            business_prefix
+        )
+    ]
+    if not business_matches:
+        return [
+            {"month": str(row["dataCrtYm"]), "rows": [row]}
+            for row in _select_nps_history(rows, source)
+        ]
+
+    workplaces = {}
+    for row in business_matches:
+        month = str(row.get("dataCrtYm") or "")
+        if len(month) != 6 or not month.isdigit() or row.get("seq") is None:
+            continue
+        workplace_key = (
+            row.get("bzowrRgstNo") or "",
+            _normalized_workplace_name(row.get("wkplNm")),
+            row.get("wkplRoadNmDtlAddr") or "",
+        )
+        workplaces.setdefault(workplace_key, {})[month] = row
+    if not workplaces:
+        raise ValueError(f"{source['entity_name']} 월별 사업장 이력이 없습니다.")
+    months = sorted(
+        {month for history in workplaces.values() for month in history},
+        reverse=True,
+    )[:13]
+    return [
+        {
+            "month": month,
+            "rows": [history[month] for history in workplaces.values() if month in history],
+        }
+        for month in reversed(months)
+    ]
+
+
 def _estimated_annual_salary(detail):
     subscribers = float(detail.get("jnngpCnt") or 0)
     notice_amount = float(detail.get("crrmmNtcAmt") or 0)
@@ -705,27 +753,37 @@ def fetch_employment_metrics(source):
     if source.get("business_prefix"):
         search_params["bzowrRgstNo"] = source["business_prefix"]
     base_rows = _nps_request("getBassInfoSearchV2", **search_params)
-    history = _select_nps_history(base_rows, source)
+    history = _select_nps_month_groups(base_rows, source)
     monthly = []
-    for row in history:
-        detail_items = _nps_request(
-            "getDetailInfoSearchV2", seq=row["seq"], numOfRows=10,
-        )
-        if not detail_items:
-            continue
-        period_items = _nps_request(
-            "getPdAcctoSttusInfoSearchV2",
-            seq=row["seq"],
-            dataCrtYm=row["dataCrtYm"],
-            numOfRows=10,
-        )
-        monthly.append({
-            "month": str(row["dataCrtYm"]),
-            "subscribers": float(detail_items[0].get("jnngpCnt") or 0),
-            "annual_salary": _estimated_annual_salary(detail_items[0]),
-            "leavers": float(
+    for month_group in history:
+        subscribers = 0.0
+        notice_amount = 0.0
+        leavers = 0.0
+        for row in month_group["rows"]:
+            detail_items = _nps_request(
+                "getDetailInfoSearchV2", seq=row["seq"], numOfRows=10,
+            )
+            if not detail_items:
+                continue
+            detail = detail_items[0]
+            subscribers += float(detail.get("jnngpCnt") or 0)
+            notice_amount += float(detail.get("crrmmNtcAmt") or 0)
+            period_items = _nps_request(
+                "getPdAcctoSttusInfoSearchV2",
+                seq=row["seq"],
+                dataCrtYm=month_group["month"],
+                numOfRows=10,
+            )
+            leavers += float(
                 (period_items[0] if period_items else {}).get("lssJnngpCnt") or 0
-            ),
+            )
+        monthly.append({
+            "month": month_group["month"],
+            "subscribers": subscribers,
+            "annual_salary": _estimated_annual_salary({
+                "jnngpCnt": subscribers, "crrmmNtcAmt": notice_amount,
+            }),
+            "leavers": leavers,
         })
     if not monthly:
         raise ValueError(f"{source['entity_name']} 국민연금 상세 이력이 없습니다.")

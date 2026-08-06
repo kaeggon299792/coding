@@ -140,11 +140,11 @@ def test_company_comparison_derives_standalone_quarters(monkeypatch):
     rows = []
     period_values = {
         "quarter_1": (100, 10), "semiannual": (230, 25),
-        "nine_month": (390, 45), "annual": (550, 65),
+        "nine_month": (390, 45), "consolidated_annual": (550, 65),
     }
     dates = {
         "quarter_1": "2025-03-31", "semiannual": "2025-06-30",
-        "nine_month": "2025-09-30", "annual": "2025-12-31",
+        "nine_month": "2025-09-30", "consolidated_annual": "2025-12-31",
     }
     for period_type, (revenue, profit) in period_values.items():
         rows.extend([
@@ -172,9 +172,50 @@ def test_company_comparison_derives_standalone_quarters(monkeypatch):
     fourth = company_comparison.build_dashboard(
         object(), "2025", "revenue", False, "quarter_4"
     )
+    second_half = company_comparison.build_dashboard(
+        object(), "2025", "revenue", False, "second_half"
+    )
     assert next(item for item in second["items"] if item["name"] == "GKL")["revenue"] == 130.0
     assert next(item for item in third["items"] if item["name"] == "GKL")["revenue"] == 160.0
     assert next(item for item in fourth["items"] if item["name"] == "GKL")["revenue"] == 160.0
+    assert next(item for item in second_half["items"] if item["name"] == "GKL")["revenue"] == 320.0
+
+
+def test_company_comparison_keeps_annual_and_consolidated_scopes_separate(monkeypatch):
+    rows = [
+        {"company_name": "롯데관광개발", "account_code": "121000",
+         "fiscal_date": "2025-12-31", "period_type": "annual",
+         "amount": 276_220_000_000},
+        {"company_name": "롯데관광개발", "account_code": "125000",
+         "fiscal_date": "2025-12-31", "period_type": "annual",
+         "amount": -25_150_000_000},
+        {"company_name": "롯데관광개발", "account_code": "121000",
+         "fiscal_date": "2025-12-31", "period_type": "consolidated_annual",
+         "amount": 653_450_000_000},
+        {"company_name": "롯데관광개발", "account_code": "121000",
+         "fiscal_date": "2025-06-30", "period_type": "semiannual",
+         "amount": 300_000_000_000},
+    ]
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
+        lambda connection, start_year, end_year: rows,
+    )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: [],
+    )
+    annual = company_comparison.build_dashboard(
+        object(), "2025", "operating_profit", False, "annual"
+    )
+    second_half = company_comparison.build_dashboard(
+        object(), "2025", "revenue", False, "second_half"
+    )
+    annual_lotte = next(item for item in annual["items"] if item["name"] == "롯데관광개발")
+    half_lotte = next(item for item in second_half["items"] if item["name"] == "롯데관광개발")
+    assert annual_lotte["operating_profit"] == -251.5
+    assert half_lotte["revenue"] == 3534.5
+    assert annual["period"]["scope"] == "운영법인 기준"
+    assert second_half["period"]["label"] == "하반기(7~12월)"
 
 
 def test_company_comparison_mobile_overflow_is_contained():

@@ -54,12 +54,26 @@ METRICS = {
 }
 
 PERIODS = {
-    "annual": {"label": "연간", "source": "annual"},
-    "semiannual": {"label": "반기 누계", "source": "semiannual"},
-    "quarter_1": {"label": "1분기", "source": "quarter_1"},
-    "quarter_2": {"label": "2분기", "subtract": ("semiannual", "quarter_1")},
-    "quarter_3": {"label": "3분기", "subtract": ("nine_month", "semiannual")},
-    "quarter_4": {"label": "4분기", "subtract": ("annual", "nine_month")},
+    "annual": {"label": "연간", "source": "annual", "scope": "운영법인 기준"},
+    "semiannual": {
+        "label": "상반기(1~6월 누계)", "source": "semiannual", "scope": "연결 기준",
+    },
+    "second_half": {
+        "label": "하반기(7~12월)",
+        "subtract": ("consolidated_annual", "semiannual"),
+        "scope": "연결 기준",
+    },
+    "quarter_1": {"label": "1분기", "source": "quarter_1", "scope": "연결 기준"},
+    "quarter_2": {
+        "label": "2분기", "subtract": ("semiannual", "quarter_1"), "scope": "연결 기준",
+    },
+    "quarter_3": {
+        "label": "3분기", "subtract": ("nine_month", "semiannual"), "scope": "연결 기준",
+    },
+    "quarter_4": {
+        "label": "4분기", "subtract": ("consolidated_annual", "nine_month"),
+        "scope": "연결 기준",
+    },
 }
 
 ACCOUNT_METRICS = {

@@ -76,6 +76,36 @@ def test_national_pension_official_api_metrics(monkeypatch):
     assert item["source_url"] == salary_data.NPS_SOURCE_URL
 
 
+def test_nps_metrics_aggregate_multiple_workplaces_with_same_business_prefix(monkeypatch):
+    base_rows = []
+    for month_index, month in enumerate(("202506", "202606")):
+        for site_index, address in enumerate(("서울특별시 중구", "인천광역시 중구")):
+            base_rows.append({
+                "seq": month_index * 2 + site_index + 1,
+                "dataCrtYm": month,
+                "wkplNm": "주식회사 파라다이스",
+                "bzowrRgstNo": "203814****",
+                "wkplRoadNmDtlAddr": address,
+            })
+
+    def fake_request(operation, **params):
+        if operation == "getBassInfoSearchV2":
+            return base_rows
+        if operation == "getDetailInfoSearchV2":
+            return [{"jnngpCnt": 100, "crrmmNtcAmt": 90_000_000}]
+        if operation == "getPdAcctoSttusInfoSearchV2":
+            return [{"lssJnngpCnt": 1}]
+        raise AssertionError(operation)
+
+    monkeypatch.setattr(salary_data, "_nps_request", fake_request)
+    item = salary_data.fetch_employment_metrics(
+        salary_data.EMPLOYMENT_METRIC_SOURCES[0]
+    )
+    assert item["headcount"] == 200
+    assert item["headcount_growth_rate"] == 0.0
+    assert item["turnover_rate"] == 2.0
+
+
 def test_employment_metrics_use_central_repository(tmp_path):
     connection = schema.connect(tmp_path / "employment.db")
     queries.upsert_employment_metric_snapshot(connection, {

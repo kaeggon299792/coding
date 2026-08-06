@@ -1835,12 +1835,14 @@ def list_casino_market_share_financials(connection, start_year, end_year):
         WHERE report.statement_type = 'income_statement'
           AND value.account_code IN ('121000', '124001', '125000')
           AND value.period_type = 'annual'
+          AND report.source_filename NOT LIKE '%_consolidated_income_20260806.tsv'
           AND CAST(SUBSTR(value.fiscal_date, 1, 4) AS INTEGER) BETWEEN ? AND ?
           AND report.id = (
               SELECT newer.id
               FROM company_financial_reports AS newer
               WHERE newer.company_name = report.company_name
                 AND newer.statement_type = report.statement_type
+                AND newer.source_filename NOT LIKE '%_consolidated_income_20260806.tsv'
               ORDER BY newer.imported_at DESC, newer.id DESC
               LIMIT 1
           )
@@ -1860,6 +1862,29 @@ def list_casino_company_financials_by_period(connection, start_year, end_year):
         FROM company_financial_reports AS report
         JOIN company_financial_values AS value ON value.report_id = report.id
         WHERE report.statement_type = 'income_statement'
+          AND report.source_filename NOT LIKE '%_consolidated_income_20260806.tsv'
+          AND value.account_code IN ('121000', '124001', '125000')
+          AND value.period_type = 'annual'
+          AND CAST(SUBSTR(value.fiscal_date, 1, 4) AS INTEGER) BETWEEN ? AND ?
+          AND report.id = (
+              SELECT newer.id
+              FROM company_financial_reports AS newer
+              WHERE newer.company_name = report.company_name
+                AND newer.statement_type = report.statement_type
+                AND newer.source_filename NOT LIKE '%_consolidated_income_20260806.tsv'
+              ORDER BY newer.imported_at DESC, newer.id DESC
+              LIMIT 1
+          )
+        UNION ALL
+        SELECT report.company_name, value.account_code, value.fiscal_date,
+               CASE WHEN value.period_type = 'annual'
+                    THEN 'consolidated_annual'
+                    ELSE value.period_type END AS period_type,
+               value.amount
+        FROM company_financial_reports AS report
+        JOIN company_financial_values AS value ON value.report_id = report.id
+        WHERE report.statement_type = 'income_statement'
+          AND report.source_filename LIKE '%_consolidated_income_20260806.tsv'
           AND value.account_code IN ('121000', '124001', '125000')
           AND CAST(SUBSTR(value.fiscal_date, 1, 4) AS INTEGER) BETWEEN ? AND ?
           AND report.id = (
@@ -1867,12 +1892,13 @@ def list_casino_company_financials_by_period(connection, start_year, end_year):
               FROM company_financial_reports AS newer
               WHERE newer.company_name = report.company_name
                 AND newer.statement_type = report.statement_type
+                AND newer.source_filename LIKE '%_consolidated_income_20260806.tsv'
               ORDER BY newer.imported_at DESC, newer.id DESC
               LIMIT 1
           )
-        ORDER BY value.fiscal_date, report.company_name, value.account_code
+        ORDER BY fiscal_date, company_name, account_code
         """,
-        (int(start_year), int(end_year)),
+        (int(start_year), int(end_year), int(start_year), int(end_year)),
     ).fetchall()
     return [dict(row) for row in rows]
 

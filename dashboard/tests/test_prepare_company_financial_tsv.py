@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from dashboard_db import schema
+from dashboard_db import queries, schema
 from scripts.import_company_financials import import_financials
 from scripts.prepare_company_financial_tsv import parse_report
 
@@ -59,4 +59,18 @@ def test_supplied_consolidated_statements_import_to_central_database(tmp_path):
         """
     ).fetchone()[0]
     assert inspire_personnel == 0
+    comparison_rows = queries.list_casino_company_financials_by_period(
+        connection, 2023, 2026
+    )
+    assert any(
+        row["company_name"] == "GKL"
+        and row["period_type"] == "quarter_1"
+        and row["fiscal_date"] == "2026-03-31"
+        for row in comparison_rows
+    )
+    assert any(
+        row["company_name"] == "GKL"
+        and row["period_type"] == "consolidated_annual"
+        for row in comparison_rows
+    )
     connection.close()

@@ -20,14 +20,14 @@
   <p class="company-comparison-definition" role="note"><strong>{{ comparison.metric.label }}</strong> {{ comparison.metric.description }}</p>
 
   <section class="company-comparison-summary" aria-label="비교 요약">
-    <article><span>기본 비교 지표</span><strong>{{ comparison.metric.label }}</strong><small>{{ comparison.selected_year }}년 {{ comparison.period.label }}</small></article>
+    <article><span>기본 비교 지표</span><strong>{{ comparison.metric.label }}</strong><small>{{ comparison.selected_year }}년 {{ comparison.period.label }} · {{ comparison.period.scope }}</small></article>
     <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>{{ comparison.operator_count }}개 주요 법인 중{% if not comparison.include_kangwon %} · 강원랜드 제외{% endif %}</small></article>
     <article><span>{{ comparison.leader_label }}</span><strong>{% if comparison.leader %}{{ comparison.leader.name }}{% else %}-{% endif %}</strong><small>{% if comparison.leader %}{{ "{:,.1f}".format(comparison.leader.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</small></article>
     <article><span>중앙값</span><strong>{% if comparison.median is not none %}{{ "{:,.1f}".format(comparison.median) }}{% else %}-{% endif %}</strong><small>{{ comparison.metric.unit }}</small></article>
   </section>
 
   <section class="panel company-comparison-chart">
-    <header><div><span>01</span><h2>{{ comparison.metric.label }} 비교</h2></div><p>{{ comparison.selected_year }}년 {{ comparison.period.label }} · {{ comparison.metric.unit }}</p></header>
+    <header><div><span>01</span><h2>{{ comparison.metric.label }} 비교</h2></div><p>{{ comparison.selected_year }}년 {{ comparison.period.label }} · {{ comparison.period.scope }} · {{ comparison.metric.unit }}</p></header>
     <div class="company-comparison-bars">
       {% for item in comparison['items'] %}
       <article class="company-comparison-row{% if item.is_negative %} is-negative{% endif %}{% if item.metric_value is none %} is-empty{% endif %}">
@@ -63,6 +63,6 @@
       {% for item in comparison['items'] %}<tr><th scope="row">{{ item.name }}</th><td>{{ "{:,.1f}".format(item.revenue) if item.revenue is not none else '-' }}</td><td class="{% if item.operating_profit is not none and item.operating_profit < 0 %}is-negative{% endif %}">{{ "{:,.1f}".format(item.operating_profit) if item.operating_profit is not none else '-' }}</td><td class="{% if item.margin is not none and item.margin < 0 %}is-negative{% endif %}">{{ "{:.1f}%".format(item.margin) if item.margin is not none else '-' }}</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
-  <p class="company-comparison-note">파라다이스 연결 법인과 파라다이스시티 운영법인(파라다이스세가사미)을 구분합니다. 2·3·4분기는 반기·3분기 누계·연간 원문에서 앞선 누계를 차감해 계산합니다. 인건비는 연결 손익계산서의 총종업원급여, 인원은 중앙 DB에 저장된 국민연금 최신 가입자수를 사용합니다. 재무 기간과 인원 기준월이 다를 수 있으며, 원자료가 없는 값은 추정해 채우지 않습니다.</p>
+  <p class="company-comparison-note">연간은 기존 운영법인 실적, 상·하반기와 분기는 제공된 연결 손익계산서를 사용해 서로 섞지 않습니다. 하반기는 연간 연결 누계에서 상반기 누계를, 2·3·4분기는 각 직전 누계를 차감해 계산합니다. 2026년 자료가 있는 회사는 1분기 선택 시 표시하며, 원자료가 없는 값은 추정해 채우지 않습니다. 인건비는 연결 손익계산서의 총종업원급여, 인원은 중앙 DB에 저장된 국민연금 최신 가입자수를 사용합니다.</p>
 </main>
 {% endblock %}
