@@ -47,6 +47,7 @@ from services import (
     casino_market_share,
     casino_statistics,
     company_comparison,
+    company_expert,
     company_intelligence,
     content_translation,
     document_library,
@@ -60,6 +61,7 @@ from services import (
     overseas_news,
     official_document_manager,
     performance_parser,
+    portfolio_admin,
     rss_feed,
     salary_data,
     security_audit,
@@ -145,6 +147,7 @@ INDEXABLE_ENDPOINTS = {
     "fund_increase_scenario_page",
     "companies_page",
     "company_comparison_page",
+    "company_expert_page",
     "company_benefits_page",
     "company_news_page",
     "research_library_page",
@@ -159,6 +162,7 @@ NOINDEX_ENDPOINTS = {
     "auth.register",
     "auth.user_management",
     "auth.membership_management",
+    "auth.membership_user_detail",
     "auth.ai_settings",
     "auth.admin_logs",
     "auth.admin_tasks",
@@ -192,6 +196,7 @@ SITEMAP_STATIC_ENDPOINTS = (
     "disclosures_page", "laws_page", "legislation_page",
     "fund_increase_scenario_page", "companies_page",
     "company_comparison_page",
+    "company_expert_page",
     "company_benefits_page", "company_news_page", "research_library_page",
     "tips.list_page", "tips.sites_page", "tips.glossary_page", "credits_page",
 )
@@ -499,6 +504,7 @@ ENDPOINT_PERMISSIONS = {
     "fund_increase_scenario_page": "laws",
     "companies_page": "companies",
     "company_comparison_page": "companies",
+    "company_expert_page": "companies",
     "company_benefits_page": "companies",
     "company_recruitment_guide_page": "companies",
     "company_news_page": "companies",
@@ -531,6 +537,7 @@ PUBLIC_READ_ENDPOINTS = {
     "fund_increase_scenario_page",
     "companies_page",
     "company_comparison_page",
+    "company_expert_page",
     "company_benefits_page",
     "company_recruitment_guide_page",
     "company_news_page",
@@ -635,6 +642,7 @@ def _breadcrumb_schema(endpoint, locale, title, canonical_path):
         "holiday_calendar_page": ("시장 정보", "/market/casino-industry"),
         "companies_page": ("기업정보", "/companies"),
         "company_comparison_page": ("기업정보", "/companies"),
+        "company_expert_page": ("기업정보", "/companies"),
         "company_benefits_page": ("기업정보", "/companies"),
         "company_recruitment_guide_page": ("기업정보", "/companies"),
         "company_news_page": ("기업정보", "/companies"),
@@ -811,8 +819,6 @@ def establish_request_security():
 def apply_security_headers(response):
     nonce = getattr(g, "csp_nonce", "")
     frame_sources = "https://www.googletagmanager.com"
-    if request.endpoint == "admin_portfolio_page":
-        frame_sources += " https://www.shingoon.me"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "; ".join((
         "default-src 'self'",
@@ -1249,6 +1255,7 @@ def inject_globals():
         "fund_increase_scenario_page": "기금인상 시나리오",
         "companies_page": "주요 국내기업",
         "company_comparison_page": "기업 비교",
+        "company_expert_page": "전문정보",
         "company_benefits_page": "복리후생",
         "company_news_page": "기업별 뉴스",
         "research_library_page": "기업별 리포트",
@@ -1267,7 +1274,8 @@ def inject_globals():
         "auth.login": "로그인",
         "auth.register": "가입 신청",
         "auth.user_management": "관리자 페이지",
-        "auth.membership_management": "회원등급 관리",
+        "auth.membership_management": "회원관리",
+        "auth.membership_user_detail": "회원관리",
         "auth.ai_settings": "API 설정",
         "auth.admin_logs": "관리자 로그",
         "auth.admin_tasks": "자동화 작업 현황",
@@ -1378,6 +1386,7 @@ def _site_map_links():
             "children": [
                 {"label": "주요 국내기업", "endpoint": "companies_page"},
                 {"label": "기업 비교", "endpoint": "company_comparison_page"},
+                {"label": "전문정보", "endpoint": "company_expert_page"},
                 {"label": "복리후생", "endpoint": "company_benefits_page"},
                 {"label": "기업별 뉴스", "endpoint": "company_news_page"},
                 {"label": "기업별 공시", "endpoint": "disclosures_page"},
@@ -1451,7 +1460,7 @@ def _site_map_links():
             "endpoint": "paradian_portal_page",
             "children": [
                 {"label": "관리자 페이지", "endpoint": "auth.user_management"},
-                {"label": "회원등급 관리", "endpoint": "auth.membership_management"},
+                {"label": "회원관리", "endpoint": "auth.membership_management"},
                 {"label": "API 설정", "endpoint": "auth.ai_settings"},
                 {"label": "로그", "endpoint": "auth.admin_logs"},
                 {"label": "자동화 작업", "endpoint": "auth.admin_tasks"},
@@ -2500,8 +2509,55 @@ def paradian_portal_page():
 def admin_portfolio_page():
     return render_template(
         "admin_portfolio.html",
-        portfolio_admin_url="https://www.shingoon.me/admin",
+        files=portfolio_admin.list_files(),
+        csrf_token=get_csrf_token(),
+        success=request.args.get("success"), error=request.args.get("error"),
     )
+
+
+@app.post("/admin/portfolio/files")
+@admin_required
+def admin_portfolio_upload_file():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        return redirect(url_for("admin_portfolio_page", error="업로드할 파일을 선택해주세요."))
+    try:
+        record = portfolio_admin.save_upload(upload)
+    except ValueError as error:
+        return redirect(url_for("admin_portfolio_page", error=str(error)))
+    connection = dashboard_db()
+    try:
+        security_audit.log_event(
+            connection, "PORTFOLIO_FILE_UPLOADED", "portfolio_file", record["name"],
+            {"size": record["size"], "url": record["url"]},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("admin_portfolio_page", success=f"{record['name']} 업로드가 완료되었습니다."))
+
+
+@app.post("/admin/portfolio/files/delete")
+@admin_required
+def admin_portfolio_delete_file():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    filename = request.form.get("filename", "")
+    try:
+        portfolio_admin.delete_file(filename)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    connection = dashboard_db()
+    try:
+        security_audit.log_event(
+            connection, "PORTFOLIO_FILE_DELETED", "portfolio_file", filename,
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("admin_portfolio_page", success=f"{filename} 파일을 삭제했습니다."))
 
 
 # ============================================================
@@ -4585,6 +4641,20 @@ def company_comparison_page():
                 request.args.get("year"),
                 request.args.get("metric"),
                 request.args.get("include_kangwon") == "1",
+            ),
+        )
+    finally:
+        connection.close()
+
+
+@app.route("/companies/expert")
+def company_expert_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "company_expert.html",
+            dashboard=company_expert.build_dashboard(
+                connection, request.args.get("company")
             ),
         )
     finally:

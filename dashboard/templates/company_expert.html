@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}기업 전문정보{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}{% include "_data_subnav.html" %}
+<main class="page-container company-expert-page">
+  <header class="company-expert-hero"><div><p class="page-eyebrow">COMPANY INTELLIGENCE / VALUATION</p><h1 class="page-title">기업 전문정보</h1><p class="page-description">주요 카지노 기업의 시장 멀티플을 과거 5년 및 산업 중앙값과 같은 기준으로 비교합니다.</p></div>{% if dashboard.as_of %}<time datetime="{{ dashboard.as_of }}">기준일 {{ dashboard.as_of }}</time>{% endif %}</header>
+  <nav class="company-expert-tabs" aria-label="기업 선택">{% for code, name in dashboard.companies.items() %}<a href="{{ url_for('company_expert_page', company=code) }}"{% if code == dashboard.selected_company %} class="active" aria-current="page"{% endif %}>{{ name }}</a>{% endfor %}</nav>
+  <section class="company-expert-summary"><span>SELECTED COMPANY</span><h2>{{ dashboard.selected_company_name }}</h2><p>현재 멀티플과 5Y 중앙값·산업 중앙값·예상 멀티플을 함께 확인합니다.</p></section>
+  <section class="company-expert-grid">{% for metric in dashboard.metrics %}<article class="company-expert-card">
+    <header><div><span>{{ '%02d'|format(loop.index) }}</span><h3>{{ metric.label }}</h3></div><strong>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</strong></header>
+    <div class="company-expert-signals"><span>5년 대비 <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 대비 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
+    <dl>{% for field, label in dashboard.fields if field != 'current' %}<div><dt>{{ label }}</dt><dd>{{ '%.2f'|format(metric[field]) if metric[field] is not none else 'N/A' }}</dd></div>{% endfor %}</dl>
+  </article>{% endfor %}</section>
+  <p class="company-expert-note">멀티플은 특정 기준일의 시장 데이터이며 투자 판단을 보장하지 않습니다. N/A는 제공 데이터가 없고, NM은 계산상 유의미하지 않은 상태를 뜻하며 화면에서는 N/A로 표시합니다.</p>
+</main>
+{% endblock %}

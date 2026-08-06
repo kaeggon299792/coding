@@ -111,9 +111,17 @@ def test_membership_admin_page_requires_admin_and_renders(monkeypatch, tmp_path)
         response = client.get("/admin/membership")
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert "회원등급 관리" in html
+        assert "회원관리" in html
+        assert "가입일" in html
+        assert "최종 로그인" in html
         assert "게시판별 등급 권한" in html
         assert "membership-user" in html
+        detail = client.get(f"/admin/membership/users/{user_id}")
+        assert detail.status_code == 200
+        detail_html = detail.get_data(as_text=True)
+        assert "회원 등급 조정" in detail_html
+        assert "membership-user" in detail_html
+        assert client.get("/admin/membership/users/999999").status_code == 404
         assert client.post(
             f"/admin/membership/users/{user_id}",
             data={"membership_level": "platinum"},
@@ -124,6 +132,7 @@ def test_membership_admin_page_requires_admin_and_renders(monkeypatch, tmp_path)
             follow_redirects=False,
         )
         assert changed.status_code == 302
+        assert f"/admin/membership/users/{user_id}" in changed.headers["Location"]
 
     connection = schema.connect(str(db_path))
     assert connection.execute(

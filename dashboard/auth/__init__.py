@@ -1521,7 +1521,7 @@ def membership_management():
             dict(row) for row in connection.execute(
                 """
                 SELECT id, username, name, email, picture_url, role, is_active,
-                       approval_status, membership_level
+                       approval_status, membership_level, created_at, last_login_at
                 FROM dashboard_users
                 WHERE COALESCE(approval_status, 'approved') != 'deleted'
                 ORDER BY role='admin' DESC, is_active DESC, username
@@ -1536,6 +1536,33 @@ def membership_management():
             csrf_token=get_csrf_token(),
             success=request.args.get("success"),
             error=request.args.get("error"),
+        )
+    finally:
+        connection.close()
+
+
+@auth_bp.get("/admin/membership/users/<int:user_id>")
+@admin_required
+def membership_user_detail(user_id):
+    connection = dashboard_db()
+    try:
+        row = connection.execute(
+            """
+            SELECT id, username, name, email, picture_url, role, is_active,
+                   approval_status, membership_level, created_at, updated_at,
+                   last_login_at, password_changed_at, landing_page,
+                   deletion_requested_at, deletion_scheduled_at
+            FROM dashboard_users
+            WHERE id=? AND COALESCE(approval_status, 'approved') != 'deleted'
+            """,
+            (user_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+        return render_template(
+            "membership_user_detail.html", user=dict(row),
+            grades=membership.list_grades(connection), csrf_token=get_csrf_token(),
+            success=request.args.get("success"), error=request.args.get("error"),
         )
     finally:
         connection.close()
@@ -1559,7 +1586,7 @@ def update_membership_user(user_id):
             )
         except ValueError as error:
             connection.rollback()
-            return redirect(url_for("auth.membership_management", error=str(error)))
+            return redirect(url_for("auth.membership_user_detail", user_id=user_id, error=str(error)))
         security_audit.log_event(
             connection, "MEMBERSHIP_GRADE_UPDATED", "dashboard_user", user_id,
             {
@@ -1571,7 +1598,7 @@ def update_membership_user(user_id):
         connection.commit()
     finally:
         connection.close()
-    return redirect(url_for("auth.membership_management", success="회원등급을 변경했습니다."))
+    return redirect(url_for("auth.membership_user_detail", user_id=user_id, success="회원등급을 변경했습니다."))
 
 
 @auth_bp.post("/admin/membership/boards/<string:board_key>")

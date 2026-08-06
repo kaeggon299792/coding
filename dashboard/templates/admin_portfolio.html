@@ -3,16 +3,32 @@
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container admin-portfolio-page">
-  <header class="admin-portfolio-heading">
-    <div>
-      <p class="page-eyebrow">Administration / Portfolio</p>
-      <h1 class="page-title">포트폴리오 관리</h1>
-      <p class="page-description">CASINO IN 관리자 계정으로 포트폴리오 콘텐츠와 외부 링크 파일을 같은 관리자 영역에서 관리합니다.</p>
-    </div>
-  </header>
-  <p class="admin-portfolio-note">보안을 위해 포트폴리오 관리 세션은 CASINO IN 세션과 분리됩니다. 처음 한 번 동일한 CASINO IN 관리자 아이디와 비밀번호를 확인합니다.</p>
-  <section class="admin-portfolio-shell" aria-label="포트폴리오 관리 도구">
-    <iframe src="{{ portfolio_admin_url }}" title="포트폴리오 관리" loading="eager" referrerpolicy="no-referrer"></iframe>
+  <header class="admin-portfolio-heading"><div><p class="page-eyebrow">ADMINISTRATION / PORTFOLIO</p><h1 class="page-title">포트폴리오 관리</h1><p class="page-description">CASINO IN 관리자 인증으로 포트폴리오의 외부 공개 파일을 직접 관리합니다.</p></div></header>
+  {% if success %}<div class="alert success" role="status">{{ success }}</div>{% endif %}{% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+
+  <section class="admin-portfolio-overview">
+    <article><span>관리 방식</span><strong>CASINO IN 통합</strong><small>별도 포트폴리오 로그인 없음</small></article>
+    <article><span>공개 파일</span><strong>{{ files|length }}개</strong><small>shingoon.me / Sharepoint</small></article>
+    <article><span>관리자 계정</span><strong>{{ current_username }}</strong><small>비밀번호 변경 시 포트폴리오에도 즉시 적용</small></article>
+  </section>
+
+  <section class="admin-portfolio-panel">
+    <header><div><span>01 / EXTERNAL FILES</span><h2>외부 링크 파일</h2></div><p>이미지·문서 파일을 업로드하면 외부에서 사용할 수 있는 HTTPS 링크를 생성합니다.</p></header>
+    <form class="admin-portfolio-upload" method="post" action="{{ url_for('admin_portfolio_upload_file') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>새 파일</span><input type="file" name="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.docx,.xlsx,.pptx,.zip" required><small>최대 20MB · 안전성 및 확장자 검사 후 저장</small></label>
+      <button class="btn btn-primary" type="submit">업로드하고 링크 생성</button>
+    </form>
+    <div class="table-scroll-wrap"><table class="data-table admin-portfolio-files"><thead><tr><th>파일명</th><th>형식</th><th>크기</th><th>외부 링크</th><th>관리</th></tr></thead><tbody>
+      {% for file in files %}<tr><td>{{ file.name }}</td><td>{{ file.content_type }}</td><td>{{ '%.1f'|format(file.size / 1024) }} KB</td><td><div class="admin-portfolio-link"><input type="text" value="{{ file.url }}" readonly aria-label="{{ file.name }} 외부 링크"><button class="btn btn-secondary" type="button" data-copy-link="{{ file.url }}">복사</button></div></td><td><form method="post" action="{{ url_for('admin_portfolio_delete_file') }}" onsubmit="return confirm('이 공개 파일을 삭제할까요? 외부 링크가 즉시 끊어집니다.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="filename" value="{{ file.name }}"><button class="btn btn-danger" type="submit">삭제</button></form></td></tr>
+      {% else %}<tr><td colspan="5" class="empty-state">업로드된 외부 링크 파일이 없습니다.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="admin-portfolio-panel admin-portfolio-account">
+    <header><div><span>02 / ACCOUNT</span><h2>관리자 계정 연동</h2></div><p>포트폴리오는 현재 CASINO IN의 활성 Black 관리자 계정을 사용합니다.</p></header>
+    <div><p>관리자 비밀번호 변경은 CASINO IN 계정 관리에서 수행합니다. 변경 즉시 포트폴리오의 기존 관리자 세션도 무효화됩니다.</p><a class="btn btn-secondary" href="{{ url_for('auth.user_management') }}">계정 관리 열기 →</a></div>
   </section>
 </main>
+<script nonce="{{ csp_nonce }}">document.querySelectorAll('[data-copy-link]').forEach(function(button){button.addEventListener('click',async function(){try{await navigator.clipboard.writeText(button.dataset.copyLink);var old=button.textContent;button.textContent='복사됨';setTimeout(function(){button.textContent=old},1400)}catch(error){var input=button.parentElement.querySelector('input');input.select();document.execCommand('copy')}})});</script>
 {% endblock %}

@@ -1,4 +1,5 @@
 import hashlib
+import io
 import re
 import sqlite3
 from datetime import timedelta
@@ -278,7 +279,7 @@ def test_webgl_bundle_is_limited_to_home(account_client):
     assert "casino-wave-webgl-v2.js" not in login
 
 
-def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):
+def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, monkeypatch, tmp_path):
     client, db_path = account_client
     _login(client)
     assert client.get("/admin").status_code == 403
@@ -294,14 +295,35 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):
         follow_redirects=False,
     )
     assert response.status_code == 302
+    sharepoint_dir = tmp_path / "sharepoint"
+    monkeypatch.setattr("config.PORTFOLIO_SHAREPOINT_DIR", str(sharepoint_dir))
     portfolio = client.get("/admin/portfolio")
     assert portfolio.status_code == 200
     portfolio_html = portfolio.get_data(as_text=True)
     assert "포트폴리오 관리" in portfolio_html
-    assert 'src="https://www.shingoon.me/admin"' in portfolio_html
-    assert "frame-src https://www.googletagmanager.com https://www.shingoon.me" in (
-        portfolio.headers["Content-Security-Policy"]
+    assert "외부 링크 파일" in portfolio_html
+    assert 'src="https://www.shingoon.me/admin"' not in portfolio_html
+    assert "https://www.shingoon.me" not in portfolio.headers["Content-Security-Policy"]
+    csrf_token = _csrf(client, "/admin/portfolio")
+    uploaded = client.post(
+        "/admin/portfolio/files",
+        data={
+            "csrf_token": csrf_token,
+            "file": (io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"x" * 20), "sample.png"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
     )
+    assert uploaded.status_code == 200
+    assert "sample.png" in uploaded.get_data(as_text=True)
+    assert (sharepoint_dir / "sample.png").is_file()
+    deleted = client.post(
+        "/admin/portfolio/files/delete",
+        data={"csrf_token": _csrf(client, "/admin/portfolio"), "filename": "sample.png"},
+        follow_redirects=True,
+    )
+    assert deleted.status_code == 200
+    assert not (sharepoint_dir / "sample.png").exists()
 
     from utils import now_kst
 

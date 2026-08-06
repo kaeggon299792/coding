@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_membership_badge.html" import identity %}
+{% block title %}{{ user.name or user.username }} 회원관리 | CASINO IN{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% set grade = (grades|selectattr('code', 'equalto', user.membership_level)|list|first) %}
+<main class="page-shell membership-admin-page membership-detail-page">
+  <header class="page-heading membership-heading"><p class="eyebrow">ADMINISTRATION / MEMBER DETAIL</p><div><div><h1>{{ user.name or user.username }}</h1><p>회원 기본 정보와 접속 상태를 확인하고 등급을 조정합니다.</p></div><a class="btn btn-secondary" href="{{ url_for('auth.membership_management') }}">← 회원 목록</a></div></header>
+  {% if success %}<div class="alert success" role="status">{{ success }}</div>{% endif %}{% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+  <section class="membership-detail-card"><div class="membership-detail-identity">{{ identity(user.username, user.name, user.picture_url, (grade.icon_path if grade else 'img/membership/gold.svg'), (grade.label if grade else 'Gold'), false) }}<div><h2>{{ user.name or '이름 미등록' }}</h2><p>{{ user.username }} · {{ user.email or '이메일 미등록' }}</p></div></div>
+    <dl class="membership-detail-facts"><div><dt>가입일</dt><dd>{{ (user.created_at or '-')|replace('T',' ') }}</dd></div><div><dt>최종 로그인</dt><dd>{{ (user.last_login_at or '-')|replace('T',' ') }}</dd></div><div><dt>역할</dt><dd>{{ '관리자' if user.role == 'admin' else '일반 회원' }}</dd></div><div><dt>계정 상태</dt><dd>{{ '사용 중' if user.is_active and user.approval_status == 'approved' else user.approval_status }}</dd></div><div><dt>로그인 방식</dt><dd>{{ 'Google 연동' if user.email else '아이디·비밀번호' }}</dd></div><div><dt>기본 시작 화면</dt><dd>{{ user.landing_page or 'dashboard' }}</dd></div></dl>
+  </section>
+  <section class="membership-section"><header><p class="section-number">01 / MEMBERSHIP</p><h2>회원 등급 조정</h2><p>가입 회원의 기본 등급은 Gold이며 관리자 역할은 Black으로 고정됩니다.</p></header>
+    <form class="membership-detail-form" method="post" action="{{ url_for('auth.update_membership_user', user_id=user.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>회원 등급</span><select name="membership_level"{% if user.role == 'admin' %} disabled{% endif %}>{% for option in grades %}{% if option.code != 'black' or user.role == 'admin' %}<option value="{{ option.code }}"{% if (user.role == 'admin' and option.code == 'black') or (user.role != 'admin' and option.code == user.membership_level) %} selected{% endif %}>{{ option.label }} ({{ option.code|capitalize }}) — {{ option.description }}</option>{% endif %}{% endfor %}</select></label>{% if user.role == 'admin' %}<input type="hidden" name="membership_level" value="black"><span class="membership-locked">관리자 계정은 Black 등급으로 고정됩니다.</span>{% else %}<button class="btn btn-primary" type="submit">등급 저장</button>{% endif %}</form>
+    <p class="membership-detail-help">활성화, 승인, 메뉴 권한 및 계정 삭제 등 보안 관련 설정은 <a href="{{ url_for('auth.user_management') }}">계정 관리</a>에서 변경할 수 있습니다.</p>
+  </section>
+</main>
+{% endblock %}

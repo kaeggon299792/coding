@@ -1,0 +1,75 @@
+"""Company valuation multiples backed by the central source-data tables."""
+
+COMPANIES = {
+    "paradise": "파라다이스",
+    "lotte_tour": "롯데관광개발",
+    "gkl": "GKL",
+    "kangwon_land": "강원랜드",
+}
+METRICS = (
+    ("per", "PER"), ("pbr", "PBR"), ("psr", "PSR"),
+    ("p_fcf", "P/FCF"), ("p_ocf", "P/OCF"),
+    ("ev_ebitda", "EV/EBITDA"), ("ev_sales", "EV/Sales"),
+    ("ev_ebit", "EV/EBIT"), ("ev_ebitda_capex", "EV/(EBITDA-CapEx)"),
+    ("ev_nopat", "EV/NOPAT"), ("ev_ic", "EV/IC"),
+    ("peg_1y", "PEG Ratio +1Y"), ("peg_2y", "PEG Ratio +2Y"),
+    ("peg_3y", "PEG Ratio +3Y"),
+)
+FIELDS = (
+    ("current", "현재"), ("median_5y", "5Y 중앙값"),
+    ("average_5y", "5Y 평균"), ("industry_median", "산업 중앙값"),
+    ("ntm", "NTM"), ("fy1", "FY+1"), ("fy2", "FY+2"),
+)
+PREFIX = "company_expert."
+
+
+def _comparison(current, benchmark):
+    if current is None or benchmark is None:
+        return "-"
+    difference = current - benchmark
+    if abs(difference) < 0.000001:
+        return "유사"
+    return "낮음" if difference < 0 else "높음"
+
+
+def build_dashboard(connection, selected_company=None):
+    selected_company = selected_company if selected_company in COMPANIES else "paradise"
+    rows = connection.execute(
+        """
+        SELECT s.series_key, p.value, p.observation_date, p.updated_at
+        FROM source_data_series s
+        JOIN source_data_points p ON p.series_key=s.series_key
+        WHERE s.is_active=1 AND s.series_key LIKE ?
+          AND p.observation_date=(
+            SELECT MAX(p2.observation_date) FROM source_data_points p2
+            WHERE p2.series_key=p.series_key
+          )
+        """,
+        (f"{PREFIX}%",),
+    ).fetchall()
+    values = {}
+    latest_date = None
+    for row in rows:
+        parts = row["series_key"].split(".")
+        if len(parts) != 4:
+            continue
+        _, company, metric, field = parts
+        values[(company, metric, field)] = row["value"]
+        latest_date = max(latest_date or row["observation_date"], row["observation_date"])
+    metrics = []
+    for metric_code, label in METRICS:
+        record = {
+            field: values.get((selected_company, metric_code, field))
+            for field, _ in FIELDS
+        }
+        record.update({
+            "code": metric_code, "label": label,
+            "vs_5y": _comparison(record["current"], record["median_5y"]),
+            "vs_industry": _comparison(record["current"], record["industry_median"]),
+        })
+        metrics.append(record)
+    return {
+        "companies": COMPANIES, "selected_company": selected_company,
+        "selected_company_name": COMPANIES[selected_company],
+        "metrics": metrics, "fields": FIELDS, "as_of": latest_date,
+    }

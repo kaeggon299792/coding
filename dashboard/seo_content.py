@@ -14,6 +14,10 @@ LOCALIZED_SEO_PAGE_COPY = {
             "카지노 운영사 기업 비교 | Casino IN",
             "주요 카지노 운영사의 매출액, 영업이익, 영업이익률을 연도별로 비교합니다.",
         ),
+        "company_expert_page": (
+            "카지노 기업 밸류에이션 전문정보 | Casino IN",
+            "주요 카지노 기업의 PER, PBR, EV/EBITDA 등 시장 멀티플을 과거 5년과 산업 중앙값 기준으로 비교합니다.",
+        ),
         "company_benefits_page": (
             "카지노 기업 복리후생 비교 | Casino IN",
             "파라다이스, GKL, 강원랜드, 롯데관광개발 등 카지노 기업의 복지제도, 지원 금액·수준, 비고와 종료 이력을 비교합니다.",
@@ -35,6 +39,10 @@ LOCALIZED_SEO_PAGE_COPY = {
         "company_comparison_page": (
             "Casino Operator Financial Comparison | Casino IN",
             "Compare annual revenue, operating profit, and operating margin across major Korean casino operators.",
+        ),
+        "company_expert_page": (
+            "Casino Company Valuation Multiples | Casino IN",
+            "Compare PER, PBR, EV/EBITDA, and other valuation multiples against five-year and industry benchmarks.",
         ),
         "company_benefits_page": (
             "Casino Company Employee Benefits | Casino IN",
@@ -72,6 +80,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "fund_increase_scenario_page": ("観光振興開発基金の引上げシナリオ | Casino IN", "2025年の財務データを基に、観光振興開発基金が売上高の10%から15%へ引き上げられた場合の営業利益への影響を比較します。"),
         "companies_page": ("韓国カジノ企業の比較分析 | Casino IN", "パラダイス、GKL、カンウォンランド、ロッテ観光開発について、企業概要、財務、信用格付け、ニュースを比較します。"),
         "company_comparison_page": ("韓国カジノ運営会社の財務比較 | Casino IN", "韓国の主要カジノ運営会社について、売上高、営業利益、営業利益率を年度別に比較します。"),
+        "company_expert_page": ("韓国カジノ企業のバリュエーション指標 | Casino IN", "主要カジノ企業のPER、PBR、EV/EBITDAなどを過去5年および業界中央値と比較します。"),
         "company_benefits_page": ("カジノ企業の福利厚生比較 | Casino IN", "韓国カジノ企業の福利厚生制度、支援金額・水準、備考、終了した制度の履歴を企業別に比較します。"),
         "company_news_page": ("カジノ企業別ニュース | Casino IN", "韓国の主要カジノ企業ニュースを企業、重要度、影響、AI分析カテゴリー別に比較します。"),
         "research_library_page": ("カジノ市場レポート・分析資料 | Casino IN", "証券会社レポート、産業調査資料、IR文書、AI分析を通じてカジノ市場の主要論点を確認できます。"),
@@ -103,6 +112,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "fund_increase_scenario_page": ("旅遊振興發展基金上調情境｜Casino IN", "根據2025年財務數據，比較旅遊振興發展基金由收入10%上調至15%時對營業溢利的影響。"),
         "companies_page": ("南韓賭場企業比較分析｜Casino IN", "比較Paradise、GKL、江原樂園及樂天觀光開發的公司概況、財務、信貸評級和新聞。"),
         "company_comparison_page": ("南韓賭場營運商財務比較｜Casino IN", "按年度比較南韓主要賭場營運商的收入、營業溢利及營業利潤率。"),
+        "company_expert_page": ("南韓賭場企業估值指標｜Casino IN", "比較主要賭場企業的市盈率、市帳率、EV/EBITDA及其他估值倍數與五年和行業中位數。"),
         "company_benefits_page": ("賭場企業員工福利比較｜Casino IN", "比較南韓賭場企業的員工福利、津貼金額或水平、備註及已終止福利的紀錄。"),
         "company_news_page": ("賭場企業分類新聞｜Casino IN", "按公司、重要程度、影響及AI分析分類，比較南韓主要賭場企業新聞。"),
         "research_library_page": ("賭場市場報告及分析資料｜Casino IN", "查看證券行報告、產業研究、投資者關係文件及AI分析，掌握賭場市場重點。"),
