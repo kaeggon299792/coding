@@ -25,7 +25,7 @@
     <a href="{{ url_for('tips.glossary_page') }}"{% if request.endpoint in ('tips.glossary_page', 'tips.edit_glossary_page', 'tips.delete_glossary_page') %} class="active" aria-current="page"{% endif %}>카지노 용어집</a>
     <a href="{{ url_for('source_download_page') }}"{% if request.endpoint == 'source_download_page' %} class="active" aria-current="page"{% endif %}>원천 데이터 다운{% if not current_username %} <span aria-label="{{ t('로그인 필요') }}">⌑</span>{% endif %}</a>
   {% elif request.endpoint in market_endpoints %}
-    <a href="{{ url_for('casino_industry_page') }}"{% if request.endpoint in ('casino_industry_page', 'casino_market_share_page', 'casino_visitors_page', 'casino_revenue_page', 'casino_fund_page') %} class="active" aria-current="page"{% endif %}>국내 카지노 산업</a>
+    <a href="{{ url_for('casino_industry_page') }}"{% if request.endpoint in ('casino_industry_page', 'casino_insights_page', 'casino_market_share_page', 'casino_visitors_page', 'casino_revenue_page', 'casino_fund_page') %} class="active" aria-current="page"{% endif %}>국내 카지노 산업</a>
     <a href="{{ url_for('market_trend_page') }}"{% if request.endpoint == 'market_trend_page' %} class="active" aria-current="page"{% endif %}>주가 정보</a>
     <a href="{{ url_for('tourism_trend_page') }}"{% if request.endpoint == 'tourism_trend_page' %} class="active" aria-current="page"{% endif %}>관광객 추이</a>
     <a href="{{ url_for('economic_trend_page') }}"{% if request.endpoint == 'economic_trend_page' %} class="active" aria-current="page"{% endif %}>환율·유가</a>

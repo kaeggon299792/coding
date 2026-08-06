@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}카지노 인사이트{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+{% include "_data_subnav.html" %}
+{% include "_casino_subnav.html" %}
+<main class="page-container casino-insights-page">
+  <header class="page-header casino-insights-hero">
+    <div>
+      <p class="page-eyebrow">DATA / CASINO INDUSTRY / INSIGHTS</p>
+      <h1 class="page-title">카지노 인사이트</h1>
+      <p class="page-description">매출·드롭액·홀드율·입장객과 관광 데이터를 결합해 시장의 흐름을 쉽게 읽을 수 있는 지표로 보여줍니다.</p>
+    </div>
+    {% if insights.latest_period %}<div class="casino-insights-period"><span>최신 운영지표</span><strong>{{ insights.latest_period }}</strong></div>{% endif %}
+  </header>
+
+  {% if not insights.has_data %}
+  <section class="panel casino-insights-empty">
+    <h2>분석할 운영지표가 없습니다.</h2>
+    <p>중앙 데이터 저장소에 EPIC 카지노 운영지표를 반영하면 자동으로 계산됩니다.</p>
+  </section>
+  {% else %}
+  <section class="casino-insights-kpis" aria-label="핵심 지표">
+    <article><span>이번 달 1위</span><strong>{{ insights.ranking[0].name }}</strong><small>흥행지수 {{ insights.ranking[0].score }}점</small></article>
+    <article><span>관광객 카지노 전환율</span><strong>{{ insights.visitor_conversion }}%</strong><small>2025 외래객 대비 이용객</small></article>
+    <article><span>관광 외화수입 내 카지노</span><strong>{{ insights.tourism_fx_share }}%</strong><small>2025 카지노 외화수입 비중</small></article>
+    <article><span>기금 부담지수</span><strong>{{ insights.fund.index_2019 if insights.fund.index_2019 is not none else '—' }}</strong><small>2019년=100</small></article>
+  </section>
+
+  <section class="panel casino-insights-section" id="popularity-index">
+    <header class="casino-insights-heading"><div><span>01 / POPULARITY INDEX</span><h2>카지노 흥행지수와 월간 파워랭킹</h2></div><p>매출 35%·드롭액 25%·입장객 25%·홀드율 안정성 15%. 없는 항목은 남은 지표의 비중을 다시 나눕니다.</p></header>
+    <div class="casino-ranking-grid">
+      {% for item in insights.ranking %}
+      <article class="casino-ranking-card rank-{{ item.rank }}">
+        <div class="casino-ranking-title"><span>0{{ item.rank }}</span><div><h3>{{ item.name }}</h3><small>{{ item.period }} 기준</small></div><b>{{ item.status }}</b></div>
+        <strong class="casino-ranking-score">{{ item.score }}<small>/100</small></strong>
+        <div class="casino-score-track" aria-label="흥행지수 {{ item.score }}점"><i style="width:{{ item.score_width }}%"></i></div>
+        <dl>
+          <div><dt>매출 YoY</dt><dd class="{% if item.revenue_yoy is not none and item.revenue_yoy >= 0 %}is-up{% else %}is-down{% endif %}">{{ '%+.1f'|format(item.revenue_yoy) if item.revenue_yoy is not none else '—' }}{% if item.revenue_yoy is not none %}%{% endif %}</dd></div>
+          <div><dt>드롭 YoY</dt><dd class="{% if item.drop_yoy is not none and item.drop_yoy >= 0 %}is-up{% else %}is-down{% endif %}">{{ '%+.1f'|format(item.drop_yoy) if item.drop_yoy is not none else '—' }}{% if item.drop_yoy is not none %}%{% endif %}</dd></div>
+          <div><dt>입장객 YoY</dt><dd>{{ '%+.1f'|format(item.visitor_yoy) ~ '%' if item.visitor_yoy is not none else '미제공' }}</dd></div>
+        </dl>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="casino-insights-split">
+    <section class="panel casino-insights-section" id="revenue-per-visitor">
+      <header class="casino-insights-heading"><div><span>02 / SPEND PER VISITOR</span><h2>방문객 1인당 매출</h2></div><p>월 매출을 같은 달 입장객으로 나눈 단순 객단가입니다.</p></header>
+      <div class="casino-simple-list">
+        {% for item in insights.visitor_rows %}
+        <article><div><strong>{{ item.name }}</strong><small>{{ item.period }}</small></div><b>{{ "{:,.0f}".format(item.spend_per_visitor) }}원</b><span class="{% if item.spend_yoy is not none and item.spend_yoy >= 0 %}is-up{% else %}is-down{% endif %}">{{ '%+.1f'|format(item.spend_yoy) if item.spend_yoy is not none else '—' }}{% if item.spend_yoy is not none %}% YoY{% endif %}</span></article>
+        {% endfor %}
+      </div>
+      <p class="casino-insights-note">파라다이스는 동일 범위의 월별 입장객 원천 데이터가 없어 제외됩니다.</p>
+    </section>
+
+    <section class="panel casino-insights-section" id="luck-index">
+      <header class="casino-insights-heading"><div><span>03 / HOLD TEMPERATURE</span><h2>카지노 운 지수</h2></div><p>최신 홀드율을 최근 12개월 평균과 비교합니다.</p></header>
+      <div class="casino-hold-list">
+        {% for item in insights.ranking %}
+        <article class="{% if item.hold_gap is not none and item.hold_gap > 0 %}is-house{% elif item.hold_gap is not none and item.hold_gap < 0 %}is-player{% endif %}"><div><strong>{{ item.name }}</strong><small>{{ item.luck_status }}</small></div><b>{{ item.hold if item.hold is not none else '—' }}{% if item.hold is not none %}%{% endif %}</b><span>{{ '%+.1f'|format(item.hold_gap) if item.hold_gap is not none else '—' }}{% if item.hold_gap is not none %}%p{% endif %}</span></article>
+        {% endfor %}
+      </div>
+      <p class="casino-insights-note">홀드율은 단기 변동성이 커 경영성과나 실력 평가로 해석하지 않습니다.</p>
+    </section>
+  </div>
+
+  <section class="panel casino-insights-section" id="growth-quality">
+    <header class="casino-insights-heading"><div><span>04 / GROWTH QUALITY</span><h2>매출 성장의 질</h2></div><p>전년 동월 매출 증감을 방문객 효과와 1인당 매출 효과로 분해합니다.</p></header>
+    <div class="casino-quality-grid">
+      {% for item in insights.quality_rows %}
+      <article><h3>{{ item.name }}</h3><div class="casino-quality-total"><span>매출 성장률</span><strong>{{ '%+.1f'|format(item.quality.revenue_growth) }}%</strong></div><div class="casino-quality-parts"><div><span>방문객 효과</span><b>{{ '%+.1f'|format(item.quality.visitor_effect) }}%p</b></div><i>+</i><div><span>객단가 효과</span><b>{{ '%+.1f'|format(item.quality.spend_effect) }}%p</b></div></div></article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel casino-insights-section" id="vip-demand">
+    <header class="casino-insights-heading"><div><span>05 / NATIONALITY DEMAND</span><h2>국적별 VIP 수요지수</h2></div><p>파라다이스 VIP 드롭액과 같은 국적의 한국 입국자 전년 대비 흐름을 함께 봅니다.</p></header>
+    <div class="casino-nationality-grid">
+      {% for item in insights.nationality %}
+      <article><div class="casino-nationality-head"><h3>{{ item.name }}</h3><strong>{{ item.score if item.score is not none else '—' }}<small>/100</small></strong></div><div class="casino-score-track"><i style="width:{{ item.score_width }}%"></i></div><dl><div><dt>VIP 드롭액 · {{ item.vip_period }}</dt><dd>{{ "{:,.0f}".format(item.vip_drop) if item.vip_drop is not none else '—' }} 백만원 <em>{{ '%+.1f'|format(item.vip_yoy) ~ '%' if item.vip_yoy is not none else '' }}</em></dd></div><div><dt>한국 입국자 · {{ item.arrival_period }}</dt><dd>{{ "{:,.0f}".format(item.arrivals) if item.arrivals is not none else '—' }}명 <em>{{ '%+.1f'|format(item.arrival_yoy) ~ '%' if item.arrival_yoy is not none else '' }}</em></dd></div></dl></article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="casino-insights-split">
+    <section class="panel casino-insights-section" id="conversion">
+      <header class="casino-insights-heading"><div><span>06 / CONVERSION</span><h2>관광객의 카지노 전환율</h2></div><p>한국을 방문한 외래객 중 외국인전용 카지노를 이용한 비율입니다.</p></header>
+      <div class="casino-big-number"><strong>{{ insights.visitor_conversion }}%</strong><span>2025년</span></div>
+      <a class="btn btn-secondary" href="{{ url_for('casino_visitors_page') }}">장기 추이 보기 →</a>
+    </section>
+    <section class="panel casino-insights-section" id="fund-burden">
+      <header class="casino-insights-heading"><div><span>07 / FUND BURDEN</span><h2>기금 부담 체감지수</h2></div><p>카지노 관광진흥개발기금 총액의 2019년 대비 수준입니다.</p></header>
+      <div class="casino-big-number"><strong>{{ insights.fund.index_2019 if insights.fund.index_2019 is not none else '—' }}</strong><span>2019=100 · {{ insights.fund.year }}</span></div>
+      <dl class="casino-fund-share"><div><dt>외국인전용 비중</dt><dd>{{ insights.fund.foreign_share }}%</dd></div><div><dt>전년 대비 총액</dt><dd>{{ '%+.1f'|format(insights.fund.yoy) if insights.fund.yoy is not none else '—' }}{% if insights.fund.yoy is not none %}%{% endif %}</dd></div></dl>
+      <a class="btn btn-secondary" href="{{ url_for('casino_fund_page') }}">기금 부과 현황 →</a>
+    </section>
+  </div>
+
+  <section class="panel casino-insights-section" id="recovery">
+    <header class="casino-insights-heading"><div><span>08 / KOREA VS MACAO</span><h2>한국 vs 마카오 회복 온도계</h2></div><p>각 지표의 2019년 동일 월을 100으로 환산합니다. 통화·규모가 아닌 회복 속도 비교입니다.</p></header>
+    <div class="casino-recovery-list">
+      {% for item in insights.recovery %}
+      <article><div><strong>{{ item.name }}</strong><small>{{ item.period }} · {{ "{:,.0f}".format(item.value) if item.value is not none else '—' }} {{ item.unit }}</small></div><div class="casino-recovery-track"><i style="width:{{ item.index_width }}%"></i><span class="baseline" title="2019년 동일 월=100"></span></div><b>{{ item.index if item.index is not none else '—' }}</b></article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel casino-insights-section" id="seasonality">
+    <header class="casino-insights-heading"><div><span>09 / SEASONALITY</span><h2>카지노 성수기 캘린더</h2></div><p>2021–2025 파라다이스·GKL·드림타워 월 매출을 각 운영사 평균=100으로 표준화한 계절지수입니다.</p></header>
+    <div class="casino-season-grid">
+      {% for item in insights.seasonality %}
+      <article class="level-{{ 'peak' if item.level == '최고 성수기' else 'high' if item.level == '성수기' else 'normal' if item.level == '보통' else 'low' }}"><span>{{ item.month }}월</span><strong>{{ item.index if item.index is not none else '—' }}</strong><small>{{ item.level }}</small></article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="casino-insights-method">
+    <strong>지표 해석 안내</strong>
+    <p>모든 지표는 중앙 DB의 원천 시계열을 화면 요청 시 계산한 참고용 파생지표입니다. 흥행지수·수요지수는 CASINO IN 자체 산식이며 공식 통계나 투자지표가 아닙니다. 원천 범위가 다른 운영사 간 비교에는 한계가 있습니다.</p>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

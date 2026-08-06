@@ -43,6 +43,7 @@ from extensions import dashboard_db
 from services import (
     ai_insights,
     casino_industry,
+    casino_insights,
     casino_market_share,
     casino_statistics,
     company_comparison,
@@ -133,6 +134,7 @@ INDEXABLE_ENDPOINTS = {
     "recruitment_page",
     "company_recruitment_guide_page",
     "casino_industry_page",
+    "casino_insights_page",
     "casino_market_share_page",
     "casino_visitors_page",
     "casino_revenue_page",
@@ -181,7 +183,7 @@ LOCALIZATION_DISCOVERY_ENDPOINTS = INDEXABLE_ENDPOINTS | {
     "community_post_page",
 }
 SITEMAP_STATIC_ENDPOINTS = (
-    "public_home", "casino_industry_page", "casino_market_share_page",
+    "public_home", "casino_industry_page", "casino_insights_page", "casino_market_share_page",
     "casino_visitors_page", "casino_revenue_page", "casino_fund_page",
     "related_news_page", "overseas_news_page", "market_trend_page",
     "tourism_trend_page", "economic_trend_page", "holiday_calendar_page",
@@ -517,6 +519,7 @@ PUBLIC_READ_ENDPOINTS = {
     "salary_trend_page",
     "recruitment_page",
     "casino_industry_page",
+    "casino_insights_page",
     "casino_visitors_page",
     "casino_revenue_page",
     "casino_fund_page",
@@ -1227,6 +1230,7 @@ def inject_globals():
         "company_recruitment_guide_page": "족보",
         "source_download_page": "원천 데이터 다운",
         "casino_industry_page": "국내 카지노 산업",
+        "casino_insights_page": "카지노 인사이트",
         "casino_market_share_page": "산업 M/S",
         "casino_visitors_page": "연도별 카지노 이용객",
         "casino_revenue_page": "연도별 카지노 매출액 비율",
@@ -1352,6 +1356,7 @@ def _site_map_links():
             "endpoint": "casino_industry_page",
             "children": [
                 {"label": "국내 카지노 산업", "endpoint": "casino_industry_page"},
+                {"label": "카지노 인사이트", "endpoint": "casino_insights_page"},
                 {"label": "산업 M/S", "endpoint": "casino_market_share_page"},
                 {"label": "연도별 카지노 이용객", "endpoint": "casino_visitors_page"},
                 {"label": "연도별 카지노 매출액 비율", "endpoint": "casino_revenue_page"},
@@ -3091,6 +3096,18 @@ def casino_industry_page():
             request.args.get("region", "").strip()
         ),
     )
+
+
+@app.route("/market/casino-industry/insights")
+def casino_insights_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "casino_insights.html",
+            insights=casino_insights.build_dashboard(connection),
+        )
+    finally:
+        connection.close()
 
 
 @app.route("/market/casino-industry/market-share")

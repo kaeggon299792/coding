@@ -2,6 +2,10 @@
 
 LOCALIZED_SEO_PAGE_COPY = {
     "ko": {
+        "casino_insights_page": (
+            "카지노 흥행지수와 시장 인사이트 | Casino IN",
+            "매출, 드롭액, 홀드율, 입장객과 관광 데이터를 결합한 카지노 흥행지수, 수요지수, 회복지표와 성수기 분석을 확인합니다.",
+        ),
         "casino_market_share_page": (
             "카지노 산업 시장점유율 | Casino IN",
             "국내 카지노 운영 법인의 매출액과 영업이익을 시장 구간별로 비교하고 최근 5개년 추이를 확인합니다.",
@@ -20,6 +24,10 @@ LOCALIZED_SEO_PAGE_COPY = {
         ),
     },
     "en": {
+        "casino_insights_page": (
+            "Casino Popularity Index and Market Insights | Casino IN",
+            "Explore derived casino popularity, demand, recovery, spend-per-visitor, hold-rate, and seasonality indicators built from central operating data.",
+        ),
         "casino_market_share_page": (
             "Korean Casino Market Share | Casino IN",
             "Compare revenue and operating profit shares across Korean casino operators and review their five-year performance trends.",
@@ -42,6 +50,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         ),
     },
     "ja": {
+        "casino_insights_page": ("カジノ人気指数・市場インサイト | Casino IN", "売上高、ドロップ額、ホールド率、入場者数、観光データを組み合わせた人気指数、需要、回復、季節性の分析を確認できます。"),
         "casino_market_share_page": ("韓国カジノ産業の市場シェア | Casino IN", "韓国のカジノ運営会社について、売上高と営業利益の市場シェアおよび直近5年間の推移を比較します。"),
         "public_home": ("Casino IN | カジノ産業情報・分析", "韓国と海外のカジノ企業、訪韓客、為替、開示、市場動向、採用、法規制などの産業データをまとめて確認できます。"),
         "casino_industry_page": ("韓国カジノ産業の現況 | Casino IN", "韓国の外国人専用カジノと内国人向け施設について、運営会社、地域分布、売上高、利用者数を比較します。"),
@@ -72,6 +81,7 @@ LOCALIZED_SEO_PAGE_COPY = {
         "credits_page": ("データ出典・著作権 | Casino IN", "Casino INで使用するデータの出典、更新周期、最終確認日時、著作権と利用上の注意を案内します。"),
     },
     "yue-HK": {
+        "casino_insights_page": ("賭場熱度指數及市場分析｜Casino IN", "綜合收入、投注額、贏率、入場人次及旅遊數據，查看賭場熱度、需求、復甦及季節性指標。"),
         "casino_market_share_page": ("南韓賭場產業市場佔有率｜Casino IN", "比較南韓賭場營運商的收入及營業溢利市場佔有率，並查看最近五年的業績走勢。"),
         "public_home": ("Casino IN｜賭場產業資訊及分析", "集中查看南韓及海外賭場企業、訪韓旅客、匯率、公司公告、市場走勢、招聘及法規等產業資料。"),
         "casino_industry_page": ("南韓賭場產業概況｜Casino IN", "比較南韓外國人專用賭場及本地人設施的營運公司、地區分布、收入和入場人次。"),
