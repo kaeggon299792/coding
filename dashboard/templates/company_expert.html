@@ -21,23 +21,9 @@
     {% endfor %}
   </section>
 
-  <section class="company-expert-matrix">
-    <header><div><span>01 / RELATIVE POSITION</span><h2>상대 밸류에이션 포지션</h2></div><p>각 행에서 가장 큰 값을 100으로 환산한 상대 길이입니다.</p></header>
-    <div class="company-expert-matrix-legend"><span class="current">현재</span><span class="history">5년 중앙값</span><span class="industry">산업 중앙값</span></div>
-    <div class="company-expert-matrix-rows">{% for metric in dashboard.metrics %}<article>
-      <div class="company-expert-metric-name"><b>{{ metric.label }}</b><small>{{ '현재 %.2f'|format(metric.current) if metric.current is not none else '현재 N/A' }}</small></div>
-      <div class="company-expert-bars">
-        <div><i class="current" style="width:{{ metric.current_width }}%"></i><span>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</span></div>
-        <div><i class="history" style="width:{{ metric.median_5y_width }}%"></i><span>{{ '%.2f'|format(metric.median_5y) if metric.median_5y is not none else 'N/A' }}</span></div>
-        <div><i class="industry" style="width:{{ metric.industry_width }}%"></i><span>{{ '%.2f'|format(metric.industry_median) if metric.industry_median is not none else 'N/A' }}</span></div>
-      </div>
-      <div class="company-expert-verdict"><span>5Y <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
-    </article>{% endfor %}</div>
-  </section>
-
   {% for group_code, group_title, group_description, metrics in dashboard.groups %}
   <section class="company-expert-group">
-    <header><div><span>{{ '%02d'|format(loop.index + 1) }} / {{ group_code|upper }}</span><h2>{{ group_title }}</h2></div><p>{{ group_description }}</p></header>
+    <header><div><span>{{ '%02d'|format(loop.index) }} / {{ group_code|upper }}</span><h2>{{ group_title }}</h2></div><p>{{ group_description }}</p></header>
     <div class="company-expert-grid">{% for metric in metrics %}<article class="company-expert-card">
       <header><div><span>{{ '%02d'|format(loop.index) }}</span><h3>{{ metric.label }}</h3></div><strong>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</strong></header>
       <div class="company-expert-signals"><span>5년 대비 <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 대비 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
