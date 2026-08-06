@@ -57,10 +57,25 @@ def test_insights_handle_an_empty_repository(db_connection):
     assert len(result["seasonality"]) == 12
 
 
+def test_insights_support_month_selection_and_safe_fallback(tmp_path):
+    database = _imported_database(tmp_path)
+    connection = schema.connect(str(database))
+    try:
+        selected = casino_insights.build_dashboard(connection, "2025-12")
+        invalid = casino_insights.build_dashboard(connection, "not-a-month")
+    finally:
+        connection.close()
+
+    assert selected["selected_period"] == "2025-12"
+    assert selected["latest_period"] == "2025-12"
+    assert selected["available_periods"][0] == "2026-07"
+    assert invalid["selected_period"] == "2026-07"
+
+
 def test_casino_insights_page_is_public(client, monkeypatch):
     monkeypatch.setattr(
         "app.casino_insights.build_dashboard",
-        lambda connection: {
+        lambda connection, selected_period=None: {
             "has_data": False,
             "latest_period": None,
             "ranking": [],
@@ -86,6 +101,11 @@ def test_casino_insights_page_renders_imported_metrics(tmp_path, monkeypatch):
     assert "한국 vs 마카오 회복 온도계".encode() in response.data
     assert "카지노 성수기 캘린더".encode() in response.data
     assert b"width:None%" not in response.data
+
+    selected = test_client.get("/market/casino-industry/insights?month=2025-12")
+    assert selected.status_code == 200
+    assert b'<option value="2025-12" selected>' in selected.data
+    assert "국내 카지노 산업".encode() in selected.data
 
 
 def test_insights_page_is_in_public_sitemap(client):

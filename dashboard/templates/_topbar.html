@@ -28,7 +28,7 @@
   <div class="topbar-actions">
     {% if current_user %}
       <a class="topbar-user" href="{{ url_for('auth.my_account') }}" title="{{ t('내 계정') }} · {{ current_user.name or current_user.username }}">
-        <span class="member-avatar-wrap">
+        <span class="member-avatar-wrap grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
         {% else %}

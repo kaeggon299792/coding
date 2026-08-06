@@ -3104,7 +3104,9 @@ def casino_insights_page():
     try:
         return render_template(
             "casino_insights.html",
-            insights=casino_insights.build_dashboard(connection),
+            insights=casino_insights.build_dashboard(
+                connection, request.args.get("month", "").strip()
+            ),
         )
     finally:
         connection.close()

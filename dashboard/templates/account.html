@@ -14,7 +14,7 @@
 
   <section class="panel account-profile-panel">
     <div class="account-profile-head">
-      <div class="account-avatar-wrap">
+      <div class="account-avatar-wrap grade-{{ user.membership_level or ('black' if user.role == 'admin' else 'gold') }}">
       {% if user.picture_url %}
       <img src="{{ user.picture_url }}" alt="" width="64" height="64" referrerpolicy="no-referrer">
       {% else %}

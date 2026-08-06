@@ -89,11 +89,21 @@ def _series_values(connection, keys):
     return dict(values)
 
 
-def _latest(series):
+def _latest(series, cutoff=None):
     if not series:
         return None, None
-    day = max(series)
+    candidates = [day for day in series if cutoff is None or day <= cutoff]
+    if not candidates:
+        return None, None
+    day = max(candidates)
     return day, series[day]
+
+
+def _period_value(series, selected_period=None):
+    if not selected_period:
+        return _latest(series)
+    day = f"{selected_period}-01"
+    return day, series.get(day)
 
 
 def _year_ago(series, day):
@@ -110,15 +120,15 @@ def _trailing_average(series, day, count=12):
     return mean(values) if values else None
 
 
-def _operator_metrics(values, definition):
+def _operator_metrics(values, definition, selected_period=None):
     revenue = values.get(definition["revenue"], {})
     drop = values.get(definition["drop"], {})
     hold = values.get(definition["hold"], {})
     visitors = values.get(definition["visitors"], {}) if definition["visitors"] else {}
-    revenue_day, revenue_now = _latest(revenue)
-    drop_day, drop_now = _latest(drop)
-    hold_day, hold_now = _latest(hold)
-    visitor_day, visitors_now = _latest(visitors)
+    revenue_day, revenue_now = _period_value(revenue, selected_period)
+    drop_day, drop_now = _period_value(drop, selected_period)
+    hold_day, hold_now = _period_value(hold, selected_period)
+    visitor_day, visitors_now = _period_value(visitors, selected_period)
     revenue_yoy = _growth(revenue_now, _year_ago(revenue, revenue_day))
     drop_yoy = _growth(drop_now, _year_ago(drop, drop_day))
     visitor_yoy = _growth(visitors_now, _year_ago(visitors, visitor_day))
@@ -200,13 +210,13 @@ def _operator_metrics(values, definition):
     }
 
 
-def _nationality_demand(values):
+def _nationality_demand(values, selected_period=None):
     result = []
     for item in NATIONALITY_SERIES:
         vip = values.get(item["vip_drop"], {})
         arrivals = values.get(item["arrivals"], {})
-        vip_day, vip_now = _latest(vip)
-        arrival_day, arrival_now = _latest(arrivals)
+        vip_day, vip_now = _period_value(vip, selected_period)
+        arrival_day, arrival_now = _period_value(arrivals, selected_period)
         vip_yoy = _growth(vip_now, _year_ago(vip, vip_day))
         arrival_yoy = _growth(arrival_now, _year_ago(arrivals, arrival_day))
         available = [value for value in (vip_yoy, arrival_yoy) if value is not None]
@@ -225,9 +235,10 @@ def _nationality_demand(values):
     return result
 
 
-def _fund_metrics(values):
+def _fund_metrics(values, selected_period=None):
     series = {name: values.get(key, {}) for name, key in FUND_KEYS.items()}
-    day, total = _latest(series["total"])
+    cutoff = f"{selected_period[:4]}-12-31" if selected_period else None
+    day, total = _latest(series["total"], cutoff)
     previous = _year_ago(series["total"], day)
     foreign = series["foreign"].get(day) if day else None
     kangwon = series["kangwon"].get(day) if day else None
@@ -242,7 +253,7 @@ def _fund_metrics(values):
     }
 
 
-def _recovery_metrics(values):
+def _recovery_metrics(values, selected_period=None):
     result = []
     definitions = (
         ("한국 외래객", "korea_arrivals", "명"),
@@ -251,7 +262,7 @@ def _recovery_metrics(values):
     )
     for name, lookup, unit in definitions:
         series = values.get(RECOVERY_KEYS[lookup], {})
-        day, current = _latest(series)
+        day, current = _period_value(series, selected_period)
         baseline_day = f"2019-{day[5:]}" if day else None
         baseline = series.get(baseline_day) if baseline_day else None
         index = current / baseline * 100 if current is not None and baseline else None
@@ -299,7 +310,7 @@ def _seasonality(values):
     return result
 
 
-def build_dashboard(connection):
+def build_dashboard(connection, selected_period=None):
     keys = []
     for item in OPERATORS:
         keys.extend((item["revenue"], item["drop"], item["hold"], item["visitors"]))
@@ -308,7 +319,19 @@ def build_dashboard(connection):
     keys.extend(FUND_KEYS.values())
     keys.extend(RECOVERY_KEYS.values())
     values = _series_values(connection, keys)
-    operators = [_operator_metrics(values, item) for item in OPERATORS]
+    available_periods = sorted(
+        {
+            day[:7]
+            for operator in OPERATORS
+            for day in values.get(operator["revenue"], {})
+        },
+        reverse=True,
+    )
+    if selected_period not in available_periods:
+        selected_period = available_periods[0] if available_periods else None
+    operators = [
+        _operator_metrics(values, item, selected_period) for item in OPERATORS
+    ]
     ranking = sorted(
         (item for item in operators if item["score"] is not None),
         key=lambda item: item["score"], reverse=True,
@@ -317,19 +340,17 @@ def build_dashboard(connection):
         item["rank"] = rank
     visitor_rows = [item for item in operators if item["spend_per_visitor"] is not None]
     quality_rows = [item for item in operators if item["quality"] is not None]
-    latest_period = max(
-        (item["period"] for item in operators if item["period"]),
-        default=None,
-    )
     return {
         "has_data": bool(ranking),
-        "latest_period": latest_period,
+        "latest_period": selected_period,
+        "selected_period": selected_period,
+        "available_periods": available_periods,
         "ranking": ranking,
         "visitor_rows": visitor_rows,
         "quality_rows": quality_rows,
-        "nationality": _nationality_demand(values),
-        "fund": _fund_metrics(values),
-        "recovery": _recovery_metrics(values),
+        "nationality": _nationality_demand(values, selected_period),
+        "fund": _fund_metrics(values, selected_period),
+        "recovery": _recovery_metrics(values, selected_period),
         "seasonality": _seasonality(values),
         "visitor_conversion": 18.5,
         "tourism_fx_share": 7.3,

@@ -118,3 +118,5 @@ def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
         assert page.count('<option value="') >= 30
         assert "🤩 황홀함" in page
         assert "🪫 지침" in page
+        assert 'data-diary-date-button' in page
+        assert 'js/diary.js' in page

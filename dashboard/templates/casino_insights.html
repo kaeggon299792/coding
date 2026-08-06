@@ -14,6 +14,16 @@
     {% if insights.latest_period %}<div class="casino-insights-period"><span>최신 운영지표</span><strong>{{ insights.latest_period }}</strong></div>{% endif %}
   </header>
 
+  {% if insights.available_periods %}
+  <form class="casino-insights-period-form" method="get" action="{{ url_for('casino_insights_page') }}">
+    <label for="casino-insights-month">기준 월</label>
+    <select id="casino-insights-month" name="month" onchange="this.form.submit()">
+      {% for period in insights.available_periods %}<option value="{{ period }}"{% if period == insights.selected_period %} selected{% endif %}>{{ period[:4] }}년 {{ period[5:7]|int }}월</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-secondary" type="submit">적용</button></noscript>
+  </form>
+  {% endif %}
+
   {% if not insights.has_data %}
   <section class="panel casino-insights-empty">
     <h2>분석할 운영지표가 없습니다.</h2>
