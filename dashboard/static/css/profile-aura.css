@@ -1,4 +1,4 @@
-/* Circular electric-border profile treatment. */
+/* Circular electric-gradient profile treatment without a visible rim. */
 
 @property --profile-electric-angle {
   syntax: "<angle>";
@@ -49,10 +49,10 @@
   --profile-electric-size: 7px;
   --profile-electric-speed: 28s;
   --profile-electric-blur: 7px;
-  --profile-electric-opacity: .66;
-  --profile-electric-color: #dd8448;
-  --profile-electric-light: #ffc18a;
-  --profile-electric-hot: #fff2df;
+  --profile-electric-opacity: .76;
+  --profile-electric-color: #c85312;
+  --profile-electric-light: #ef7828;
+  --profile-electric-hot: #ffb06f;
   position: relative;
   isolation: isolate;
   overflow: visible;
@@ -69,9 +69,7 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
 }
 
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
-.topbar-profile-menu .topbar-profile-avatar-wrap::after,
-.my-account-page .account-avatar-wrap::before,
-.my-account-page .account-avatar-wrap::after {
+.my-account-page .account-avatar-wrap::before {
   position: absolute;
   display: block !important;
   border: 0 !important;
@@ -109,48 +107,12 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
   transition: opacity .55s ease, filter .55s ease, scale .55s ease;
 }
 
-/* The displaced electric filament. Masking exposes only the circular rim. */
-.topbar-profile-menu .topbar-profile-avatar-wrap::after,
-.my-account-page .account-avatar-wrap::after {
-  z-index: 1;
-  inset: calc(var(--profile-electric-size) * -.58);
-  padding: 1.45px;
-  background: conic-gradient(
-    from -30deg,
-    color-mix(in srgb, var(--profile-electric-color) 78%, transparent) 0 8%,
-    var(--profile-electric-hot) 12% 16%,
-    var(--profile-electric-color) 21% 29%,
-    transparent 34% 46%,
-    var(--profile-electric-light) 51% 60%,
-    transparent 65% 76%,
-    var(--profile-electric-color) 82% 90%,
-    var(--profile-electric-hot) 95% 100%
-  ) !important;
-  box-shadow:
-    0 0 2px color-mix(in srgb, var(--profile-electric-hot) 92%, transparent),
-    0 0 calc(var(--profile-electric-size) * .9) color-mix(in srgb, var(--profile-electric-color) 68%, transparent) !important;
-  opacity: .94 !important;
-  filter: url("#profile-electric-displace") blur(.25px) drop-shadow(0 0 2px var(--profile-electric-light)) !important;
-  scale: 1;
-  transition: opacity .45s ease, scale .55s ease;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::before,
 .my-account-page .account-avatar-wrap:hover::before {
   opacity: min(1, calc(var(--profile-electric-opacity) + .16)) !important;
   filter: blur(calc(var(--profile-electric-blur) * 1.18)) saturate(1.1) !important;
   scale: 1.08;
-}
-
-.topbar-profile-menu .topbar-profile-avatar-wrap:hover::after,
-.topbar-profile-menu[open] .topbar-profile-large-avatar::after,
-.my-account-page .account-avatar-wrap:hover::after {
-  opacity: 1 !important;
-  scale: 1.035;
 }
 
 /* Smaller header avatar, same visual language. */
@@ -180,7 +142,7 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
 .my-account-page .account-avatar-wrap > span:first-child {
   position: relative;
   z-index: 2;
-  border: 1px solid var(--brand-border-strong) !important;
+  border: 0 !important;
   border-radius: 50%;
   box-shadow: none !important;
   filter: none !important;
@@ -191,14 +153,6 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
 .my-account-page .account-avatar-wrap > .membership-badge-icon {
   z-index: 4;
   filter: none;
-}
-
-.profile-electric-filter-defs {
-  position: fixed;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
 }
 
 @keyframes profile-electric-border-flow {
@@ -228,15 +182,8 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
 
 @media (prefers-reduced-motion: reduce) {
   .topbar-profile-menu .topbar-profile-avatar-wrap::before,
-  .topbar-profile-menu .topbar-profile-avatar-wrap::after,
-  .my-account-page .account-avatar-wrap::before,
-  .my-account-page .account-avatar-wrap::after {
+  .my-account-page .account-avatar-wrap::before {
     --profile-electric-angle: 22deg;
     animation: none !important;
-  }
-
-  .topbar-profile-menu .topbar-profile-avatar-wrap::after,
-  .my-account-page .account-avatar-wrap::after {
-    filter: drop-shadow(0 0 2px var(--profile-electric-light)) !important;
   }
 }

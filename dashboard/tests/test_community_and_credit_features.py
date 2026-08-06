@@ -466,7 +466,7 @@ def test_board_author_identity_is_avatar_only_and_flat():
     aura_css = (root / "static" / "css" / "profile-aura.css").read_text(
         encoding="utf-8"
     )
-    assert "Circular electric-border profile treatment" in aura_css
+    assert "Circular electric-gradient profile treatment without a visible rim" in aura_css
     assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
     assert "display: none !important" in aura_css
     assert ".profile-avatar-webgl-canvas" not in aura_css
@@ -476,9 +476,9 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert ".topbar-profile-menu .topbar-profile-avatar-wrap::before" in aura_css
     assert ".my-account-page .account-avatar-wrap::before" in aura_css
     assert "conic-gradient" in aura_css
-    assert 'url("#profile-electric-displace")' in aura_css
+    assert 'url("#profile-electric-displace")' not in aura_css
     assert 'html[data-theme="dark"]' in aura_css
-    assert "#dd8448" in aura_css
+    assert "#c85312" in aura_css
     assert "#ffffff" in aura_css
     assert "--profile-glow-" not in aura_css
     assert "pointer-events: none" in aura_css
@@ -495,10 +495,8 @@ def test_board_author_identity_is_avatar_only_and_flat():
         assert variable in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
-    assert 'id="profile-electric-displace"' in base_template
-    assert base_template.count("<feTurbulence") == 4
-    assert base_template.count('dur="28s"') == 4
-    assert 'scale="2.4"' in base_template
+    assert 'id="profile-electric-displace"' not in base_template
+    assert "<feTurbulence" not in base_template
     assert "js/profile-avatar-webgl.js" not in base_template
     topbar_template = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
