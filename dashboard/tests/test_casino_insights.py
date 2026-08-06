@@ -3,12 +3,18 @@ from pathlib import Path
 import pytest
 from dashboard_db import schema
 from scripts.import_epic_industry_data import import_epic_data
+from scripts.import_paradise_vip_visits import import_paradise_vip_visits
 from services import casino_insights
 
 DATA_FILE = (
     Path(__file__).resolve().parent.parent
     / "data"
     / "epic_industry_metrics_20260806.json"
+)
+PARADISE_VISITS_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "paradise_vip_visits_20260806.json"
 )
 
 
@@ -25,6 +31,7 @@ def client(monkeypatch, tmp_path):
 def _imported_database(tmp_path):
     database = tmp_path / "casino_insights.db"
     import_epic_data(database, DATA_FILE)
+    import_paradise_vip_visits(database, PARADISE_VISITS_FILE)
     return database
 
 
@@ -41,7 +48,11 @@ def test_insights_are_derived_from_central_repository(tmp_path):
     assert {item["name"] for item in result["ranking"]} == {
         "파라다이스", "GKL", "드림타워"
     }
-    assert [item["name"] for item in result["visitor_rows"]] == ["GKL", "드림타워"]
+    assert [item["name"] for item in result["visitor_rows"]] == ["파라다이스", "GKL", "드림타워"]
+    paradise = next(item for item in result["visitor_rows"] if item["name"] == "파라다이스")
+    assert paradise["period"] == "2026-07"
+    assert paradise["spend_per_visitor"] == 5_234_326
+    assert paradise["visitor_basis"] == "VIP 방문일 기준"
     assert all(0 <= item["score"] <= 100 for item in result["ranking"])
     assert all(item["spend_per_visitor"] > 0 for item in result["visitor_rows"])
     assert {item["name"] for item in result["nationality"]} == {"중국", "일본"}

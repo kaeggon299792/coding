@@ -11,7 +11,8 @@ OPERATORS = (
         "revenue": "epic.paradise_monthly_revenue.m01",
         "drop": "epic.paradise_monthly_drop_casino.m01",
         "hold": "epic.paradise_monthly_hold.m01",
-        "visitors": None,
+        "visitors": "epic.paradise_monthly_vip_visits.m01",
+        "visitor_basis": "VIP 방문일 기준",
     },
     {
         "name": "GKL",
@@ -19,6 +20,7 @@ OPERATORS = (
         "drop": "epic.gkl_monthly_drop.m01",
         "hold": "epic.gkl_monthly_hold.m01",
         "visitors": "epic.gkl_monthly_visitors.m01",
+        "visitor_basis": "입장객 기준",
     },
     {
         "name": "드림타워",
@@ -26,6 +28,7 @@ OPERATORS = (
         "drop": "epic.dreamtower_monthly_drop.m01",
         "hold": "epic.dreamtower_monthly_hold.m01",
         "visitors": "epic.dreamtower_monthly_visitors.m01",
+        "visitor_basis": "입장객 기준",
     },
 )
 
@@ -207,6 +210,7 @@ def _operator_metrics(values, definition, selected_period=None):
         "spend_yoy": _rounded(spend_yoy),
         "quality": quality,
         "has_visitors": bool(visitors),
+        "visitor_basis": definition.get("visitor_basis", "입장객 기준"),
     }
 
 

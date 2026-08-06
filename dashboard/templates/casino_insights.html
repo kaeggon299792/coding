@@ -60,10 +60,10 @@
       <header class="casino-insights-heading"><div><span>02 / SPEND PER VISITOR</span><h2>방문객 1인당 매출</h2></div><p>월 매출을 같은 달 입장객으로 나눈 단순 객단가입니다.</p></header>
       <div class="casino-simple-list">
         {% for item in insights.visitor_rows %}
-        <article><div><strong>{{ item.name }}</strong><small>{{ item.period }}</small></div><b>{{ "{:,.0f}".format(item.spend_per_visitor) }}원</b><span class="{% if item.spend_yoy is not none and item.spend_yoy >= 0 %}is-up{% else %}is-down{% endif %}">{{ '%+.1f'|format(item.spend_yoy) if item.spend_yoy is not none else '—' }}{% if item.spend_yoy is not none %}% YoY{% endif %}</span></article>
+        <article><div><strong>{{ item.name }}</strong><small>{{ item.period }} · {{ item.visitor_basis }}</small></div><b>{{ "{:,.0f}".format(item.spend_per_visitor) }}원</b><span class="{% if item.spend_yoy is not none and item.spend_yoy >= 0 %}is-up{% else %}is-down{% endif %}">{{ '%+.1f'|format(item.spend_yoy) if item.spend_yoy is not none else '—' }}{% if item.spend_yoy is not none %}% YoY{% endif %}</span></article>
         {% endfor %}
       </div>
-      <p class="casino-insights-note">파라다이스는 동일 범위의 월별 입장객 원천 데이터가 없어 제외됩니다.</p>
+      <p class="casino-insights-note">파라다이스는 월간 실적 자료의 VIP 방문일수 합계를 사용합니다. 고유 방문객 수가 아닌 방문 횟수 기준입니다.</p>
     </section>
 
     <section class="panel casino-insights-section" id="luck-index">
