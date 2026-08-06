@@ -2706,3 +2706,6 @@ html[data-theme="light"] .member-avatar-wrap,html[data-theme="light"] .account-a
 
 /* Fund scenario recalculation and legacy comparison. */
 .fund-company-recalculation{margin-top:4px;border-top:1px solid var(--brand-border)}.fund-legacy-comparison{margin:12px 0 0;padding:10px 12px;border:1px solid var(--brand-border);background:var(--brand-surface);color:var(--brand-text-muted);font-size:10px;line-height:1.65}.fund-comparison-table{min-width:1080px}.fund-comparison-table th,.fund-comparison-table td{white-space:nowrap}.fund-excel-formulas{display:grid;align-content:start;gap:7px;padding:16px;border:1px solid var(--brand-border);background:var(--brand-bg)}.fund-excel-formulas h3,.fund-excel-formulas p{margin:0}.fund-excel-formulas p{color:var(--brand-text-muted);font-size:10px}.fund-excel-formulas code{display:block;padding:7px 9px;border-left:2px solid var(--brand-danger);background:var(--brand-surface);color:var(--brand-text-secondary);font-size:10px;overflow-wrap:anywhere}
+
+/* Flat profile treatment: retain the grade ring without cast shadows. */
+.member-avatar-wrap,.account-avatar-wrap{filter:none}.member-avatar-wrap:before,.account-avatar-wrap:before{box-shadow:none!important}
