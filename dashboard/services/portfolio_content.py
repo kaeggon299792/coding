@@ -88,6 +88,8 @@ def _record_id(raw: str) -> str:
 
 def _url(value, label: str, *, required=False) -> str:
     result = _text(value, label, required=required, maximum=500)
+    if result and "://" not in result and "." in result and not any(char.isspace() for char in result):
+        result = f"https://{result}"
     if result and urlsplit(result).scheme not in {"http", "https"}:
         raise ValueError(f"{label}은(는) http:// 또는 https:// 주소여야 합니다.")
     return result

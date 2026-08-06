@@ -2686,11 +2686,11 @@ def admin_portfolio_upload_file():
         abort(400)
     upload = request.files.get("file")
     if not upload or not upload.filename:
-        return redirect(url_for("admin_portfolio_page", error="업로드할 파일을 선택해주세요."))
+        return _portfolio_redirect("files", error="업로드할 파일을 선택해주세요.")
     try:
         record = portfolio_admin.save_upload(upload)
     except ValueError as error:
-        return redirect(url_for("admin_portfolio_page", error=str(error)))
+        return _portfolio_redirect("files", error=str(error))
     connection = dashboard_db()
     try:
         security_audit.log_event(
@@ -2700,7 +2700,7 @@ def admin_portfolio_upload_file():
         connection.commit()
     finally:
         connection.close()
-    return redirect(url_for("admin_portfolio_page", success=f"{record['name']} 업로드가 완료되었습니다."))
+    return _portfolio_redirect("files", success=f"{record['name']} 업로드가 완료되었습니다.")
 
 
 @app.post("/admin/portfolio/files/delete")
@@ -2721,7 +2721,7 @@ def admin_portfolio_delete_file():
         connection.commit()
     finally:
         connection.close()
-    return redirect(url_for("admin_portfolio_page", success=f"{filename} 파일을 삭제했습니다."))
+    return _portfolio_redirect("files", success=f"{filename} 파일을 삭제했습니다.")
 
 
 # ============================================================

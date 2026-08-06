@@ -313,6 +313,9 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     portfolio_html = portfolio.get_data(as_text=True)
     assert "포트폴리오 관리" in portfolio_html
     assert "외부 링크 파일" in portfolio_html
+    assert 'class="admin-portfolio-layout"' in portfolio_html
+    assert 'data-portfolio-target="projects"' in portfolio_html
+    assert 'data-portfolio-view="projects"' in portfolio_html
     assert 'src="https://www.shingoon.me/admin"' not in portfolio_html
     assert "https://www.shingoon.me" not in portfolio.headers["Content-Security-Policy"]
     for marker in (
