@@ -443,6 +443,26 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     upgraded.close()
 
 
+def test_schema_version_upgrade_adds_account_animation_preference(tmp_path):
+    from dashboard_db import schema
+
+    db_path = tmp_path / "existing-animation-preference.db"
+    db = schema.connect(str(db_path))
+    db.execute("ALTER TABLE dashboard_users DROP COLUMN animations_enabled")
+    db.execute("PRAGMA user_version = 2026080604")
+    db.commit()
+    db.close()
+
+    upgraded = schema.connect(str(db_path))
+    columns = {
+        row[1]: row for row in upgraded.execute("PRAGMA table_info(dashboard_users)")
+    }
+    assert columns["animations_enabled"][4] == "1"
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == schema.SCHEMA_VERSION
+    assert upgraded.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    upgraded.close()
+
+
 def test_hourly_scan_runs_once_per_interval(tmp_path):
     db = connection()
     templates = tmp_path / "templates"
