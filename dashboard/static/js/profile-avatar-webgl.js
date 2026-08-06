@@ -11,6 +11,14 @@
     sparkleIntensity: 0.86,
     pointerInfluence: 0.016,
     mobileQuality: 0.68,
+    diskDensity: 0.92,
+    spinSpeed: 0.34,
+    grain: 0.56,
+    doppler: 0.32,
+    hotColor: 0xfff3de,
+    midColor: 0xff9838,
+    coolColor: 0x8e3a0b,
+    exposure: 0.92,
     resolution: 256,
     maxPixelRatio: 1.5,
   });
@@ -38,6 +46,14 @@
     uniform float uPointerInfluence;
     uniform float uMobileQuality;
     uniform float uInnerRadius;
+    uniform float uDiskDensity;
+    uniform float uSpinSpeed;
+    uniform float uGrain;
+    uniform float uDoppler;
+    uniform float uExposure;
+    uniform vec3 uHot;
+    uniform vec3 uMid;
+    uniform vec3 uCool;
     varying vec2 vUv;
 
     float hash21(vec2 p) {
@@ -50,6 +66,16 @@
       f = f * f * (3.0 - 2.0 * f);
       return mix(mix(hash21(i), hash21(i + vec2(1.,0.)), f.x),
                  mix(hash21(i + vec2(0.,1.)), hash21(i + vec2(1.)), f.x), f.y);
+    }
+    float fbm2(vec2 p) {
+      float sum = 0.0;
+      float amp = 0.52;
+      for (int i = 0; i < 4; i++) {
+        sum += valueNoise(p) * amp;
+        p = p * 2.03 + vec2(7.1, 11.3);
+        amp *= 0.5;
+      }
+      return sum;
     }
     vec3 spectrum(float x) {
       return .56 + .44 * cos(6.28318 * (x + vec3(0.00, .33, .67)));
@@ -84,9 +110,32 @@
       photo += prism * band * uIridescenceIntensity * uMobileQuality;
       float photoMask = smoothstep(uInnerRadius + aa, uInnerRadius - aa, radius);
 
-      float ringRadius = uInnerRadius + .034;
-      float ringSdf = abs(radius - ringRadius);
-      float ringMask = smoothstep(uRingThickness + aa, uRingThickness - aa, ringSdf);
+      // Face-on accretion flow adapted from the supplied black-hole shader.
+      // The gas is one turbulent annulus, while the photon ring is its most
+      // strongly lensed inner image. Neither layer rotates as a rigid object.
+      float photonRadius = uInnerRadius + .026;
+      float photonSdf = abs(radius - photonRadius);
+      float photonRing = smoothstep(uRingThickness + aa, uRingThickness - aa, photonSdf);
+      float warpedRadius = radius + sin(angle * 3.0 - t * .13) * .006 + sin(angle * 7.0 + t * .09) * .003;
+      float diskInner = uInnerRadius + .008;
+      float diskOuter = .495;
+      float diskWindow = smoothstep(diskInner - .004, diskInner + .015, warpedRadius)
+                       * smoothstep(diskOuter, diskOuter - .036, warpedRadius);
+      float radial = clamp((warpedRadius - diskInner) / max(.001, diskOuter - diskInner), 0.0, 1.0);
+      float kepler = uSpinSpeed * pow(max(.15, diskInner / max(warpedRadius, .01)), 1.5);
+      vec2 gasUv = vec2(angle * 2.7 - t * kepler, radial * (13.0 + uGrain * 15.0) + t * .035);
+      float clouds = fbm2(gasUv);
+      float spiral = .5 + .5 * sin(angle * 5.0 - t * kepler * 1.7 + radial * 18.0 + clouds * 4.0);
+      float filaments = smoothstep(.30, .88, clouds * .72 + spiral * .46);
+      float heat = pow(max(.05, diskInner / max(warpedRadius, .01)), .8) * (.72 + clouds * .48);
+      vec3 gasTint = mix(uCool, uMid, smoothstep(.20, .70, heat));
+      gasTint = mix(gasTint, uHot, smoothstep(.70, 1.12, heat));
+      float approach = .5 + .5 * cos(angle - .25);
+      float beaming = mix(1.0, mix(.66, 1.42, approach), uDoppler);
+      float gasAlpha = diskWindow * filaments * uDiskDensity * beaming * uMobileQuality;
+      float lensedArc = exp(-abs(radius - (photonRadius + .018 + .006 * sin(angle * 2.0))) * 95.0)
+                      * (.30 + .70 * smoothstep(.0, .13, abs(p.y))) * uMobileQuality;
+
       float flowA = valueNoise(vec2(angle * 2.1 + t * .11, t * .09));
       float flowB = valueNoise(vec2(angle * 4.7 - t * .19, t * .045 + 7.));
       float highlight = pow(max(0., sin(angle * 2.0 - t * .34 + flowA * 3.2)), 10.0);
@@ -97,15 +146,17 @@
       vec3 gold = mix(darkGold, warmGold, .38 + flowA * .34 + highlight * .52);
       gold = mix(gold, vec3(1.0, .94, .72), localWhite * .9) * uGoldIntensity;
 
-      float glow = exp(-abs(radius - ringRadius) * 48.0) * uGlowIntensity;
-      glow += exp(-abs(radius - ringRadius) * 17.0) * .16 * uGlowIntensity;
-      vec3 color = photo * photoMask;
-      color += gold * ringMask;
-      color += warmGold * glow * (1.0 - photoMask) * .34;
+      float glow = exp(-abs(radius - photonRadius) * 43.0) * uGlowIntensity;
+      glow += exp(-abs(radius - photonRadius) * 16.0) * .18 * uGlowIntensity;
+      vec3 color = gasTint * gasAlpha * uExposure;
+      color += gasTint * lensedArc * .42 * uExposure;
+      color = mix(color, photo, photoMask);
+      color += gold * photonRing;
+      color += warmGold * glow * (1.0 - photoMask) * .30;
 
-      vec2 s1 = vec2(cos(t * .13 + .4), sin(t * .13 + .4)) * ringRadius;
-      vec2 s2 = vec2(cos(-t * .09 + 2.5), sin(-t * .09 + 2.5)) * ringRadius;
-      vec2 s3 = vec2(cos(t * .07 + 4.7), sin(t * .07 + 4.7)) * ringRadius;
+      vec2 s1 = vec2(cos(t * .13 + .4), sin(t * .13 + .4)) * photonRadius;
+      vec2 s2 = vec2(cos(-t * .09 + 2.5), sin(-t * .09 + 2.5)) * photonRadius;
+      vec2 s3 = vec2(cos(t * .07 + 4.7), sin(t * .07 + 4.7)) * photonRadius;
       float gate1 = smoothstep(.72, .96, valueNoise(vec2(floor(t * .35), 11.)));
       float gate2 = smoothstep(.69, .95, valueNoise(vec2(floor(t * .27), 29.)));
       float gate3 = smoothstep(.76, .97, valueNoise(vec2(floor(t * .21), 47.)));
@@ -114,7 +165,7 @@
       color += vec3(1.0, .88, .55) * spark * uSparkleIntensity;
 
       float outerAlpha = smoothstep(.50, .46, radius);
-      float alpha = max(photoMask, max(ringMask, glow * .62));
+      float alpha = max(photoMask, max(photonRing, max(gasAlpha, max(lensedArc * .55, glow * .62))));
       alpha = max(alpha, min(spark, 1.0)) * outerAlpha;
       gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
     }
@@ -170,6 +221,12 @@
           uIridescenceIntensity: {value: SETTINGS.iridescenceIntensity}, uRefractionStrength: {value: SETTINGS.refractionStrength},
           uSparkleIntensity: {value: SETTINGS.sparkleIntensity}, uPointerInfluence: {value: SETTINGS.pointerInfluence},
           uMobileQuality: {value: this.mobile ? SETTINGS.mobileQuality : 1}, uInnerRadius: {value: this.mobile ? .365 : .385},
+          uDiskDensity: {value: SETTINGS.diskDensity}, uSpinSpeed: {value: SETTINGS.spinSpeed},
+          uGrain: {value: SETTINGS.grain}, uDoppler: {value: SETTINGS.doppler},
+          uExposure: {value: SETTINGS.exposure},
+          uHot: {value: new THREE.Color(SETTINGS.hotColor)},
+          uMid: {value: new THREE.Color(SETTINGS.midColor)},
+          uCool: {value: new THREE.Color(SETTINGS.coolColor)},
         };
         this.material = new THREE.ShaderMaterial({vertexShader: VERTEX_SHADER, fragmentShader: FRAGMENT_SHADER, uniforms: this.uniforms, transparent: true, depthTest: false, depthWrite: false});
         this.geometry = new THREE.PlaneGeometry(2, 2);

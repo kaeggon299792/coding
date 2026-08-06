@@ -495,3 +495,10 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert "webglcontextrestored" in webgl_js
     assert '.account-avatar-wrap[data-profile-avatar-webgl=' in webgl_js
     assert '.topbar-profile-menu[open] .topbar-profile-large-avatar' in webgl_js
+    for black_hole_setting in (
+        "diskDensity", "spinSpeed", "grain", "doppler", "hotColor",
+        "midColor", "coolColor", "exposure",
+    ):
+        assert black_hole_setting in webgl_js
+    assert "Face-on accretion flow adapted from the supplied black-hole shader" in webgl_js
+    assert "pow(max(.15, diskInner / max(warpedRadius, .01)), 1.5)" in webgl_js
