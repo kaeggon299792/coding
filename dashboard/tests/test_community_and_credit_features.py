@@ -469,5 +469,7 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert "Continuous avatar aura" in aura_css
     assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
     assert "display: none !important" in aura_css
+    assert "member-avatar-solar-corona" in aura_css
+    assert ".community-table .community-author-cell::before" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template

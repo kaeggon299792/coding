@@ -68,6 +68,57 @@
   display: none !important;
 }
 
+/* Gold and Black use a dense solar corona instead of isolated orbit points. */
+.topbar-profile-menu .member-avatar-wrap.grade-gold::before,
+.account-avatar-wrap.grade-gold::before,
+.topbar-profile-menu .member-avatar-wrap.grade-black::before,
+.account-avatar-wrap.grade-black::before {
+  border-color: var(--aura-highlight);
+  box-shadow:
+    0 0 4px 1px var(--aura-highlight),
+    0 0 12px 4px color-mix(in srgb, var(--aura-primary) 75%, transparent),
+    0 0 25px 8px color-mix(in srgb, var(--aura-secondary) 42%, transparent) !important;
+  animation: member-avatar-solar-breathe 5.8s ease-in-out infinite;
+}
+
+.topbar-profile-menu .member-avatar-wrap.grade-gold::after,
+.account-avatar-wrap.grade-gold::after,
+.topbar-profile-menu .member-avatar-wrap.grade-black::after,
+.account-avatar-wrap.grade-black::after {
+  inset: -14px;
+  background:
+    repeating-conic-gradient(
+      from 4deg,
+      color-mix(in srgb, var(--aura-highlight) 88%, transparent) 0deg 1.5deg,
+      color-mix(in srgb, var(--aura-primary) 70%, transparent) 1.5deg 3deg,
+      transparent 3deg 9deg
+    );
+  filter: drop-shadow(0 0 3px var(--aura-primary)) drop-shadow(0 0 7px var(--aura-secondary));
+  opacity: .88;
+  -webkit-mask: radial-gradient(farthest-side, transparent 61%, #000 64% 75%, transparent 79%);
+  mask: radial-gradient(farthest-side, transparent 61%, #000 64% 75%, transparent 79%);
+  animation: member-avatar-solar-corona 9s linear infinite;
+}
+
+@keyframes member-avatar-solar-breathe {
+  0%, 100% { opacity: .76; transform: scale(1); }
+  42% { opacity: 1; transform: scale(1.055); }
+  67% { opacity: .84; transform: scale(1.02); }
+}
+
+@keyframes member-avatar-solar-corona {
+  0% { opacity: .72; transform: rotate(0deg) scale(.98); }
+  34% { opacity: 1; transform: rotate(122deg) scale(1.06); }
+  68% { opacity: .82; transform: rotate(245deg) scale(1.01); }
+  100% { opacity: .72; transform: rotate(360deg) scale(.98); }
+}
+
+@media (max-width: 760px) {
+  .community-table .community-author-cell::before {
+    content: none !important;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar-profile-menu .member-avatar-wrap::after,
   .account-avatar-wrap::after {
@@ -78,6 +129,12 @@
 @media (prefers-reduced-motion: reduce) {
   .topbar-profile-menu .member-avatar-wrap::after,
   .account-avatar-wrap::after {
+    animation: none;
+  }
+  .topbar-profile-menu .member-avatar-wrap.grade-gold::before,
+  .account-avatar-wrap.grade-gold::before,
+  .topbar-profile-menu .member-avatar-wrap.grade-black::before,
+  .account-avatar-wrap.grade-black::before {
     animation: none;
   }
 }
