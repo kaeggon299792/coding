@@ -6,6 +6,7 @@ APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
 PYTHON="${PYTHON:-/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python}"
 TARGET_REF="${1:-origin/main}"
 VERIFY_MODE="${DEPLOY_VERIFY_MODE:-smoke}"
+ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 
 cd "${APP_DIR}"
 
