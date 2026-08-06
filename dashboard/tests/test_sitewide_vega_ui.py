@@ -88,3 +88,5 @@ def test_company_vega_layer_uses_the_existing_site_font_variable():
 
     assert "--ui-font-sans: var(--font-body)" in css
     assert "DMSans-Variable-Latin.woff2" in template
+    assert "20260808-site-ui2" in template
+    assert "z-index: 1600" in css
