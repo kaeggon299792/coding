@@ -55,6 +55,7 @@ gtag('config', 'G-PTRL0XC53Z');
   const theme = saved === "light" || saved === "dark" ? saved : (systemDark ? "dark" : "light");
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.stickyNav = localStorage.getItem("casino-in-sticky-nav") === "0" ? "false" : "true";
+  document.documentElement.dataset.profileEffects = localStorage.getItem("casino-in-profile-effects") === "off" ? "off" : "on";
   document.querySelector('meta[name="theme-color"]').content = theme === "light" ? "#ffffff" : "#09090b";
 })();
 </script>
@@ -73,8 +74,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-flat-topbar-v1">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-electric-gradient-v2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260807-password-profile-toggle-v1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-profile-toggle-v1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -140,6 +141,18 @@ if (languageSwitch && profileMenu) {
   });
   languageSwitch.addEventListener("toggle", () => {
     if (languageSwitch.open) profileMenu.removeAttribute("open");
+  });
+}
+const profileEffectToggle = document.getElementById("profile-effect-toggle");
+if (profileEffectToggle) {
+  const applyProfileEffects = (disabled, persist = false) => {
+    document.documentElement.dataset.profileEffects = disabled ? "off" : "on";
+    profileEffectToggle.checked = disabled;
+    if (persist) localStorage.setItem("casino-in-profile-effects", disabled ? "off" : "on");
+  };
+  applyProfileEffects(document.documentElement.dataset.profileEffects === "off");
+  profileEffectToggle.addEventListener("change", () => {
+    applyProfileEffects(profileEffectToggle.checked, true);
   });
 }
 document.querySelectorAll("[data-locale-link]").forEach((link) => {

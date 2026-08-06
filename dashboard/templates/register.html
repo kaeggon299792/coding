@@ -19,8 +19,8 @@
     <label class="login-label" for="register-email">이메일</label>
     <input class="login-input" type="email" id="register-email" name="email" value="{{ values.email or '' }}" maxlength="254" autocomplete="email" required>
     <label class="login-label" for="register-password">비밀번호</label>
-    <input class="login-input" type="password" id="register-password" name="password" minlength="10" autocomplete="new-password" required>
-    <p class="register-help">10자 이상이며 영문·숫자·특수문자를 포함해야 합니다. 비밀번호 원문은 저장되지 않습니다.</p>
+    <input class="login-input" type="password" id="register-password" name="password" minlength="8" autocomplete="new-password" required>
+    <p class="register-help">8자 이상이면 사용할 수 있습니다.<br>비밀번호 원문은 저장되지 않습니다.</p>
     <button class="login-button" type="submit">가입 신청</button>
   </form>
 </div>

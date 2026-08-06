@@ -495,6 +495,9 @@ def test_board_author_identity_is_avatar_only_and_flat():
         assert variable in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
+    assert 'dataset.profileEffects = localStorage.getItem("casino-in-profile-effects")' in base_template
+    assert 'localStorage.setItem("casino-in-profile-effects", disabled ? "off" : "on")' in base_template
+    assert 'html[data-profile-effects="off"]' in aura_css
     assert 'id="profile-electric-displace"' not in base_template
     assert "<feTurbulence" not in base_template
     assert "js/profile-avatar-webgl.js" not in base_template
@@ -502,6 +505,8 @@ def test_board_author_identity_is_avatar_only_and_flat():
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
     assert 'data-profile-avatar-webgl="candidate"' not in topbar_template
     assert topbar_template.count("topbar-profile-avatar-wrap") == 2
+    assert 'id="profile-effect-toggle"' in topbar_template
+    assert "애니메이션 끄기" in topbar_template
     assert 'id="blackhole-avatar-root"' not in topbar_template
     assert 'data-blackhole-avatar-fallback' not in topbar_template
     assert 'id="blackhole-profile-root"' not in account_template

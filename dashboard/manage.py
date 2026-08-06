@@ -17,7 +17,6 @@ DART 고유번호(corp_code)는 https://opendart.fss.or.kr 에서 회사명으�
 
 import argparse
 import getpass
-import re
 import sys
 
 from werkzeug.security import generate_password_hash
@@ -29,12 +28,7 @@ from utils import now_kst
 
 
 def _valid_password(value):
-    return (
-        len(value) >= 10
-        and re.search(r"[A-Za-z]", value)
-        and re.search(r"\d", value)
-        and re.search(r"[^A-Za-z0-9]", value)
-    )
+    return len(value) >= 8
 
 
 def create_user(username):
@@ -44,7 +38,7 @@ def create_user(username):
         print("비밀번호가 일치하지 않습니다.", file=sys.stderr)
         return 1
     if not _valid_password(password):
-        print("비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.", file=sys.stderr)
+        print("비밀번호는 8자 이상이어야 합니다.", file=sys.stderr)
         return 1
 
     connection = dashboard_db()

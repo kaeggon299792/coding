@@ -559,12 +559,7 @@ def _audit_user(connection, target, action, detail=None):
 
 
 def _valid_password(password):
-    return (
-        len(password) >= 10
-        and re.search(r"[A-Za-z]", password)
-        and re.search(r"\d", password)
-        and re.search(r"[^A-Za-z0-9]", password)
-    )
+    return len(password) >= 8
 
 
 def _safe_local_next(value):
@@ -963,7 +958,7 @@ def register():
     elif not re.fullmatch(r"[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s]{2,}", email):
         error = "이메일 형식을 확인해주세요."
     elif not _valid_password(password):
-        error = "비밀번호는 10자 이상이며 영문·숫자·특수문자를 포함해야 합니다."
+        error = "비밀번호는 8자 이상이어야 합니다."
 
     connection = dashboard_db()
     try:
@@ -1267,7 +1262,7 @@ def update_account_password():
         return redirect(url_for("auth.my_account", error="새 비밀번호 확인이 일치하지 않습니다."))
     if not _valid_password(new_password):
         return redirect(url_for(
-            "auth.my_account", error="비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다."
+            "auth.my_account", error="비밀번호는 8자 이상이어야 합니다."
         ))
     connection = dashboard_db()
     try:
@@ -1422,7 +1417,7 @@ def user_management():
             elif role not in ("admin", "user"):
                 error = "권한을 다시 선택해주세요."
             elif not _valid_password(password):
-                error = "비밀번호는 10자 이상이며 영문·숫자·특수문자를 포함해야 합니다."
+                error = "비밀번호는 8자 이상이어야 합니다."
             else:
                 try:
                     cursor = connection.execute(
@@ -2789,7 +2784,7 @@ def reset_user_password(user_id):
     if not _valid_password(password):
         return redirect(url_for(
             "auth.user_management",
-            success="비밀번호는 10자 이상이며 영문·숫자·특수문자가 필요합니다.",
+            success="비밀번호는 8자 이상이어야 합니다.",
         ))
     connection = dashboard_db()
     try:

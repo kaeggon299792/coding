@@ -143,8 +143,11 @@ def test_page_loader_has_no_forced_completion_delay():
 def test_legacy_footer_does_not_duplicate_the_shared_legal_footer():
     footer = (ROOT / "templates" / "_footer.html").read_text(encoding="utf-8")
     legal_footer = (ROOT / "templates" / "_legal_footer.html").read_text(encoding="utf-8")
+    dashboard_css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
     assert "Business, Executed" not in footer
     assert "© 2026 CASINO IN" in legal_footer
+    assert ".legal-footer{" in dashboard_css
+    assert "letter-spacing:.01em;text-align:center" in dashboard_css
 
 
 def test_market_sparklines_do_not_render_distorted_endpoint_circles():

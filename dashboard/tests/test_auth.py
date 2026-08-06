@@ -311,6 +311,49 @@ def test_registration_defaults_to_auto_approval(client, monkeypatch):
     assert "Strong-password" not in sent[0][0]
 
 
+def test_registration_accepts_eight_characters_without_composition(client, monkeypatch):
+    monkeypatch.setattr(
+        "auth.telegram_alert.send_alert", lambda message, *, force=False: True
+    )
+    csrf = _get_csrf(client, "/register")
+    response = client.post(
+        "/register",
+        data={
+            "username": "simple.password",
+            "email": "simple-password@example.com",
+            "password": "aaaaaaaa",
+            "csrf_token": csrf,
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    user = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='simple.password'"
+    ).fetchone()
+    connection.close()
+    assert user is not None
+
+
+def test_registration_rejects_password_shorter_than_eight_characters(client):
+    csrf = _get_csrf(client, "/register")
+    response = client.post(
+        "/register",
+        data={
+            "username": "short.password",
+            "email": "short-password@example.com",
+            "password": "aaaaaaa",
+            "csrf_token": csrf,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "비밀번호는 8자 이상이어야 합니다." in response.get_data(as_text=True)
+
+
 def test_admin_can_change_registration_approval_policy(client):
     from extensions import dashboard_db
 

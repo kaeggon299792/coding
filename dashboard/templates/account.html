@@ -58,8 +58,8 @@
     <form method="post" action="{{ url_for('auth.update_account_password') }}" class="account-create-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       {% if not user.google_sub %}<label><span>현재 비밀번호</span><input type="password" name="current_password" autocomplete="current-password" required></label>{% endif %}
-      <label><span>새 비밀번호</span><input type="password" name="new_password" minlength="10" autocomplete="new-password" required></label>
-      <label><span>새 비밀번호 확인</span><input type="password" name="new_password_confirmation" minlength="10" autocomplete="new-password" required></label>
+      <label><span>새 비밀번호</span><input type="password" name="new_password" minlength="8" autocomplete="new-password" required></label>
+      <label><span>새 비밀번호 확인</span><input type="password" name="new_password_confirmation" minlength="8" autocomplete="new-password" required></label>
       <button class="btn" type="submit">비밀번호 변경</button>
     </form>
   </section>

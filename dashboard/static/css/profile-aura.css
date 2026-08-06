@@ -107,6 +107,14 @@ html[data-theme="dark"] .my-account-page .account-avatar-wrap {
   transition: opacity .55s ease, filter .55s ease, scale .55s ease;
 }
 
+/* The profile menu preference removes the decorative gradient entirely. */
+html[data-profile-effects="off"] .topbar-profile-menu .topbar-profile-avatar-wrap::before,
+html[data-profile-effects="off"] .my-account-page .account-avatar-wrap::before {
+  display: none !important;
+  content: none !important;
+  animation: none !important;
+}
+
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::before,
 .my-account-page .account-avatar-wrap:hover::before {

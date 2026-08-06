@@ -43,11 +43,11 @@
   </section>
 
   <section class="panel account-create-panel">
-    <div class="section-heading"><div><h2>새 계정 생성</h2><p>비밀번호는 10자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.</p></div></div>
+    <div class="section-heading"><div><h2>새 계정 생성</h2><p>비밀번호는 8자 이상이어야 합니다.</p></div></div>
     <form method="post" class="account-create-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label><span>아이디 <em>필수</em></span><input name="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" autocomplete="off" required placeholder="영문·숫자·.-_"></label>
-      <label><span>임시 비밀번호 <em>필수</em></span><input type="password" name="password" minlength="10" autocomplete="new-password" required placeholder="10자 이상"></label>
+      <label><span>임시 비밀번호 <em>필수</em></span><input type="password" name="password" minlength="8" autocomplete="new-password" required placeholder="8자 이상"></label>
       <label><span>권한 <em>필수</em></span><select name="role" required><option value="user">일반 사용자</option><option value="admin">관리자</option></select></label>
       <button class="btn btn-primary" type="submit">계정 생성</button>
     </form>
@@ -159,7 +159,7 @@
             <td>
               <form method="post" action="{{ url_for('auth.reset_user_password', user_id=user.id) }}" class="inline-account-form" onsubmit="return confirm('{{ 'Reset the password for this account?' if current_locale == 'en' else '이 계정의 비밀번호를 초기화할까요?' }}');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="password" name="new_password" minlength="10" required placeholder="새 비밀번호" autocomplete="new-password">
+                <input type="password" name="new_password" minlength="8" required placeholder="새 비밀번호" autocomplete="new-password">
                 <button class="btn btn-small">초기화</button>
               </form>
             </td>
