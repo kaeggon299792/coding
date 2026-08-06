@@ -474,10 +474,11 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert ".community-table .community-author-cell::before" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
-    assert "js/profile-avatar-webgl.js" in base_template
+    assert "js/profile-avatar-webgl.js" not in base_template
     topbar_template = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
-    assert topbar_template.count('data-profile-avatar-webgl="candidate"') == 2
+    assert 'data-profile-avatar-webgl="candidate"' not in topbar_template
+    assert topbar_template.count("topbar-profile-avatar-wrap") == 2
     assert 'id="blackhole-profile-root"' in account_template
     assert "account-avatar-wrap profile-avatar-webgl" not in account_template
     webgl_js = (root / "static" / "js" / "profile-avatar-webgl.js").read_text(encoding="utf-8")

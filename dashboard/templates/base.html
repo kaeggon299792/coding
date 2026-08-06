@@ -73,8 +73,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-profile-aura-v6">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260806-blackhole-v4">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-flat-topbar-v1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260806-flat-topbar-v1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -111,10 +111,6 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 <script src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260731-spotlight7" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"></script>
-{% endif %}
-{% if current_username %}
-{% if request.endpoint not in ('public_home', 'auth.my_account') %}<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>{% endif %}
-{% if request.endpoint != 'auth.my_account' %}<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/profile-avatar-webgl.js') }}?v=20260806-blackhole-v4" defer></script>{% endif %}
 {% endif %}
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");

@@ -118,3 +118,24 @@
   .profile-avatar-webgl.is-webgl-active > .topbar-profile-photo,
   .profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child { opacity: 1; }
 }
+
+/* Header avatars are intentionally flat. The full ray-marched black hole is
+   rendered only by the isolated React island on /account. */
+.topbar-profile-menu .topbar-profile-avatar-wrap {
+  filter: none !important;
+}
+.topbar-profile-menu .topbar-profile-avatar-wrap::before,
+.topbar-profile-menu .topbar-profile-avatar-wrap::after,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .profile-avatar-webgl-canvas {
+  display: none !important;
+  content: none !important;
+}
+.topbar-profile-menu .topbar-avatar,
+.topbar-profile-menu .topbar-avatar-fallback,
+.topbar-profile-menu .topbar-profile-photo,
+.topbar-profile-menu .topbar-profile-photo-fallback {
+  border: 1px solid var(--brand-border-strong) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  animation: none !important;
+}
