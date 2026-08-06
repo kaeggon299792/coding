@@ -43,6 +43,10 @@ def test_profile_and_language_menus_are_mutually_exclusive():
     assert 'const profileMenu = document.querySelector(".topbar-profile-menu")' in base
     assert 'if (profileMenu.open) languageSwitch.removeAttribute("open")' in base
     assert 'if (languageSwitch.open) profileMenu.removeAttribute("open")' in base
+    assert '"language-menu-open", Boolean(languageSwitch.open)' in base
+    assert ".topbar-nav.language-menu-open{overflow:visible}" in (
+        ROOT / "static" / "css" / "dashboard.css"
+    ).read_text(encoding="utf-8")
 
 
 def test_mobile_navigation_and_company_filters_are_present():

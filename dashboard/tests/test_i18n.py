@@ -3,7 +3,17 @@ import re
 import pytest
 from werkzeug.security import generate_password_hash
 
-from localization import translate_source_label
+from localization import locale_for_country, translate_source_label
+
+
+def test_country_locale_mapping():
+    assert locale_for_country("KR") == "ko"
+    assert locale_for_country("JP") == "ja"
+    assert locale_for_country("CN") == "yue-HK"
+    assert locale_for_country("HK") == "yue-HK"
+    assert locale_for_country("MO") == "yue-HK"
+    assert locale_for_country("US") == "en"
+    assert locale_for_country("XX") is None
 
 
 def test_source_series_compound_labels_translate_korean_frequency_tokens():
@@ -76,6 +86,34 @@ def test_korean_home_remains_default(client):
         ("카지노 산업을 더 가까이.", "Bringing the casino industry closer."),
     )
     assert any(korean in html and english in html for korean, english in pairs)
+
+
+@pytest.mark.parametrize(
+    ("country", "location", "cookie_value"),
+    (
+        ("JP", "/ja/", "ja"),
+        ("CN", "/yue-hk/", "yue-HK"),
+        ("MO", "/yue-hk/", "yue-HK"),
+        ("US", "/en/", "en"),
+    ),
+)
+def test_first_visit_country_redirects_to_localized_home(
+    client, country, location, cookie_value
+):
+    response = client.get(
+        "/", headers={"CF-IPCountry": country}, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(location)
+    assert f"casino_locale={cookie_value}" in response.headers["Set-Cookie"]
+
+
+def test_saved_locale_overrides_country_detection(client):
+    client.set_cookie("casino_locale", "ko")
+    response = client.get(
+        "/", headers={"CF-IPCountry": "JP"}, follow_redirects=False
+    )
+    assert response.status_code == 200
 
 
 def test_english_home_uses_same_route_with_localized_seo(client):

@@ -81,6 +81,7 @@ from localization import (
     alternate_paths,
     extract_translatable_html_strings,
     load_catalog,
+    locale_for_country,
     locale_from_environ,
     meta_for,
     translate_html,
@@ -810,6 +811,22 @@ def establish_request_security():
             and (host != CANONICAL_HOST or current_scheme != CANONICAL_SCHEME)
         ):
             return redirect(_canonical_request_url(canonical_path), code=301)
+    if request.method in {"GET", "HEAD"} and request.path == "/" and g.locale == "ko":
+        saved_locale = request.cookies.get("casino_locale", "")
+        detected_locale = (
+            saved_locale if saved_locale in SUPPORTED_LOCALES
+            else locale_for_country(request.headers.get("CF-IPCountry"))
+        )
+        if detected_locale and detected_locale != "ko":
+            prefix = detected_locale.lower()
+            query = request.query_string.decode("latin-1")
+            target = f"/{prefix}/" + (f"?{query}" if query else "")
+            response = redirect(target, code=302)
+            response.set_cookie(
+                "casino_locale", detected_locale, max_age=31536000,
+                secure=True, httponly=False, samesite="Lax", path="/",
+            )
+            return response
     restore_remembered_login()
     # Apply revocation, expiry, active-state and role changes before public or
     # protected route functions can consume stale session data.

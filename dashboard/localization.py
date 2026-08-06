@@ -63,6 +63,20 @@ _MAN_WON_RE = re.compile(r"^([+-]?[0-9,]+(?:\.[0-9]+)?)만원$")
 _PEOPLE_RE = re.compile(r"^([+-]?[0-9,]+)명$")
 
 
+def locale_for_country(country_code: str | None) -> str | None:
+    """Return the first-visit locale for a trusted two-letter country code."""
+    country = str(country_code or "").strip().upper()
+    if not re.fullmatch(r"[A-Z]{2}", country) or country == "XX":
+        return None
+    if country == "KR":
+        return "ko"
+    if country == "JP":
+        return "ja"
+    if country in {"CN", "HK", "MO"}:
+        return "yue-HK"
+    return "en"
+
+
 class LocalePrefixMiddleware:
     """Expose the complete Flask application below every supported locale prefix."""
 

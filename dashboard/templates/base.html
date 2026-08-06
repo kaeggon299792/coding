@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-mobile-language-v3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-mobile-language-v4">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -135,8 +135,16 @@ if (languageSwitch && profileMenu) {
     if (languageSwitch.open) profileMenu.removeAttribute("open");
   });
 }
+const syncLanguageMenuState = () => {
+  languageSwitch?.closest(".topbar-nav")?.classList.toggle(
+    "language-menu-open", Boolean(languageSwitch.open)
+  );
+};
+languageSwitch?.addEventListener("toggle", syncLanguageMenuState);
+syncLanguageMenuState();
 document.querySelectorAll("[data-locale-link]").forEach((link) => {
   link.addEventListener("click", (event) => {
+    document.cookie = `casino_locale=${encodeURIComponent(link.dataset.localeLink)}; Max-Age=31536000; Path=/; SameSite=Lax; Secure`;
     if (!window.location.hash) return;
     event.preventDefault();
     window.location.assign(link.href + window.location.hash);
