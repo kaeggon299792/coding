@@ -331,3 +331,4 @@ def test_register_page_has_google_signup_button(google_client):
     assert "Google로 가입하기" in html
     assert 'href="/login/google"' in html
     assert "google-g.svg" in html
+    assert "관리자 승인 후 로그인할 수 있습니다." not in html
