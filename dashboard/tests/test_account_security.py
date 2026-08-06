@@ -197,6 +197,7 @@ def test_google_password_change_requires_recent_authentication(account_client):
     )
 
     assert response.status_code == 302
+
     assert "error=" in response.headers["Location"]
     connection = sqlite3.connect(db_path)
     current_hash = connection.execute(
@@ -293,6 +294,14 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client):
         follow_redirects=False,
     )
     assert response.status_code == 302
+    portfolio = client.get("/admin/portfolio")
+    assert portfolio.status_code == 200
+    portfolio_html = portfolio.get_data(as_text=True)
+    assert "포트폴리오 관리" in portfolio_html
+    assert 'src="https://www.shingoon.me/admin"' in portfolio_html
+    assert "frame-src https://www.googletagmanager.com https://www.shingoon.me" in (
+        portfolio.headers["Content-Security-Policy"]
+    )
 
     from utils import now_kst
 

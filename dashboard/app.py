@@ -164,6 +164,7 @@ NOINDEX_ENDPOINTS = {
     "auth.admin_tasks",
     "dashboard_home",
     "paradian_portal_page",
+    "admin_portfolio_page",
     "performance_page",
     "source_download_page",
     "sitemap_page",
@@ -809,6 +810,9 @@ def establish_request_security():
 @app.after_request
 def apply_security_headers(response):
     nonce = getattr(g, "csp_nonce", "")
+    frame_sources = "https://www.googletagmanager.com"
+    if request.endpoint == "admin_portfolio_page":
+        frame_sources += " https://www.shingoon.me"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "; ".join((
         "default-src 'self'",
@@ -820,7 +824,7 @@ def apply_security_headers(response):
         "https://lh3.googleusercontent.com",
         "connect-src 'self' https://www.google-analytics.com https://analytics.google.com "
         "https://region1.google-analytics.com https://www.googletagmanager.com",
-        "frame-src https://www.googletagmanager.com",
+        f"frame-src {frame_sources}",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -2489,6 +2493,15 @@ def paradian_portal_page():
         )
     finally:
         connection.close()
+
+
+@app.route("/admin/portfolio")
+@admin_required
+def admin_portfolio_page():
+    return render_template(
+        "admin_portfolio.html",
+        portfolio_admin_url="https://www.shingoon.me/admin",
+    )
 
 
 # ============================================================

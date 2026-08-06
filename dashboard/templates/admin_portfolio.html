@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}포트폴리오 관리{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}
+<main class="page-container admin-portfolio-page">
+  <header class="admin-portfolio-heading">
+    <div>
+      <p class="page-eyebrow">Administration / Portfolio</p>
+      <h1 class="page-title">포트폴리오 관리</h1>
+      <p class="page-description">CASINO IN 관리자 계정으로 포트폴리오 콘텐츠와 외부 링크 파일을 같은 관리자 영역에서 관리합니다.</p>
+    </div>
+  </header>
+  <p class="admin-portfolio-note">보안을 위해 포트폴리오 관리 세션은 CASINO IN 세션과 분리됩니다. 처음 한 번 동일한 CASINO IN 관리자 아이디와 비밀번호를 확인합니다.</p>
+  <section class="admin-portfolio-shell" aria-label="포트폴리오 관리 도구">
+    <iframe src="{{ portfolio_admin_url }}" title="포트폴리오 관리" loading="eager" referrerpolicy="no-referrer"></iframe>
+  </section>
+</main>
+{% endblock %}
