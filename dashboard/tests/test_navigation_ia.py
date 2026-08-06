@@ -140,6 +140,13 @@ def test_page_loader_has_no_forced_completion_delay():
     assert 'loader.classList.add("is-hidden")' in base
 
 
+def test_legacy_footer_does_not_duplicate_the_shared_legal_footer():
+    footer = (ROOT / "templates" / "_footer.html").read_text(encoding="utf-8")
+    legal_footer = (ROOT / "templates" / "_legal_footer.html").read_text(encoding="utf-8")
+    assert "Business, Executed" not in footer
+    assert "© 2026 CASINO IN" in legal_footer
+
+
 def test_market_sparklines_do_not_render_distorted_endpoint_circles():
     markup = (ROOT / "templates" / "market_trend.html").read_text(encoding="utf-8")
     assert "<circle" not in markup
