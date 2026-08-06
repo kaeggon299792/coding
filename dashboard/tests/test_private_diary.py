@@ -115,9 +115,10 @@ def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
         _login(client, user_id, "diary-moods", "m" * 64)
         page = client.get("/board/diary").get_data(as_text=True)
         assert '<select class="diary-mood-select" name="mood_code"' in page
-        assert page.count('<option value="') >= 30
+        assert page.count('<option value="') == 151
         assert "🤩 황홀함" in page
         assert "🪫 지침" in page
+        assert "🕯️ 깊이 슬픔" in page
         assert 'data-diary-date-button' in page
         assert 'js/diary.js' in page
 
