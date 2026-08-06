@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 
 
 def test_admin_memo_board_is_private_and_supports_safe_image(monkeypatch, tmp_path):
@@ -41,6 +42,8 @@ def test_admin_memo_board_is_private_and_supports_safe_image(monkeypatch, tmp_pa
         assert page.status_code == 200
         assert "회의 준비" in page.get_data(as_text=True)
         assert "확인할 코드와 숫자" in page.get_data(as_text=True)
+        assert "data-copy-memo" in page.get_data(as_text=True)
+        assert "js/admin-memos.js" in page.get_data(as_text=True)
         admin_page = client.get("/admin")
         assert admin_page.status_code == 200
         assert 'href="/admin/memos"' in admin_page.get_data(as_text=True)
@@ -107,3 +110,11 @@ def test_admin_memo_rejects_invalid_image(monkeypatch, tmp_path):
         "SELECT COUNT(*) FROM action_items WHERE source_type='admin_memo'"
     ).fetchone()[0] == 0
     db.close()
+
+
+def test_admin_memo_long_content_scrolls_inside_card():
+    root = Path(__file__).parents[1]
+    css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
+    script = (root / "static" / "js" / "admin-memos.js").read_text(encoding="utf-8")
+    assert ".admin-memo-card pre{min-height:150px;max-height:280px" in css
+    assert 'navigator.clipboard.writeText(text)' in script

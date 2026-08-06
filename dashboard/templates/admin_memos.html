@@ -34,10 +34,13 @@
       {% if memo.source_ref_id %}<a class="admin-memo-image" href="{{ memo.source_ref_id }}" target="_blank" rel="noopener noreferrer"><img src="{{ memo.source_ref_id }}" alt="{{ memo.title }} 첨부 이미지" loading="lazy"></a>{% endif %}
       <footer>
         <span>{{ memo.owner or '일반 메모' }}</span>
-        <form method="post" action="{{ url_for('delete_admin_memo_route', memo_id=memo.id) }}" onsubmit="return confirm('이 메모를 삭제하시겠습니까?');">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="btn" type="submit">삭제</button>
-        </form>
+        <div>
+          <button class="btn" type="button" data-copy-memo>내용 복사</button>
+          <form method="post" action="{{ url_for('delete_admin_memo_route', memo_id=memo.id) }}" onsubmit="return confirm('이 메모를 삭제하시겠습니까?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn" type="submit">삭제</button>
+          </form>
+        </div>
       </footer>
     </article>
     {% else %}
@@ -45,5 +48,6 @@
     {% endfor %}
   </section>
 </main>
+<script src="{{ url_for('static', filename='js/admin-memos.js') }}" defer></script>
 {% include "_footer.html" %}
 {% endblock %}

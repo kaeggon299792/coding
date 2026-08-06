@@ -39,6 +39,11 @@ tar \
   --exclude='dashboard/data' \
   --exclude='dashboard/dashboard.db*' \
   --exclude='dashboard/logs' \
+  --exclude='dashboard/__pycache__' \
+  --exclude='dashboard/**/__pycache__' \
+  --exclude='dashboard/**/*.pyc' \
+  --exclude='dashboard/.pytest_cache' \
+  --exclude='dashboard/static/uploads' \
   -czf "${TARGET}/source-before.tar.gz" \
   -C "$(dirname "${APP_DIR}")" dashboard
 chmod 600 "${TARGET}/git-commit.txt" "${TARGET}/SHA256SUMS" "${TARGET}/source-before.tar.gz"
