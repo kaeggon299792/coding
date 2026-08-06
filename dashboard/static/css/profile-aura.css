@@ -1,90 +1,188 @@
-/* Continuous avatar aura. Board bylines intentionally remain flat and compact. */
-.member-avatar-wrap,
-.account-avatar-wrap {
-  --aura-primary: var(--grade-glow, #9aa3ad);
-  --aura-secondary: #eef3f8;
-  --aura-highlight: #fff;
-}
-
-.member-avatar-wrap.grade-gold,
-.account-avatar-wrap.grade-gold {
-  --aura-primary: #ffd65a;
-  --aura-secondary: #f29b2f;
-  --aura-highlight: #fff4ba;
-}
-
-.member-avatar-wrap.grade-platinum,
-.account-avatar-wrap.grade-platinum {
-  --aura-primary: #d84cff;
-  --aura-secondary: #675cff;
-  --aura-highlight: #ff9eea;
-}
-
-.member-avatar-wrap.grade-diamond,
-.account-avatar-wrap.grade-diamond {
-  --aura-primary: #0056f1;
-  --aura-secondary: #26d9ff;
-  --aura-highlight: #b8f3ff;
-}
-
-.member-avatar-wrap.grade-black,
-.account-avatar-wrap.grade-black {
-  --aura-primary: #ff9d2e;
-  --aura-secondary: #ffcf58;
-  --aura-highlight: #fff0ad;
-}
-
+/* Reusable logged-in profile effect. Add profile-avatar-fx only to designated avatars. */
+.member-avatar-wrap::before,
 .member-avatar-wrap::after,
+.account-avatar-wrap::before,
 .account-avatar-wrap::after {
-  inset: -10px;
-  background: conic-gradient(
-    from 12deg,
-    var(--aura-primary) 0deg,
-    var(--aura-highlight) 38deg,
-    var(--aura-secondary) 92deg,
-    var(--aura-primary) 156deg,
-    var(--aura-highlight) 214deg,
-    var(--aura-secondary) 278deg,
-    var(--aura-primary) 360deg
-  );
-  filter: blur(.15px) drop-shadow(0 0 5px var(--aura-primary));
-  opacity: .9;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+  display: none !important;
+  content: none !important;
+  animation: none !important;
 }
 
-.member-avatar-wrap.grade-gold::after,
-.account-avatar-wrap.grade-gold::after,
-.member-avatar-wrap.grade-black::after,
-.account-avatar-wrap.grade-black::after {
-  background: conic-gradient(
-    from 8deg,
-    var(--aura-secondary) 0deg,
-    var(--aura-highlight) 44deg,
-    var(--aura-primary) 108deg,
-    var(--aura-secondary) 176deg,
-    var(--aura-highlight) 226deg,
-    var(--aura-primary) 292deg,
-    var(--aura-secondary) 360deg
-  );
-  filter: drop-shadow(0 0 4px var(--aura-primary)) drop-shadow(0 0 8px var(--aura-secondary));
+.member-avatar-wrap > .member-avatar,
+.member-avatar-wrap > .topbar-avatar,
+.member-avatar-wrap > .topbar-avatar-fallback,
+.member-avatar-wrap > .topbar-profile-photo,
+.account-avatar-wrap > img:first-child,
+.account-avatar-wrap > span:first-child {
+  border: 1px solid var(--brand-border-strong) !important;
+  border-radius: 50%;
+  box-shadow: none !important;
 }
 
+.profile-avatar-fx {
+  --profile-fx-gold: #e8b84d;
+  --profile-fx-bright: #fff1a8;
+  --profile-fx-deep: #a96d12;
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.profile-avatar-fx::before,
+.profile-avatar-fx::after {
+  position: absolute;
+  display: block !important;
+  border-radius: 50%;
+  content: "" !important;
+  pointer-events: none;
+}
+
+.profile-avatar-fx::before {
+  z-index: 0;
+  inset: -5px;
+  border: 1px solid color-mix(in srgb, var(--profile-fx-bright) 78%, var(--profile-fx-gold));
+  box-shadow:
+    0 0 5px 1px color-mix(in srgb, var(--profile-fx-bright) 64%, transparent),
+    0 0 13px 4px color-mix(in srgb, var(--profile-fx-gold) 44%, transparent),
+    0 0 24px 8px color-mix(in srgb, var(--profile-fx-deep) 20%, transparent);
+  animation: profile-avatar-gold-breathe 6.8s ease-in-out infinite !important;
+}
+
+.profile-avatar-fx::after {
+  z-index: 1;
+  inset: -8px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 55%,
+    color-mix(in srgb, var(--profile-fx-gold) 42%, transparent) 63%,
+    var(--profile-fx-bright) 72%,
+    var(--profile-fx-gold) 79%,
+    transparent 88% 100%
+  );
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--profile-fx-gold) 70%, transparent));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
+  animation: profile-avatar-gold-orbit 13s linear infinite !important;
+}
+
+.profile-avatar-fx > .member-avatar,
+.profile-avatar-fx > .topbar-avatar,
+.profile-avatar-fx > .topbar-avatar-fallback,
+.profile-avatar-fx > .topbar-profile-photo,
+.profile-avatar-fx.account-avatar-wrap > img:first-child,
+.profile-avatar-fx.account-avatar-wrap > span:first-child {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--profile-fx-gold) 54%, var(--brand-border)) !important;
+  animation: none !important;
+}
+
+.profile-avatar-fx-scan {
+  position: absolute !important;
+  z-index: 3 !important;
+  inset: 1px !important;
+  width: auto !important;
+  height: auto !important;
+  display: block !important;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 50%;
+  background: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+.profile-avatar-fx-scan::before {
+  position: absolute;
+  top: -32%;
+  left: -62%;
+  width: 34%;
+  height: 164%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 96, 162, .22),
+    rgba(255, 216, 93, .26),
+    rgba(95, 235, 255, .28),
+    rgba(159, 112, 255, .22),
+    transparent
+  );
+  content: "";
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  transform: rotate(24deg) translate3d(0, 0, 0);
+  animation: profile-avatar-rainbow-scan 8.6s ease-in-out infinite;
+}
+
+.profile-avatar-fx-sparkles {
+  position: absolute !important;
+  z-index: 4 !important;
+  inset: -10px !important;
+  width: auto !important;
+  height: auto !important;
+  display: block !important;
+  border: 0 !important;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 82% 16%, #fff 0 1px, var(--profile-fx-bright) 1.5px 2px, transparent 3.5px),
+    radial-gradient(circle at 12% 68%, #fff 0 1px, var(--profile-fx-gold) 1.5px 2px, transparent 3.5px),
+    radial-gradient(circle at 70% 92%, #fff 0 1px, var(--profile-fx-bright) 1.5px 2px, transparent 3.5px) !important;
+  box-shadow: none !important;
+  pointer-events: none;
+  animation: profile-avatar-star-twinkle 7.4s ease-in-out infinite;
+}
+
+.profile-avatar-fx > .membership-badge-icon {
+  z-index: 6;
+}
+
+@keyframes profile-avatar-gold-orbit {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes profile-avatar-gold-breathe {
+  0%, 100% { opacity: .66; transform: scale(1); }
+  48% { opacity: .94; transform: scale(1.035); }
+  70% { opacity: .78; transform: scale(1.012); }
+}
+
+@keyframes profile-avatar-rainbow-scan {
+  0%, 20% { opacity: 0; transform: rotate(24deg) translate3d(0, 0, 0); }
+  30% { opacity: .78; }
+  58% { opacity: .72; transform: rotate(24deg) translate3d(470%, 0, 0); }
+  68%, 100% { opacity: 0; transform: rotate(24deg) translate3d(470%, 0, 0); }
+}
+
+@keyframes profile-avatar-star-twinkle {
+  0%, 100% { opacity: .28; transform: scale(.96) rotate(0deg); }
+  38% { opacity: .9; transform: scale(1.04) rotate(4deg); }
+  62% { opacity: .46; transform: scale(1) rotate(-2deg); }
+}
+
+/* Small header avatar: keep motion restrained and omit the rainbow scan. */
+.topbar-user .profile-avatar-fx-scan {
+  display: none !important;
+}
+
+.topbar-user .profile-avatar-fx-sparkles {
+  inset: -7px !important;
+  opacity: .58;
+}
+
+/* Board and list avatars intentionally stay flat to avoid many simultaneous animations. */
 .member-identity.is-board-author .member-avatar-wrap {
   width: 22px !important;
   height: 22px !important;
   filter: none !important;
-  isolation: auto !important;
 }
 
 .member-identity.is-board-author .member-avatar-wrap::before,
-.member-identity.is-board-author .member-avatar-wrap::after {
+.member-identity.is-board-author .member-avatar-wrap::after,
+.member-identity.is-board-author .profile-avatar-fx-scan,
+.member-identity.is-board-author .profile-avatar-fx-sparkles,
+.member-identity.is-board-author .membership-badge-icon {
   display: none !important;
-  background: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-  content: none !important;
-  animation: none !important;
 }
 
 .member-identity.is-board-author .member-avatar,
@@ -99,119 +197,26 @@
   animation: none !important;
 }
 
-.member-identity.is-board-author .membership-badge-icon {
-  display: none !important;
-}
-
-/* Gold and Black use a dense solar corona instead of isolated orbit points. */
-.member-avatar-wrap.grade-gold::before,
-.account-avatar-wrap.grade-gold::before,
-.member-avatar-wrap.grade-black::before,
-.account-avatar-wrap.grade-black::before {
-  border-color: var(--aura-highlight);
-  box-shadow:
-    0 0 4px 1px var(--aura-highlight),
-    0 0 12px 4px color-mix(in srgb, var(--aura-primary) 75%, transparent),
-    0 0 25px 8px color-mix(in srgb, var(--aura-secondary) 42%, transparent) !important;
-  animation: member-avatar-solar-breathe 5.8s ease-in-out infinite;
-}
-
-.member-avatar-wrap.grade-gold::after,
-.account-avatar-wrap.grade-gold::after,
-.member-avatar-wrap.grade-black::after,
-.account-avatar-wrap.grade-black::after {
-  inset: -14px;
-  background:
-    repeating-conic-gradient(
-      from 4deg,
-      color-mix(in srgb, var(--aura-highlight) 88%, transparent) 0deg 1.5deg,
-      color-mix(in srgb, var(--aura-primary) 70%, transparent) 1.5deg 3deg,
-      transparent 3deg 9deg
-    );
-  filter: drop-shadow(0 0 3px var(--aura-primary)) drop-shadow(0 0 7px var(--aura-secondary));
-  opacity: .88;
-  -webkit-mask: radial-gradient(farthest-side, transparent 61%, #000 64% 75%, transparent 79%);
-  mask: radial-gradient(farthest-side, transparent 61%, #000 64% 75%, transparent 79%);
-  animation: member-avatar-solar-corona 9s linear infinite;
-}
-
-@keyframes member-avatar-solar-breathe {
-  0%, 100% { opacity: .76; transform: scale(1); }
-  42% { opacity: 1; transform: scale(1.055); }
-  67% { opacity: .84; transform: scale(1.02); }
-}
-
-@keyframes member-avatar-solar-corona {
-  0% { opacity: .72; transform: rotate(0deg) scale(.98); }
-  34% { opacity: 1; transform: rotate(122deg) scale(1.06); }
-  68% { opacity: .82; transform: rotate(245deg) scale(1.01); }
-  100% { opacity: .72; transform: rotate(360deg) scale(.98); }
-}
-
 @media (max-width: 760px) {
   .community-table .community-author-cell::before {
     content: none !important;
   }
-}
 
-@media (max-width: 760px) {
-  .member-avatar-wrap::after,
-  .account-avatar-wrap::after {
-    inset: -9px;
-  }
+  .profile-avatar-fx::before { inset: -4px; }
+  .profile-avatar-fx::after { inset: -7px; }
+  .profile-avatar-fx-sparkles { inset: -8px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .member-avatar-wrap::after,
-  .account-avatar-wrap::after {
-    animation: none;
+  .profile-avatar-fx::before,
+  .profile-avatar-fx::after,
+  .profile-avatar-fx-scan::before,
+  .profile-avatar-fx-sparkles {
+    animation: none !important;
   }
-  .member-avatar-wrap.grade-gold::before,
-  .account-avatar-wrap.grade-gold::before,
-  .member-avatar-wrap.grade-black::before,
-  .account-avatar-wrap.grade-black::before {
-    animation: none;
+
+  .profile-avatar-fx-scan,
+  .profile-avatar-fx-sparkles {
+    display: none !important;
   }
-}
-
-/* Final profile treatment: one thin photo edge plus a flickering corona, never concentric rings. */
-.member-avatar-wrap > .member-avatar,
-.member-avatar-wrap > .topbar-avatar,
-.member-avatar-wrap > .topbar-avatar-fallback,
-.member-avatar-wrap > .topbar-profile-photo,
-.account-avatar-wrap > img:first-child,
-.account-avatar-wrap > span:first-child {
-  border: 1px solid color-mix(in srgb, var(--aura-primary) 45%, var(--brand-border)) !important;
-  box-shadow: none !important;
-}
-
-.member-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::before,
-.account-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::before {
-  inset: -6px;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow:
-    0 0 10px 3px color-mix(in srgb, var(--aura-primary) 54%, transparent),
-    0 0 24px 8px color-mix(in srgb, var(--aura-secondary) 30%, transparent) !important;
-  animation: member-avatar-solar-breathe 5.8s ease-in-out infinite;
-}
-
-.member-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::after,
-.account-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::after {
-  inset: -14px;
-  background: repeating-conic-gradient(
-    from 4deg,
-    color-mix(in srgb, var(--aura-highlight) 90%, transparent) 0deg 1deg,
-    color-mix(in srgb, var(--aura-primary) 72%, transparent) 1deg 2.4deg,
-    transparent 2.4deg 8deg
-  );
-  filter: drop-shadow(0 0 3px var(--aura-primary)) drop-shadow(0 0 7px var(--aura-secondary));
-  opacity: .88;
-  -webkit-mask: radial-gradient(farthest-side, transparent 60%, #000 64% 74%, transparent 80%);
-  mask: radial-gradient(farthest-side, transparent 60%, #000 64% 74%, transparent 80%);
-  animation: member-avatar-solar-corona 9s linear infinite;
-}
-
-.member-identity.is-board-author .member-avatar {
-  border: 1px solid #b8bdc4 !important;
 }

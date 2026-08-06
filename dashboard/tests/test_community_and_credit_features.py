@@ -466,15 +466,16 @@ def test_board_author_identity_is_avatar_only_and_flat():
     aura_css = (root / "static" / "css" / "profile-aura.css").read_text(
         encoding="utf-8"
     )
-    assert "Continuous avatar aura" in aura_css
+    assert "Reusable logged-in profile effect" in aura_css
     assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
     assert "display: none !important" in aura_css
-    assert "member-avatar-solar-corona" in aura_css
+    assert "profile-avatar-gold-orbit" in aura_css
+    assert "profile-avatar-rainbow-scan" in aura_css
+    assert "profile-avatar-star-twinkle" in aura_css
     assert ".community-table .community-author-cell::before" in aura_css
-    assert ".member-avatar-wrap.grade-platinum" in aura_css
-    assert ".member-avatar-wrap.grade-diamond" in aura_css
-    assert ".topbar-profile-menu .member-avatar-wrap::after" not in aura_css
-    assert "never concentric rings" in aura_css
-    assert "border: 0 !important" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
+    topbar_template = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
+    account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
+    assert topbar_template.count("profile-avatar-fx") >= 6
+    assert "account-avatar-wrap profile-avatar-fx" in account_template
