@@ -81,6 +81,22 @@ def test_png_icon_rejects_fake_file(db_connection):
         )
 
 
+def test_grade_name_can_change_without_changing_icon(db_connection):
+    before = next(
+        grade for grade in membership.list_grades(db_connection) if grade["code"] == "gold"
+    )
+    membership.update_grade_text(
+        db_connection, "gold", "Starter", "가입 기본등급", 1
+    )
+    db_connection.commit()
+    after = next(
+        grade for grade in membership.list_grades(db_connection) if grade["code"] == "gold"
+    )
+    assert after["label"] == "Starter"
+    assert after["description"] == "가입 기본등급"
+    assert after["icon_path"] == before["icon_path"]
+
+
 def test_membership_admin_page_requires_admin_and_renders(monkeypatch, tmp_path):
     db_path = tmp_path / "membership-admin.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
@@ -113,6 +129,7 @@ def test_membership_admin_page_requires_admin_and_renders(monkeypatch, tmp_path)
         html = response.get_data(as_text=True)
         assert "회원관리" in html
         assert "가입일" in html
+        assert "방문횟수" in html
         assert "최종 로그인" in html
         assert "게시판별 등급 권한" in html
         assert "membership-user" in html

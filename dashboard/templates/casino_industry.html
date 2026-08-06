@@ -77,14 +77,28 @@
     </header>
 
     <div class="table-wrap casino-table-desktop">
-      <table class="data-table casino-status-table">
+      <table class="data-table casino-status-table" data-sortable-casino-table>
         <thead><tr>
-          <th>지역</th><th>업체명·법인명</th><th>최초허가일</th><th>영업장소 및 주소</th>
-          <th>면적(㎡)</th><th>운영형태</th><th>2025 매출액<br>(백만원)</th><th>입장객(명)</th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="region" data-sort-type="number" title="서울 기준 가까운순·먼순 정렬">지역<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="company" data-sort-type="text">업체명·법인명<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="permit" data-sort-type="text">최초허가일<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="place" data-sort-type="text">영업장소 및 주소<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="area" data-sort-type="number">면적(㎡)<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="operation" data-sort-type="text">운영형태<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="revenue" data-sort-type="number">2025 매출액<br>(백만원)<span aria-hidden="true">↕</span></button></th>
+          <th aria-sort="none"><button class="casino-sort-button" type="button" data-sort-key="visitors" data-sort-type="number">입장객(명)<span aria-hidden="true">↕</span></button></th>
         </tr></thead>
         <tbody>
           {% for item in casino_industry["items"] %}
-          <tr>
+          <tr data-original-index="{{ loop.index0 }}"
+              data-sort-region="{{ {'서울': 0, '인천': 1, '강원': 2, '평창': 2, '대구': 3, '부산': 4, '제주': 5}.get(item.region, 99) }}"
+              data-sort-company="{{ item.venue_name }} {{ item.company_name }}"
+              data-sort-permit="{{ item.permit_date }}"
+              data-sort-place="{{ item.place }} {{ item.address }}"
+              data-sort-area="{{ item.area_sqm }}"
+              data-sort-operation="{{ item.operation }} {{ item.grade }}"
+              data-sort-revenue="{{ item.revenue_2025 }}"
+              data-sort-visitors="{{ item.visitors_2025 }}">
             <td><span class="casino-region-badge">{{ region_label(item.region) }}</span></td>
             <td><strong>{{ item.venue_name }}</strong><small>{{ item.company_name }}</small></td>
             <td>{{ item.permit_date }}</td>
@@ -119,3 +133,4 @@
   </section>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/casino-industry-table.js') }}" defer></script>{% endblock %}

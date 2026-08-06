@@ -1520,11 +1520,21 @@ def membership_management():
         users = [
             dict(row) for row in connection.execute(
                 """
-                SELECT id, username, name, email, picture_url, role, is_active,
-                       approval_status, membership_level, created_at, last_login_at
-                FROM dashboard_users
-                WHERE COALESCE(approval_status, 'approved') != 'deleted'
-                ORDER BY role='admin' DESC, is_active DESC, username
+                SELECT users.id, users.username, users.name, users.email,
+                       users.picture_url, users.role, users.is_active,
+                       users.approval_status, users.membership_level,
+                       users.created_at, users.last_login_at,
+                       COALESCE(visits.visit_count, 0) AS visit_count
+                FROM dashboard_users AS users
+                LEFT JOIN (
+                    SELECT user_id, COUNT(*) AS visit_count
+                    FROM security_audit_log
+                    WHERE action='PAGE_VIEW' AND success=1
+                      AND created_at >= datetime('now', '-30 days')
+                    GROUP BY user_id
+                ) AS visits ON visits.user_id=users.id
+                WHERE COALESCE(users.approval_status, 'approved') != 'deleted'
+                ORDER BY users.role='admin' DESC, users.is_active DESC, users.username
                 """
             ).fetchall()
         ]

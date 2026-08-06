@@ -47,3 +47,19 @@ def test_casino_overview_grid_keeps_summary_inside_page():
     assert 'class="casino-mobile-list"' in template
     assert "@media(max-width:980px){.casino-industry-hero{grid-template-columns:1fr}" in css
     assert ".casino-table-desktop{display:none}.casino-mobile-list{display:grid" in css
+
+
+def test_casino_overview_table_exposes_all_sortable_columns(client):
+    response = client.get("/market/casino-industry")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "data-sortable-casino-table" in html
+    for key in (
+        "region", "company", "permit", "place", "area", "operation",
+        "revenue", "visitors",
+    ):
+        assert f'data-sort-key="{key}"' in html
+        assert f'data-sort-{key}=' in html
+    assert "서울 기준 가까운순·먼순 정렬" in html
+    assert "js/casino-industry-table.js" in html

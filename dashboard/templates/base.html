@@ -113,16 +113,17 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 {% endif %}
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");
-const languageSwitchHost = document.querySelector(".topbar-actions, .public-header");
-if (languageSwitch && languageSwitchHost) {
+const topbarSearch = document.querySelector(".topbar-search-link");
+const publicHeader = document.querySelector(".public-header");
+if (languageSwitch && (topbarSearch || publicHeader)) {
   languageSwitch.classList.add("is-embedded");
-  if (languageSwitchHost.classList.contains("public-header")) {
-    languageSwitchHost.insertBefore(
-      languageSwitch,
-      languageSwitchHost.querySelector(".public-login-link")
-    );
+  if (topbarSearch) {
+    topbarSearch.insertAdjacentElement("afterend", languageSwitch);
   } else {
-    languageSwitchHost.prepend(languageSwitch);
+    publicHeader.insertBefore(
+      languageSwitch,
+      publicHeader.querySelector(".public-login-link")
+    );
   }
 }
 document.querySelectorAll("[data-locale-link]").forEach((link) => {
