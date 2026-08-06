@@ -3,14 +3,48 @@
 {% block body %}
 {% include "_topbar.html" %}{% include "_data_subnav.html" %}
 <main class="page-container company-expert-page">
-  <header class="company-expert-hero"><div><p class="page-eyebrow">COMPANY INTELLIGENCE / VALUATION</p><h1 class="page-title">기업 전문정보</h1><p class="page-description">주요 카지노 기업의 시장 멀티플을 과거 5년 및 산업 중앙값과 같은 기준으로 비교합니다.</p></div>{% if dashboard.as_of %}<time datetime="{{ dashboard.as_of }}">기준일 {{ dashboard.as_of }}</time>{% endif %}</header>
-  <nav class="company-expert-tabs" aria-label="기업 선택">{% for code, name in dashboard.companies.items() %}<a href="{{ url_for('company_expert_page', company=code) }}"{% if code == dashboard.selected_company %} class="active" aria-current="page"{% endif %}>{{ name }}</a>{% endfor %}</nav>
-  <section class="company-expert-summary"><span>SELECTED COMPANY</span><h2>{{ dashboard.selected_company_name }}</h2><p>현재 멀티플과 5Y 중앙값·산업 중앙값·예상 멀티플을 함께 확인합니다.</p></section>
-  <section class="company-expert-grid">{% for metric in dashboard.metrics %}<article class="company-expert-card">
-    <header><div><span>{{ '%02d'|format(loop.index) }}</span><h3>{{ metric.label }}</h3></div><strong>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</strong></header>
-    <div class="company-expert-signals"><span>5년 대비 <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 대비 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
-    <dl>{% for field, label in dashboard.fields if field != 'current' %}<div><dt>{{ label }}</dt><dd>{{ '%.2f'|format(metric[field]) if metric[field] is not none else 'N/A' }}</dd></div>{% endfor %}</dl>
-  </article>{% endfor %}</section>
-  <p class="company-expert-note">멀티플은 특정 기준일의 시장 데이터이며 투자 판단을 보장하지 않습니다. N/A는 제공 데이터가 없고, NM은 계산상 유의미하지 않은 상태를 뜻하며 화면에서는 N/A로 표시합니다.</p>
+  <header class="company-expert-hero">
+    <div><p class="page-eyebrow">COMPANY INTELLIGENCE / VALUATION</p><h1 class="page-title">기업 전문정보</h1><p class="page-description">주요 카지노 기업의 시장 멀티플을 과거 5년 및 산업 중앙값과 같은 기준으로 비교합니다.</p></div>
+    {% if dashboard.as_of %}<time datetime="{{ dashboard.as_of }}"><span>DATA AS OF</span><b>{{ dashboard.as_of }}</b></time>{% endif %}
+  </header>
+
+  <nav class="company-expert-tabs" aria-label="기업 선택">{% for code, name in dashboard.companies.items() %}<a href="{{ url_for('company_expert_page', company=code) }}"{% if code == dashboard.selected_company %} class="active" aria-current="page"{% endif %}><span>{{ '%02d'|format(loop.index) }}</span>{{ name }}</a>{% endfor %}</nav>
+
+  <section class="company-expert-command">
+    <div><span>SELECTED COMPANY</span><h2>{{ dashboard.selected_company_name }}</h2><p>현재 멀티플을 5년 중앙값과 산업 중앙값에 나란히 놓고 상대적인 위치를 확인합니다.</p></div>
+    <dl><div><dt>확인 가능 지표</dt><dd>{{ dashboard.available_count }}<small>/ {{ dashboard.metrics|length }}</small></dd></div><div><dt>5년 대비 낮음</dt><dd>{{ dashboard.below_5y_count }}</dd></div><div><dt>산업 대비 낮음</dt><dd>{{ dashboard.below_industry_count }}</dd></div></dl>
+  </section>
+
+  <section class="company-expert-kpis" aria-label="핵심 밸류에이션">
+    {% for metric, caption in [(dashboard.per,'주가수익비율'),(dashboard.pbr,'주가순자산비율'),(dashboard.ev_ebitda,'기업가치·현금창출력')] %}
+    <article><span>{{ metric.label }}</span><strong>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</strong><p>{{ caption }}</p><div><em>5Y {{ '%.2f'|format(metric.median_5y) if metric.median_5y is not none else 'N/A' }}</em><b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></div></article>
+    {% endfor %}
+  </section>
+
+  <section class="company-expert-matrix">
+    <header><div><span>01 / RELATIVE POSITION</span><h2>상대 밸류에이션 포지션</h2></div><p>각 행에서 가장 큰 값을 100으로 환산한 상대 길이입니다.</p></header>
+    <div class="company-expert-matrix-legend"><span class="current">현재</span><span class="history">5년 중앙값</span><span class="industry">산업 중앙값</span></div>
+    <div class="company-expert-matrix-rows">{% for metric in dashboard.metrics %}<article>
+      <div class="company-expert-metric-name"><b>{{ metric.label }}</b><small>{{ '현재 %.2f'|format(metric.current) if metric.current is not none else '현재 N/A' }}</small></div>
+      <div class="company-expert-bars">
+        <div><i class="current" style="width:{{ metric.current_width }}%"></i><span>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</span></div>
+        <div><i class="history" style="width:{{ metric.median_5y_width }}%"></i><span>{{ '%.2f'|format(metric.median_5y) if metric.median_5y is not none else 'N/A' }}</span></div>
+        <div><i class="industry" style="width:{{ metric.industry_width }}%"></i><span>{{ '%.2f'|format(metric.industry_median) if metric.industry_median is not none else 'N/A' }}</span></div>
+      </div>
+      <div class="company-expert-verdict"><span>5Y <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
+    </article>{% endfor %}</div>
+  </section>
+
+  {% for group_code, group_title, group_description, metrics in dashboard.groups %}
+  <section class="company-expert-group">
+    <header><div><span>{{ '%02d'|format(loop.index + 1) }} / {{ group_code|upper }}</span><h2>{{ group_title }}</h2></div><p>{{ group_description }}</p></header>
+    <div class="company-expert-grid">{% for metric in metrics %}<article class="company-expert-card">
+      <header><div><span>{{ '%02d'|format(loop.index) }}</span><h3>{{ metric.label }}</h3></div><strong>{{ '%.2f'|format(metric.current) if metric.current is not none else 'N/A' }}</strong></header>
+      <div class="company-expert-signals"><span>5년 대비 <b class="is-{{ 'low' if metric.vs_5y == '낮음' else 'high' if metric.vs_5y == '높음' else 'neutral' }}">{{ metric.vs_5y }}</b></span><span>산업 대비 <b class="is-{{ 'low' if metric.vs_industry == '낮음' else 'high' if metric.vs_industry == '높음' else 'neutral' }}">{{ metric.vs_industry }}</b></span></div>
+      <dl>{% for field, label in dashboard.fields if field != 'current' %}<div><dt>{{ label }}</dt><dd>{{ '%.2f'|format(metric[field]) if metric[field] is not none else 'N/A' }}</dd></div>{% endfor %}</dl>
+    </article>{% endfor %}</div>
+  </section>
+  {% endfor %}
+  <p class="company-expert-note">멀티플은 특정 기준일의 시장 데이터이며 투자 판단을 보장하지 않습니다. N/A는 제공 데이터가 없거나 계산상 의미가 없는 상태입니다.</p>
 </main>
 {% endblock %}

@@ -53,3 +53,7 @@ def test_company_expert_page_is_public_and_filters_company(client):
     assert "GKL" in html
     assert "12.45" in html
     assert "company-expert-page" in html
+    assert "company-expert-command" in html
+    assert "company-expert-kpis" in html
+    assert "company-expert-matrix" in html
+    assert "company-expert-group" in html

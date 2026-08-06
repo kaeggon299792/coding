@@ -62,6 +62,7 @@ from services import (
     official_document_manager,
     performance_parser,
     portfolio_admin,
+    portfolio_content,
     rss_feed,
     salary_data,
     security_audit,
@@ -2507,12 +2508,175 @@ def paradian_portal_page():
 @app.route("/admin/portfolio")
 @admin_required
 def admin_portfolio_page():
+    try:
+        content = portfolio_content.snapshot()
+        content_error = None
+    except ValueError as exc:
+        content = {"projects": [], "about": {}, "contact": {}, "logos": [], "skills": []}
+        content_error = str(exc)
+    connection = dashboard_db()
+    try:
+        tips = [dict(row) for row in connection.execute(
+            """SELECT slug, title, category, draft, updated_at
+               FROM tips_articles WHERE is_deleted=0
+               ORDER BY updated_at DESC LIMIT 8"""
+        ).fetchall()]
+    finally:
+        connection.close()
     return render_template(
         "admin_portfolio.html",
         files=portfolio_admin.list_files(),
+        content=content,
+        tips=tips,
         csrf_token=get_csrf_token(),
-        success=request.args.get("success"), error=request.args.get("error"),
+        success=request.args.get("success"),
+        error=request.args.get("error") or content_error,
+        active_section=request.args.get("section", "overview"),
     )
+
+
+def _portfolio_redirect(section, *, success=None, error=None):
+    values = {"section": section}
+    if success:
+        values["success"] = success
+    if error:
+        values["error"] = error
+    return redirect(url_for("admin_portfolio_page", **values) + f"#{section}")
+
+
+def _portfolio_log(event, target_type, target_id, metadata=None):
+    connection = dashboard_db()
+    try:
+        security_audit.log_event(connection, event, target_type, target_id, metadata or {})
+        connection.commit()
+    finally:
+        connection.close()
+
+
+@app.post("/admin/portfolio/projects/save")
+@admin_required
+def admin_portfolio_save_project():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    try:
+        record = portfolio_content.save_project(request.form)
+    except ValueError as exc:
+        return _portfolio_redirect("projects", error=str(exc))
+    _portfolio_log("PORTFOLIO_PROJECT_SAVED", "portfolio_project", record["id"])
+    return _portfolio_redirect("projects", success="프로젝트를 저장했습니다.")
+
+
+@app.post("/admin/portfolio/projects/delete")
+@admin_required
+def admin_portfolio_delete_project():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    project_id = request.form.get("id", "")
+    try:
+        portfolio_content.delete_project(project_id)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    _portfolio_log("PORTFOLIO_PROJECT_DELETED", "portfolio_project", project_id)
+    return _portfolio_redirect("projects", success="프로젝트를 삭제했습니다.")
+
+
+@app.post("/admin/portfolio/about/save")
+@admin_required
+def admin_portfolio_save_about():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    try:
+        portfolio_content.save_about(request.form)
+    except ValueError as exc:
+        return _portfolio_redirect("about", error=str(exc))
+    _portfolio_log("PORTFOLIO_ABOUT_SAVED", "portfolio_about", "profile")
+    return _portfolio_redirect("about", success="소개 정보를 저장했습니다.")
+
+
+@app.post("/admin/portfolio/about/photo")
+@admin_required
+def admin_portfolio_save_about_photo():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    upload = request.files.get("photo")
+    if not upload or not upload.filename:
+        return _portfolio_redirect("about", error="프로필 사진을 선택해주세요.")
+    try:
+        portfolio_content.save_about_photo(upload)
+    except ValueError as exc:
+        return _portfolio_redirect("about", error=str(exc))
+    _portfolio_log("PORTFOLIO_PHOTO_SAVED", "portfolio_about", "photo")
+    return _portfolio_redirect("about", success="포트폴리오 프로필 사진을 변경했습니다.")
+
+
+@app.post("/admin/portfolio/contact/save")
+@admin_required
+def admin_portfolio_save_contact():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    try:
+        portfolio_content.save_contact(request.form)
+    except ValueError as exc:
+        return _portfolio_redirect("contact", error=str(exc))
+    _portfolio_log("PORTFOLIO_CONTACT_SAVED", "portfolio_contact", "contact")
+    return _portfolio_redirect("contact", success="연락처를 저장했습니다.")
+
+
+@app.post("/admin/portfolio/logos/save")
+@admin_required
+def admin_portfolio_save_logo():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return _portfolio_redirect("logos", error="로고 이미지를 선택해주세요.")
+    try:
+        record = portfolio_content.save_logo(request.form, upload)
+    except ValueError as exc:
+        return _portfolio_redirect("logos", error=str(exc))
+    _portfolio_log("PORTFOLIO_LOGO_SAVED", "portfolio_logo", record["id"])
+    return _portfolio_redirect("logos", success="로고를 추가했습니다.")
+
+
+@app.post("/admin/portfolio/logos/delete")
+@admin_required
+def admin_portfolio_delete_logo():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    logo_id = request.form.get("id", "")
+    try:
+        portfolio_content.delete_logo(logo_id)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    _portfolio_log("PORTFOLIO_LOGO_DELETED", "portfolio_logo", logo_id)
+    return _portfolio_redirect("logos", success="로고를 삭제했습니다.")
+
+
+@app.post("/admin/portfolio/skills/save")
+@admin_required
+def admin_portfolio_save_skill():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    try:
+        record = portfolio_content.save_skill(request.form, request.files.get("icon"))
+    except ValueError as exc:
+        return _portfolio_redirect("skills", error=str(exc))
+    _portfolio_log("PORTFOLIO_SKILL_SAVED", "portfolio_skill", record["id"])
+    return _portfolio_redirect("skills", success="기술 정보를 저장했습니다.")
+
+
+@app.post("/admin/portfolio/skills/delete")
+@admin_required
+def admin_portfolio_delete_skill():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    skill_id = request.form.get("id", "")
+    try:
+        portfolio_content.delete_skill(skill_id)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    _portfolio_log("PORTFOLIO_SKILL_DELETED", "portfolio_skill", skill_id)
+    return _portfolio_redirect("skills", success="기술 정보를 삭제했습니다.")
 
 
 @app.post("/admin/portfolio/files")

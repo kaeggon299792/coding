@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import re
 import sqlite3
 from datetime import timedelta
@@ -296,7 +297,17 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     )
     assert response.status_code == 302
     sharepoint_dir = tmp_path / "sharepoint"
+    portfolio_dir = tmp_path / "portfolio"
+    (portfolio_dir / "static" / "data").mkdir(parents=True)
+    (portfolio_dir / "private_data").mkdir(parents=True)
+    (portfolio_dir / "static" / "data" / "projects.json").write_text("[]", encoding="utf-8")
+    (portfolio_dir / "static" / "data" / "skills.json").write_text("[]", encoding="utf-8")
+    for name, value in (("about.json", {}), ("contact.json", {}), ("logos.json", [])):
+        (portfolio_dir / "private_data" / name).write_text(
+            json.dumps(value), encoding="utf-8"
+        )
     monkeypatch.setattr("config.PORTFOLIO_SHAREPOINT_DIR", str(sharepoint_dir))
+    monkeypatch.setattr("config.PORTFOLIO_APP_DIR", str(portfolio_dir))
     portfolio = client.get("/admin/portfolio")
     assert portfolio.status_code == 200
     portfolio_html = portfolio.get_data(as_text=True)
@@ -304,6 +315,41 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     assert "외부 링크 파일" in portfolio_html
     assert 'src="https://www.shingoon.me/admin"' not in portfolio_html
     assert "https://www.shingoon.me" not in portfolio.headers["Content-Security-Policy"]
+    for marker in (
+        "프로젝트", "소개·프로필", "연락처", "회사·서비스 로고",
+        "기술·역량", "Tips 콘텐츠", "외부 링크 파일",
+    ):
+        assert marker in portfolio_html
+    saved_project = client.post(
+        "/admin/portfolio/projects/save",
+        data={
+            "csrf_token": _csrf(client, "/admin/portfolio"),
+            "title": "통합 관리 프로젝트",
+            "summary": "CASINO IN에서 관리",
+            "date": "2026",
+        },
+        follow_redirects=True,
+    )
+    assert saved_project.status_code == 200
+    records = json.loads(
+        (portfolio_dir / "static" / "data" / "projects.json").read_text("utf-8")
+    )
+    assert records[0]["title"] == "통합 관리 프로젝트"
+    saved_contact = client.post(
+        "/admin/portfolio/contact/save",
+        data={
+            "csrf_token": _csrf(client, "/admin/portfolio"),
+            "phone": "0504-000-0000",
+            "email": "admin@example.com",
+            "website": "https://www.shingoon.me",
+        },
+        follow_redirects=True,
+    )
+    assert saved_contact.status_code == 200
+    contact = json.loads(
+        (portfolio_dir / "private_data" / "contact.json").read_text("utf-8")
+    )
+    assert contact["email"] == "admin@example.com"
     csrf_token = _csrf(client, "/admin/portfolio")
     uploaded = client.post(
         "/admin/portfolio/files",

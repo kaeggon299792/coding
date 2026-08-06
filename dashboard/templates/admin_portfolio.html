@@ -3,32 +3,116 @@
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container admin-portfolio-page">
-  <header class="admin-portfolio-heading"><div><p class="page-eyebrow">ADMINISTRATION / PORTFOLIO</p><h1 class="page-title">포트폴리오 관리</h1><p class="page-description">CASINO IN 관리자 인증으로 포트폴리오의 외부 공개 파일을 직접 관리합니다.</p></div></header>
-  {% if success %}<div class="alert success" role="status">{{ success }}</div>{% endif %}{% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+  <header class="admin-portfolio-heading">
+    <div><p class="page-eyebrow">ADMINISTRATION / PORTFOLIO</p><h1 class="page-title">포트폴리오 관리</h1><p class="page-description">CASINO IN 관리자 화면에서 shingoon.me의 콘텐츠와 공개 파일을 직접 관리합니다.</p></div>
+    <a class="btn btn-secondary" href="https://www.shingoon.me/" target="_blank" rel="noopener noreferrer">포트폴리오 보기 ↗</a>
+  </header>
+  {% if success %}<div class="alert success" role="status">{{ success }}</div>{% endif %}
+  {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
 
-  <section class="admin-portfolio-overview">
-    <article><span>관리 방식</span><strong>CASINO IN 통합</strong><small>별도 포트폴리오 로그인 없음</small></article>
-    <article><span>공개 파일</span><strong>{{ files|length }}개</strong><small>shingoon.me / Sharepoint</small></article>
-    <article><span>관리자 계정</span><strong>{{ current_username }}</strong><small>비밀번호 변경 시 포트폴리오에도 즉시 적용</small></article>
+  <nav class="admin-portfolio-nav" aria-label="포트폴리오 관리 메뉴">
+    {% for id, label in [('overview','요약'),('projects','프로젝트'),('about','소개'),('contact','연락처'),('logos','로고'),('skills','기술'),('tips','Tips'),('files','외부 파일')] %}
+    <a href="#{{ id }}"{% if active_section == id %} class="active" aria-current="location"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  <section class="admin-portfolio-overview" id="overview">
+    <article><span>프로젝트</span><strong>{{ content.projects|length }}</strong><small>공개 포트폴리오 프로젝트</small></article>
+    <article><span>기술</span><strong>{{ content.skills|length }}</strong><small>역량·숙련도 항목</small></article>
+    <article><span>Tips</span><strong>{{ tips|length }}+</strong><small>최근 관리 항목 기준</small></article>
+    <article><span>외부 파일</span><strong>{{ files|length }}</strong><small>shingoon.me / Sharepoint</small></article>
   </section>
 
-  <section class="admin-portfolio-panel">
-    <header><div><span>01 / EXTERNAL FILES</span><h2>외부 링크 파일</h2></div><p>이미지·문서 파일을 업로드하면 외부에서 사용할 수 있는 HTTPS 링크를 생성합니다.</p></header>
-    <form class="admin-portfolio-upload" method="post" action="{{ url_for('admin_portfolio_upload_file') }}" enctype="multipart/form-data">
+  <section class="admin-portfolio-panel" id="projects">
+    <header><div><span>01 / PROJECTS</span><h2>프로젝트</h2></div><p>새 프로젝트를 등록하거나 기존 프로젝트의 제목·기간·본문·성과를 수정합니다.</p></header>
+    <details class="admin-portfolio-editor" open><summary>새 프로젝트 등록</summary>
+      <form method="post" action="{{ url_for('admin_portfolio_save_project') }}" class="admin-portfolio-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label><span>제목 *</span><input name="title" maxlength="150" required></label>
+        <label><span>날짜</span><input name="date" maxlength="50"></label>
+        <label class="is-wide"><span>요약 *</span><textarea name="summary" rows="3" required></textarea></label>
+        <label><span>기간</span><input name="period" maxlength="100"></label>
+        <label class="is-wide"><span>내용</span><textarea name="content" rows="5"></textarea></label>
+        <label class="is-wide"><span>성과</span><textarea name="outcome" rows="4"></textarea></label>
+        <button class="btn btn-primary" type="submit">프로젝트 등록</button>
+      </form>
+    </details>
+    <div class="admin-portfolio-records">
+      {% for project in content.projects %}<details class="admin-portfolio-editor"><summary><span>{{ '%02d'|format(loop.index) }}</span><b>{{ project.title }}</b><small>{{ project.date or project.period or '날짜 미입력' }}</small></summary>
+        <form method="post" action="{{ url_for('admin_portfolio_save_project') }}" class="admin-portfolio-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ project.id }}">
+          <label><span>제목 *</span><input name="title" value="{{ project.title }}" maxlength="150" required></label>
+          <label><span>날짜</span><input name="date" value="{{ project.date }}" maxlength="50"></label>
+          <label class="is-wide"><span>요약 *</span><textarea name="summary" rows="3" required>{{ project.summary }}</textarea></label>
+          <label><span>기간</span><input name="period" value="{{ project.period }}" maxlength="100"></label>
+          <label class="is-wide"><span>내용</span><textarea name="content" rows="5">{{ project.content }}</textarea></label>
+          <label class="is-wide"><span>성과</span><textarea name="outcome" rows="4">{{ project.outcome }}</textarea></label>
+          <div class="admin-portfolio-actions"><button class="btn btn-primary" type="submit">변경 저장</button></div>
+        </form>
+        <form method="post" action="{{ url_for('admin_portfolio_delete_project') }}" class="admin-portfolio-delete" onsubmit="return confirm('이 프로젝트를 삭제할까요?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ project.id }}"><button class="btn btn-danger" type="submit">프로젝트 삭제</button></form>
+      </details>{% else %}<p class="empty-state">등록된 프로젝트가 없습니다.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section class="admin-portfolio-panel" id="about">
+    <header><div><span>02 / ABOUT</span><h2>소개·프로필</h2></div><p>포트폴리오 소개 문구와 PIN 해제 후 보이는 경력·학력·프로필 사진을 관리합니다.</p></header>
+    <form method="post" action="{{ url_for('admin_portfolio_save_about') }}" class="admin-portfolio-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label><span>새 파일</span><input type="file" name="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.docx,.xlsx,.pptx,.zip" required><small>최대 20MB · 안전성 및 확장자 검사 후 저장</small></label>
-      <button class="btn btn-primary" type="submit">업로드하고 링크 생성</button>
+      <label><span>이름 *</span><input name="name" value="{{ content.about.name or '' }}" required></label>
+      <label><span>소개 문구 *</span><input name="subtitle" value="{{ content.about.subtitle or '' }}" required></label>
+      <label class="is-wide"><span>소개 본문</span><textarea name="bioIntro" rows="5">{{ content.about.bioIntro or '' }}</textarea></label>
+      {% for field, label in [('education','학력'),('experience','경력'),('competencies','핵심 역량'),('philosophy','업무 철학')] %}
+      <label><span>{{ label }} <small>한 줄에 하나</small></span><textarea name="{{ field }}" rows="6">{{ (content.about[field] or [])|join('\n') }}</textarea></label>
+      {% endfor %}
+      <button class="btn btn-primary" type="submit">소개 정보 저장</button>
     </form>
-    <div class="table-scroll-wrap"><table class="data-table admin-portfolio-files"><thead><tr><th>파일명</th><th>형식</th><th>크기</th><th>외부 링크</th><th>관리</th></tr></thead><tbody>
-      {% for file in files %}<tr><td>{{ file.name }}</td><td>{{ file.content_type }}</td><td>{{ '%.1f'|format(file.size / 1024) }} KB</td><td><div class="admin-portfolio-link"><input type="text" value="{{ file.url }}" readonly aria-label="{{ file.name }} 외부 링크"><button class="btn btn-secondary" type="button" data-copy-link="{{ file.url }}">복사</button></div></td><td><form method="post" action="{{ url_for('admin_portfolio_delete_file') }}" onsubmit="return confirm('이 공개 파일을 삭제할까요? 외부 링크가 즉시 끊어집니다.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="filename" value="{{ file.name }}"><button class="btn btn-danger" type="submit">삭제</button></form></td></tr>
-      {% else %}<tr><td colspan="5" class="empty-state">업로드된 외부 링크 파일이 없습니다.</td></tr>{% endfor %}
-    </tbody></table></div>
+    <form method="post" action="{{ url_for('admin_portfolio_save_about_photo') }}" enctype="multipart/form-data" class="admin-portfolio-inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>프로필 사진</span><input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required><small>PNG·JPG·WebP, 최대 2MB</small></label><button class="btn btn-secondary" type="submit">사진 변경</button>
+    </form>
   </section>
 
-  <section class="admin-portfolio-panel admin-portfolio-account">
-    <header><div><span>02 / ACCOUNT</span><h2>관리자 계정 연동</h2></div><p>포트폴리오는 현재 CASINO IN의 활성 Black 관리자 계정을 사용합니다.</p></header>
-    <div><p>관리자 비밀번호 변경은 CASINO IN 계정 관리에서 수행합니다. 변경 즉시 포트폴리오의 기존 관리자 세션도 무효화됩니다.</p><a class="btn btn-secondary" href="{{ url_for('auth.user_management') }}">계정 관리 열기 →</a></div>
+  <section class="admin-portfolio-panel" id="contact">
+    <header><div><span>03 / CONTACT</span><h2>연락처</h2></div><p>포트폴리오 Contact 영역과 PIN 보호 연락처를 관리합니다.</p></header>
+    <form method="post" action="{{ url_for('admin_portfolio_save_contact') }}" class="admin-portfolio-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>전화번호 *</span><input name="phone" value="{{ content.contact.phone or '' }}" required></label>
+      <label><span>팩스</span><input name="fax" value="{{ content.contact.fax or '' }}"></label>
+      <label><span>이메일 *</span><input type="email" name="email" value="{{ content.contact.email or '' }}" required></label>
+      <label><span>웹사이트</span><input type="url" name="website" value="{{ content.contact.website or '' }}" placeholder="https://"></label>
+      <button class="btn btn-primary" type="submit">연락처 저장</button>
+    </form>
   </section>
+
+  <section class="admin-portfolio-panel" id="logos">
+    <header><div><span>04 / LOGOS</span><h2>회사·서비스 로고</h2></div><p>PIN 해제 후 표시되는 로고와 연결 주소를 관리합니다.</p></header>
+    <div class="admin-portfolio-tile-list">{% for logo in content.logos %}<article><div><strong>{{ logo.name }}</strong><a href="{{ logo.link }}" target="_blank" rel="noopener noreferrer">{{ logo.link }}</a></div><form method="post" action="{{ url_for('admin_portfolio_delete_logo') }}" onsubmit="return confirm('이 로고를 삭제할까요?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ logo.id }}"><button class="btn btn-danger" type="submit">삭제</button></form></article>{% else %}<p class="empty-state">등록된 로고가 없습니다.</p>{% endfor %}</div>
+    <form method="post" action="{{ url_for('admin_portfolio_save_logo') }}" enctype="multipart/form-data" class="admin-portfolio-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>로고명 *</span><input name="name" required></label><label><span>링크 *</span><input type="url" name="link" placeholder="https://" required></label><label class="is-wide"><span>로고 이미지 *</span><input type="file" name="image" accept="image/png,image/jpeg,image/webp" required></label><button class="btn btn-primary" type="submit">로고 추가</button>
+    </form>
+  </section>
+
+  <section class="admin-portfolio-panel" id="skills">
+    <header><div><span>05 / SKILLS</span><h2>기술·역량</h2></div><p>기술명, 설명, 숙련도와 아이콘을 관리합니다.</p></header>
+    <div class="admin-portfolio-records">{% for skill in content.skills %}<details class="admin-portfolio-editor"><summary><span>{{ '%02d'|format(loop.index) }}</span><b>{{ skill.name }}</b><small>{{ skill.percentage }}%</small></summary>
+      <form method="post" action="{{ url_for('admin_portfolio_save_skill') }}" enctype="multipart/form-data" class="admin-portfolio-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ skill.id }}"><label><span>기술명 *</span><input name="name" value="{{ skill.name }}" required></label><label><span>숙련도 *</span><input type="number" name="percentage" min="0" max="100" value="{{ skill.percentage }}" required></label><label class="is-wide"><span>설명</span><textarea name="description" rows="3">{{ skill.description }}</textarea></label><label class="is-wide"><span>아이콘 변경 <small>선택 사항</small></span><input type="file" name="icon" accept="image/png,image/jpeg,image/webp"></label><button class="btn btn-primary" type="submit">변경 저장</button></form>
+      <form method="post" action="{{ url_for('admin_portfolio_delete_skill') }}" class="admin-portfolio-delete" onsubmit="return confirm('이 기술을 삭제할까요?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ skill.id }}"><button class="btn btn-danger" type="submit">삭제</button></form>
+    </details>{% endfor %}</div>
+    <details class="admin-portfolio-editor"><summary>새 기술 등록</summary><form method="post" action="{{ url_for('admin_portfolio_save_skill') }}" enctype="multipart/form-data" class="admin-portfolio-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>기술명 *</span><input name="name" required></label><label><span>숙련도 *</span><input type="number" name="percentage" min="0" max="100" required></label><label class="is-wide"><span>설명</span><textarea name="description" rows="3"></textarea></label><label class="is-wide"><span>아이콘 *</span><input type="file" name="icon" accept="image/png,image/jpeg,image/webp" required></label><button class="btn btn-primary" type="submit">기술 등록</button></form></details>
+  </section>
+
+  <section class="admin-portfolio-panel" id="tips">
+    <header><div><span>06 / TIPS</span><h2>Tips 콘텐츠</h2></div><p>포트폴리오 Tips와 CASINO IN 자료실은 같은 중앙 DB를 사용합니다. 아래에서 같은 데이터의 작성·수정 화면으로 이동합니다.</p></header>
+    <div class="admin-portfolio-actions"><a class="btn btn-primary" href="{{ url_for('tips.new_page') }}">새 Tips 작성</a><a class="btn btn-secondary" href="{{ url_for('tips.list_page') }}">전체 자료 보기</a></div>
+    <div class="admin-portfolio-tile-list">{% for tip in tips %}<article><div><strong>{{ tip.title }}</strong><small>{{ tip.category }} · {{ '초안' if tip.draft else '공개' }} · {{ (tip.updated_at or '-')[:10] }}</small></div><a class="btn btn-secondary" href="{{ url_for('tips.edit_page', slug=tip.slug) }}">수정</a></article>{% else %}<p class="empty-state">등록된 Tips가 없습니다.</p>{% endfor %}</div>
+  </section>
+
+  <section class="admin-portfolio-panel" id="files">
+    <header><div><span>07 / EXTERNAL FILES</span><h2>외부 링크 파일</h2></div><p>파일을 업로드하면 외부에서 사용할 수 있는 shingoon.me HTTPS 링크를 생성합니다.</p></header>
+    <form class="admin-portfolio-inline-form" method="post" action="{{ url_for('admin_portfolio_upload_file') }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>새 파일</span><input type="file" name="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.docx,.xlsx,.pptx,.zip" required><small>최대 20MB · 확장자 및 파일 내용 검사</small></label><button class="btn btn-primary" type="submit">업로드하고 링크 생성</button></form>
+    <div class="table-scroll-wrap"><table class="data-table admin-portfolio-files"><thead><tr><th>파일명</th><th>형식</th><th>크기</th><th>외부 링크</th><th>관리</th></tr></thead><tbody>{% for file in files %}<tr><td>{{ file.name }}</td><td>{{ file.content_type }}</td><td>{{ '%.1f'|format(file.size / 1024) }} KB</td><td><div class="admin-portfolio-link"><input type="text" value="{{ file.url }}" readonly aria-label="{{ file.name }} 외부 링크"><button class="btn btn-secondary" type="button" data-copy-link="{{ file.url }}">복사</button></div></td><td><form method="post" action="{{ url_for('admin_portfolio_delete_file') }}" onsubmit="return confirm('이 공개 파일을 삭제할까요? 외부 링크가 즉시 끊어집니다.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="filename" value="{{ file.name }}"><button class="btn btn-danger" type="submit">삭제</button></form></td></tr>{% else %}<tr><td colspan="5" class="empty-state">업로드된 외부 링크 파일이 없습니다.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <section class="admin-portfolio-panel admin-portfolio-account"><header><div><span>08 / ACCOUNT</span><h2>관리자 계정 연동</h2></div><p>shingoon.me는 활성 CASINO IN Black 관리자 계정으로 로그인합니다.</p></header><div><p>CASINO IN에서 관리자 비밀번호를 변경하면 포트폴리오의 기존 관리자 세션도 무효화됩니다.</p><a class="btn btn-secondary" href="{{ url_for('auth.user_management') }}">계정 관리 열기 →</a></div></section>
 </main>
 <script nonce="{{ csp_nonce }}">document.querySelectorAll('[data-copy-link]').forEach(function(button){button.addEventListener('click',async function(){try{await navigator.clipboard.writeText(button.dataset.copyLink);var old=button.textContent;button.textContent='복사됨';setTimeout(function(){button.textContent=old},1400)}catch(error){var input=button.parentElement.querySelector('input');input.select();document.execCommand('copy')}})});</script>
 {% endblock %}
