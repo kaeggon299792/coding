@@ -1,20 +1,28 @@
 {% extends "base.html" %}
 {% block title %}내 계정{% endblock %}
+{% block extra_head %}
+{% if blackhole_assets.available %}{% for asset in blackhole_assets.css %}<link rel="stylesheet" href="{{ url_for('static', filename=asset) }}">
+{% endfor %}{% endif %}
+{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="page-container my-account-page">
-  <header class="page-header">
-    <p class="page-eyebrow">Account / Profile</p>
-    <h1 class="page-title">내 계정</h1>
-    <p class="page-description">내 계정 정보와 로그인 방식을 확인하고 회원 탈퇴를 신청할 수 있습니다.</p>
-  </header>
-
   {% if error %}<div class="account-notice is-error">{{ error }}</div>{% endif %}
   {% if success %}<div class="account-notice">{{ success }}</div>{% endif %}
 
-  <section class="panel account-profile-panel">
+  {% if blackhole_assets.available %}
+  <div id="blackhole-profile-root"
+       data-profile-image="{{ user.picture_url or '' }}"
+       data-profile-initial="{{ (user.name or user.username)[0]|upper }}"
+       data-display-name="{{ user.name or user.username }}"
+       data-rank-name="{{ user.membership_label or ('Black' if user.role == 'admin' else 'Gold') }}"
+       data-rank-description="{{ user.membership_description or '' }}"
+       data-rank-icon="{{ url_for('static', filename=user.membership_icon_path) if user.membership_icon_path else '' }}"></div>
+  {% endif %}
+
+  <section class="panel account-profile-panel blackhole-profile-fallback" data-blackhole-fallback>
     <div class="account-profile-head">
-      <div class="account-avatar-wrap profile-avatar-webgl grade-{{ user.membership_level or ('black' if user.role == 'admin' else 'gold') }}" data-profile-avatar-webgl="candidate">
+      <div class="account-avatar-wrap">
       {% if user.picture_url %}
       <img src="{{ user.picture_url }}" alt="" width="64" height="64" referrerpolicy="no-referrer">
       {% else %}
@@ -84,4 +92,7 @@
   </section>
 </main>
 {% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}
+{% if blackhole_assets.available %}<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename=blackhole_assets.js) }}"></script>{% endif %}
 {% endblock %}

@@ -478,7 +478,8 @@ def test_board_author_identity_is_avatar_only_and_flat():
     topbar_template = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
     assert topbar_template.count('data-profile-avatar-webgl="candidate"') == 2
-    assert "account-avatar-wrap profile-avatar-webgl" in account_template
+    assert 'id="blackhole-profile-root"' in account_template
+    assert "account-avatar-wrap profile-avatar-webgl" not in account_template
     webgl_js = (root / "static" / "js" / "profile-avatar-webgl.js").read_text(encoding="utf-8")
     for setting in (
         "animationSpeed", "ringThickness", "goldIntensity", "glowIntensity",

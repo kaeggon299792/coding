@@ -31,6 +31,7 @@ from services import (
     security_audit, security_monitor, site_preferences, task_registry, telegram_alert,
 )
 from services.client_ip import get_client_ip, normalize_ip
+from services.vite_assets import vite_entry_assets
 import config
 from utils import now_kst
 
@@ -1208,6 +1209,7 @@ def my_account():
         return render_template(
             "account.html",
             user=dict(user),
+            blackhole_assets=vite_entry_assets("blackhole-hero"),
             csrf_token=get_csrf_token(),
             error=(request.args.get("error") or "").strip(),
             success=(request.args.get("success") or "").strip(),
