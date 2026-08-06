@@ -74,12 +74,38 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-flat-topbar-v1">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-glowing-shadow-v3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-electric-border-v1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+<svg class="profile-electric-filter-defs" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <filter id="profile-electric-displace" color-interpolation-filters="sRGB" x="-35%" y="-35%" width="170%" height="170%">
+      <feTurbulence type="turbulence" baseFrequency=".045" numOctaves="4" result="profileNoiseVerticalA" seed="1"/>
+      <feOffset in="profileNoiseVerticalA" dx="0" dy="0" result="profileOffsetVerticalA">
+        <animate attributeName="dy" values="140;0" dur="28s" repeatCount="indefinite" calcMode="linear"/>
+      </feOffset>
+      <feTurbulence type="turbulence" baseFrequency=".045" numOctaves="4" result="profileNoiseVerticalB" seed="1"/>
+      <feOffset in="profileNoiseVerticalB" dx="0" dy="0" result="profileOffsetVerticalB">
+        <animate attributeName="dy" values="0;-140" dur="28s" repeatCount="indefinite" calcMode="linear"/>
+      </feOffset>
+      <feTurbulence type="turbulence" baseFrequency=".045" numOctaves="4" result="profileNoiseHorizontalA" seed="2"/>
+      <feOffset in="profileNoiseHorizontalA" dx="0" dy="0" result="profileOffsetHorizontalA">
+        <animate attributeName="dx" values="98;0" dur="28s" repeatCount="indefinite" calcMode="linear"/>
+      </feOffset>
+      <feTurbulence type="turbulence" baseFrequency=".045" numOctaves="4" result="profileNoiseHorizontalB" seed="2"/>
+      <feOffset in="profileNoiseHorizontalB" dx="0" dy="0" result="profileOffsetHorizontalB">
+        <animate attributeName="dx" values="0;-98" dur="28s" repeatCount="indefinite" calcMode="linear"/>
+      </feOffset>
+      <feComposite in="profileOffsetVerticalA" in2="profileOffsetVerticalB" result="profileNoisePart1"/>
+      <feComposite in="profileOffsetHorizontalA" in2="profileOffsetHorizontalB" result="profileNoisePart2"/>
+      <feBlend in="profileNoisePart1" in2="profileNoisePart2" mode="color-dodge" result="profileCombinedNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="profileCombinedNoise" scale="2.4" xChannelSelector="R" yChannelSelector="B"/>
+    </filter>
+  </defs>
+</svg>
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MVWKPPRP"
 height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>

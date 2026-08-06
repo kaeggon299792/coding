@@ -1,18 +1,12 @@
-/*
- * GlowingShadow-inspired profile treatment.
- *
- * The 21st.dev component combines a moving local light, hue variation and a
- * blurred glow. Here those ideas are reduced to two pseudo-elements so the
- * existing Flask/Jinja avatar markup, click target and badge remain intact.
- */
+/* Circular electric-border profile treatment. */
 
-@property --profile-glow-angle {
+@property --profile-electric-angle {
   syntax: "<angle>";
   inherits: false;
-  initial-value: 0deg;
+  initial-value: -30deg;
 }
 
-/* Remove the older grade orbit / breathing layers everywhere by default. */
+/* Retire every earlier grade orbit / breathing layer by default. */
 .member-avatar-wrap::before,
 .member-avatar-wrap::after,
 .account-avatar-wrap::before,
@@ -22,7 +16,7 @@
   animation: none !important;
 }
 
-/* Board/list authors intentionally stay compact and completely flat. */
+/* Board/list authors remain compact and flat. */
 .member-identity.is-board-author .member-avatar-wrap {
   width: 22px !important;
   height: 22px !important;
@@ -49,20 +43,29 @@
   animation: none !important;
 }
 
-/* Shared tuning. Values can be adjusted without changing the layer geometry. */
+/* Shared electric-border controls. Light mode is warm orange. */
 .topbar-profile-menu .topbar-profile-avatar-wrap,
 .my-account-page .account-avatar-wrap {
-  --profile-glow-size: 7px;
-  --profile-glow-speed: 18s;
-  --profile-glow-blur: 7px;
-  --profile-glow-opacity: .58;
-  --profile-glow-hot: #ff3f8e;
-  --profile-glow-mid: #755cff;
-  --profile-glow-cool: #00c8ff;
+  --profile-electric-size: 7px;
+  --profile-electric-speed: 28s;
+  --profile-electric-blur: 7px;
+  --profile-electric-opacity: .66;
+  --profile-electric-color: #dd8448;
+  --profile-electric-light: #ffc18a;
+  --profile-electric-hot: #fff2df;
   position: relative;
   isolation: isolate;
   overflow: visible;
   filter: none !important;
+}
+
+/* Dark mode changes the entire effect to a clean white glow. */
+html[data-theme="dark"] .topbar-profile-menu .topbar-profile-avatar-wrap,
+html[data-theme="dark"] .my-account-page .account-avatar-wrap {
+  --profile-electric-color: #ffffff;
+  --profile-electric-light: #f2f4f8;
+  --profile-electric-hot: #ffffff;
+  --profile-electric-opacity: .72;
 }
 
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
@@ -76,93 +79,91 @@
   content: "" !important;
   pointer-events: none;
   transform-origin: 50% 50%;
-  rotate: var(--profile-glow-angle);
-  animation: profile-glowing-shadow-flow var(--profile-glow-speed) linear infinite !important;
+  rotate: var(--profile-electric-angle);
+  animation: profile-electric-border-flow var(--profile-electric-speed) linear infinite !important;
 }
 
-/* A broad, asymmetric light pool. The opaque avatar covers its centre. */
+/* The two blurred glow layers and background glow from the supplied card. */
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
 .my-account-page .account-avatar-wrap::before {
   z-index: 0;
-  inset: calc(var(--profile-glow-size) * -1.15);
-  background:
-    radial-gradient(circle at 18% 22%, color-mix(in srgb, var(--profile-glow-hot) 92%, white) 0 8%, transparent 36%),
-    radial-gradient(circle at 82% 26%, color-mix(in srgb, var(--profile-glow-cool) 86%, white) 0 7%, transparent 39%),
-    radial-gradient(circle at 69% 84%, var(--profile-glow-mid) 0 9%, transparent 43%),
-    conic-gradient(
-      from 18deg,
-      var(--profile-glow-hot) 0 8%,
-      transparent 16% 23%,
-      var(--profile-glow-mid) 34%,
-      color-mix(in srgb, var(--profile-glow-cool) 78%, white) 48%,
-      transparent 59% 67%,
-      var(--profile-glow-hot) 78%,
-      color-mix(in srgb, var(--profile-glow-mid) 58%, white) 84%,
-      transparent 94%
-    ) !important;
+  inset: calc(var(--profile-electric-size) * -1.25);
+  background: conic-gradient(
+    from -30deg,
+    transparent 0 7%,
+    color-mix(in srgb, var(--profile-electric-color) 72%, transparent) 14%,
+    var(--profile-electric-light) 20%,
+    transparent 30% 48%,
+    color-mix(in srgb, var(--profile-electric-color) 88%, white) 58%,
+    transparent 68% 82%,
+    var(--profile-electric-hot) 89%,
+    transparent 97%
+  ) !important;
   box-shadow:
-    0 0 calc(var(--profile-glow-size) * 1.1) color-mix(in srgb, var(--profile-glow-hot) 30%, transparent),
-    0 0 calc(var(--profile-glow-size) * 2.1) color-mix(in srgb, var(--profile-glow-mid) 24%, transparent),
-    0 0 calc(var(--profile-glow-size) * 2.8) color-mix(in srgb, var(--profile-glow-cool) 18%, transparent) !important;
-  opacity: var(--profile-glow-opacity) !important;
-  filter: blur(var(--profile-glow-blur)) saturate(1.12) !important;
-  scale: .98;
-  transition: opacity .45s ease, filter .45s ease, scale .45s ease;
+    0 0 calc(var(--profile-electric-size) * .8) color-mix(in srgb, var(--profile-electric-light) 54%, transparent),
+    0 0 calc(var(--profile-electric-size) * 1.8) color-mix(in srgb, var(--profile-electric-color) 36%, transparent),
+    0 0 calc(var(--profile-electric-size) * 3.2) color-mix(in srgb, var(--profile-electric-color) 20%, transparent) !important;
+  opacity: var(--profile-electric-opacity) !important;
+  filter: blur(var(--profile-electric-blur)) saturate(1.06) !important;
+  scale: 1.02;
+  transition: opacity .55s ease, filter .55s ease, scale .55s ease;
 }
 
-/* A narrow moving highlight. Masking keeps colour out of the photo centre. */
+/* The displaced electric filament. Masking exposes only the circular rim. */
 .topbar-profile-menu .topbar-profile-avatar-wrap::after,
 .my-account-page .account-avatar-wrap::after {
   z-index: 1;
-  inset: calc(var(--profile-glow-size) * -.52);
-  padding: 1.2px;
+  inset: calc(var(--profile-electric-size) * -.58);
+  padding: 1.45px;
   background: conic-gradient(
-    from 62deg,
-    color-mix(in srgb, var(--profile-glow-hot) 76%, white) 0 5%,
-    transparent 11% 25%,
-    var(--profile-glow-mid) 34% 39%,
-    transparent 46% 58%,
-    color-mix(in srgb, var(--profile-glow-cool) 70%, white) 66% 72%,
-    transparent 80% 91%,
-    color-mix(in srgb, var(--profile-glow-hot) 68%, white) 97%
+    from -30deg,
+    color-mix(in srgb, var(--profile-electric-color) 78%, transparent) 0 8%,
+    var(--profile-electric-hot) 12% 16%,
+    var(--profile-electric-color) 21% 29%,
+    transparent 34% 46%,
+    var(--profile-electric-light) 51% 60%,
+    transparent 65% 76%,
+    var(--profile-electric-color) 82% 90%,
+    var(--profile-electric-hot) 95% 100%
   ) !important;
-  box-shadow: 0 0 calc(var(--profile-glow-size) * .7) color-mix(in srgb, var(--profile-glow-mid) 35%, transparent) !important;
-  opacity: min(1, calc(var(--profile-glow-opacity) + .2)) !important;
+  box-shadow:
+    0 0 2px color-mix(in srgb, var(--profile-electric-hot) 92%, transparent),
+    0 0 calc(var(--profile-electric-size) * .9) color-mix(in srgb, var(--profile-electric-color) 68%, transparent) !important;
+  opacity: .94 !important;
+  filter: url("#profile-electric-displace") blur(.25px) drop-shadow(0 0 2px var(--profile-electric-light)) !important;
   scale: 1;
-  transition: opacity .35s ease, scale .45s ease;
+  transition: opacity .45s ease, scale .55s ease;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
 
-/* The original component spreads and brightens its light on interaction. */
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::before,
 .my-account-page .account-avatar-wrap:hover::before {
-  opacity: min(1, calc(var(--profile-glow-opacity) + .25)) !important;
-  filter: blur(calc(var(--profile-glow-blur) * 1.22)) saturate(1.2) !important;
-  scale: 1.09;
+  opacity: min(1, calc(var(--profile-electric-opacity) + .16)) !important;
+  filter: blur(calc(var(--profile-electric-blur) * 1.18)) saturate(1.1) !important;
+  scale: 1.08;
 }
 
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::after,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::after,
 .my-account-page .account-avatar-wrap:hover::after {
   opacity: 1 !important;
-  scale: 1.045;
+  scale: 1.035;
 }
 
-/* Header button: same effect with a smaller footprint. */
+/* Smaller header avatar, same visual language. */
 .topbar-user .topbar-profile-avatar-wrap:not(.topbar-profile-large-avatar) {
-  --profile-glow-size: 4px;
-  --profile-glow-blur: 4px;
-  --profile-glow-opacity: .5;
+  --profile-electric-size: 4px;
+  --profile-electric-blur: 4px;
+  --profile-electric-opacity: .58;
 }
 
-/* The menu's featured avatar is allowed a little more depth. */
 .topbar-profile-menu .topbar-profile-large-avatar {
-  --profile-glow-size: 9px;
-  --profile-glow-blur: 8px;
-  --profile-glow-opacity: .62;
+  --profile-electric-size: 9px;
+  --profile-electric-blur: 8px;
+  --profile-electric-opacity: .7;
 }
 
 .topbar-profile-menu .topbar-profile-hero,
@@ -170,7 +171,7 @@
   overflow: visible;
 }
 
-/* Keep the existing photo sharp and clickable above both effect layers. */
+/* Existing image, fallback, click target and badge stay above the effect. */
 .topbar-profile-menu .topbar-avatar,
 .topbar-profile-menu .topbar-avatar-fallback,
 .topbar-profile-menu .topbar-profile-photo,
@@ -192,11 +193,19 @@
   filter: none;
 }
 
-@keyframes profile-glowing-shadow-flow {
-  0% { --profile-glow-angle: 0deg; }
-  38% { --profile-glow-angle: 142deg; }
-  67% { --profile-glow-angle: 246deg; }
-  100% { --profile-glow-angle: 360deg; }
+.profile-electric-filter-defs {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@keyframes profile-electric-border-flow {
+  0% { --profile-electric-angle: -30deg; }
+  36% { --profile-electric-angle: 104deg; }
+  71% { --profile-electric-angle: 232deg; }
+  100% { --profile-electric-angle: 330deg; }
 }
 
 @media (max-width: 760px) {
@@ -206,14 +215,14 @@
 
   .topbar-profile-menu .topbar-profile-large-avatar,
   .my-account-page .account-avatar-wrap {
-    --profile-glow-size: 6px;
-    --profile-glow-blur: 5px;
-    --profile-glow-opacity: .54;
+    --profile-electric-size: 6px;
+    --profile-electric-blur: 5px;
+    --profile-electric-opacity: .6;
   }
 
   .topbar-user .topbar-profile-avatar-wrap:not(.topbar-profile-large-avatar) {
-    --profile-glow-size: 3px;
-    --profile-glow-blur: 3px;
+    --profile-electric-size: 3px;
+    --profile-electric-blur: 3px;
   }
 }
 
@@ -222,7 +231,12 @@
   .topbar-profile-menu .topbar-profile-avatar-wrap::after,
   .my-account-page .account-avatar-wrap::before,
   .my-account-page .account-avatar-wrap::after {
-    --profile-glow-angle: 32deg;
+    --profile-electric-angle: 22deg;
     animation: none !important;
+  }
+
+  .topbar-profile-menu .topbar-profile-avatar-wrap::after,
+  .my-account-page .account-avatar-wrap::after {
+    filter: drop-shadow(0 0 2px var(--profile-electric-light)) !important;
   }
 }
