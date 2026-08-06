@@ -61,11 +61,18 @@ def build_dashboard(connection, selected_scenario=None):
             })
             continue
 
-        scenario_base = revenue if scenario_key == "1" else max(revenue - THRESHOLD_EOK, 0)
+        ggr = revenue / (1 - BASE_RATE)
+        scenario_base = ggr if scenario_key == "1" else max(ggr - THRESHOLD_EOK, 0)
+        legacy_base = revenue if scenario_key == "1" else max(revenue - THRESHOLD_EOK, 0)
         additional_fund = round(scenario_base * INCREASE_RATE, 1)
+        legacy_additional_fund = round(legacy_base * INCREASE_RATE, 1)
+        projected_revenue = round(revenue - additional_fund, 1)
         projected_profit = round(operating_profit - additional_fund, 1)
+        legacy_projected_profit = round(
+            operating_profit - legacy_additional_fund, 1
+        )
         current_margin = _margin(operating_profit, revenue)
-        projected_margin = _margin(projected_profit, revenue)
+        projected_margin = _margin(projected_profit, projected_revenue)
         items.append({
             "company_name": company_name,
             "display_name": display_name,
@@ -74,9 +81,16 @@ def build_dashboard(connection, selected_scenario=None):
             "revenue": revenue,
             "operating_profit": operating_profit,
             "current_margin": current_margin,
+            "ggr": round(ggr, 1),
             "scenario_base": round(scenario_base, 1),
             "additional_fund": additional_fund,
+            "legacy_additional_fund": legacy_additional_fund,
+            "additional_fund_difference": round(
+                additional_fund - legacy_additional_fund, 1
+            ),
+            "projected_revenue": projected_revenue,
             "projected_profit": projected_profit,
+            "legacy_projected_profit": legacy_projected_profit,
             "projected_margin": projected_margin,
             "margin_change": (
                 round(projected_margin - current_margin, 1)
@@ -107,6 +121,12 @@ def build_dashboard(connection, selected_scenario=None):
         "available_count": len(available),
         "total_additional_fund": round(
             sum(item["additional_fund"] for item in available), 1
+        ),
+        "total_legacy_additional_fund": round(
+            sum(item["legacy_additional_fund"] for item in available), 1
+        ),
+        "total_additional_fund_difference": round(
+            sum(item["additional_fund_difference"] for item in available), 1
         ),
         "total_current_profit": round(
             sum(item["operating_profit"] for item in available), 1

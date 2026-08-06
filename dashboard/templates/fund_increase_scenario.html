@@ -20,17 +20,17 @@
 
   <nav class="fund-scenario-tabs" aria-label="기금 인상 시나리오 선택">
     <a href="{{ url_for('fund_increase_scenario_page', scenario=1) }}"{% if scenario.selected_scenario == '1' %} class="active" aria-current="page"{% endif %}>
-      <span>SCENARIO 01</span><strong>전체 매출 15% 적용</strong><small>전 매출에 추가 5% 비용 반영</small>
+      <span>SCENARIO 01</span><strong>전체 GGR 15% 적용</strong><small>현재 매출에서 차감 전 GGR를 복원해 계산</small>
     </a>
     <a href="{{ url_for('fund_increase_scenario_page', scenario=2) }}"{% if scenario.selected_scenario == '2' %} class="active" aria-current="page"{% endif %}>
-      <span>SCENARIO 02</span><strong>3,000억원 초과분 15% 적용</strong><small>초과 매출에만 추가 5% 비용 반영</small>
+      <span>SCENARIO 02</span><strong>GGR 3,000억원 초과분 15% 적용</strong><small>복원한 GGR의 초과분에만 추가 5% 반영</small>
     </a>
   </nav>
 
   <section class="fund-scenario-kpis" aria-label="시나리오 핵심 지표">
     <article><span>분석 기준</span><strong>{{ scenario.base_year }}년</strong><small>각 법인 연간 손익계산서</small></article>
     <article><span>분석 운영사</span><strong>{{ scenario.available_count }}개사</strong><small>중앙 재무 DB 연동</small></article>
-    <article class="is-alert"><span>추가 기금 부담</span><strong>{{ "{:,.1f}".format(scenario.total_additional_fund) }}억원</strong><small>{{ scenario.available_count }}개 운영사 단순 합산 추정</small></article>
+    <article class="is-alert"><span>수정 추가 기금 부담</span><strong>{{ "{:,.1f}".format(scenario.total_additional_fund) }}억원</strong><small>기존 방식 {{ "{:,.1f}".format(scenario.total_legacy_additional_fund) }}억원 · 차이 +{{ "{:,.1f}".format(scenario.total_additional_fund_difference) }}억원</small></article>
     <article><span>예상 영업이익 합계</span><strong>{{ "{:,.1f}".format(scenario.total_projected_profit) }}억원</strong><small>기존 {{ "{:,.1f}".format(scenario.total_current_profit) }}억원</small></article>
   </section>
 
@@ -51,6 +51,10 @@
           <div><dt>2025 매출</dt><dd>{{ "{:,.1f}".format(item.revenue) }}억원</dd></div>
           <div><dt>기존 영업이익</dt><dd>{{ "{:,.1f}".format(item.operating_profit) }}억원 <em>{{ "{:.1f}".format(item.current_margin) }}%</em></dd></div>
         </dl>
+        <dl class="fund-company-baseline fund-company-recalculation">
+          <div><dt>복원 GGR</dt><dd>{{ "{:,.1f}".format(item.ggr) }}억원 <em>현재 매출 ÷ 0.90</em></dd></div>
+          <div><dt>변경 후 매출</dt><dd>{{ "{:,.1f}".format(item.projected_revenue) }}억원 <em>기금 인상분 차감 후</em></dd></div>
+        </dl>
         <div class="fund-impact-arrow" aria-hidden="true"><span></span><b>추가 {{ "{:,.1f}".format(item.additional_fund) }}억원</b><span></span></div>
         <div class="fund-projected-result">
           <span>시나리오 영업이익</span>
@@ -58,6 +62,7 @@
           <em>{{ "{:.1f}".format(item.projected_margin) }}%</em>
           <small>영업이익률 {{ "{:+.1f}".format(item.margin_change) }}%p</small>
         </div>
+        <p class="fund-legacy-comparison">기존 단순 방식: 추가 {{ "{:,.1f}".format(item.legacy_additional_fund) }}억원 · 예상 영업이익 {{ "{:,.1f}".format(item.legacy_projected_profit) }}억원<br>수정 산식 적용 차이: 추가 부담 +{{ "{:,.1f}".format(item.additional_fund_difference) }}억원</p>
         <footer>재무 기준일 {{ item.fiscal_date }}</footer>
         {% else %}
         <div class="fund-data-empty">2025년 연간 재무자료를 확인할 수 없습니다.</div>
@@ -83,14 +88,39 @@
     </div>
   </section>
 
+  <section class="fund-scenario-panel">
+    <header class="fund-panel-heading">
+      <div><span>03 / OLD VS CORRECTED</span><h2>기존 방식과 수정 방식 비교</h2></div>
+      <p>단위: 억원</p>
+    </header>
+    <div class="table-scroll-wrap"><table class="data-table fund-comparison-table"><thead><tr><th>운영사</th><th>현재 매출</th><th>복원 GGR</th><th>기존 추가 부담</th><th>수정 추가 부담</th><th>차이</th><th>변경 후 매출</th><th>예상 영업이익</th><th>예상 이익률</th></tr></thead><tbody>
+      {% for item in scenario['items'] if item.available %}<tr><th>{{ item.display_name }}</th><td>{{ "{:,.1f}".format(item.revenue) }}</td><td>{{ "{:,.1f}".format(item.ggr) }}</td><td>{{ "{:,.1f}".format(item.legacy_additional_fund) }}</td><td>{{ "{:,.1f}".format(item.additional_fund) }}</td><td class="is-negative">+{{ "{:,.1f}".format(item.additional_fund_difference) }}</td><td>{{ "{:,.1f}".format(item.projected_revenue) }}</td><td class="{% if item.projected_profit < 0 %}is-negative{% endif %}">{{ "{:,.1f}".format(item.projected_profit) }}</td><td class="{% if item.projected_margin < 0 %}is-negative{% endif %}">{{ "{:.1f}".format(item.projected_margin) }}%</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
   <aside class="fund-methodology">
-    <div><span>03 / METHODOLOGY</span><h2>계산 기준과 유의사항</h2></div>
+    <div><span>04 / METHODOLOGY</span><h2>계산 기준과 유의사항</h2></div>
     <ol>
       <li>2025년 공시 손익계산서의 매출액과 영업이익을 중앙 DB에서 조회합니다.</li>
-      <li>기존 영업이익에는 현행 기금 비용이 이미 반영된 것으로 보고, 인상분인 5%p만 추가 비용으로 차감합니다.</li>
-      <li>{% if scenario.selected_scenario == '1' %}시나리오 1은 전체 매출액의 5%를 추가 차감합니다.{% else %}시나리오 2는 매출 3,000억원 초과분의 5%만 추가 차감합니다.{% endif %}</li>
+      <li>현재 매출에는 현행 기금 10%가 이미 차감됐다고 보고, <code>GGR = 현재 매출 ÷ 0.90</code>으로 차감 전 기준을 복원합니다.</li>
+      <li>{% if scenario.selected_scenario == '1' %}시나리오 1의 변경 후 매출은 <code>GGR × 0.85</code>, 추가 부담은 <code>GGR × 5%</code>입니다.{% else %}시나리오 2의 추가 부담은 <code>MAX(GGR - 3,000억원, 0) × 5%</code>, 변경 후 매출은 <code>현재 매출 - 추가 부담</code>입니다.{% endif %}</li>
+      <li>예상 영업이익은 기존 영업이익에서 추가 부담을 차감하고, 예상 영업이익률은 예상 영업이익을 변경 후 매출로 나눕니다.</li>
       <li>세금 효과, 매출 변화, 비용 절감, 법인별 실제 부과 기준은 반영하지 않은 단순 민감도 분석입니다.</li>
     </ol>
+    <div class="fund-excel-formulas">
+      <h3>Excel 계산식</h3>
+      <p>A2=현재 매출, B2=기존 영업이익, 금액 단위는 억원 기준</p>
+      <code>GGR: =A2/0.90</code>
+      {% if scenario.selected_scenario == '1' %}
+      <code>변경 후 매출: =(A2/0.90)*0.85</code>
+      <code>추가 기금 부담: =A2-((A2/0.90)*0.85)</code>
+      {% else %}
+      <code>추가 기금 부담: =MAX((A2/0.90)-3000,0)*(15%-10%)</code>
+      <code>변경 후 매출: =A2-MAX((A2/0.90)-3000,0)*(15%-10%)</code>
+      {% endif %}
+      <code>예상 영업이익: =B2-추가기금부담</code>
+      <code>예상 영업이익률: =예상영업이익/변경후매출</code>
+    </div>
     <p>본 화면은 정책 영향 검토를 위한 가상 시나리오이며 확정 법령이나 공식 손익 전망이 아닙니다.</p>
   </aside>
 </main>

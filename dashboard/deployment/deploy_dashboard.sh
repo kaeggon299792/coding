@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/home/kaekun/coding-dashboard/dashboard}"
 PYTHON="${PYTHON:-/home/kaekun/.virtualenvs/mgmt-dashboard/bin/python}"
 TARGET_REF="${1:-origin/main}"
+VERIFY_MODE="${DEPLOY_VERIFY_MODE:-smoke}"
 
 cd "${APP_DIR}"
 BACKUP_PATH="$("${APP_DIR}/deployment/backup_dashboard.sh")"
@@ -51,11 +52,16 @@ connection.close()
 PY
 
 touch "${APP_DIR}/app.py" /var/www/casino_shingoon_me_wsgi.py /var/www/www_casinoin_kr_wsgi.py
-nohup "${APP_DIR}/deployment/post_deploy_verify.sh" "${BACKUP_PATH}" >/dev/null 2>&1 &
+VERIFY_TARGETS=()
+if [[ -n "${DEPLOY_TEST_TARGETS:-}" ]]; then
+  read -r -a VERIFY_TARGETS <<< "${DEPLOY_TEST_TARGETS}"
+fi
+nohup "${APP_DIR}/deployment/post_deploy_verify.sh" \
+  "${BACKUP_PATH}" "${VERIFY_MODE}" "${VERIFY_TARGETS[@]}" >/dev/null 2>&1 &
 
 printf '%s\n' \
   "Fast deployment and reload complete after startup and integrity checks." \
-  "Full tests are running in the background." \
+  "Risk-based ${VERIFY_MODE} verification is running in the background." \
   "Status: ${APP_DIR}/logs/post-deploy-latest.status" \
   "On failure, the deployment is automatically rolled back and reloaded." \
   "Manual rollback: deployment/rollback_dashboard.sh '${BACKUP_PATH}'"
