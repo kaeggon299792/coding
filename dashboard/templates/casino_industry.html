@@ -91,7 +91,7 @@
         <tbody>
           {% for item in casino_industry["items"] %}
           <tr data-original-index="{{ loop.index0 }}"
-              data-sort-region="{{ {'서울': 0, '인천': 1, '강원': 2, '평창': 2, '대구': 3, '부산': 4, '제주': 5}.get(item.region, 99) }}"
+              data-sort-region="{{ {'서울': 0, '인천': 1, '강원': 2, '평창': 2, '강원·평창': 2, '대구': 3, '부산': 4, '제주': 5}.get(item.region, 99) }}"
               data-sort-company="{{ item.venue_name }} {{ item.company_name }}"
               data-sort-permit="{{ item.permit_date }}"
               data-sort-place="{{ item.place }} {{ item.address }}"

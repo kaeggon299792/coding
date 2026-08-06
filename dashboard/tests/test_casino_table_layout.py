@@ -62,4 +62,5 @@ def test_casino_overview_table_exposes_all_sortable_columns(client):
         assert f'data-sort-key="{key}"' in html
         assert f'data-sort-{key}=' in html
     assert "서울 기준 가까운순·먼순 정렬" in html
+    assert 'data-sort-region="2"' in html
     assert "js/casino-industry-table.js" in html
