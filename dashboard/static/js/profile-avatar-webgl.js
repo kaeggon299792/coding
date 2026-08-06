@@ -116,32 +116,37 @@
       float photonRadius = uInnerRadius + .026;
       float photonSdf = abs(radius - photonRadius);
       float photonRing = smoothstep(uRingThickness + aa, uRingThickness - aa, photonSdf);
-      vec2 diskPoint = vec2(p.x, p.y * 4.8);
-      float diskAngle = atan(diskPoint.y, diskPoint.x);
-      float warpedRadius = length(diskPoint) + sin(diskAngle * 3.0 - t * .13) * .008
-                         + sin(diskAngle * 7.0 + t * .09) * .004;
-      float diskInner = uInnerRadius + .018;
-      float diskOuter = .49;
-      float diskWindow = smoothstep(diskInner - .004, diskInner + .015, warpedRadius)
-                       * smoothstep(diskOuter, diskOuter - .036, warpedRadius);
-      float radial = clamp((warpedRadius - diskInner) / max(.001, diskOuter - diskInner), 0.0, 1.0);
-      float kepler = uSpinSpeed * pow(max(.15, diskInner / max(warpedRadius, .01)), 1.5);
-      vec2 gasUv = vec2(diskAngle * 2.7 - t * kepler, radial * (13.0 + uGrain * 15.0) + t * .035);
+      // A single turbulent sheet crosses behind the portrait. Using an
+      // elliptical annulus here produces repeated Saturn-like rings, so the
+      // flow is sampled along the sheet instead of around concentric radii.
+      float diskOuter = .50;
+      float diskWindow = smoothstep(diskOuter, diskOuter - .045, abs(p.x));
+      float sheetNoise = valueNoise(vec2(p.x * 7.0 - t * .11, t * .035));
+      float sheetThickness = .024 + sheetNoise * .018;
+      float gasSheet = exp(-pow(abs(p.y) / sheetThickness, 1.28));
+      float bentSheet = exp(-abs(p.y - sin(p.x * 13.0 - t * .22) * .012) * 54.0) * .26;
+      vec2 gasUv = vec2(p.x * (10.0 + uGrain * 10.0) - t * uSpinSpeed,
+                        p.y * 34.0 + t * .045);
       float clouds = fbm2(gasUv);
-      float spiral = .5 + .5 * sin(diskAngle * 5.0 - t * kepler * 1.7 + radial * 18.0 + clouds * 4.0);
-      float filaments = smoothstep(.30, .88, clouds * .72 + spiral * .46);
-      float heat = pow(max(.05, diskInner / max(warpedRadius, .01)), .8) * (.72 + clouds * .48);
+      float stream = .5 + .5 * sin(p.x * 31.0 - t * 1.1 + clouds * 5.0);
+      float filaments = smoothstep(.24, .86, clouds * .76 + stream * .42);
+      float radialHeat = clamp(1.0 - abs(p.x) / diskOuter, 0.0, 1.0);
+      float heat = (.56 + radialHeat * .58) * (.76 + clouds * .42);
       vec3 gasTint = mix(uCool, uMid, smoothstep(.20, .70, heat));
       gasTint = mix(gasTint, uHot, smoothstep(.70, 1.12, heat));
-      float approach = .5 + .5 * cos(diskAngle - .25);
+      float approach = smoothstep(-.46, .46, p.x);
       float beaming = mix(1.0, mix(.66, 1.42, approach), uDoppler);
-      float gasAlpha = diskWindow * filaments * uDiskDensity * beaming * uMobileQuality;
-      float haloRadius = length(vec2(p.x, p.y * .82));
-      float haloTarget = uInnerRadius + .090 + .010 * sin(angle * 2.0 - t * .08);
-      float haloLine = exp(-abs(haloRadius - haloTarget) * 118.0);
-      float upperArc = haloLine * smoothstep(-.015, .055, p.y);
-      float lowerArc = haloLine * smoothstep(.015, -.060, p.y) * .38;
-      float lensedArc = (upperArc + lowerArc) * (.62 + clouds * .58) * uMobileQuality;
+      float gasAlpha = diskWindow * (gasSheet + bentSheet) * (.38 + filaments * .84)
+                     * uDiskDensity * beaming * uMobileQuality;
+
+      // The same sheet seen again through bent light: a tight upper crown
+      // and a much fainter lower echo, both hugging the photon ring.
+      float haloTarget = uInnerRadius + .050 + .006 * sin(angle * 3.0 - t * .12);
+      float haloLine = exp(-abs(radius - haloTarget) * 145.0);
+      float haloSideFade = 1.0 - smoothstep(.27, .45, abs(p.x));
+      float upperArc = haloLine * smoothstep(-.025, .060, p.y) * haloSideFade;
+      float lowerArc = haloLine * smoothstep(.015, -.070, p.y) * haloSideFade * .24;
+      float lensedArc = (upperArc + lowerArc) * (.72 + clouds * .42) * uMobileQuality;
 
       float flowA = valueNoise(vec2(angle * 2.1 + t * .11, t * .09));
       float flowB = valueNoise(vec2(angle * 4.7 - t * .19, t * .045 + 7.));

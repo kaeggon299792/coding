@@ -74,7 +74,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-profile-aura-v6">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260806-blackhole-v3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260806-blackhole-v4">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -114,7 +114,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 {% endif %}
 {% if current_username %}
 {% if request.endpoint != 'public_home' %}<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>{% endif %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/profile-avatar-webgl.js') }}?v=20260806-blackhole-v3" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/profile-avatar-webgl.js') }}?v=20260806-blackhole-v4" defer></script>
 {% endif %}
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");
