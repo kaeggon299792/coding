@@ -9,9 +9,9 @@
     <form method="get" class="company-comparison-filter" aria-label="기업 비교 기준 선택">
       <input type="hidden" name="metric" value="{{ comparison.selected_metric }}">
       <label for="company-comparison-year">기준 연도</label>
-      <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for year in comparison.years %}<option value="{{ year }}"{% if year == comparison.selected_year %} selected{% endif %}>{{ year }}년</option>{% endfor %}</select>
+      <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for option in comparison.year_options %}<option value="{{ option.value }}"{% if option.value == comparison.selected_year %} selected{% endif %}{% if not option.available and option.value != comparison.selected_year %} disabled{% endif %}>{{ option.value }}년{% if not option.available %} · 자료 없음{% endif %}</option>{% endfor %}</select>
       <label for="company-comparison-period">기간</label>
-      <select id="company-comparison-period" name="period" onchange="this.form.submit()">{% for key, period in comparison.periods.items() %}<option value="{{ key }}"{% if key == comparison.selected_period %} selected{% endif %}>{{ period.label }}</option>{% endfor %}</select>
+      <select id="company-comparison-period" name="period" onchange="this.form.submit()">{% for key, period in comparison.periods.items() %}<option value="{{ key }}"{% if key == comparison.selected_period %} selected{% endif %}{% if not comparison.period_availability[key] and key != comparison.selected_period %} disabled{% endif %}>{{ period.label }}{% if not comparison.period_availability[key] %} · 자료 없음{% endif %}</option>{% endfor %}</select>
       <label class="company-comparison-toggle"><input type="checkbox" name="include_kangwon" value="1"{% if comparison.include_kangwon %} checked{% endif %} onchange="this.form.submit()"> 강원랜드 포함</label>
     </form>
   </header>

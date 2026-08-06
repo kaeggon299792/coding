@@ -128,6 +128,14 @@ def _period_financials(values, company, year, period_key):
     return result
 
 
+def _period_has_data(values, year, period_key):
+    return any(
+        _period_financials(values, company, year, period_key).get("revenue")
+        is not None
+        for company, _label, _entity in COMPANIES
+    )
+
+
 def _chart_geometry(items):
     present = [item["metric_value"] for item in items if item["metric_value"] is not None]
     low = min([0, *present])
@@ -151,7 +159,6 @@ def build_dashboard(
     connection, selected_year=None, selected_metric=None, include_kangwon=False,
     selected_period=None,
 ):
-    selected_period = selected_period if selected_period in PERIODS else "annual"
     selected_metric = selected_metric if selected_metric in METRICS else "margin"
 
     values = {}
@@ -168,17 +175,32 @@ def build_dashboard(
             row["amount"]
         )
 
-    years = sorted({
-        year for company, _label, _entity in COMPANIES for year in range(2023, 2027)
-        if _period_financials(values, company, year, selected_period).get("revenue")
-        is not None
-    }) or [2023, 2024, 2025]
+    data_years = {
+        year for _company, year, _period_type in values
+    }
+    years = sorted(set(range(2023, 2027)) | data_years)
+    year_availability = {
+        year: any(_period_has_data(values, year, period_key) for period_key in PERIODS)
+        for year in years
+    }
     try:
         selected_year = int(selected_year)
     except (TypeError, ValueError):
-        selected_year = years[-1]
+        available_years = [year for year in years if year_availability[year]]
+        selected_year = available_years[-1] if available_years else 2026
     if selected_year not in years:
         selected_year = years[-1]
+
+    period_availability = {
+        period_key: _period_has_data(values, selected_year, period_key)
+        for period_key in PERIODS
+    }
+    selected_period = selected_period if selected_period in PERIODS else "annual"
+    if not period_availability[selected_period]:
+        selected_period = next(
+            (key for key, available in period_availability.items() if available),
+            selected_period,
+        )
 
     employment = _latest_employment(connection)
     items = []
@@ -244,8 +266,13 @@ def build_dashboard(
     values_for_summary = [item["metric_value"] for item in present]
     return {
         "years": years,
+        "year_options": [
+            {"value": year, "available": year_availability[year]}
+            for year in years
+        ],
         "selected_year": selected_year,
         "periods": PERIODS,
+        "period_availability": period_availability,
         "selected_period": selected_period,
         "period": PERIODS[selected_period],
         "metrics": METRICS,

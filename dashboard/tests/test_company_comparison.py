@@ -95,6 +95,8 @@ def test_company_comparison_metric_and_year_validation(monkeypatch):
     assert result["selected_metric"] == "revenue"
     assert result["available_count"] == 0
     assert result["leader"] is None
+    assert any(option["value"] == 2026 for option in result["year_options"])
+    assert result["year_options"][-1] == {"value": 2026, "available": False}
 
     included = company_comparison.build_dashboard(
         object(), "2024", "revenue", include_kangwon=True
@@ -107,8 +109,16 @@ def test_company_comparison_page_is_public(client, monkeypatch):
     monkeypatch.setattr(
         "app.company_comparison.build_dashboard",
         lambda connection, year, metric, include_kangwon, period: {
-            "years": [2025], "selected_year": 2025,
+            "years": [2025, 2026],
+            "year_options": [
+                {"value": 2025, "available": True},
+                {"value": 2026, "available": False},
+            ],
+            "selected_year": 2025,
             "periods": company_comparison.PERIODS, "selected_period": "annual",
+            "period_availability": {
+                key: key == "annual" for key in company_comparison.PERIODS
+            },
             "period": company_comparison.PERIODS["annual"],
             "metrics": company_comparison.METRICS, "selected_metric": "margin",
             "metric": company_comparison.METRICS["margin"],
@@ -136,6 +146,38 @@ def test_company_comparison_page_is_public(client, monkeypatch):
     assert "인당 영업이익".encode() in response.data
     assert b'name="metric" value="margin"' in response.data
     assert b'name="include_kangwon" value="1"' in response.data
+    assert "2026년 · 자료 없음".encode() in response.data
+    assert response.data.count(b" disabled") >= 1
+
+
+def test_company_comparison_defaults_to_latest_year_and_disables_empty_periods(monkeypatch):
+    rows = [
+        {"company_name": "GKL", "account_code": "121000",
+         "fiscal_date": "2025-12-31", "period_type": "annual",
+         "amount": 100_000_000_000},
+        {"company_name": "GKL", "account_code": "121000",
+         "fiscal_date": "2026-03-31", "period_type": "quarter_1",
+         "amount": 30_000_000_000},
+        {"company_name": "GKL", "account_code": "125000",
+         "fiscal_date": "2026-03-31", "period_type": "quarter_1",
+         "amount": 3_000_000_000},
+    ]
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
+        lambda connection, start_year, end_year: rows,
+    )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: [],
+    )
+
+    result = company_comparison.build_dashboard(object())
+
+    assert result["selected_year"] == 2026
+    assert result["selected_period"] == "quarter_1"
+    assert result["period_availability"]["quarter_1"] is True
+    assert result["period_availability"]["annual"] is False
+    assert result["year_options"][-1] == {"value": 2026, "available": True}
 
 
 def test_company_comparison_derives_standalone_quarters(monkeypatch):
