@@ -63,8 +63,10 @@ def test_national_pension_official_api_metrics(monkeypatch):
         raise AssertionError(operation)
 
     monkeypatch.setattr(salary_data, "_nps_request", fake_request)
+    source = dict(salary_data.EMPLOYMENT_METRIC_SOURCES[0])
+    source.pop("business_prefixes", None)
     item = salary_data.fetch_employment_metrics(
-        salary_data.EMPLOYMENT_METRIC_SOURCES[0]
+        source
     )
     assert item["salary_growth_rate"] == 10.0
     assert item["estimated_average_salary_manwon"] == 13200
@@ -76,21 +78,25 @@ def test_national_pension_official_api_metrics(monkeypatch):
     assert item["source_url"] == salary_data.NPS_SOURCE_URL
 
 
-def test_nps_metrics_aggregate_multiple_workplaces_with_same_business_prefix(monkeypatch):
-    base_rows = []
-    for month_index, month in enumerate(("202506", "202606")):
-        for site_index, address in enumerate(("서울특별시 중구", "인천광역시 중구")):
-            base_rows.append({
-                "seq": month_index * 2 + site_index + 1,
+def test_nps_metrics_aggregate_multiple_workplace_prefixes(monkeypatch):
+    base_rows = {}
+    for site_index, (prefix, address) in enumerate((
+        ("203814", "서울특별시 중구"),
+        ("207850", "서울특별시 광진구"),
+    )):
+        base_rows[prefix] = []
+        for month_index, month in enumerate(("202506", "202606")):
+            base_rows[prefix].append({
+                "seq": site_index * 10 + month_index + 1,
                 "dataCrtYm": month,
                 "wkplNm": "주식회사 파라다이스",
-                "bzowrRgstNo": "203814****",
+                "bzowrRgstNo": f"{prefix}****",
                 "wkplRoadNmDtlAddr": address,
             })
 
     def fake_request(operation, **params):
         if operation == "getBassInfoSearchV2":
-            return base_rows
+            return base_rows[params["bzowrRgstNo"]]
         if operation == "getDetailInfoSearchV2":
             return [{"jnngpCnt": 100, "crrmmNtcAmt": 90_000_000}]
         if operation == "getPdAcctoSttusInfoSearchV2":
@@ -98,8 +104,10 @@ def test_nps_metrics_aggregate_multiple_workplaces_with_same_business_prefix(mon
         raise AssertionError(operation)
 
     monkeypatch.setattr(salary_data, "_nps_request", fake_request)
+    source = dict(salary_data.EMPLOYMENT_METRIC_SOURCES[0])
+    source["business_prefixes"] = ("203814", "207850")
     item = salary_data.fetch_employment_metrics(
-        salary_data.EMPLOYMENT_METRIC_SOURCES[0]
+        source
     )
     assert item["headcount"] == 200
     assert item["headcount_growth_rate"] == 0.0

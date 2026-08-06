@@ -53,6 +53,7 @@ EMPLOYMENT_METRIC_SOURCES = (
     {
         "entity_code": "paradise", "entity_name": "파라다이스",
         "query_name": "파라다이스", "business_prefix": "203814",
+        "business_prefixes": ("203814", "207850", "827850", "616852"),
         "address_keyword": "중구",
         "source_name": "국민연금 기준",
     },
@@ -586,12 +587,14 @@ def _select_nps_month_groups(rows, source):
         if target in _normalized_workplace_name(row.get("wkplNm"))
         or _normalized_workplace_name(row.get("wkplNm")) in target
     ]
-    business_prefix = source.get("business_prefix")
+    business_prefixes = tuple(source.get("business_prefixes") or ())
+    if not business_prefixes and source.get("business_prefix"):
+        business_prefixes = (source["business_prefix"],)
     business_matches = [
         row for row in candidates
-        if business_prefix
+        if business_prefixes
         and str(row.get("bzowrRgstNo") or "").replace("*", "").startswith(
-            business_prefix
+            business_prefixes
         )
     ]
     if not business_matches:
@@ -750,9 +753,23 @@ def fetch_review_source(source):
 
 def fetch_employment_metrics(source):
     search_params = {"wkplNm": source["query_name"], "numOfRows": 100}
-    if source.get("business_prefix"):
-        search_params["bzowrRgstNo"] = source["business_prefix"]
-    base_rows = _nps_request("getBassInfoSearchV2", **search_params)
+    business_prefixes = tuple(source.get("business_prefixes") or ())
+    if business_prefixes:
+        base_rows = []
+        for business_prefix in business_prefixes:
+            base_rows.extend(_nps_request(
+                "getBassInfoSearchV2",
+                **search_params,
+                bzowrRgstNo=business_prefix,
+            ))
+        base_rows = list({
+            (row.get("seq"), row.get("dataCrtYm"), row.get("bzowrRgstNo")): row
+            for row in base_rows
+        }.values())
+    else:
+        if source.get("business_prefix"):
+            search_params["bzowrRgstNo"] = source["business_prefix"]
+        base_rows = _nps_request("getBassInfoSearchV2", **search_params)
     history = _select_nps_month_groups(base_rows, source)
     monthly = []
     for month_group in history:
