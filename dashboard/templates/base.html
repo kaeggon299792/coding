@@ -73,7 +73,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260807-blog-review">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-ui-system">
+<script src="{{ url_for('static', filename='js/ui-icons.js') }}?v=20260808-ui-system" defer></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-account-animation-v2">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
@@ -101,7 +102,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>
 </button>
-<button class="back-to-top" id="back-to-top" type="button" aria-label="맨 위로 이동" hidden>↑</button>
+<button class="back-to-top" id="back-to-top" type="button" data-ui-icon="arrow-up" aria-label="맨 위로 이동" hidden>↑</button>
 {% include "_legal_footer.html" %}
 {% if current_locale == 'en' %}
 <script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
