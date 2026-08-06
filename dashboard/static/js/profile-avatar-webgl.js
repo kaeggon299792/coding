@@ -231,9 +231,14 @@
   }
 
   let active = null;
-  const candidates = () => [...document.querySelectorAll("[data-profile-avatar-webgl='candidate']")]
-    .filter((node) => { const r = node.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(node).visibility !== "hidden"; })
-    .sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width);
+  const candidates = () => [
+    ...document.querySelectorAll(".account-avatar-wrap[data-profile-avatar-webgl='candidate']"),
+    ...document.querySelectorAll(".topbar-profile-menu[open] .topbar-profile-large-avatar[data-profile-avatar-webgl='candidate']"),
+    ...document.querySelectorAll(".topbar-user [data-profile-avatar-webgl='candidate']"),
+  ].filter((node) => {
+    const r = node.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && getComputedStyle(node).visibility !== "hidden";
+  });
   const selectRepresentative = () => {
     const target = candidates()[0];
     if (!target || active?.container === target) return;

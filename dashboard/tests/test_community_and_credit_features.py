@@ -493,3 +493,5 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert 'document.addEventListener("visibilitychange"' in webgl_js
     assert "webglcontextlost" in webgl_js
     assert "webglcontextrestored" in webgl_js
+    assert '.account-avatar-wrap[data-profile-avatar-webgl=' in webgl_js
+    assert '.topbar-profile-menu[open] .topbar-profile-large-avatar' in webgl_js
