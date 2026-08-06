@@ -346,7 +346,8 @@ def test_admin_page_renders_separately_with_font_selector(account_client):
     assert "프리텐다드" in html
     assert "고운바탕" in html
     assert "함렛" in html
-    assert "three.r149.min.js" not in html
+    assert "three.r149.min.js" in html
+    assert "profile-avatar-webgl.js" in html
 
 
 def test_webgl_bundle_is_limited_to_home(account_client):
@@ -357,6 +358,7 @@ def test_webgl_bundle_is_limited_to_home(account_client):
     assert "casino-wave-webgl-v2.js" in home
     assert "three.r149.min.js" not in login
     assert "casino-wave-webgl-v2.js" not in login
+    assert "profile-avatar-webgl.js" not in login
 
 
 def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, monkeypatch, tmp_path):
