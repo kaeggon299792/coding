@@ -289,7 +289,7 @@ TRUSTED_HOSTS = tuple(
         "TRUSTED_HOSTS",
         "www.casinoin.kr,casinoin.kr,"
         "casino.shingoon.me,www.casino.shingoon.me,"
-        "dashboard.shingoon.me,dashboard-kaekun.pythonanywhere.com",
+        "dashboard.shingoon.me",
     ).split(",")
     if host.strip()
 )

@@ -20,8 +20,7 @@ os.environ.setdefault("DASHBOARD_PUBLIC_URL", "https://www.casinoin.kr")
 os.environ.setdefault(
     "TRUSTED_HOSTS",
     "www.casinoin.kr,casinoin.kr,casino.shingoon.me,"
-    "www.casino.shingoon.me,dashboard.shingoon.me,"
-    "dashboard-kaekun.pythonanywhere.com",
+    "www.casino.shingoon.me,dashboard.shingoon.me",
 )
 os.environ.setdefault(
     "GOOGLE_REDIRECT_URI", "https://www.casinoin.kr/auth/google/callback"

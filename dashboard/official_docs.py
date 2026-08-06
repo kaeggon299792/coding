@@ -67,6 +67,23 @@ def admin_required(view):
     return wrapped
 
 
+def _can_view_document(document):
+    """Keep ordinary users from learning whether another user's document exists."""
+    if not document:
+        return False
+    if _role() == "admin":
+        return True
+    owner_id = document.get("registered_user_id")
+    return owner_id is not None and int(owner_id) == int(session.get("user_id") or 0)
+
+
+def _scoped_document_filters(filters=None):
+    scoped = dict(filters or {})
+    if _role() != "admin":
+        scoped["registered_user_id"] = session.get("user_id")
+    return scoped
+
+
 def _common(connection):
     update_status = manager.data_update_status(connection)
     return {
@@ -97,11 +114,14 @@ def _common(connection):
 def dashboard():
     connection = dashboard_db()
     try:
-        recent, _ = manager.list_documents(connection, per_page=8)
-        review, _ = manager.list_documents(connection, per_page=8, review_only=True)
+        filters = _scoped_document_filters()
+        recent, _ = manager.list_documents(connection, filters, per_page=8)
+        review, _ = manager.list_documents(
+            connection, filters, per_page=8, review_only=True
+        )
         return render_template(
             "official_docs/dashboard.html",
-            metrics=manager.dashboard_metrics(connection),
+            metrics=manager.dashboard_metrics(connection, filters),
             recent=recent,
             review=review,
             **_common(connection),
@@ -124,6 +144,7 @@ def document_list():
     )}
     connection = dashboard_db()
     try:
+        filters = _scoped_document_filters(filters)
         documents, total = manager.list_documents(connection, filters, page=page)
         return render_template(
             "official_docs/list.html", documents=documents, total=total, page=page,
@@ -196,19 +217,25 @@ def field_suggestions():
         return jsonify({"suggestions": []})
     connection = dashboard_db()
     try:
+        owner_clause = ""
+        params = [f"%{term}%", term, f"{term}%"]
+        if _role() != "admin":
+            owner_clause = " AND registered_user_id=?"
+            params.append(session.get("user_id"))
         rows = connection.execute(
             f"""
             SELECT {column} AS value, COUNT(*) AS use_count, MAX(updated_at) AS last_used
             FROM official_documents
             WHERE is_active=1 AND {column} IS NOT NULL AND TRIM({column})!=''
                   AND {column} LIKE ?
+                  {owner_clause}
             GROUP BY {column}
             ORDER BY
               CASE WHEN {column}=? THEN 0 WHEN {column} LIKE ? THEN 1 ELSE 2 END,
               use_count DESC, last_used DESC, {column}
             LIMIT 8
             """,
-            (f"%{term}%", term, f"{term}%"),
+            params,
         ).fetchall()
         return jsonify({"suggestions": [dict(row) for row in rows]})
     finally:
@@ -251,7 +278,11 @@ def export_excel():
             }
             if not selected_ids:
                 return redirect(url_for("official_docs.document_list", export_error="선택한 자료가 없습니다."))
-            documents = manager.list_documents_by_ids(connection, selected_ids)
+            documents = manager.list_documents_by_ids(
+                connection,
+                selected_ids,
+                registered_user_id=None if is_admin else session.get("user_id"),
+            )
             if not documents:
                 return redirect(url_for("official_docs.document_list", export_error="선택한 자료를 찾을 수 없습니다."))
         else:
@@ -454,7 +485,11 @@ def document_detail(document_id):
     connection = dashboard_db()
     try:
         document = manager.get_document(connection, document_id)
-        if not document or (not document["is_active"] and _role() != "admin"):
+        if (
+            not document
+            or not _can_view_document(document)
+            or (not document["is_active"] and _role() != "admin")
+        ):
             abort(404)
         if request.method == "POST":
             if _role() != "admin":
@@ -679,7 +714,9 @@ def deactivate(document_id):
 def review_list():
     connection = dashboard_db()
     try:
-        documents, total = manager.list_documents(connection, per_page=1000, review_only=True)
+        documents, total = manager.list_documents(
+            connection, _scoped_document_filters(), per_page=1000, review_only=True
+        )
         return render_template(
             "official_docs/review.html", documents=documents, total=total, **_common(connection)
         )
@@ -796,13 +833,13 @@ def audit_path_copy():
     try:
         row = connection.execute(
             """
-            SELECT id, management_number
+            SELECT id, management_number, registered_user_id
             FROM official_documents
             WHERE id=? AND is_active=1
             """,
             (int(document_id),),
         ).fetchone()
-        if not row:
+        if not row or not _can_view_document(dict(row)):
             abort(404)
         security_audit.log_event(
             connection,

@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import os
+import stat
 
 from scheduler import casinoinbot
 
@@ -35,6 +37,9 @@ def test_initial_state_marks_only_already_due_slots(monkeypatch, tmp_path):
     assert state["law_sync"] == "2026-08-06"
     assert state["dart_sync"] == "2026-08-06T17"
     assert "salary_sync" not in state
+    if os.name != "nt":
+        assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
+        assert stat.S_IMODE((tmp_path / "state.json").stat().st_mode) == 0o600
 
 
 def test_failed_schedule_spawn_is_not_marked_complete(monkeypatch, tmp_path):

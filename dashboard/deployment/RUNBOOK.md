@@ -50,7 +50,7 @@ touch app.py /var/www/casino_shingoon_me_wsgi.py /var/www/www_casinoin_kr_wsgi.p
 
 ```text
 DASHBOARD_PUBLIC_URL=https://www.casinoin.kr
-TRUSTED_HOSTS=www.casinoin.kr,casinoin.kr,casino.shingoon.me,www.casino.shingoon.me,dashboard.shingoon.me,dashboard-kaekun.pythonanywhere.com
+TRUSTED_HOSTS=www.casinoin.kr,casinoin.kr,casino.shingoon.me,www.casino.shingoon.me,dashboard.shingoon.me
 GOOGLE_REDIRECT_URI=https://www.casinoin.kr/auth/google/callback
 ```
 

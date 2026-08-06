@@ -672,36 +672,53 @@ def list_documents(connection, filters=None, page=1, per_page=30, review_only=Fa
     if filters.get("date_to"):
         clauses.append("d.receipt_date <= ?")
         params.append(normalize_date(filters["date_to"]))
+    if review_only:
+        clauses.append(
+            "(COALESCE(d.processing_result, '') != '완료' "
+            "OR d.storage_status IN ('FAILED', 'MISSING') "
+            "OR (d.storage_status = 'STORED' AND "
+            "(d.location IS NULL OR TRIM(d.location) = '' OR d.file_count = 0)) "
+            "OR (d.video_exported = '예' AND d.export_pledge != '확인완료'))"
+        )
     sort_sql = ALLOWED_SORTS.get(filters.get("sort"), "d.receipt_date")
     direction = "ASC" if filters.get("direction") == "asc" else "DESC"
+    where_sql = " AND ".join(clauses)
+    total = connection.execute(
+        f"SELECT COUNT(*) FROM official_documents d WHERE {where_sql}",
+        params,
+    ).fetchone()[0]
+    page = max(1, int(page))
+    per_page = max(1, int(per_page))
+    offset = (page - 1) * per_page
     rows = connection.execute(
         f"""
         SELECT d.*, c.label AS category_label, f.label AS folder_category_label
         FROM official_documents d
         LEFT JOIN official_doc_reference_values c ON c.kind='category' AND c.code=d.category_code
         LEFT JOIN official_doc_reference_values f ON f.kind='folder_category' AND f.code=d.folder_category_code
-        WHERE {' AND '.join(clauses)}
+        WHERE {where_sql}
         ORDER BY {sort_sql} {direction}, d.id DESC
+        LIMIT ? OFFSET ?
         """,
-        params,
+        (*params, per_page, offset),
     ).fetchall()
-    items = []
-    for row in rows:
-        item = dict(row)
+    items = [dict(row) for row in rows]
+    for item in items:
         item["review_reasons"] = review_reasons(item)
-        if not review_only or item["review_reasons"]:
-            items.append(item)
-    total = len(items)
-    start = max(0, (page - 1) * per_page)
-    return items[start:start + per_page], total
+    return items, total
 
 
-def list_documents_by_ids(connection, document_ids):
+def list_documents_by_ids(connection, document_ids, registered_user_id=None):
     """Return only explicitly selected active documents, independent of list filters."""
     ids = [int(value) for value in dict.fromkeys(document_ids) if int(value) > 0]
     if not ids:
         return []
     placeholders = ",".join("?" for _ in ids)
+    owner_clause = ""
+    params = list(ids)
+    if registered_user_id is not None:
+        owner_clause = " AND d.registered_user_id=?"
+        params.append(int(registered_user_id))
     rows = connection.execute(
         f"""
         SELECT d.*, c.label AS category_label, f.label AS folder_category_label
@@ -710,16 +727,16 @@ def list_documents_by_ids(connection, document_ids):
           ON c.kind='category' AND c.code=d.category_code
         LEFT JOIN official_doc_reference_values f
           ON f.kind='folder_category' AND f.code=d.folder_category_code
-        WHERE d.is_active=1 AND d.id IN ({placeholders})
+        WHERE d.is_active=1 AND d.id IN ({placeholders}){owner_clause}
         """,
-        ids,
+        params,
     ).fetchall()
     by_id = {row["id"]: dict(row) for row in rows}
     return [by_id[item_id] for item_id in ids if item_id in by_id]
 
 
-def dashboard_metrics(connection):
-    documents, _ = list_documents(connection, per_page=100000)
+def dashboard_metrics(connection, filters=None):
+    documents, _ = list_documents(connection, filters, per_page=100000)
     today_str = date.today().isoformat()
     return {
         "total": len(documents),

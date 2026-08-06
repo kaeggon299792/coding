@@ -132,9 +132,12 @@ def load_state() -> dict[str, str]:
 
 def save_state(state: dict[str, str]) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    os.chmod(STATE_DIR, 0o700)
     temporary = STATE_FILE.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+    os.chmod(temporary, 0o600)
     temporary.replace(STATE_FILE)
+    os.chmod(STATE_FILE, 0o600)
 
 
 def seed_initial_state(now: datetime) -> dict[str, str]:
@@ -352,7 +355,9 @@ def main() -> int:
         return 0
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    os.chmod(STATE_DIR, 0o700)
     lock_stream = LOCK_FILE.open("w", encoding="utf-8")
+    os.chmod(LOCK_FILE, 0o600)
     if fcntl is not None:
         try:
             fcntl.flock(lock_stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
