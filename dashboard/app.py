@@ -182,6 +182,8 @@ NOINDEX_ENDPOINTS = {
     "community_post_page",
     "diary_board_page",
     "diary_entry_page",
+    "review_board_page",
+    "review_entry_page",
     "not_found_page",
 }
 LOCALIZATION_DISCOVERY_ENDPOINTS = INDEXABLE_ENDPOINTS | {
@@ -1267,9 +1269,12 @@ def inject_globals():
         "community_board_page": "자유 게시판",
         "create_community_post_route": "자유 게시판",
         "notice_board_page": "공지사항",
-        "diary_board_page": "나의 일기장",
-        "diary_entry_page": "나의 일기장",
-        "edit_diary_entry_route": "나의 일기장",
+        "diary_board_page": "아카이브",
+        "diary_entry_page": "아카이브",
+        "edit_diary_entry_route": "아카이브",
+        "review_board_page": "리뷰",
+        "review_entry_page": "리뷰",
+        "edit_review_entry_route": "리뷰",
         "create_notice_post_route": "공지사항",
         "community_post_page": "자유 게시판",
         "admin_action_items_page": "미처리 과제",
@@ -1487,6 +1492,15 @@ def _site_map_links():
                 {"label": "자유 게시판", "endpoint": "community_board_page"},
                 {"label": "공지사항", "endpoint": "notice_board_page"},
                 {"label": "버그 및 건의", "endpoint": "action_items_page"},
+            ],
+        },
+        {
+            "label": "블로그",
+            "description": "일상 아카이브와 사진 중심 리뷰",
+            "endpoint": "diary_board_page",
+            "children": [
+                {"label": "아카이브", "endpoint": "diary_board_page"},
+                {"label": "리뷰", "endpoint": "review_board_page"},
             ],
         },
         {
@@ -5504,6 +5518,8 @@ def _diary_form_data(source):
         "mood_code": mood_code,
         "title": title,
         "content": content,
+        "is_private": (source.get("is_private") or "").strip().lower()
+        in {"1", "true", "yes", "on"},
     }
 
 
@@ -5513,16 +5529,20 @@ _DIARY_IMAGE_URL_RE = re.compile(
 
 
 def _diary_board_context(
-    connection, page=1, view_mode="timeline", error=None, form_data=None,
+    connection, page=1, view_mode="timeline", board_type="diary",
+    error=None, form_data=None,
 ):
-    page_size = 5
-    owner_id = session["user_id"]
-    total = queries.count_diary_entries(connection, owner_id)
+    page_size = 10
+    viewer_id = session.get("user_id")
+    total = queries.count_diary_entries(
+        connection, viewer_id, board_type=board_type
+    )
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page), total_pages))
     view_mode = view_mode if view_mode in {"timeline", "gallery"} else "timeline"
     entries = queries.list_diary_entries(
-        connection, owner_id, page_size, (page - 1) * page_size
+        connection, viewer_id, page_size, (page - 1) * page_size,
+        board_type=board_type,
     )
     gallery_items = []
     for entry in entries:
@@ -5548,34 +5568,78 @@ def _diary_board_context(
     }
 
 
-@app.route("/board/diary", methods=["GET", "POST"])
-@login_required
-def diary_board_page():
+_ARCHIVE_BOARDS = {
+    "diary": {
+        "permission_key": "diary",
+        "title": "아카이브",
+        "eyebrow": "DAILY / ARCHIVE",
+        "description": "그날그날의 마음과 장면을 차곡차곡 남기는 기록 공간입니다.",
+        "marker": "DAILY LOG",
+        "compose_label": "오늘 기록하기",
+        "default_view": "timeline",
+        "board_endpoint": "diary_board_page",
+        "entry_endpoint": "diary_entry_page",
+        "edit_endpoint": "edit_diary_entry_route",
+        "delete_endpoint": "delete_diary_entry_route",
+    },
+    "review": {
+        "permission_key": "reviews",
+        "title": "리뷰",
+        "eyebrow": "BLOG / REVIEW",
+        "description": "직접 경험한 장소와 콘텐츠를 사진과 함께 오래 남기는 리뷰 공간입니다.",
+        "marker": "PHOTO REVIEW",
+        "compose_label": "리뷰 작성하기",
+        "default_view": "gallery",
+        "board_endpoint": "review_board_page",
+        "entry_endpoint": "review_entry_page",
+        "edit_endpoint": "edit_review_entry_route",
+        "delete_endpoint": "delete_review_entry_route",
+    },
+}
+
+
+def _archive_board_response(board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
     connection = dashboard_db()
     try:
+        action = "write" if request.method == "POST" else "read"
+        if not membership.can_board(
+            connection, settings["permission_key"], action,
+            session.get("user_id"), session.get("role"),
+        ):
+            if not session.get("user_id"):
+                return redirect(url_for("auth.login", next=request.path))
+            abort(403)
         try:
             page = int(request.args.get("page", 1))
         except (TypeError, ValueError):
             page = 1
-        view_mode = (request.args.get("view") or "timeline").strip().lower()
+        view_mode = (
+            request.args.get("view") or settings["default_view"]
+        ).strip().lower()
         if request.method == "GET":
             return render_template(
                 "diary_board.html",
                 **_diary_board_context(
-                    connection, page=page, view_mode=view_mode
+                    connection, page=page, view_mode=view_mode,
+                    board_type=board_type,
                 ),
+                archive_settings=settings,
+                board_type=board_type,
             )
         raw_form = {
             key: (request.form.get(key) or "")
-            for key in ("diary_date", "mood_code", "title", "content")
+            for key in ("diary_date", "mood_code", "title", "content", "is_private")
         }
         if not validate_csrf(request.form.get("csrf_token", "")):
             return render_template(
                 "diary_board.html",
                 **_diary_board_context(
                     connection, error="요청이 만료되었습니다. 다시 시도해주세요.",
-                    form_data=raw_form,
+                    form_data=raw_form, board_type=board_type,
                 ),
+                archive_settings=settings,
+                board_type=board_type,
             ), 400
         try:
             form_data = _diary_form_data(raw_form)
@@ -5583,31 +5647,58 @@ def diary_board_page():
                 connection,
                 session["user_id"],
                 session.get("username") or "",
+                board_type=board_type,
                 **form_data,
             )
         except ValueError as error:
             return render_template(
                 "diary_board.html",
                 **_diary_board_context(
-                    connection, error=str(error), form_data=raw_form
+                    connection,
+                    error=str(error),
+                    form_data=raw_form,
+                    board_type=board_type,
                 ),
+                archive_settings=settings,
+                board_type=board_type,
             ), 400
         security_audit.log_event(
             connection, "DIARY_ENTRY_CREATE", "diary_entry", entry_id,
-            {"diary_date": form_data["diary_date"]},
+            {
+                "diary_date": form_data["diary_date"],
+                "is_private": form_data["is_private"],
+            },
         )
         connection.commit()
-        return redirect(url_for("diary_entry_page", entry_id=entry_id))
+        return redirect(url_for(settings["entry_endpoint"], entry_id=entry_id))
     finally:
         connection.close()
 
 
-@app.get("/board/diary/<int:entry_id>")
-@login_required
-def diary_entry_page(entry_id):
+@app.route("/board/diary", methods=["GET", "POST"])
+def diary_board_page():
+    return _archive_board_response("diary")
+
+
+@app.route("/blog/reviews", methods=["GET", "POST"])
+def review_board_page():
+    return _archive_board_response("review")
+
+
+def _archive_entry_response(entry_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
     connection = dashboard_db()
     try:
-        entry = queries.get_diary_entry(connection, entry_id, session["user_id"])
+        if not membership.can_board(
+            connection, settings["permission_key"], "read",
+            session.get("user_id"), session.get("role"),
+        ):
+            if not session.get("user_id"):
+                return redirect(url_for("auth.login", next=request.path))
+            abort(403)
+        entry = queries.get_diary_entry(
+            connection, entry_id, session.get("user_id"), board_type=board_type,
+        )
         if not entry:
             abort(404)
         return render_template(
@@ -5615,17 +5706,35 @@ def diary_entry_page(entry_id):
             mood=_DIARY_MOODS.get(entry.get("mood_code"), ("•", "미선택")),
             entry_html=_render_community_markdown(entry["content"]),
             csrf_token=get_csrf_token(),
+            archive_settings=settings,
+            board_type=board_type,
         )
     finally:
         connection.close()
 
 
-@app.route("/board/diary/<int:entry_id>/edit", methods=["GET", "POST"])
-@login_required
-def edit_diary_entry_route(entry_id):
+@app.get("/board/diary/<int:entry_id>")
+def diary_entry_page(entry_id):
+    return _archive_entry_response(entry_id, "diary")
+
+
+@app.get("/blog/reviews/<int:entry_id>")
+def review_entry_page(entry_id):
+    return _archive_entry_response(entry_id, "review")
+
+
+def _edit_archive_entry_response(entry_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
     connection = dashboard_db()
     try:
-        entry = queries.get_diary_entry(connection, entry_id, session["user_id"])
+        if not membership.can_board(
+            connection, settings["permission_key"], "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
+        entry = queries.get_owned_diary_entry(
+            connection, entry_id, session["user_id"], board_type=board_type,
+        )
         if not entry:
             abort(404)
         error = None
@@ -5634,7 +5743,9 @@ def edit_diary_entry_route(entry_id):
         if request.method == "POST":
             raw_form = {
                 key: (request.form.get(key) or "")
-                for key in ("diary_date", "mood_code", "title", "content")
+                for key in (
+                    "diary_date", "mood_code", "title", "content", "is_private",
+                )
             }
             form_data = raw_form
             if not validate_csrf(request.form.get("csrf_token", "")):
@@ -5644,7 +5755,8 @@ def edit_diary_entry_route(entry_id):
                 try:
                     clean = _diary_form_data(raw_form)
                     queries.update_diary_entry(
-                        connection, entry_id, session["user_id"], **clean
+                        connection, entry_id, session["user_id"],
+                        board_type=board_type, **clean
                     )
                 except ValueError as exc:
                     error = str(exc)
@@ -5654,11 +5766,52 @@ def edit_diary_entry_route(entry_id):
                         connection, "DIARY_ENTRY_UPDATE", "diary_entry", entry_id
                     )
                     connection.commit()
-                    return redirect(url_for("diary_entry_page", entry_id=entry_id))
+                    return redirect(
+                        url_for(settings["entry_endpoint"], entry_id=entry_id)
+                    )
         return render_template(
             "diary_edit.html", entry=entry, form_data=form_data, moods=_DIARY_MOODS,
             error=error, csrf_token=get_csrf_token(),
+            archive_settings=settings, board_type=board_type,
         ), status
+    finally:
+        connection.close()
+
+
+@app.route("/board/diary/<int:entry_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_diary_entry_route(entry_id):
+    return _edit_archive_entry_response(entry_id, "diary")
+
+
+@app.route("/blog/reviews/<int:entry_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_review_entry_route(entry_id):
+    return _edit_archive_entry_response(entry_id, "review")
+
+
+def _delete_archive_entry_response(entry_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not membership.can_board(
+            connection, settings["permission_key"], "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
+        try:
+            queries.delete_diary_entry(
+                connection, entry_id, session["user_id"], board_type=board_type
+            )
+        except ValueError:
+            abort(404)
+        security_audit.log_event(
+            connection, "DIARY_ENTRY_DELETE", "diary_entry", entry_id
+        )
+        connection.commit()
+        return redirect(url_for(settings["board_endpoint"]))
     finally:
         connection.close()
 
@@ -5666,21 +5819,13 @@ def edit_diary_entry_route(entry_id):
 @app.post("/board/diary/<int:entry_id>/delete")
 @login_required
 def delete_diary_entry_route(entry_id):
-    if not validate_csrf(request.form.get("csrf_token", "")):
-        abort(400)
-    connection = dashboard_db()
-    try:
-        try:
-            queries.delete_diary_entry(connection, entry_id, session["user_id"])
-        except ValueError:
-            abort(404)
-        security_audit.log_event(
-            connection, "DIARY_ENTRY_DELETE", "diary_entry", entry_id
-        )
-        connection.commit()
-        return redirect(url_for("diary_board_page"))
-    finally:
-        connection.close()
+    return _delete_archive_entry_response(entry_id, "diary")
+
+
+@app.post("/blog/reviews/<int:entry_id>/delete")
+@login_required
+def delete_review_entry_route(entry_id):
+    return _delete_archive_entry_response(entry_id, "review")
 
 
 @app.post("/board/diary/images")
@@ -5688,6 +5833,19 @@ def delete_diary_entry_route(entry_id):
 def upload_diary_image_route():
     if not validate_csrf(request.form.get("csrf_token", "")):
         return jsonify({"error": "요청이 만료되었습니다. 새로고침 후 다시 시도해주세요."}), 400
+    scope = (request.form.get("scope") or "diary").strip().lower()
+    if scope not in _ARCHIVE_BOARDS:
+        return jsonify({"error": "허용되지 않은 기록 유형입니다."}), 400
+    permission_connection = dashboard_db()
+    try:
+        if not membership.can_board(
+            permission_connection,
+            _ARCHIVE_BOARDS[scope]["permission_key"], "write",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
+    finally:
+        permission_connection.close()
     try:
         filename = editor_images.save_pasted_image(
             request.files.get("image"), config.DIARY_IMAGE_DIR,
@@ -5718,7 +5876,17 @@ def diary_image_file(filename):
         abort(404)
     connection = dashboard_db()
     try:
-        if not queries.diary_image_owned_by(connection, filename, session["user_id"]):
+        allowed_board_types = tuple(
+            board_type
+            for board_type, settings in _ARCHIVE_BOARDS.items()
+            if membership.can_board(
+                connection, settings["permission_key"], "read",
+                session.get("user_id"), session.get("role"),
+            )
+        )
+        if not queries.diary_image_accessible(
+            connection, filename, session.get("user_id"), allowed_board_types
+        ):
             abort(404)
     finally:
         connection.close()

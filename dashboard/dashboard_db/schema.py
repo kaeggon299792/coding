@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080702
+SCHEMA_VERSION = 2026080703
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -409,6 +409,8 @@ def migrate(connection):
             ('benefits', '복지게시판', 'silver', 'black', 'gold'),
             ('recruitment_guide', '족보게시판', 'silver', 'black', 'gold'),
             ('source_data', '원천 데이터 다운', 'gold', 'black', 'black'),
+            ('diary', '아카이브', 'gold', 'gold', 'gold'),
+            ('reviews', '리뷰 게시판', 'gold', 'gold', 'gold'),
         ),
     )
     connection.execute(
@@ -601,6 +603,12 @@ def migrate(connection):
     )
     _ensure_column(connection, "community_posts", "diary_date", "TEXT")
     _ensure_column(connection, "community_posts", "mood_code", "TEXT")
+    # Existing diary entries were created under an owner-only policy. Keep
+    # them private during migration; new entries explicitly store their choice.
+    _ensure_column(
+        connection, "community_posts", "is_private",
+        "INTEGER NOT NULL DEFAULT 1",
+    )
     connection.execute(
         "UPDATE community_posts SET board_type='community' "
         "WHERE board_type IS NULL OR TRIM(board_type)=''"
@@ -620,6 +628,10 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_diary_owner_date "
         "ON community_posts(author_id, board_type, is_deleted, diary_date DESC, id DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_community_diary_visibility_date "
+        "ON community_posts(board_type, is_deleted, is_private, diary_date DESC, id DESC)"
     )
     connection.execute(
         """

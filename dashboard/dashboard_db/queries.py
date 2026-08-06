@@ -464,7 +464,10 @@ def count_community_posts(connection, board_type="community"):
 
 def create_diary_entry(
     connection, author_id, author_username, diary_date, mood_code, title, content,
+    is_private=False, board_type="diary",
 ):
+    if board_type not in {"diary", "review"}:
+        raise ValueError("올바른 기록 유형이 아닙니다.")
     title = (title or "").strip()
     content = (content or "").strip()
     if not title or len(title) > 150:
@@ -476,52 +479,86 @@ def create_diary_entry(
         """
         INSERT INTO community_posts
             (author_id, author_username, title, content, board_type,
-             diary_date, mood_code, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'diary', ?, ?, ?, ?)
+             diary_date, mood_code, is_private, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            author_id, author_username, title, content, diary_date, mood_code,
-            now_iso, now_iso,
+            author_id, author_username, title, content, board_type,
+            diary_date, mood_code,
+            1 if is_private else 0, now_iso, now_iso,
         ),
     )
     connection.commit()
     return cursor.lastrowid
 
 
-def list_diary_entries(connection, owner_id, limit=20, offset=0):
+def list_diary_entries(
+    connection, viewer_id=None, limit=20, offset=0, board_type="diary",
+):
+    if board_type not in {"diary", "review"}:
+        return []
     rows = connection.execute(
         """
-        SELECT id, title, content, diary_date, mood_code, created_at, updated_at
+        SELECT id, author_id, title, content, diary_date, mood_code, is_private,
+               created_at, updated_at
         FROM community_posts
-        WHERE author_id=? AND board_type='diary' AND is_deleted=0
+        WHERE board_type=? AND is_deleted=0
+          AND (is_private=0 OR author_id=?)
         ORDER BY diary_date DESC, id DESC
         LIMIT ? OFFSET ?
         """,
-        (owner_id, max(1, min(int(limit), 100)), max(0, int(offset))),
+        (
+            board_type, viewer_id or -1,
+            max(1, min(int(limit), 100)), max(0, int(offset)),
+        ),
     ).fetchall()
     return [dict(row) for row in rows]
 
 
-def count_diary_entries(connection, owner_id):
+def count_diary_entries(connection, viewer_id=None, board_type="diary"):
+    if board_type not in {"diary", "review"}:
+        return 0
     return connection.execute(
         """SELECT COUNT(*) FROM community_posts
-           WHERE author_id=? AND board_type='diary' AND is_deleted=0""",
-        (owner_id,),
+           WHERE board_type=? AND is_deleted=0
+             AND (is_private=0 OR author_id=?)""",
+        (board_type, viewer_id or -1),
     ).fetchone()[0]
 
 
-def get_diary_entry(connection, entry_id, owner_id):
+def get_diary_entry(
+    connection, entry_id, viewer_id=None, board_type="diary",
+):
+    if board_type not in {"diary", "review"}:
+        return None
     row = connection.execute(
         """SELECT * FROM community_posts
-           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
-        (entry_id, owner_id),
+           WHERE id=? AND board_type=? AND is_deleted=0
+             AND (is_private=0 OR author_id=?)""",
+        (entry_id, board_type, viewer_id or -1),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def get_owned_diary_entry(
+    connection, entry_id, owner_id, board_type="diary",
+):
+    if board_type not in {"diary", "review"}:
+        return None
+    row = connection.execute(
+        """SELECT * FROM community_posts
+           WHERE id=? AND author_id=? AND board_type=? AND is_deleted=0""",
+        (entry_id, owner_id, board_type),
     ).fetchone()
     return dict(row) if row else None
 
 
 def update_diary_entry(
     connection, entry_id, owner_id, diary_date, mood_code, title, content,
+    is_private=False, board_type="diary",
 ):
+    if board_type not in {"diary", "review"}:
+        raise ValueError("올바른 기록 유형이 아닙니다.")
     title = (title or "").strip()
     content = (content or "").strip()
     if not title or len(title) > 150:
@@ -530,11 +567,12 @@ def update_diary_entry(
         raise ValueError("내용은 1~10,000자로 입력해주세요.")
     cursor = connection.execute(
         """UPDATE community_posts
-           SET diary_date=?, mood_code=?, title=?, content=?, updated_at=?
-           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
+           SET diary_date=?, mood_code=?, title=?, content=?, is_private=?, updated_at=?
+           WHERE id=? AND author_id=? AND board_type=? AND is_deleted=0""",
         (
-            diary_date, mood_code, title, content,
+            diary_date, mood_code, title, content, 1 if is_private else 0,
             now_kst().isoformat(timespec="seconds"), entry_id, owner_id,
+            board_type,
         ),
     )
     if not cursor.rowcount:
@@ -542,13 +580,15 @@ def update_diary_entry(
     connection.commit()
 
 
-def delete_diary_entry(connection, entry_id, owner_id):
+def delete_diary_entry(connection, entry_id, owner_id, board_type="diary"):
+    if board_type not in {"diary", "review"}:
+        raise ValueError("올바른 기록 유형이 아닙니다.")
     now_iso = now_kst().isoformat(timespec="seconds")
     cursor = connection.execute(
         """UPDATE community_posts
            SET is_deleted=1, deleted_at=?, deleted_by=?, updated_at=?
-           WHERE id=? AND author_id=? AND board_type='diary' AND is_deleted=0""",
-        (now_iso, owner_id, now_iso, entry_id, owner_id),
+           WHERE id=? AND author_id=? AND board_type=? AND is_deleted=0""",
+        (now_iso, owner_id, now_iso, entry_id, owner_id, board_type),
     )
     if not cursor.rowcount:
         raise ValueError("일기를 찾을 수 없습니다.")
@@ -568,6 +608,35 @@ def diary_image_owned_by(connection, filename, owner_id):
         "SELECT 1 FROM diary_images WHERE filename=? AND owner_id=?",
         (filename, owner_id),
     ).fetchone() is not None
+
+
+def diary_image_accessible(
+    connection, filename, viewer_id=None, allowed_board_types=("diary",),
+):
+    allowed_board_types = tuple(
+        item for item in allowed_board_types if item in {"diary", "review"}
+    )
+    if not allowed_board_types:
+        allowed_board_types = ("__none__",)
+    placeholders = ",".join("?" for _ in allowed_board_types)
+    row = connection.execute(
+        f"""SELECT 1
+           FROM diary_images AS image
+           WHERE image.filename=?
+             AND (
+               image.owner_id=?
+               OR EXISTS (
+                 SELECT 1 FROM community_posts AS post
+                 WHERE post.author_id=image.owner_id
+                   AND post.board_type IN ({placeholders})
+                   AND post.is_deleted=0
+                   AND post.is_private=0
+                   AND instr(post.content, image.filename)>0
+               )
+             )""",
+        (filename, viewer_id or -1, *allowed_board_types),
+    ).fetchone()
+    return row is not None
 
 
 def set_community_post_pinned(connection, post_id, is_pinned):

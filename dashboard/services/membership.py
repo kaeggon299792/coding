@@ -18,6 +18,8 @@ BOARD_KEYS = (
     "benefits",
     "recruitment_guide",
     "source_data",
+    "diary",
+    "reviews",
 )
 MAX_ICON_BYTES = 512 * 1024
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"

@@ -1,0 +1,4 @@
+<nav class="data-subnav blog-subnav is-compact" data-align-subnav aria-label="블로그 하위 메뉴">
+  <a href="{{ url_for('diary_board_page') }}"{% if request.endpoint in ('diary_board_page', 'diary_entry_page', 'edit_diary_entry_route') %} class="active" aria-current="page"{% endif %}>아카이브</a>
+  <a href="{{ url_for('review_board_page') }}"{% if request.endpoint in ('review_board_page', 'review_entry_page', 'edit_review_entry_route') %} class="active" aria-current="page"{% endif %}>리뷰</a>
+</nav>

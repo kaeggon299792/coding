@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_primary_navigation_matches_confirmed_ia():
     markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
     for label in (
-        "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판",
+        "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판", "블로그",
         "통합검색", "회원정보관리", "관리자 전용",
     ):
         assert label in markup
@@ -20,6 +20,7 @@ def test_primary_navigation_matches_confirmed_ia():
     assert topbar_nav.index(">뉴스</a>") < topbar_nav.index(">채용</a>")
     assert topbar_nav.index(">채용</a>") < topbar_nav.index(">시장 정보</a>")
     assert "url_for('salary_trend_page')" in topbar_nav
+    assert topbar_nav.index(">게시판</a>") < topbar_nav.index(">블로그</a>")
     assert ">관리자 전용</a>" not in topbar_nav
 
 

@@ -135,4 +135,4 @@ def test_sticky_navigation_is_not_limited_to_one_viewport():
     assert "html { height: 100%; }" in css
     assert "body { min-height: 100%; }" in css
     assert "html, body { height: 100%; }" not in css
-    assert "dashboard.css') }}?v=20260807-account-animation-v2" in base
+    assert "dashboard.css') }}?v=20260807-blog-review" in base

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ entry.title }} · 나의 일기장{% endblock %}
+{% block title %}{{ entry.title }} · {{ archive_settings.title }}{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_board_subnav.html" %}
+{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
 <main class="page-container diary-page diary-detail-page">
-  <nav class="community-detail-toolbar"><a href="{{ url_for('diary_board_page') }}">← 일기 목록</a></nav>
+  <nav class="community-detail-toolbar"><a href="{{ url_for(archive_settings.board_endpoint) }}">← {{ archive_settings.title }}</a></nav>
   <article class="panel diary-detail-card">
-    <header><div><p class="page-eyebrow">PRIVATE DIARY / {{ entry.diary_date }}</p><h1>{{ entry.title }}</h1><time datetime="{{ entry.diary_date }}">{{ entry.diary_date }}</time></div><span class="diary-detail-mood" aria-label="{{ mood[1] }}">{{ mood[0] }}<small>{{ mood[1] }}</small></span></header>
+    <header><div><p class="page-eyebrow">DAILY ARCHIVE / {{ entry.diary_date }}{% if entry.is_private %} · PRIVATE{% endif %}</p><h1>{{ entry.title }}</h1><time datetime="{{ entry.diary_date }}">{{ entry.diary_date }}</time></div><span class="diary-detail-mood" aria-label="{{ mood[1] }}">{{ mood[0] }}<small>{{ mood[1] }}</small></span></header>
     <div class="community-post-content community-markdown">{{ entry_html }}</div>
-    <footer><a class="btn" href="{{ url_for('edit_diary_entry_route', entry_id=entry.id) }}">수정</a><form method="post" action="{{ url_for('delete_diary_entry_route', entry_id=entry.id) }}" onsubmit="return confirm('이 일기를 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">삭제</button></form></footer>
+    {% if current_user and current_user.id == entry.author_id %}<footer><a class="btn" href="{{ url_for(archive_settings.edit_endpoint, entry_id=entry.id) }}">수정</a><form method="post" action="{{ url_for(archive_settings.delete_endpoint, entry_id=entry.id) }}" onsubmit="return confirm('이 기록을 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">삭제</button></form></footer>{% endif %}
   </article>
 </main>{% include "_footer.html" %}
 {% endblock %}
