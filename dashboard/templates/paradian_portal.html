@@ -6,7 +6,7 @@
   <header class="page-header">
     <p class="page-eyebrow">Administration / Restricted Access</p>
     <h1 class="page-title">관리자 전용</h1>
-    <p class="page-description">사이트·계정·API·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
+    <p class="page-description">사이트·계정·API·메모·미처리 과제·공문과 경영실적을 관리하는 관리자 전용 업무 메뉴입니다.</p>
   </header>
   <section class="admin-overview" aria-labelledby="admin-overview-title">
     <div class="admin-overview-heading">
@@ -110,6 +110,10 @@
     <a href="{{ url_for('admin_action_items_page') }}">
       <span>Operational Action Items</span><h2>미처리 과제</h2>
       <p>기존 운영 과제와 처리 상태를 관리합니다.</p><b>열기 →</b>
+    </a>
+    <a href="{{ url_for('admin_memos_page') }}">
+      <span>Private Memo Board</span><h2>메모</h2>
+      <p>내용과 용도를 코드블록 형태로 기록하고 참고 이미지를 함께 보관합니다.</p><b>열기 →</b>
     </a>
     <a href="{{ url_for('official_docs.dashboard') }}">
       <span>Official Documents</span><h2>공문·자료관리</h2>

@@ -41,6 +41,9 @@ def test_admin_memo_board_is_private_and_supports_safe_image(monkeypatch, tmp_pa
         assert page.status_code == 200
         assert "회의 준비" in page.get_data(as_text=True)
         assert "확인할 코드와 숫자" in page.get_data(as_text=True)
+        admin_page = client.get("/admin")
+        assert admin_page.status_code == 200
+        assert 'href="/admin/memos"' in admin_page.get_data(as_text=True)
 
     db = schema.connect(str(db_path))
     memo = db.execute(
