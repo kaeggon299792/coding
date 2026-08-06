@@ -173,3 +173,45 @@
     animation: none;
   }
 }
+
+/* Final profile treatment: one thin photo edge plus a flickering corona, never concentric rings. */
+.member-avatar-wrap > .member-avatar,
+.member-avatar-wrap > .topbar-avatar,
+.member-avatar-wrap > .topbar-avatar-fallback,
+.member-avatar-wrap > .topbar-profile-photo,
+.account-avatar-wrap > img:first-child,
+.account-avatar-wrap > span:first-child {
+  border: 1px solid color-mix(in srgb, var(--aura-primary) 45%, var(--brand-border)) !important;
+  box-shadow: none !important;
+}
+
+.member-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::before,
+.account-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::before {
+  inset: -6px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow:
+    0 0 10px 3px color-mix(in srgb, var(--aura-primary) 54%, transparent),
+    0 0 24px 8px color-mix(in srgb, var(--aura-secondary) 30%, transparent) !important;
+  animation: member-avatar-solar-breathe 5.8s ease-in-out infinite;
+}
+
+.member-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::after,
+.account-avatar-wrap:is(.grade-silver, .grade-gold, .grade-platinum, .grade-diamond, .grade-black)::after {
+  inset: -14px;
+  background: repeating-conic-gradient(
+    from 4deg,
+    color-mix(in srgb, var(--aura-highlight) 90%, transparent) 0deg 1deg,
+    color-mix(in srgb, var(--aura-primary) 72%, transparent) 1deg 2.4deg,
+    transparent 2.4deg 8deg
+  );
+  filter: drop-shadow(0 0 3px var(--aura-primary)) drop-shadow(0 0 7px var(--aura-secondary));
+  opacity: .88;
+  -webkit-mask: radial-gradient(farthest-side, transparent 60%, #000 64% 74%, transparent 80%);
+  mask: radial-gradient(farthest-side, transparent 60%, #000 64% 74%, transparent 80%);
+  animation: member-avatar-solar-corona 9s linear infinite;
+}
+
+.member-identity.is-board-author .member-avatar {
+  border: 1px solid #b8bdc4 !important;
+}

@@ -474,5 +474,7 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert ".member-avatar-wrap.grade-platinum" in aura_css
     assert ".member-avatar-wrap.grade-diamond" in aura_css
     assert ".topbar-profile-menu .member-avatar-wrap::after" not in aura_css
+    assert "never concentric rings" in aura_css
+    assert "border: 0 !important" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
