@@ -459,7 +459,7 @@ def refresh_current_session():
             """
             SELECT id, username, role, name, picture_url, approval_status,
                    is_active, password_changed_at, membership_level,
-                   animations_enabled
+                   animations_enabled, animations_use_site_default
             FROM dashboard_users WHERE id = ?
             """,
             (session["user_id"],),
@@ -1185,6 +1185,7 @@ def my_account():
                    dashboard_users.picture_url, dashboard_users.google_sub,
                    dashboard_users.role, dashboard_users.membership_level,
                    dashboard_users.animations_enabled,
+                   dashboard_users.animations_use_site_default,
                    dashboard_users.created_at, dashboard_users.updated_at,
                    dashboard_users.last_login_at, dashboard_users.approval_status,
                    dashboard_users.deletion_requested_at,
@@ -1229,7 +1230,7 @@ def update_animation_preference():
     try:
         result = connection.execute(
             """UPDATE dashboard_users
-               SET animations_enabled=?, updated_at=?
+               SET animations_enabled=?, animations_use_site_default=0, updated_at=?
                WHERE id=? AND is_active=1""",
             (enabled, now_kst().isoformat(), session["user_id"]),
         )
@@ -1552,6 +1553,9 @@ def user_management():
             number_font=site_preferences.get_number_font(connection),
             number_font_choices=site_preferences.NUMBER_FONT_CHOICES,
             registration_auto_approval=_registration_auto_approval_enabled(connection),
+            default_animations_enabled=(
+                site_preferences.get_default_animations_enabled(connection)
+            ),
         )
     finally:
         connection.close()
@@ -1753,6 +1757,39 @@ def update_registration_approval_policy():
             "신규 가입을 자동 승인하도록 설정했습니다."
             if enabled
             else "신규 가입을 관리자 수동 승인으로 설정했습니다."
+        ),
+    ))
+
+
+@auth_bp.post("/admin/site-settings/animations")
+@admin_required
+def update_default_animation_policy():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    mode = (request.form.get("animation_mode") or "").strip()
+    if mode not in {"enabled", "disabled"}:
+        abort(400)
+    enabled = mode == "enabled"
+    connection = dashboard_db()
+    try:
+        site_preferences.set_default_animations_enabled(
+            connection, enabled, session.get("user_id")
+        )
+        security_audit.log_event(
+            connection,
+            "DEFAULT_ANIMATION_POLICY_UPDATED",
+            resource_type="site_settings",
+            resource_id="default_animations_enabled",
+            detail={"animations_enabled": enabled},
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for(
+        "auth.user_management",
+        success=(
+            "사이트 기본 애니메이션을 켰습니다."
+            if enabled else "사이트 기본 애니메이션을 껐습니다."
         ),
     ))
 

@@ -1,7 +1,9 @@
 """Small, cached site-wide presentation settings."""
 
+import os
 import time
 
+import config
 from utils import now_kst
 
 
@@ -23,6 +25,17 @@ NUMBER_FONT_CHOICES = {
 DEFAULT_NUMBER_FONT = "pretendard"
 _number_font_cache = {"value": DEFAULT_NUMBER_FONT, "expires": 0.0}
 
+DEFAULT_ANIMATIONS_ENABLED = True
+_animations_cache = {
+    "value": DEFAULT_ANIMATIONS_ENABLED,
+    "expires": 0.0,
+    "database": None,
+}
+
+
+def _database_identity():
+    return os.path.abspath(os.fspath(config.DASHBOARD_DB_FILE))
+
 
 def get_cached_fonts():
     """Return both presentation settings without opening the DB when warm."""
@@ -30,6 +43,55 @@ def get_cached_fonts():
     if _font_cache["expires"] > now and _number_font_cache["expires"] > now:
         return _font_cache["value"], _number_font_cache["value"]
     return None
+
+
+def get_cached_default_animations_enabled():
+    if (
+        _animations_cache["database"] == _database_identity()
+        and _animations_cache["expires"] > time.monotonic()
+    ):
+        return _animations_cache["value"]
+    return None
+
+
+def get_default_animations_enabled(connection):
+    now = time.monotonic()
+    database = _database_identity()
+    if (
+        _animations_cache["database"] == database
+        and _animations_cache["expires"] > now
+    ):
+        return _animations_cache["value"]
+    row = connection.execute(
+        "SELECT setting_value FROM site_settings "
+        "WHERE setting_key='default_animations_enabled'"
+    ).fetchone()
+    value = (
+        str(row["setting_value"]).strip().lower() in {"1", "true", "yes", "on"}
+        if row else DEFAULT_ANIMATIONS_ENABLED
+    )
+    _animations_cache.update(value=value, expires=now + 60.0, database=database)
+    return value
+
+
+def set_default_animations_enabled(connection, enabled, user_id):
+    value = bool(enabled)
+    timestamp = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """INSERT INTO site_settings(setting_key, setting_value, updated_by, updated_at)
+           VALUES ('default_animations_enabled', ?, ?, ?)
+           ON CONFLICT(setting_key) DO UPDATE SET
+             setting_value=excluded.setting_value,
+             updated_by=excluded.updated_by,
+             updated_at=excluded.updated_at""",
+        ("1" if value else "0", user_id, timestamp),
+    )
+    connection.commit()
+    _animations_cache.update(
+        value=value,
+        expires=time.monotonic() + 60.0,
+        database=_database_identity(),
+    )
 
 
 def get_site_font(connection):

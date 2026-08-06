@@ -208,14 +208,17 @@ def test_animation_preference_is_stored_per_account_and_controls_loader(client):
 
     connection = dashboard_db()
     stored = {
-        row["username"]: row["animations_enabled"]
+        row["username"]: (
+            row["animations_enabled"], row["animations_use_site_default"]
+        )
         for row in connection.execute(
-            "SELECT username, animations_enabled FROM dashboard_users "
+            "SELECT username, animations_enabled, animations_use_site_default "
+            "FROM dashboard_users "
             "WHERE username IN ('admin', 'other-user')"
         ).fetchall()
     }
     connection.close()
-    assert stored == {"admin": 0, "other-user": 1}
+    assert stored == {"admin": (0, 0), "other-user": (1, 1)}
 
     rendered = client.get("/").get_data(as_text=True)
     assert 'data-animations="off"' in rendered
@@ -234,6 +237,64 @@ def test_animation_preference_requires_login(client):
     )
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+
+
+def test_admin_controls_default_animation_without_overriding_personal_choice(client):
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    connection.execute(
+        "UPDATE dashboard_users SET role='admin' WHERE username='admin'"
+    )
+    connection.commit()
+    connection.close()
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    admin_page = client.get("/admin/users")
+    assert admin_page.status_code == 200
+    html = admin_page.get_data(as_text=True)
+    assert "사이트 기본 애니메이션" in html
+    csrf = re.search(r'name="csrf_token" value="([a-f0-9]+)"', html).group(1)
+
+    assert client.post(
+        "/admin/site-settings/animations",
+        data={"csrf_token": "wrong", "animation_mode": "disabled"},
+    ).status_code == 400
+    response = client.post(
+        "/admin/site-settings/animations",
+        data={"csrf_token": csrf, "animation_mode": "disabled"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert 'data-animations="off"' in client.get("/").get_data(as_text=True)
+
+    personal = client.post(
+        "/account/animation-preference",
+        data={"csrf_token": csrf, "enabled": "1"},
+    )
+    assert personal.status_code == 200
+    assert 'data-animations="on"' in client.get("/").get_data(as_text=True)
+
+    connection = dashboard_db()
+    setting = connection.execute(
+        "SELECT setting_value FROM site_settings "
+        "WHERE setting_key='default_animations_enabled'"
+    ).fetchone()
+    user = connection.execute(
+        "SELECT animations_enabled, animations_use_site_default "
+        "FROM dashboard_users WHERE username='admin'"
+    ).fetchone()
+    connection.close()
+    assert setting["setting_value"] == "0"
+    assert tuple(user) == (1, 0)
 
 
 def test_admin_can_immediately_anonymize_another_account(client):

@@ -33,6 +33,25 @@
   </section>
 
   <section class="panel account-create-panel">
+    <div class="section-heading">
+      <div>
+        <h2>사이트 기본 애니메이션</h2>
+        <p>방문자와 개인 설정을 선택하지 않은 회원에게 적용됩니다. 회원이 프로필 메뉴에서 직접 선택한 설정이 있으면 개인 설정을 우선합니다.</p>
+      </div>
+      <span>{{ '사용' if default_animations_enabled else '사용 안 함' }}</span>
+    </div>
+    <form method="post" action="{{ url_for('auth.update_default_animation_policy') }}" class="account-create-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span>기본 동작</span><select name="animation_mode" required>
+        <option value="enabled" {% if default_animations_enabled %}selected{% endif %}>애니메이션 켜기</option>
+        <option value="disabled" {% if not default_animations_enabled %}selected{% endif %}>애니메이션 끄기</option>
+      </select></label>
+      <button class="btn btn-primary" type="submit">기본 애니메이션 저장</button>
+    </form>
+    <p class="page-note">끄면 프로필 효과와 페이지 로딩 애니메이션이 기본적으로 표시되지 않습니다.</p>
+  </section>
+
+  <section class="panel account-create-panel">
     <div class="section-heading"><div><h2>{{ t('사이트 기본 웹폰트') }}</h2><p>{{ t('본문 글꼴과 숫자 글꼴을 독립적으로 선택합니다. 모든 글꼴 파일은 사이트 내부에서 제공됩니다.') }}</p></div></div>
     <form method="post" action="{{ url_for('auth.update_site_font') }}" class="account-create-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

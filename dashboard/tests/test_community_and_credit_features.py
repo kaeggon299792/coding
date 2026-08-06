@@ -497,7 +497,7 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert "css/profile-aura.css" in base_template
     assert 'localStorage.getItem("casino-in-profile-effects")' not in base_template
     assert 'localStorage.setItem("casino-in-profile-effects"' not in base_template
-    assert 'data-animations="{{' in base_template
+    assert 'data-animations="{{ \'on\' if animations_enabled else \'off\' }}"' in base_template
     assert 'fetch(preferenceForm.action' in base_template
     assert 'html[data-animations="off"]' in aura_css
     assert 'id="profile-electric-displace"' not in base_template

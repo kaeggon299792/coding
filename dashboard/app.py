@@ -1179,7 +1179,8 @@ def inject_globals():
                 row = connection.execute(
                     """
                     SELECT id, username, role, name, picture_url, is_active,
-                           membership_level, animations_enabled
+                           membership_level, animations_enabled,
+                           animations_use_site_default
                     FROM dashboard_users WHERE id=?
                     """,
                     (session["user_id"],),
@@ -1188,6 +1189,7 @@ def inject_globals():
                 account_active = True
                 current_user = dict(row)
                 current_user.setdefault("animations_enabled", 1)
+                current_user.setdefault("animations_use_site_default", 1)
                 role = current_user.get("role") or "user"
                 session["role"] = role
                 if connection is None:
@@ -1221,15 +1223,41 @@ def inject_globals():
             if connection is not None:
                 connection.close()
     cached_fonts = site_preferences.get_cached_fonts()
-    if cached_fonts is None:
-        font_connection = dashboard_db()
+    cached_default_animations = (
+        site_preferences.get_cached_default_animations_enabled()
+    )
+    if cached_fonts is None or cached_default_animations is None:
+        presentation_connection = dashboard_db()
         try:
-            site_font = site_preferences.get_site_font(font_connection)
-            number_font = site_preferences.get_number_font(font_connection)
+            if cached_fonts is None:
+                site_font = site_preferences.get_site_font(presentation_connection)
+                number_font = site_preferences.get_number_font(presentation_connection)
+            else:
+                site_font, number_font = cached_fonts
+            if cached_default_animations is None:
+                default_animations_enabled = (
+                    site_preferences.get_default_animations_enabled(
+                        presentation_connection
+                    )
+                )
+            else:
+                default_animations_enabled = cached_default_animations
         finally:
-            font_connection.close()
+            presentation_connection.close()
     else:
         site_font, number_font = cached_fonts
+        default_animations_enabled = cached_default_animations
+    if current_user:
+        if current_user.get("animations_use_site_default", 1):
+            current_user["animations_enabled"] = default_animations_enabled
+        else:
+            current_user["animations_enabled"] = bool(
+                current_user.get("animations_enabled", 1)
+            )
+    effective_animations_enabled = (
+        current_user["animations_enabled"]
+        if current_user else default_animations_enabled
+    )
     endpoint_menu_names = {
         "public_home": "홈",
         "dashboard_home": "홈",
@@ -1325,6 +1353,7 @@ def inject_globals():
         "current_user_role": role if account_active and role else "anonymous",
         "site_font": site_font,
         "number_font": number_font,
+        "animations_enabled": effective_animations_enabled,
         "menu_permissions": current_menu_permissions(),
         "localization_pending_count": localization_pending_count,
         "csp_nonce": getattr(g, "csp_nonce", ""),

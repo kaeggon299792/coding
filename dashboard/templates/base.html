@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}" data-site-font="{{ site_font }}" data-number-font="{{ number_font }}" data-animations="{{ 'off' if current_user and current_user.animations_enabled is defined and not current_user.animations_enabled else 'on' }}">
+<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}" data-site-font="{{ site_font }}" data-number-font="{{ number_font }}" data-animations="{{ 'on' if animations_enabled else 'off' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
