@@ -130,7 +130,6 @@ if (languageSwitch && (topbarSearch || publicHeader)) {
 if (languageSwitch && profileMenu) {
   profileMenu.addEventListener("toggle", () => {
     if (profileMenu.open) languageSwitch.removeAttribute("open");
-    languageSwitch.classList.toggle("is-profile-open", profileMenu.open);
   });
   languageSwitch.addEventListener("toggle", () => {
     if (languageSwitch.open) profileMenu.removeAttribute("open");
