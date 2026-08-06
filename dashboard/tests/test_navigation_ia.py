@@ -35,7 +35,7 @@ def test_profile_popover_has_large_avatar_and_personal_greeting():
     assert "border-width:2px" in css
     assert css.count("color-mix(in srgb,var(--grade-glow) 68%,#202936)") == 3
     assert ".topbar-profile-menu{z-index:1400}" in css
-    assert ".global-language-switch.is-embedded{z-index:1500}" in css
+    assert "body.cinematic-home .global-language-switch.is-embedded{z-index:1500}" in css
 
 
 def test_profile_and_language_menus_are_mutually_exclusive():
