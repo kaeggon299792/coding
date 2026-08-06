@@ -26,6 +26,11 @@ def test_profile_popover_has_large_avatar_and_personal_greeting():
     assert "topbar-profile-large-avatar" in markup
     assert ".topbar-profile-photo{" in css
     assert "width:76px;height:76px" in css
+    assert "member-avatar-third-ring" not in markup
+    for orbit_point in ("16%", "49.3%", "82.7%"):
+        assert orbit_point in css
+    assert "animation:member-avatar-orbit 17s linear infinite" in css
+    assert "animation:member-avatar-elegant-pulse 11s ease-in-out infinite" in css
 
 
 def test_mobile_navigation_and_company_filters_are_present():

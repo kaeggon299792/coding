@@ -43,7 +43,7 @@ def test_credits_page_uses_seeded_database_rows(credits_client):
     assert "회원등급 안내" in html
     assert "Silver" in html and "Black" in html
     assert html.count('class="site-guide-grade-icon"') == 5
-    assert html.count('class="member-avatar-third-ring"') == 5
+    assert 'class="member-avatar-third-ring"' not in html
     assert "source_url" not in html
     css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
         encoding="utf-8"
