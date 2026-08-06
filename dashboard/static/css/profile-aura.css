@@ -1,5 +1,40 @@
 /* Continuous avatar aura. Board bylines intentionally remain flat and compact. */
-.topbar-profile-menu .member-avatar-wrap::after,
+.member-avatar-wrap,
+.account-avatar-wrap {
+  --aura-primary: var(--grade-glow, #9aa3ad);
+  --aura-secondary: #eef3f8;
+  --aura-highlight: #fff;
+}
+
+.member-avatar-wrap.grade-gold,
+.account-avatar-wrap.grade-gold {
+  --aura-primary: #ffd65a;
+  --aura-secondary: #f29b2f;
+  --aura-highlight: #fff4ba;
+}
+
+.member-avatar-wrap.grade-platinum,
+.account-avatar-wrap.grade-platinum {
+  --aura-primary: #d84cff;
+  --aura-secondary: #675cff;
+  --aura-highlight: #ff9eea;
+}
+
+.member-avatar-wrap.grade-diamond,
+.account-avatar-wrap.grade-diamond {
+  --aura-primary: #0056f1;
+  --aura-secondary: #26d9ff;
+  --aura-highlight: #b8f3ff;
+}
+
+.member-avatar-wrap.grade-black,
+.account-avatar-wrap.grade-black {
+  --aura-primary: #ff9d2e;
+  --aura-secondary: #ffcf58;
+  --aura-highlight: #fff0ad;
+}
+
+.member-avatar-wrap::after,
 .account-avatar-wrap::after {
   inset: -10px;
   background: conic-gradient(
@@ -18,9 +53,9 @@
   mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
 }
 
-.topbar-profile-menu .member-avatar-wrap.grade-gold::after,
+.member-avatar-wrap.grade-gold::after,
 .account-avatar-wrap.grade-gold::after,
-.topbar-profile-menu .member-avatar-wrap.grade-black::after,
+.member-avatar-wrap.grade-black::after,
 .account-avatar-wrap.grade-black::after {
   background: conic-gradient(
     from 8deg,
@@ -69,9 +104,9 @@
 }
 
 /* Gold and Black use a dense solar corona instead of isolated orbit points. */
-.topbar-profile-menu .member-avatar-wrap.grade-gold::before,
+.member-avatar-wrap.grade-gold::before,
 .account-avatar-wrap.grade-gold::before,
-.topbar-profile-menu .member-avatar-wrap.grade-black::before,
+.member-avatar-wrap.grade-black::before,
 .account-avatar-wrap.grade-black::before {
   border-color: var(--aura-highlight);
   box-shadow:
@@ -81,9 +116,9 @@
   animation: member-avatar-solar-breathe 5.8s ease-in-out infinite;
 }
 
-.topbar-profile-menu .member-avatar-wrap.grade-gold::after,
+.member-avatar-wrap.grade-gold::after,
 .account-avatar-wrap.grade-gold::after,
-.topbar-profile-menu .member-avatar-wrap.grade-black::after,
+.member-avatar-wrap.grade-black::after,
 .account-avatar-wrap.grade-black::after {
   inset: -14px;
   background:
@@ -120,20 +155,20 @@
 }
 
 @media (max-width: 760px) {
-  .topbar-profile-menu .member-avatar-wrap::after,
+  .member-avatar-wrap::after,
   .account-avatar-wrap::after {
     inset: -9px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .topbar-profile-menu .member-avatar-wrap::after,
+  .member-avatar-wrap::after,
   .account-avatar-wrap::after {
     animation: none;
   }
-  .topbar-profile-menu .member-avatar-wrap.grade-gold::before,
+  .member-avatar-wrap.grade-gold::before,
   .account-avatar-wrap.grade-gold::before,
-  .topbar-profile-menu .member-avatar-wrap.grade-black::before,
+  .member-avatar-wrap.grade-black::before,
   .account-avatar-wrap.grade-black::before {
     animation: none;
   }
