@@ -13,9 +13,20 @@ def client(monkeypatch, tmp_path):
         yield test_client
 
 
-def test_company_comparison_defaults_to_margin(monkeypatch):
+def _employment_rows():
+    return [
+        {"series_key": "employment.paradise.headcount", "value": 500,
+         "observation_date": "2026-07-01"},
+        {"series_key": "employment.paradise.headcount_growth_rate", "value": 5.0,
+         "observation_date": "2026-07-01"},
+    ]
+
+
+def test_company_comparison_builds_profitability_and_workforce_metrics(monkeypatch):
     rows = [
+        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2024-12-31", "amount": 90_000_000_000},
         {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
+        {"company_name": "파라다이스", "account_code": "124001", "fiscal_date": "2025-12-31", "amount": 30_000_000_000},
         {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 12_000_000_000},
         {"company_name": "인스파이어", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 80_000_000_000},
         {"company_name": "인스파이어", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": -8_000_000_000},
@@ -24,24 +35,59 @@ def test_company_comparison_defaults_to_margin(monkeypatch):
         "services.company_comparison.queries.list_casino_market_share_financials",
         lambda connection, start_year, end_year: rows,
     )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: _employment_rows(),
+    )
     result = company_comparison.build_dashboard(object())
-    assert result["selected_year"] == 2025
+    paradise = next(item for item in result["items"] if item["name"] == "파라다이스")
+    assert paradise["margin"] == 12.0
+    assert paradise["expense_ratio"] == 88.0
+    assert paradise["personnel_cost_ratio"] == 30.0
+    assert paradise["revenue_per_employee"] == 200.0
+    assert paradise["operating_profit_per_employee"] == 24.0
+    assert paradise["revenue_growth"] == 11.1
+    assert paradise["headcount_growth"] == 5.0
+    assert paradise["growth_gap"] == 6.1
+    assert paradise["headcount_date"] == "2026-07-01"
     assert result["selected_metric"] == "margin"
     assert result["available_count"] == 2
-    assert result["include_kangwon"] is False
     assert all(item["name"] != "강원랜드" for item in result["items"])
-    assert result["items"][0]["name"] == "파라다이스"
-    assert result["items"][0]["margin"] == 12.0
     inspire = next(item for item in result["items"] if item["name"] == "인스파이어")
     assert inspire["margin"] == -10.0
     assert inspire["is_negative"] is True
     assert result["zero_percent"] > 0
 
 
+def test_company_comparison_distinguishes_paradise_city_and_cost_order(monkeypatch):
+    rows = [
+        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
+        {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 10_000_000_000},
+        {"company_name": "파라다이스세가사미", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
+        {"company_name": "파라다이스세가사미", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 20_000_000_000},
+    ]
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_casino_market_share_financials",
+        lambda connection, start_year, end_year: rows,
+    )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: [],
+    )
+    result = company_comparison.build_dashboard(object(), "2025", "expense_ratio")
+    assert result["items"][0]["name"] == "파라다이스시티(세가사미)"
+    assert result["items"][0]["expense_ratio"] == 80.0
+    assert result["leader_label"] == "최저 수치"
+
+
 def test_company_comparison_metric_and_year_validation(monkeypatch):
     monkeypatch.setattr(
         "services.company_comparison.queries.list_casino_market_share_financials",
         lambda connection, start_year, end_year: [],
+    )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: [],
     )
     result = company_comparison.build_dashboard(object(), "2024", "revenue")
     assert result["selected_year"] == 2024
@@ -64,18 +110,25 @@ def test_company_comparison_page_is_public(client, monkeypatch):
             "metrics": company_comparison.METRICS, "selected_metric": "margin",
             "metric": company_comparison.METRICS["margin"],
             "items": [{"name": "테스트 카지노", "revenue": 100.0,
-                       "operating_profit": 10.0, "margin": 10.0,
+                       "operating_profit": 10.0, "personnel_cost": 20.0,
+                       "margin": 10.0, "expense_ratio": 90.0,
+                       "headcount": 100, "headcount_date": "2026-07-01",
+                       "revenue_per_employee": 100.0,
+                       "operating_profit_per_employee": 10.0,
+                       "personnel_cost_ratio": 20.0, "revenue_growth": 5.0,
+                       "headcount_growth": 2.0, "growth_gap": 3.0,
                        "metric_value": 10.0, "is_negative": False,
                        "bar_left": 0, "bar_width": 100}],
             "zero_percent": 0, "available_count": 1,
             "leader": {"name": "테스트 카지노", "metric_value": 10.0},
-            "median": 10.0,
+            "leader_label": "최고 수치", "median": 10.0,
             "include_kangwon": include_kangwon, "operator_count": 1,
         },
     )
     response = client.get("/companies/comparison")
     assert response.status_code == 200
     assert b"company-comparison-page" in response.data
-    assert "영업이익률 비교".encode() in response.data
+    assert "효율·구조 진단".encode() in response.data
+    assert "인당 영업이익".encode() in response.data
     assert b'name="metric" value="margin"' in response.data
     assert b'name="include_kangwon" value="1"' in response.data

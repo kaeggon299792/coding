@@ -1825,7 +1825,7 @@ def list_company_financial_values_for_reports(connection, report_ids):
 
 
 def list_casino_market_share_financials(connection, start_year, end_year):
-    """Return annual revenue and operating profit from each latest report."""
+    """Return annual revenue, employee cost and operating profit."""
     rows = connection.execute(
         """
         SELECT report.company_name, value.account_code,
@@ -1833,7 +1833,7 @@ def list_casino_market_share_financials(connection, start_year, end_year):
         FROM company_financial_reports AS report
         JOIN company_financial_values AS value ON value.report_id = report.id
         WHERE report.statement_type = 'income_statement'
-          AND value.account_code IN ('121000', '125000')
+          AND value.account_code IN ('121000', '124001', '125000')
           AND value.period_type = 'annual'
           AND CAST(SUBSTR(value.fiscal_date, 1, 4) AS INTEGER) BETWEEN ? AND ?
           AND report.id = (
@@ -1847,6 +1847,27 @@ def list_casino_market_share_financials(connection, start_year, end_year):
         ORDER BY value.fiscal_date, report.company_name, value.account_code
         """,
         (int(start_year), int(end_year)),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_latest_company_employment_metrics(connection):
+    """Return the latest centrally stored headcount metrics per company."""
+    rows = connection.execute(
+        """
+        SELECT point.series_key, point.value, point.observation_date
+        FROM source_data_points AS point
+        JOIN (
+            SELECT series_key, MAX(observation_date) AS latest_date
+            FROM source_data_points
+            WHERE series_key LIKE 'employment.%.headcount%'
+            GROUP BY series_key
+        ) AS latest
+          ON latest.series_key = point.series_key
+         AND latest.latest_date = point.observation_date
+        WHERE point.series_key LIKE 'employment.%.headcount%'
+        ORDER BY point.series_key
+        """
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -2791,17 +2812,25 @@ def upsert_employer_review_snapshot(connection, item):
 def upsert_employment_metric_snapshot(connection, item):
     """국민연금 기반 고용 지표를 기존 통합 숫자 저장소에 누적한다."""
     metrics = (
-        ("salary_growth_rate", "salary_growth_1y", "1년 연봉 성장률"),
-        ("turnover_rate", "turnover_rate_annualized", "퇴사율(연환산)"),
+        ("salary_growth_rate", "salary_growth_1y", "1년 연봉 성장률", "%"),
+        ("turnover_rate", "turnover_rate_annualized", "퇴사율(연환산)", "%"),
+        ("headcount", "headcount", "가입자수", "명"),
+        ("headcount_growth_rate", "headcount_growth_rate", "인원 증가율", "%"),
     )
-    for field, suffix, label in metrics:
+    source_period = str(item.get("source_period") or "")
+    observation_date = item["collected_date"][:10]
+    if len(source_period) == 6 and source_period.isdigit():
+        observation_date = f"{source_period[:4]}-{source_period[4:]}-01"
+    for field, suffix, label, unit in metrics:
+        if item.get(field) is None:
+            continue
         key = f"employment.{item['entity_code']}.{suffix}"
         upsert_source_data_series(
             connection,
             series_key=key,
             category="연봉·평점",
             label=f"{item['entity_name']} {label}",
-            unit="%",
+            unit=unit,
             frequency="monthly",
             aggregation="last",
             source_name="국민연금 기준",
@@ -2810,10 +2839,10 @@ def upsert_employment_metric_snapshot(connection, item):
         upsert_source_data_point(
             connection,
             series_key=key,
-            observation_date=item["collected_date"][:10],
+            observation_date=observation_date,
             value=item.get(field),
             source_record_key=(
-                f"{item['entity_code']}:{suffix}:{item['collected_date'][:10]}"
+                f"{item['entity_code']}:{suffix}:{observation_date}"
             ),
         )
     connection.commit()

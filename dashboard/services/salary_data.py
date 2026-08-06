@@ -746,6 +746,17 @@ def fetch_employment_metrics(source):
     if headcounts:
         average_headcount = sum(headcounts) / len(headcounts)
         turnover_rate = round(sum(item["leavers"] for item in recent) / average_headcount * 100, 1)
+    headcount_points = [item for item in monthly if item["subscribers"] > 0]
+    headcount = headcount_points[-1]["subscribers"] if headcount_points else None
+    headcount_growth_rate = None
+    headcount_growth_period_months = None
+    if len(headcount_points) >= 2:
+        first, latest = headcount_points[0], headcount_points[-1]
+        headcount_growth_period_months = _month_distance(first["month"], latest["month"])
+        if headcount_growth_period_months > 0 and first["subscribers"] > 0:
+            headcount_growth_rate = round(
+                (latest["subscribers"] / first["subscribers"] - 1) * 100, 1
+            )
     timestamp = now_kst()
     return {
         **source,
@@ -755,6 +766,9 @@ def fetch_employment_metrics(source):
         ),
         "salary_growth_rate": salary_growth_rate,
         "turnover_rate": turnover_rate,
+        "headcount": headcount,
+        "headcount_growth_rate": headcount_growth_rate,
+        "headcount_growth_period_months": headcount_growth_period_months,
         "growth_period_months": growth_period_months,
         "source_url": NPS_SOURCE_URL,
         "source_period": monthly[-1]["month"],

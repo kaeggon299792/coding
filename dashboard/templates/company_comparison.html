@@ -5,7 +5,7 @@
 {% include "_data_subnav.html" %}
 <main class="page-container company-comparison-page">
   <header class="page-header company-comparison-header">
-    <div><p class="page-eyebrow">COMPANY INTELLIGENCE / COMPARISON</p><h1 class="page-title">기업 비교</h1><p class="page-description">주요 카지노 운영사의 매출액·영업이익·영업이익률을 같은 기준으로 비교합니다.</p></div>
+    <div><p class="page-eyebrow">COMPANY INTELLIGENCE / COMPARISON</p><h1 class="page-title">기업 비교</h1><p class="page-description">주요 카지노 운영사의 수익성·비용 효율·인력 효율·인력 부담·성장 구조를 같은 기준으로 비교합니다.</p></div>
     <form method="get" class="company-comparison-filter" aria-label="기업 비교 기준 선택">
       <input type="hidden" name="metric" value="{{ comparison.selected_metric }}">
       <label for="company-comparison-year">기준 연도</label>
@@ -14,17 +14,18 @@
     </form>
   </header>
 
-  <nav class="company-comparison-metrics" aria-label="비교 지표">{% for key, metric in comparison.metrics.items() %}<a href="{{ url_for('company_comparison_page', year=comparison.selected_year, metric=key, include_kangwon=1) if comparison.include_kangwon else url_for('company_comparison_page', year=comparison.selected_year, metric=key) }}"{% if key == comparison.selected_metric %} class="active" aria-current="page"{% endif %}>{{ metric.label }}</a>{% endfor %}</nav>
+  <nav class="company-comparison-metrics" aria-label="비교 지표">{% for key, metric in comparison.metrics.items() %}<a href="{{ url_for('company_comparison_page', year=comparison.selected_year, metric=key, include_kangwon=1) if comparison.include_kangwon else url_for('company_comparison_page', year=comparison.selected_year, metric=key) }}" title="{{ metric.description }}"{% if key == comparison.selected_metric %} class="active" aria-current="page"{% endif %}><small>{{ metric.group }}</small><span>{{ metric.label }}</span></a>{% endfor %}</nav>
+  <p class="company-comparison-definition" role="note"><strong>{{ comparison.metric.label }}</strong> {{ comparison.metric.description }}</p>
 
   <section class="company-comparison-summary" aria-label="비교 요약">
     <article><span>기본 비교 지표</span><strong>{{ comparison.metric.label }}</strong><small>{{ comparison.selected_year }}년 연간</small></article>
-    <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>{{ comparison.operator_count }}개 주요 운영사 중{% if not comparison.include_kangwon %} · 강원랜드 제외{% endif %}</small></article>
-    <article><span>최고 수치</span><strong>{% if comparison.leader %}{{ comparison.leader.name }}{% else %}-{% endif %}</strong><small>{% if comparison.leader %}{{ "{:,.1f}".format(comparison.leader.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</small></article>
+    <article><span>비교 가능 운영사</span><strong>{{ comparison.available_count }}</strong><small>{{ comparison.operator_count }}개 주요 법인 중{% if not comparison.include_kangwon %} · 강원랜드 제외{% endif %}</small></article>
+    <article><span>{{ comparison.leader_label }}</span><strong>{% if comparison.leader %}{{ comparison.leader.name }}{% else %}-{% endif %}</strong><small>{% if comparison.leader %}{{ "{:,.1f}".format(comparison.leader.metric_value) }}{{ comparison.metric.unit }}{% else %}자료 없음{% endif %}</small></article>
     <article><span>중앙값</span><strong>{% if comparison.median is not none %}{{ "{:,.1f}".format(comparison.median) }}{% else %}-{% endif %}</strong><small>{{ comparison.metric.unit }}</small></article>
   </section>
 
   <section class="panel company-comparison-chart">
-    <header><div><span>01</span><h2>{{ comparison.metric.label }} 비교</h2></div><p>{{ comparison.selected_year }}년 · {% if comparison.metric.unit == '%' %}비율{% else %}억원{% endif %}</p></header>
+    <header><div><span>01</span><h2>{{ comparison.metric.label }} 비교</h2></div><p>{{ comparison.selected_year }}년 · {{ comparison.metric.unit }}</p></header>
     <div class="company-comparison-bars">
       {% for item in comparison['items'] %}
       <article class="company-comparison-row{% if item.is_negative %} is-negative{% endif %}{% if item.metric_value is none %} is-empty{% endif %}">
@@ -36,12 +37,29 @@
     </div>
   </section>
 
+  <section class="panel company-comparison-table-panel company-efficiency-panel">
+    <header><div><span>02</span><h2>효율·구조 진단</h2></div><p>재무 연간 · 인원 최신 월</p></header>
+    <div class="table-scroll-wrap"><table class="data-table company-comparison-table company-efficiency-table"><thead><tr>
+      <th scope="col">운영사</th><th scope="col" title="매출 대비 영업이익">영업이익률</th><th scope="col" title="매출 대비 영업비용">영업비용률</th><th scope="col" title="연간 매출 ÷ 최신 국민연금 가입자수">인당 매출</th><th scope="col" title="연간 영업이익 ÷ 최신 국민연금 가입자수">인당 영업이익</th><th scope="col" title="총종업원급여 ÷ 매출">인건비율</th><th scope="col" title="매출 증가율 - 인원 증가율">구조 진단</th>
+    </tr></thead><tbody>
+      {% for item in comparison['items'] %}<tr>
+        <th scope="row">{{ item.name }}{% if item.headcount_date %}<small>인원 {{ item.headcount_date[:7] }}</small>{% endif %}</th>
+        <td>{{ "{:.1f}%".format(item.margin) if item.margin is not none else '-' }}</td>
+        <td>{{ "{:.1f}%".format(item.expense_ratio) if item.expense_ratio is not none else '-' }}</td>
+        <td>{{ "{:,.1f}".format(item.revenue_per_employee) if item.revenue_per_employee is not none else '-' }}{% if item.revenue_per_employee is not none %}<small>백만원/명</small>{% endif %}</td>
+        <td class="{% if item.operating_profit_per_employee is not none and item.operating_profit_per_employee < 0 %}is-negative{% endif %}">{{ "{:,.1f}".format(item.operating_profit_per_employee) if item.operating_profit_per_employee is not none else '-' }}{% if item.operating_profit_per_employee is not none %}<small>백만원/명</small>{% endif %}</td>
+        <td>{{ "{:.1f}%".format(item.personnel_cost_ratio) if item.personnel_cost_ratio is not none else '-' }}</td>
+        <td class="{% if item.growth_gap is not none and item.growth_gap < 0 %}is-negative{% endif %}">{% if item.growth_gap is not none %}<strong>{{ "{:+.1f}%p".format(item.growth_gap) }}</strong><small>매출 {{ "{:+.1f}%".format(item.revenue_growth) }} · 인원 {{ "{:+.1f}%".format(item.headcount_growth) }}</small>{% else %}-{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
   <section class="panel company-comparison-table-panel">
-    <header><div><span>02</span><h2>운영사별 손익 비교</h2></div><p>단위 · 억원, %</p></header>
+    <header><div><span>03</span><h2>손익 비교</h2></div><p>단위 · 억원, %</p></header>
     <div class="table-scroll-wrap"><table class="data-table company-comparison-table"><thead><tr><th scope="col">운영사</th><th scope="col">매출액</th><th scope="col">영업이익</th><th scope="col">영업이익률</th></tr></thead><tbody>
       {% for item in comparison['items'] %}<tr><th scope="row">{{ item.name }}</th><td>{{ "{:,.1f}".format(item.revenue) if item.revenue is not none else '-' }}</td><td class="{% if item.operating_profit is not none and item.operating_profit < 0 %}is-negative{% endif %}">{{ "{:,.1f}".format(item.operating_profit) if item.operating_profit is not none else '-' }}</td><td class="{% if item.margin is not none and item.margin < 0 %}is-negative{% endif %}">{{ "{:.1f}%".format(item.margin) if item.margin is not none else '-' }}</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
-  <p class="company-comparison-note">운영 법인의 연결 또는 별도 손익계산서 기준입니다. 카지노 단일 영업장 실적과 다를 수 있으며, 영업이익률은 영업이익÷매출액으로 계산합니다. 중앙 DB에 해당 연도 자료가 없는 경우 임의 값을 채우지 않습니다.</p>
+  <p class="company-comparison-note">파라다이스와 파라다이스시티 운영법인(파라다이스세가사미)을 구분합니다. 인건비는 연결 손익계산서의 총종업원급여, 인원은 중앙 DB에 저장된 국민연금 최신 가입자수를 사용합니다. 재무 연도와 인원 기준월이 다를 수 있으며, 원자료가 없는 값은 추정해 채우지 않습니다.</p>
 </main>
 {% endblock %}

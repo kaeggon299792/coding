@@ -69,6 +69,9 @@ def test_national_pension_official_api_metrics(monkeypatch):
     assert item["salary_growth_rate"] == 10.0
     assert item["estimated_average_salary_manwon"] == 13200
     assert item["turnover_rate"] == 12.0
+    assert item["headcount"] == 100
+    assert item["headcount_growth_rate"] == 0.0
+    assert item["headcount_growth_period_months"] == 12
     assert item["source_name"] == "국민연금 기준"
     assert item["source_url"] == salary_data.NPS_SOURCE_URL
 
@@ -87,6 +90,24 @@ def test_employment_metrics_use_central_repository(tmp_path):
     ).fetchall()
     assert len(rows) == 2
     assert {row["source_name"] for row in rows} == {"국민연금 기준"}
+    connection.close()
+
+
+def test_employment_headcount_uses_central_repository(tmp_path):
+    connection = schema.connect(tmp_path / "employment-headcount.db")
+    queries.upsert_employment_metric_snapshot(connection, {
+        "entity_code": "paradise", "entity_name": "파라다이스",
+        "salary_growth_rate": 6.1, "turnover_rate": 13.1,
+        "headcount": 500, "headcount_growth_rate": 4.2,
+        "source_url": "https://example.com/nps", "source_period": "202607",
+        "collected_date": "2026-08-05",
+    })
+    rows = queries.list_latest_company_employment_metrics(connection)
+    assert {row["series_key"] for row in rows} == {
+        "employment.paradise.headcount",
+        "employment.paradise.headcount_growth_rate",
+    }
+    assert {row["observation_date"] for row in rows} == {"2026-07-01"}
     connection.close()
 
 
