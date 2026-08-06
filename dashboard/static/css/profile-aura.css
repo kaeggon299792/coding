@@ -1,4 +1,18 @@
-/* WebGL profile avatar. The static gold ring is also the no-WebGL fallback. */
+/*
+ * GlowingShadow-inspired profile treatment.
+ *
+ * The 21st.dev component combines a moving local light, hue variation and a
+ * blurred glow. Here those ideas are reduced to two pseudo-elements so the
+ * existing Flask/Jinja avatar markup, click target and badge remain intact.
+ */
+
+@property --profile-glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* Remove the older grade orbit / breathing layers everywhere by default. */
 .member-avatar-wrap::before,
 .member-avatar-wrap::after,
 .account-avatar-wrap::before,
@@ -8,85 +22,21 @@
   animation: none !important;
 }
 
-.profile-avatar-webgl {
-  position: relative;
-  isolation: isolate;
-  overflow: visible;
-  border-radius: 50%;
-  --profile-fallback-gold: #c9952e;
-  --profile-fallback-bright: #f7dda0;
-}
-
-.profile-avatar-webgl::before {
-  position: absolute;
-  z-index: 0;
-  inset: -4px;
-  display: block !important;
-  border: 1px solid var(--profile-fallback-gold);
-  border-radius: 50%;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--profile-fallback-gold) 40%, transparent);
-  content: "" !important;
-  pointer-events: none;
-}
-
-.profile-avatar-webgl > .member-avatar,
-.profile-avatar-webgl > .topbar-avatar,
-.profile-avatar-webgl > .topbar-avatar-fallback,
-.profile-avatar-webgl > .topbar-profile-photo,
-.profile-avatar-webgl.account-avatar-wrap > img:first-child,
-.profile-avatar-webgl.account-avatar-wrap > span:first-child {
-  position: relative;
-  z-index: 1;
-  overflow: hidden;
-  border: 1px solid var(--brand-border-strong) !important;
-  border-radius: 50%;
-  box-shadow: none !important;
-  animation: none !important;
-}
-
-.profile-avatar-webgl-canvas {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  left: 50%;
-  width: calc(100% + 96px) !important;
-  height: calc(100% + 96px) !important;
-  max-width: none !important;
-  border: 0 !important;
-  border-radius: 50%;
-  background: transparent;
-  pointer-events: none;
-  transform: translate3d(-50%, -50%, 0);
-}
-
-.profile-avatar-webgl.is-webgl-active::before { opacity: 0; }
-.profile-avatar-webgl.is-webgl-active > .topbar-avatar,
-.profile-avatar-webgl.is-webgl-active > .topbar-profile-photo,
-.profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child {
-  opacity: 0;
-}
-
-.profile-avatar-webgl > .membership-badge-icon {
-  z-index: 6;
-}
-
-/* Header avatar uses a smaller canvas footprint. */
-.topbar-user .profile-avatar-webgl-canvas {
-  width: calc(100% + 44px) !important;
-  height: calc(100% + 44px) !important;
-}
-
-/* Board/list avatars stay flat and never create a WebGL context. */
+/* Board/list authors intentionally stay compact and completely flat. */
 .member-identity.is-board-author .member-avatar-wrap {
   width: 22px !important;
   height: 22px !important;
+  overflow: visible;
   filter: none !important;
 }
+
 .member-identity.is-board-author .member-avatar-wrap::before,
 .member-identity.is-board-author .member-avatar-wrap::after,
 .member-identity.is-board-author .membership-badge-icon {
   display: none !important;
+  content: none !important;
 }
+
 .member-identity.is-board-author .member-avatar,
 .member-identity.is-board-author .member-avatar-fallback {
   box-sizing: border-box !important;
@@ -99,131 +49,172 @@
   animation: none !important;
 }
 
-@media (max-width: 760px) {
-  .community-table .community-author-cell::before { content: none !important; }
-  .profile-avatar-webgl-canvas {
-    width: calc(100% + 88px) !important;
-    height: calc(100% + 88px) !important;
-  }
-  .topbar-user .profile-avatar-webgl-canvas {
-    width: calc(100% + 38px) !important;
-    height: calc(100% + 38px) !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .profile-avatar-webgl-canvas { display: none !important; }
-  .profile-avatar-webgl.is-webgl-active::before { opacity: 1; }
-  .profile-avatar-webgl.is-webgl-active > .topbar-avatar,
-  .profile-avatar-webgl.is-webgl-active > .topbar-profile-photo,
-  .profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child { opacity: 1; }
-}
-
-/* Header and account avatars use a lightweight rotating glow. Board/list
-   avatars remain flat through the dedicated rules above. */
-.topbar-profile-menu .topbar-profile-avatar-wrap {
+/* Shared tuning. Values can be adjusted without changing the layer geometry. */
+.topbar-profile-menu .topbar-profile-avatar-wrap,
+.my-account-page .account-avatar-wrap {
+  --profile-glow-size: 7px;
+  --profile-glow-speed: 18s;
+  --profile-glow-blur: 7px;
+  --profile-glow-opacity: .58;
+  --profile-glow-hot: #ff3f8e;
+  --profile-glow-mid: #755cff;
+  --profile-glow-cool: #00c8ff;
   position: relative;
   isolation: isolate;
   overflow: visible;
   filter: none !important;
-  --profile-glow-a: #ff4f9a;
-  --profile-glow-b: #755cff;
-  --profile-glow-c: #00c8ff;
-  --profile-glow-d: #ffc857;
 }
+
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
 .topbar-profile-menu .topbar-profile-avatar-wrap::after,
 .my-account-page .account-avatar-wrap::before,
 .my-account-page .account-avatar-wrap::after {
   position: absolute;
   display: block !important;
+  border: 0 !important;
   border-radius: 50%;
   content: "" !important;
   pointer-events: none;
+  transform-origin: 50% 50%;
+  rotate: var(--profile-glow-angle);
+  animation: profile-glowing-shadow-flow var(--profile-glow-speed) linear infinite !important;
 }
+
+/* A broad, asymmetric light pool. The opaque avatar covers its centre. */
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
 .my-account-page .account-avatar-wrap::before {
   z-index: 0;
-  inset: -7px;
-  background: conic-gradient(
-    from 0deg,
-    var(--profile-glow-a),
-    var(--profile-glow-b),
-    var(--profile-glow-c),
-    var(--profile-glow-d),
-    var(--profile-glow-a)
-  );
-  opacity: .42;
-  filter: blur(6px);
-  transform: scale(.98);
-  rotate: 0deg;
-  animation: profile-glowing-shadow-spin 14s linear infinite !important;
-  transition: opacity .35s ease, filter .35s ease, transform .35s ease;
+  inset: calc(var(--profile-glow-size) * -1.15);
+  background:
+    radial-gradient(circle at 18% 22%, color-mix(in srgb, var(--profile-glow-hot) 92%, white) 0 8%, transparent 36%),
+    radial-gradient(circle at 82% 26%, color-mix(in srgb, var(--profile-glow-cool) 86%, white) 0 7%, transparent 39%),
+    radial-gradient(circle at 69% 84%, var(--profile-glow-mid) 0 9%, transparent 43%),
+    conic-gradient(
+      from 18deg,
+      var(--profile-glow-hot) 0 8%,
+      transparent 16% 23%,
+      var(--profile-glow-mid) 34%,
+      color-mix(in srgb, var(--profile-glow-cool) 78%, white) 48%,
+      transparent 59% 67%,
+      var(--profile-glow-hot) 78%,
+      color-mix(in srgb, var(--profile-glow-mid) 58%, white) 84%,
+      transparent 94%
+    );
+  box-shadow:
+    0 0 calc(var(--profile-glow-size) * 1.1) color-mix(in srgb, var(--profile-glow-hot) 30%, transparent),
+    0 0 calc(var(--profile-glow-size) * 2.1) color-mix(in srgb, var(--profile-glow-mid) 24%, transparent),
+    0 0 calc(var(--profile-glow-size) * 2.8) color-mix(in srgb, var(--profile-glow-cool) 18%, transparent) !important;
+  opacity: var(--profile-glow-opacity);
+  filter: blur(var(--profile-glow-blur)) saturate(1.12);
+  scale: .98;
+  transition: opacity .45s ease, filter .45s ease, scale .45s ease;
 }
+
+/* A narrow moving highlight. Masking keeps colour out of the photo centre. */
 .topbar-profile-menu .topbar-profile-avatar-wrap::after,
 .my-account-page .account-avatar-wrap::after {
-  z-index: 0;
-  inset: -3px;
-  padding: 1px;
+  z-index: 1;
+  inset: calc(var(--profile-glow-size) * -.52);
+  padding: 1.2px;
   background: conic-gradient(
-    from 90deg,
-    color-mix(in srgb, var(--profile-glow-a) 82%, white),
-    var(--profile-glow-b),
-    color-mix(in srgb, var(--profile-glow-c) 75%, white),
-    var(--profile-glow-d),
-    color-mix(in srgb, var(--profile-glow-a) 82%, white)
+    from 62deg,
+    color-mix(in srgb, var(--profile-glow-hot) 76%, white) 0 5%,
+    transparent 11% 25%,
+    var(--profile-glow-mid) 34% 39%,
+    transparent 46% 58%,
+    color-mix(in srgb, var(--profile-glow-cool) 70%, white) 66% 72%,
+    transparent 80% 91%,
+    color-mix(in srgb, var(--profile-glow-hot) 68%, white) 97%
   );
-  opacity: .72;
-  animation: profile-glowing-shadow-spin 14s linear infinite reverse !important;
+  box-shadow: 0 0 calc(var(--profile-glow-size) * .7) color-mix(in srgb, var(--profile-glow-mid) 35%, transparent) !important;
+  opacity: min(1, calc(var(--profile-glow-opacity) + .2));
+  scale: 1;
+  transition: opacity .35s ease, scale .45s ease;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
+
+/* The original component spreads and brightens its light on interaction. */
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::before,
 .my-account-page .account-avatar-wrap:hover::before {
-  opacity: .78;
-  filter: blur(9px);
-  transform: scale(1.08);
+  opacity: min(1, calc(var(--profile-glow-opacity) + .25));
+  filter: blur(calc(var(--profile-glow-blur) * 1.22)) saturate(1.2);
+  scale: 1.09;
 }
-.topbar-profile-menu .topbar-profile-avatar-wrap > .profile-avatar-webgl-canvas {
-  display: none !important;
+
+.topbar-profile-menu .topbar-profile-avatar-wrap:hover::after,
+.topbar-profile-menu[open] .topbar-profile-large-avatar::after,
+.my-account-page .account-avatar-wrap:hover::after {
+  opacity: 1;
+  scale: 1.045;
 }
+
+/* Header button: same effect with a smaller footprint. */
+.topbar-user .topbar-profile-avatar-wrap:not(.topbar-profile-large-avatar) {
+  --profile-glow-size: 4px;
+  --profile-glow-blur: 4px;
+  --profile-glow-opacity: .5;
+}
+
+/* The menu's featured avatar is allowed a little more depth. */
+.topbar-profile-menu .topbar-profile-large-avatar {
+  --profile-glow-size: 9px;
+  --profile-glow-blur: 8px;
+  --profile-glow-opacity: .62;
+}
+
+.topbar-profile-menu .topbar-profile-hero,
+.my-account-page .account-profile-head {
+  overflow: visible;
+}
+
+/* Keep the existing photo sharp and clickable above both effect layers. */
 .topbar-profile-menu .topbar-avatar,
 .topbar-profile-menu .topbar-avatar-fallback,
 .topbar-profile-menu .topbar-profile-photo,
-.topbar-profile-menu .topbar-profile-photo-fallback {
+.topbar-profile-menu .topbar-profile-photo-fallback,
+.my-account-page .account-avatar-wrap > img:first-child,
+.my-account-page .account-avatar-wrap > span:first-child {
+  position: relative;
+  z-index: 2;
   border: 1px solid var(--brand-border-strong) !important;
+  border-radius: 50%;
   box-shadow: none !important;
   filter: none !important;
   animation: none !important;
 }
 
-.my-account-page .account-avatar-wrap {
-  position: relative;
-  isolation: isolate;
-  overflow: visible;
-  --profile-glow-a: #ff4f9a;
-  --profile-glow-b: #755cff;
-  --profile-glow-c: #00c8ff;
-  --profile-glow-d: #ffc857;
-}
-.my-account-page .account-avatar-wrap > img:first-child,
-.my-account-page .account-avatar-wrap > span:first-child,
-.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-avatar,
-.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-avatar-fallback,
-.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-profile-photo,
-.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-profile-photo-fallback {
-  position: relative;
-  z-index: 1;
-}
-.my-account-page .account-avatar-wrap > .membership-badge-icon,
-.topbar-profile-menu .topbar-profile-avatar-wrap > .membership-badge-icon {
-  z-index: 3;
+.topbar-profile-menu .topbar-profile-avatar-wrap > .membership-badge-icon,
+.my-account-page .account-avatar-wrap > .membership-badge-icon {
+  z-index: 4;
+  filter: none;
 }
 
-@keyframes profile-glowing-shadow-spin {
-  to { rotate: 1turn; }
+@keyframes profile-glowing-shadow-flow {
+  0% { --profile-glow-angle: 0deg; }
+  38% { --profile-glow-angle: 142deg; }
+  67% { --profile-glow-angle: 246deg; }
+  100% { --profile-glow-angle: 360deg; }
+}
+
+@media (max-width: 760px) {
+  .community-table .community-author-cell::before {
+    content: none !important;
+  }
+
+  .topbar-profile-menu .topbar-profile-large-avatar,
+  .my-account-page .account-avatar-wrap {
+    --profile-glow-size: 6px;
+    --profile-glow-blur: 5px;
+    --profile-glow-opacity: .54;
+  }
+
+  .topbar-user .topbar-profile-avatar-wrap:not(.topbar-profile-large-avatar) {
+    --profile-glow-size: 3px;
+    --profile-glow-blur: 3px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -231,6 +222,7 @@
   .topbar-profile-menu .topbar-profile-avatar-wrap::after,
   .my-account-page .account-avatar-wrap::before,
   .my-account-page .account-avatar-wrap::after {
+    --profile-glow-angle: 32deg;
     animation: none !important;
   }
 }

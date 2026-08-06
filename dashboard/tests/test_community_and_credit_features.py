@@ -466,16 +466,29 @@ def test_board_author_identity_is_avatar_only_and_flat():
     aura_css = (root / "static" / "css" / "profile-aura.css").read_text(
         encoding="utf-8"
     )
-    assert "WebGL profile avatar" in aura_css
+    assert "GlowingShadow-inspired profile treatment" in aura_css
     assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
     assert "display: none !important" in aura_css
-    assert ".profile-avatar-webgl-canvas" in aura_css
+    assert ".profile-avatar-webgl-canvas" not in aura_css
     assert "profile-avatar-gold-orbit" not in aura_css
     assert ".community-table .community-author-cell::before" in aura_css
-    assert "profile-glowing-shadow-spin" in aura_css
+    assert "profile-glowing-shadow-flow" in aura_css
     assert ".topbar-profile-menu .topbar-profile-avatar-wrap::before" in aura_css
     assert ".my-account-page .account-avatar-wrap::before" in aura_css
     assert "conic-gradient" in aura_css
+    assert "radial-gradient" in aura_css
+    assert "pointer-events: none" in aura_css
+    assert "@media (prefers-reduced-motion: reduce)" in aura_css
+    for variable in (
+        "--profile-glow-size",
+        "--profile-glow-speed",
+        "--profile-glow-blur",
+        "--profile-glow-opacity",
+        "--profile-glow-hot",
+        "--profile-glow-mid",
+        "--profile-glow-cool",
+    ):
+        assert variable in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
     assert "js/profile-avatar-webgl.js" not in base_template
@@ -488,31 +501,4 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert 'id="blackhole-profile-root"' not in account_template
     assert 'class="page-header"' in account_template
     assert "account-avatar-wrap profile-avatar-webgl" not in account_template
-    webgl_js = (root / "static" / "js" / "profile-avatar-webgl.js").read_text(encoding="utf-8")
-    for setting in (
-        "animationSpeed", "ringThickness", "goldIntensity", "glowIntensity",
-        "iridescenceIntensity", "refractionStrength", "sparkleIntensity",
-        "pointerInfluence", "mobileQuality",
-    ):
-        assert setting in webgl_js
-    assert "THREE.WebGLRenderer" in webgl_js
-    assert "THREE.ShaderMaterial" in webgl_js
-    assert "THREE.PlaneGeometry" in webgl_js
-    assert "IntersectionObserver" in webgl_js
-    assert 'document.addEventListener("visibilitychange"' in webgl_js
-    assert "webglcontextlost" in webgl_js
-    assert "webglcontextrestored" in webgl_js
-    assert '.account-avatar-wrap[data-profile-avatar-webgl=' in webgl_js
-    assert '.topbar-profile-menu[open] .topbar-profile-large-avatar' in webgl_js
-    for black_hole_setting in (
-        "diskDensity", "spinSpeed", "grain", "doppler", "hotColor",
-        "midColor", "coolColor", "exposure",
-    ):
-        assert black_hole_setting in webgl_js
-    assert "Edge-on accretion flow adapted from the supplied black-hole shader" in webgl_js
-    assert "float gasSheet" in webgl_js
-    assert "Saturn-like rings" in webgl_js
-    assert "float upperArc" in webgl_js
-    assert "float lowerArc" in webgl_js
-    assert "float bentSheet" in webgl_js
-    assert "float beaming" in webgl_js
+    assert not (root / "static" / "js" / "profile-avatar-webgl.js").exists()
