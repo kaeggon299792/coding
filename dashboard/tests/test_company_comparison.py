@@ -226,7 +226,8 @@ def test_company_comparison_mobile_overflow_is_contained():
     css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
         encoding="utf-8"
     )
-    assert ".company-comparison-page,.company-comparison-page>*{min-width:0}" in css
+    assert ".company-comparison-page{min-width:0;max-width:1440px" in css
+    assert ".company-comparison-page>*{min-width:0;max-width:100%" in css
     assert ".company-comparison-table-panel .table-scroll-wrap{overflow-x:auto" in css
     assert ".company-comparison-track{grid-column:1/-1;grid-row:2}" in css
     assert ".fund-scenario-page,.company-comparison-page{" not in css
