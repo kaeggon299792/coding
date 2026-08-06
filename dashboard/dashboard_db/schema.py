@@ -278,6 +278,10 @@ def migrate(connection):
     _ensure_column(connection, "dashboard_users", "google_sub", "TEXT")
     _ensure_column(connection, "dashboard_users", "name", "TEXT")
     _ensure_column(connection, "dashboard_users", "picture_url", "TEXT")
+    _ensure_column(
+        connection, "dashboard_users", "animations_enabled",
+        "INTEGER NOT NULL DEFAULT 1",
+    )
     _ensure_column(connection, "dashboard_users", "deletion_requested_at", "TEXT")
     _ensure_column(connection, "dashboard_users", "deletion_scheduled_at", "TEXT")
     _ensure_column(connection, "dashboard_users", "deleted_at", "TEXT")

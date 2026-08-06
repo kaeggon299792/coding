@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -161,6 +162,78 @@ def test_full_login_then_access_dashboard(client):
     )
     response = client.get("/")
     assert response.status_code == 200
+
+
+def test_animation_preference_is_stored_per_account_and_controls_loader(client):
+    from dashboard_db import queries
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    queries.create_user(
+        connection, "other-user", generate_password_hash("another-secure-password")
+    )
+    connection.close()
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    page = client.get("/")
+    csrf = re.search(
+        r'name="csrf_token" value="([a-f0-9]+)"', page.get_data(as_text=True)
+    ).group(1)
+
+    invalid = client.post(
+        "/account/animation-preference",
+        data={"csrf_token": csrf, "enabled": "invalid"},
+    )
+    assert invalid.status_code == 400
+    rejected = client.post(
+        "/account/animation-preference",
+        data={"csrf_token": "wrong", "enabled": "0"},
+    )
+    assert rejected.status_code == 400
+
+    response = client.post(
+        "/account/animation-preference",
+        data={"csrf_token": csrf, "enabled": "0"},
+    )
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True, "animations_enabled": False}
+
+    connection = dashboard_db()
+    stored = {
+        row["username"]: row["animations_enabled"]
+        for row in connection.execute(
+            "SELECT username, animations_enabled FROM dashboard_users "
+            "WHERE username IN ('admin', 'other-user')"
+        ).fetchall()
+    }
+    connection.close()
+    assert stored == {"admin": 0, "other-user": 1}
+
+    rendered = client.get("/").get_data(as_text=True)
+    assert 'data-animations="off"' in rendered
+    assert 'id="profile-effect-toggle" type="checkbox" checked' in rendered
+    assert 'html[data-animations="off"] .page-loader' in (
+        Path(__file__).resolve().parents[1]
+        / "static" / "css" / "dashboard.css"
+    ).read_text(encoding="utf-8")
+
+
+def test_animation_preference_requires_login(client):
+    response = client.post(
+        "/account/animation-preference",
+        data={"csrf_token": "unused", "enabled": "0"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
 
 
 def test_admin_can_immediately_anonymize_another_account(client):

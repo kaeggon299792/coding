@@ -458,7 +458,8 @@ def refresh_current_session():
         user = connection.execute(
             """
             SELECT id, username, role, name, picture_url, approval_status,
-                   is_active, password_changed_at, membership_level
+                   is_active, password_changed_at, membership_level,
+                   animations_enabled
             FROM dashboard_users WHERE id = ?
             """,
             (session["user_id"],),
@@ -1183,6 +1184,7 @@ def my_account():
                    dashboard_users.email, dashboard_users.name,
                    dashboard_users.picture_url, dashboard_users.google_sub,
                    dashboard_users.role, dashboard_users.membership_level,
+                   dashboard_users.animations_enabled,
                    dashboard_users.created_at, dashboard_users.updated_at,
                    dashboard_users.last_login_at, dashboard_users.approval_status,
                    dashboard_users.deletion_requested_at,
@@ -1209,6 +1211,45 @@ def my_account():
         )
     finally:
         connection.close()
+
+
+@auth_bp.post("/account/animation-preference")
+@login_required
+def update_animation_preference():
+    """Persist the signed-in user's animation preference across devices."""
+
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return jsonify({"success": False, "message": "요청이 만료되었습니다."}), 400
+    enabled_value = (request.form.get("enabled") or "").strip()
+    if enabled_value not in {"0", "1"}:
+        return jsonify({"success": False, "message": "설정값이 올바르지 않습니다."}), 400
+
+    enabled = int(enabled_value)
+    connection = dashboard_db()
+    try:
+        result = connection.execute(
+            """UPDATE dashboard_users
+               SET animations_enabled=?, updated_at=?
+               WHERE id=? AND is_active=1""",
+            (enabled, now_kst().isoformat(), session["user_id"]),
+        )
+        if result.rowcount != 1:
+            connection.rollback()
+            session.clear()
+            return jsonify({"success": False, "message": "계정을 확인할 수 없습니다."}), 401
+        security_audit.log_event(
+            connection,
+            "ACCOUNT_ANIMATION_PREFERENCE_UPDATED",
+            "dashboard_user",
+            session["user_id"],
+            {"animations_enabled": bool(enabled)},
+        )
+        connection.commit()
+        if hasattr(g, "current_user_record"):
+            g.current_user_record["animations_enabled"] = enabled
+    finally:
+        connection.close()
+    return jsonify({"success": True, "animations_enabled": bool(enabled)})
 
 
 @auth_bp.post("/account/email")

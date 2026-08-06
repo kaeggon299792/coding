@@ -1179,7 +1179,7 @@ def inject_globals():
                 row = connection.execute(
                     """
                     SELECT id, username, role, name, picture_url, is_active,
-                           membership_level
+                           membership_level, animations_enabled
                     FROM dashboard_users WHERE id=?
                     """,
                     (session["user_id"],),
@@ -1187,6 +1187,7 @@ def inject_globals():
             if row and row["is_active"]:
                 account_active = True
                 current_user = dict(row)
+                current_user.setdefault("animations_enabled", 1)
                 role = current_user.get("role") or "user"
                 session["role"] = role
                 if connection is None:

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}" data-site-font="{{ site_font }}" data-number-font="{{ number_font }}">
+<html lang="{{ current_locale }}" data-locale-prefix="{{ locale_prefix }}" data-site-font="{{ site_font }}" data-number-font="{{ number_font }}" data-animations="{{ 'off' if current_user and current_user.animations_enabled is defined and not current_user.animations_enabled else 'on' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -55,7 +55,6 @@ gtag('config', 'G-PTRL0XC53Z');
   const theme = saved === "light" || saved === "dark" ? saved : (systemDark ? "dark" : "light");
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.stickyNav = localStorage.getItem("casino-in-sticky-nav") === "0" ? "false" : "true";
-  document.documentElement.dataset.profileEffects = localStorage.getItem("casino-in-profile-effects") === "off" ? "off" : "on";
   document.querySelector('meta[name="theme-color"]').content = theme === "light" ? "#ffffff" : "#09090b";
 })();
 </script>
@@ -74,8 +73,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260807-password-profile-toggle-v1">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-profile-toggle-v1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260807-account-animation-v2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260807-account-animation-v2">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -145,14 +144,33 @@ if (languageSwitch && profileMenu) {
 }
 const profileEffectToggle = document.getElementById("profile-effect-toggle");
 if (profileEffectToggle) {
-  const applyProfileEffects = (disabled, persist = false) => {
-    document.documentElement.dataset.profileEffects = disabled ? "off" : "on";
+  const preferenceForm = document.getElementById("profile-effect-preference-form");
+  const applyAnimationPreference = (disabled) => {
+    document.documentElement.dataset.animations = disabled ? "off" : "on";
     profileEffectToggle.checked = disabled;
-    if (persist) localStorage.setItem("casino-in-profile-effects", disabled ? "off" : "on");
   };
-  applyProfileEffects(document.documentElement.dataset.profileEffects === "off");
-  profileEffectToggle.addEventListener("change", () => {
-    applyProfileEffects(profileEffectToggle.checked, true);
+  applyAnimationPreference(document.documentElement.dataset.animations === "off");
+  profileEffectToggle.addEventListener("change", async () => {
+    const wasDisabled = document.documentElement.dataset.animations === "off";
+    const disabled = profileEffectToggle.checked;
+    applyAnimationPreference(disabled);
+    const formData = new FormData(preferenceForm);
+    formData.set("enabled", disabled ? "0" : "1");
+    profileEffectToggle.disabled = true;
+    try {
+      const response = await fetch(preferenceForm.action, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        headers: {"Accept": "application/json"},
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      applyAnimationPreference(wasDisabled);
+      console.error("애니메이션 설정을 저장하지 못했습니다.", error);
+    } finally {
+      profileEffectToggle.disabled = false;
+    }
   });
 }
 document.querySelectorAll("[data-locale-link]").forEach((link) => {
@@ -268,6 +286,11 @@ document.addEventListener("keydown", (event) => {
 
 (() => {
   const loader = document.getElementById("page-loader");
+  if (document.documentElement.dataset.animations === "off") {
+    loader.classList.add("is-hidden");
+    loader.setAttribute("aria-hidden", "true");
+    return;
+  }
   const percent = document.getElementById("page-loader-percent");
   const fill = document.getElementById("page-loader-fill");
   let value = 0;
