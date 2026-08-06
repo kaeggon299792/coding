@@ -6,6 +6,23 @@
   let openSelect = null;
   let nextId = 0;
 
+  function shouldEnhance(native) {
+    if (!(native instanceof HTMLSelectElement)) return false;
+    if (native.multiple || Number(native.getAttribute("size") || 1) > 1) return false;
+    if (native.hasAttribute("data-native-select") || native.closest("[data-native-select-scope]")) return false;
+    return true;
+  }
+
+  function wrapNativeSelect(native) {
+    if (!shouldEnhance(native) || native.closest("[data-vega-select]")) return;
+    const root = document.createElement("span");
+    root.className = "vega-select";
+    root.dataset.vegaSelect = "";
+    native.before(root);
+    root.append(native);
+    native.dataset.vegaSelectNative = "";
+  }
+
   function createIcon(name) {
     const paths = name === "check"
       ? [["path", {d: "m20 6-11 11-5-5"}]]
@@ -36,7 +53,8 @@
     const triggerId = `vega-select-trigger-${id}`;
     const listboxId = `vega-select-listbox-${id}`;
     const valueId = `vega-select-value-${id}`;
-    const label = native.id ? document.querySelector(`label[for="${CSS.escape(native.id)}"]`) : null;
+    const label = (native.id ? document.querySelector(`label[for="${CSS.escape(native.id)}"]`) : null)
+      || native.closest("label");
     if (label && !label.id) label.id = `vega-select-label-${id}`;
 
     const trigger = document.createElement("button");
@@ -225,6 +243,13 @@
     });
 
     native.addEventListener("change", sync);
+    native.addEventListener("input", sync);
+    native.addEventListener("invalid", (event) => {
+      event.preventDefault();
+      trigger.setAttribute("aria-invalid", "true");
+      trigger.focus({preventScroll: true});
+    });
+    native.addEventListener("change", () => trigger.removeAttribute("aria-invalid"));
     native.form?.addEventListener("reset", () => window.setTimeout(sync));
     root.append(trigger);
     root.classList.add("is-enhanced");
@@ -268,6 +293,7 @@
   }
 
   function init() {
+    document.querySelectorAll("select").forEach(wrapNativeSelect);
     document.querySelectorAll("[data-vega-select]").forEach(enhanceSelect);
     document.addEventListener("pointerdown", closeFromOutside);
     window.addEventListener("resize", repositionOpenSelect, {passive: true});

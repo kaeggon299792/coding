@@ -10,8 +10,7 @@
 }
 
 :root {
-  --ui-font-sans: "DM Sans", "Pretendard Variable", Pretendard, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ui-font-sans: var(--font-body);
   --ui-background: var(--brand-bg);
   --ui-foreground: var(--brand-text-primary);
   --ui-card: var(--brand-surface);

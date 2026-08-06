@@ -1,0 +1,480 @@
+/*
+ * CASINO IN shared component layer.
+ *
+ * The Company 360 Vega controls are the visual source of truth. This file
+ * deliberately contains no font loading or component font declarations so the
+ * site's existing typography and per-user font preferences remain untouched.
+ */
+
+:root {
+  --ui-background: var(--brand-bg);
+  --ui-foreground: var(--brand-text-primary);
+  --ui-card: var(--brand-surface);
+  --ui-popover: var(--brand-surface-elevated, var(--brand-surface));
+  --ui-muted: var(--brand-surface-muted);
+  --ui-muted-foreground: var(--brand-text-muted);
+  --ui-border: var(--brand-border);
+  --ui-border-strong: var(--brand-border-strong);
+  --ui-primary: var(--brand-accent);
+  --ui-primary-foreground: var(--brand-bg);
+  --ui-accent: var(--brand-surface-muted);
+  --ui-accent-foreground: var(--brand-text-primary);
+  --ui-danger: var(--brand-danger);
+  --ui-ring: var(--brand-highlight);
+  --ui-radius: 7px;
+  --ui-option-radius: 5px;
+  --ui-control-height: 36px;
+  --ui-control-height-mobile: 40px;
+  --ui-shadow-xs: 0 1px 2px color-mix(in srgb, var(--brand-text-primary) 6%, transparent);
+  --ui-shadow-popover: 0 10px 30px color-mix(in srgb, #000 22%, transparent),
+    0 2px 8px color-mix(in srgb, #000 14%, transparent);
+  --ui-transition: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Buttons: preserve existing variants and behavior while sharing Vega geometry. */
+.btn,
+.button {
+  min-height: var(--ui-control-height);
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-card);
+  box-shadow: var(--ui-shadow-xs);
+}
+
+.btn:hover,
+.button:hover {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-accent);
+}
+
+.btn-primary,
+.button-primary {
+  border-color: var(--ui-primary);
+  background: var(--ui-primary);
+  color: var(--ui-primary-foreground);
+}
+
+.btn-primary:hover,
+.button-primary:hover {
+  border-color: var(--brand-accent-hover);
+  background: var(--brand-accent-hover);
+  color: var(--ui-primary-foreground);
+}
+
+.btn-secondary { border-color: transparent; background: var(--ui-muted); }
+.btn-secondary:hover { border-color: var(--ui-border-strong); background: var(--ui-accent); }
+.btn-outline { background: transparent; }
+.btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
+.btn-icon { border-radius: var(--ui-radius); }
+
+.btn:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 2px;
+}
+
+.login-button,
+.google-login-button,
+.guest-access-button,
+.public-login-link,
+.login-home-link {
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow-xs);
+  transition: color var(--ui-transition), background-color var(--ui-transition),
+    border-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+
+.login-button { border-color: var(--ui-primary); background: var(--ui-primary); color: var(--ui-primary-foreground); }
+.login-button:hover { border-color: var(--brand-accent-hover); background: var(--brand-accent-hover); }
+.google-login-button,
+.guest-access-button,
+.public-login-link { border-color: var(--ui-border); background: var(--ui-card); }
+.google-login-button:hover,
+.guest-access-button:hover,
+.public-login-link:hover { border-color: var(--ui-border-strong); background: var(--ui-accent); text-decoration: none; }
+.login-button:focus-visible,
+.google-login-button:focus-visible,
+.guest-access-button:focus-visible,
+.public-login-link:focus-visible,
+.login-home-link:focus-visible { outline: 2px solid var(--ui-ring); outline-offset: 2px; }
+
+/* Text-like form fields. Checkbox/radio and hidden controls are handled below. */
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  max-width: 100%;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  color: var(--ui-foreground);
+  box-shadow: var(--ui-shadow-xs);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: color var(--ui-transition), background-color var(--ui-transition),
+    border-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select {
+  min-height: var(--ui-control-height);
+  padding: 0 11px;
+}
+
+textarea { padding: 9px 11px; resize: vertical; }
+
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):hover,
+select:hover,
+textarea:hover { border-color: var(--ui-border-strong); }
+
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 2px;
+  border-color: var(--ui-border-strong);
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--ui-muted-foreground); opacity: 0.82; }
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+input[readonly],
+textarea[readonly] {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] { border-color: var(--ui-danger); }
+
+:where(input[type="checkbox"]),
+:where(input[type="radio"]) {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  min-height: 0;
+  margin: 0;
+  place-content: center;
+  appearance: none;
+  border: 1px solid var(--ui-border-strong);
+  background: var(--ui-background);
+  color: var(--ui-primary-foreground);
+  cursor: pointer;
+  transition: background-color var(--ui-transition), border-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+
+:where(input[type="checkbox"]) { border-radius: 4px; }
+:where(input[type="radio"]) { border-radius: 50%; }
+:where(input[type="checkbox"])::before {
+  width: 8px;
+  height: 4px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  content: "";
+  transform: rotate(-45deg) scale(0);
+  transition: transform var(--ui-transition);
+}
+:where(input[type="radio"])::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+  transform: scale(0);
+  transition: transform var(--ui-transition);
+}
+:where(input[type="checkbox"]):checked,
+:where(input[type="radio"]):checked { border-color: var(--ui-primary); background: var(--ui-primary); }
+:where(input[type="checkbox"]):checked::before,
+:where(input[type="radio"]):checked::before { transform: rotate(-45deg) scale(1); }
+:where(input[type="radio"]):checked::before { transform: scale(1); }
+:where(input[type="checkbox"]):focus-visible,
+:where(input[type="radio"]):focus-visible { outline: 2px solid var(--ui-ring); outline-offset: 2px; }
+:where(input[type="checkbox"]):disabled,
+:where(input[type="radio"]):disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Custom Select. The original native select remains the submitted form field. */
+.vega-select {
+  position: relative;
+  display: inline-flex;
+  min-width: min(164px, 100%);
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+label > .vega-select,
+.vega-select.is-fluid { width: 100%; }
+
+.vega-select > select {
+  min-width: 164px;
+  height: var(--ui-control-height);
+  padding: 0 32px 0 11px;
+}
+
+.vega-select.is-enhanced > select {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 0 !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.vega-select-trigger {
+  display: inline-flex;
+  width: 100%;
+  min-width: 164px;
+  height: var(--ui-control-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px 0 11px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  color: var(--ui-foreground);
+  box-shadow: var(--ui-shadow-xs);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--ui-transition), background-color var(--ui-transition),
+    border-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+
+.vega-select-trigger:hover,
+.vega-select-trigger[aria-expanded="true"] {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-accent);
+}
+
+.vega-select-trigger:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 2px;
+}
+
+.vega-select-trigger[aria-invalid="true"] { border-color: var(--ui-danger); }
+.vega-select-trigger:disabled { opacity: 0.5; pointer-events: none; }
+.vega-select-trigger .ui-icon { width: 15px; height: 15px; flex: 0 0 15px; color: var(--ui-muted-foreground); transition: transform var(--ui-transition); }
+.vega-select-trigger[aria-expanded="true"] .ui-icon-chevron-down { transform: rotate(180deg); }
+.vega-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.vega-select-content {
+  position: fixed;
+  z-index: 1600;
+  display: grid;
+  gap: 2px;
+  min-width: 164px;
+  max-height: min(288px, calc(100dvh - 16px));
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-popover);
+  color: var(--ui-foreground);
+  box-shadow: var(--ui-shadow-popover);
+  opacity: 0;
+  transform: translateY(-3px) scale(0.985);
+  transform-origin: var(--vega-transform-origin, top center);
+  transition: opacity var(--ui-transition), transform var(--ui-transition);
+}
+
+.vega-select-content[data-side="top"] { transform: translateY(3px) scale(0.985); }
+.vega-select-content[data-state="open"] { opacity: 1; transform: translateY(0) scale(1); }
+.vega-select-content[hidden] { display: none; }
+
+.vega-select-option {
+  position: relative;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 7px 9px 7px 30px;
+  border: 0;
+  border-radius: var(--ui-option-radius);
+  color: var(--ui-foreground);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  cursor: default;
+  user-select: none;
+  outline: none;
+}
+
+.vega-select-option:hover,
+.vega-select-option.is-active,
+.vega-select-option:focus-visible { background: var(--ui-accent); color: var(--ui-accent-foreground); }
+.vega-select-option[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.vega-select-option .ui-icon-check { position: absolute; left: 9px; width: 14px; height: 14px; opacity: 0; }
+.vega-select-option[aria-selected="true"] .ui-icon-check { opacity: 1; }
+
+/* Status, navigation and compact interactive surfaces. */
+.badge,
+.status-badge,
+.impact-badge,
+.membership-badge {
+  border-color: var(--ui-border);
+  border-radius: var(--ui-option-radius);
+  box-shadow: var(--ui-shadow-xs);
+}
+
+.news-pagination,
+.pagination,
+.legislation-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.news-pagination > span,
+.pagination > span,
+.legislation-pagination > span {
+  min-width: 58px;
+  color: var(--ui-muted-foreground);
+  font-size: 11px;
+  text-align: center;
+}
+
+.company-expert-tabs,
+.holiday-year-tabs,
+.fund-scenario-tabs {
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+}
+
+.company-expert-tabs a,
+.holiday-year-tabs a,
+.fund-scenario-tabs a { transition: color var(--ui-transition), background-color var(--ui-transition), border-color var(--ui-transition); }
+.company-expert-tabs a:hover,
+.holiday-year-tabs a:hover,
+.fund-scenario-tabs a:hover { background: var(--ui-accent); text-decoration: none; }
+.company-expert-tabs a:focus-visible,
+.holiday-year-tabs a:focus-visible,
+.fund-scenario-tabs a:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--ui-ring); outline-offset: -2px; }
+
+.panel,
+.kpi-card,
+.login-card,
+.news-card,
+.insight-card { border-color: var(--ui-border); border-radius: var(--ui-radius); }
+
+:where([class$="-card"], [class*="-card "]) {
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+}
+
+:where(.panel, .kpi-card, .login-card, .news-card, .insight-card, [class$="-card"], [class*="-card "]) {
+  box-shadow: var(--ui-shadow-xs);
+}
+
+.news-filter-form,
+.legislation-filter-panel,
+.search-console,
+.community-compose-panel,
+.official-filter {
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow-xs);
+}
+
+.table-scroll,
+.table-scroll-wrap,
+.community-table-wrap,
+.source-table-scroll {
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+}
+
+table.data-table thead,
+.community-table thead,
+.official-table thead,
+.source-data-table thead { background: var(--ui-muted); }
+
+table.data-table th,
+table.data-table td,
+.community-table th,
+.community-table td,
+.official-table th,
+.official-table td,
+.source-data-table th,
+.source-data-table td { border-color: var(--ui-border); }
+
+table.data-table tbody tr:hover,
+.community-table tbody tr:hover,
+.official-table tbody tr:hover,
+.source-data-table tbody tr:hover { background: color-mix(in srgb, var(--ui-muted) 72%, transparent); }
+
+.item-list li,
+.compact-feed li,
+.community-list-item { border-radius: var(--ui-option-radius); }
+
+.empty-state,
+.news-empty,
+.community-empty { border-radius: var(--ui-radius); }
+
+.topbar-nav a,
+.data-subnav a,
+.official-subnav a,
+.tips-subnav a { border-radius: var(--ui-option-radius); }
+
+.topbar-nav a:hover,
+.data-subnav a:hover,
+.official-subnav a:hover,
+.tips-subnav a:hover { background: var(--ui-accent); text-decoration: none; }
+
+.global-language-switch summary,
+.global-language-switch nav,
+.topbar-profile-popover,
+.topbar-private-menu > div {
+  border-radius: var(--ui-radius);
+}
+
+.global-language-switch nav,
+.topbar-profile-popover,
+.topbar-private-menu > div { border-color: var(--ui-border); box-shadow: var(--ui-shadow-popover); }
+
+.casino-chart-tooltip,
+[role="tooltip"] { border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-popover); }
+
+@media (max-width: 760px) {
+  .btn,
+  .button,
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  .vega-select-trigger { min-height: var(--ui-control-height-mobile); }
+
+  label > .vega-select,
+  .form-inline > .vega-select,
+  .news-filter-form .vega-select,
+  .legislation-filter-form .vega-select { width: 100%; }
+
+  .vega-select-option { min-height: 40px; padding-top: 9px; padding-bottom: 9px; }
+  .news-pagination,
+  .pagination,
+  .legislation-pagination { justify-content: space-between; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vega-select-trigger,
+  .vega-select-trigger .ui-icon,
+  .vega-select-content { transition: none; }
+}
