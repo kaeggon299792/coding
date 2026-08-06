@@ -28,27 +28,23 @@
     {% if current_user %}
       <details class="topbar-profile-menu">
       <summary class="topbar-user" title="회원 메뉴" aria-label="회원 메뉴 열기">
-        <span class="member-avatar-wrap profile-avatar-fx grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
+        <span class="member-avatar-wrap profile-avatar-webgl grade-{{ current_user.membership.code if current_user.membership else 'silver' }}" data-profile-avatar-webgl="candidate">
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
         {% else %}
           <span class="topbar-avatar-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
         {% endif %}
-          <span class="profile-avatar-fx-scan" aria-hidden="true"></span>
-          <span class="profile-avatar-fx-sparkles" aria-hidden="true"></span>
           {% if current_user.membership %}<img class="membership-badge-icon" src="{{ url_for('static', filename=current_user.membership.icon_path) }}" alt="{{ current_user.membership.label }} 등급" width="14" height="14">{% endif %}
         </span>
       </summary>
       <div class="topbar-profile-popover">
         <div class="topbar-profile-hero">
-          <span class="member-avatar-wrap profile-avatar-fx topbar-profile-large-avatar grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
+          <span class="member-avatar-wrap profile-avatar-webgl topbar-profile-large-avatar grade-{{ current_user.membership.code if current_user.membership else 'silver' }}" data-profile-avatar-webgl="candidate">
             {% if current_user.picture_url %}
               <img class="topbar-profile-photo" src="{{ current_user.picture_url }}" alt="{{ current_user.name or current_user.username }} 프로필 사진" width="76" height="76" referrerpolicy="no-referrer">
             {% else %}
               <span class="topbar-profile-photo topbar-profile-photo-fallback" aria-hidden="true">{{ (current_user.name or current_user.username)[0] | upper }}</span>
             {% endif %}
-            <span class="profile-avatar-fx-scan" aria-hidden="true"></span>
-            <span class="profile-avatar-fx-sparkles" aria-hidden="true"></span>
             {% if current_user.membership %}<img class="membership-badge-icon" src="{{ url_for('static', filename=current_user.membership.icon_path) }}" alt="{{ current_user.membership.label }} 등급" width="22" height="22">{% endif %}
           </span>
           <strong class="topbar-profile-greeting">안녕하세요, {{ current_user.name or current_user.username }}님</strong>

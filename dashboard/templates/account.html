@@ -14,14 +14,12 @@
 
   <section class="panel account-profile-panel">
     <div class="account-profile-head">
-      <div class="account-avatar-wrap profile-avatar-fx grade-{{ user.membership_level or ('black' if user.role == 'admin' else 'gold') }}">
+      <div class="account-avatar-wrap profile-avatar-webgl grade-{{ user.membership_level or ('black' if user.role == 'admin' else 'gold') }}" data-profile-avatar-webgl="candidate">
       {% if user.picture_url %}
       <img src="{{ user.picture_url }}" alt="" width="64" height="64" referrerpolicy="no-referrer">
       {% else %}
       <span aria-hidden="true">{{ (user.name or user.username)[0]|upper }}</span>
       {% endif %}
-      <span class="profile-avatar-fx-scan" aria-hidden="true"></span>
-      <span class="profile-avatar-fx-sparkles" aria-hidden="true"></span>
       {% if user.membership_icon_path %}<img class="membership-badge-icon account-membership-badge" src="{{ url_for('static', filename=user.membership_icon_path) }}" alt="{{ user.membership_label }} 등급" width="22" height="22">{% endif %}
       </div>
       <div><h2>{{ user.name or user.username }}</h2><p>{{ user.email or '이메일 미등록' }}</p><p class="account-membership-label"><strong>{{ user.membership_label or 'Gold' }}</strong><span>{{ user.membership_description or '가입 기본등급' }}</span></p></div>

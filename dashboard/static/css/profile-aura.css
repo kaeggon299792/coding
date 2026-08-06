@@ -1,4 +1,4 @@
-/* Reusable logged-in profile effect. Add profile-avatar-fx only to designated avatars. */
+/* WebGL profile avatar. The static gold ring is also the no-WebGL fallback. */
 .member-avatar-wrap::before,
 .member-avatar-wrap::after,
 .account-avatar-wrap::before,
@@ -8,183 +8,85 @@
   animation: none !important;
 }
 
-.member-avatar-wrap > .member-avatar,
-.member-avatar-wrap > .topbar-avatar,
-.member-avatar-wrap > .topbar-avatar-fallback,
-.member-avatar-wrap > .topbar-profile-photo,
-.account-avatar-wrap > img:first-child,
-.account-avatar-wrap > span:first-child {
-  border: 1px solid var(--brand-border-strong) !important;
-  border-radius: 50%;
-  box-shadow: none !important;
-}
-
-.profile-avatar-fx {
-  --profile-fx-gold: #e8b84d;
-  --profile-fx-bright: #fff1a8;
-  --profile-fx-deep: #a96d12;
+.profile-avatar-webgl {
   position: relative;
   isolation: isolate;
   overflow: visible;
+  border-radius: 50%;
+  --profile-fallback-gold: #c9952e;
+  --profile-fallback-bright: #f7dda0;
 }
 
-.profile-avatar-fx::before,
-.profile-avatar-fx::after {
+.profile-avatar-webgl::before {
   position: absolute;
+  z-index: 0;
+  inset: -4px;
   display: block !important;
+  border: 1px solid var(--profile-fallback-gold);
   border-radius: 50%;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--profile-fallback-gold) 40%, transparent);
   content: "" !important;
   pointer-events: none;
 }
 
-.profile-avatar-fx::before {
-  z-index: 0;
-  inset: -5px;
-  border: 1px solid color-mix(in srgb, var(--profile-fx-bright) 78%, var(--profile-fx-gold));
-  box-shadow:
-    0 0 5px 1px color-mix(in srgb, var(--profile-fx-bright) 64%, transparent),
-    0 0 13px 4px color-mix(in srgb, var(--profile-fx-gold) 44%, transparent),
-    0 0 24px 8px color-mix(in srgb, var(--profile-fx-deep) 20%, transparent);
-  animation: profile-avatar-gold-breathe 6.8s ease-in-out infinite !important;
-}
-
-.profile-avatar-fx::after {
-  z-index: 1;
-  inset: -8px;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0 55%,
-    color-mix(in srgb, var(--profile-fx-gold) 42%, transparent) 63%,
-    var(--profile-fx-bright) 72%,
-    var(--profile-fx-gold) 79%,
-    transparent 88% 100%
-  );
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--profile-fx-gold) 70%, transparent));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 0);
-  animation: profile-avatar-gold-orbit 13s linear infinite !important;
-}
-
-.profile-avatar-fx > .member-avatar,
-.profile-avatar-fx > .topbar-avatar,
-.profile-avatar-fx > .topbar-avatar-fallback,
-.profile-avatar-fx > .topbar-profile-photo,
-.profile-avatar-fx.account-avatar-wrap > img:first-child,
-.profile-avatar-fx.account-avatar-wrap > span:first-child {
+.profile-avatar-webgl > .member-avatar,
+.profile-avatar-webgl > .topbar-avatar,
+.profile-avatar-webgl > .topbar-avatar-fallback,
+.profile-avatar-webgl > .topbar-profile-photo,
+.profile-avatar-webgl.account-avatar-wrap > img:first-child,
+.profile-avatar-webgl.account-avatar-wrap > span:first-child {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--profile-fx-gold) 54%, var(--brand-border)) !important;
+  border: 1px solid var(--brand-border-strong) !important;
+  border-radius: 50%;
+  box-shadow: none !important;
   animation: none !important;
 }
 
-.profile-avatar-fx-scan {
-  position: absolute !important;
-  z-index: 3 !important;
-  inset: 1px !important;
-  width: auto !important;
-  height: auto !important;
-  display: block !important;
-  overflow: hidden;
-  border: 0 !important;
-  border-radius: 50%;
-  background: transparent !important;
-  box-shadow: none !important;
-  pointer-events: none;
-}
-
-.profile-avatar-fx-scan::before {
+.profile-avatar-webgl-canvas {
   position: absolute;
-  top: -32%;
-  left: -62%;
-  width: 34%;
-  height: 164%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 96, 162, .22),
-    rgba(255, 216, 93, .26),
-    rgba(95, 235, 255, .28),
-    rgba(159, 112, 255, .22),
-    transparent
-  );
-  content: "";
-  filter: blur(1px);
-  mix-blend-mode: screen;
-  transform: rotate(24deg) translate3d(0, 0, 0);
-  animation: profile-avatar-rainbow-scan 8.6s ease-in-out infinite;
-}
-
-.profile-avatar-fx-sparkles {
-  position: absolute !important;
-  z-index: 4 !important;
-  inset: -10px !important;
-  width: auto !important;
-  height: auto !important;
-  display: block !important;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: calc(100% + 22px) !important;
+  height: calc(100% + 22px) !important;
+  max-width: none !important;
   border: 0 !important;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 82% 16%, #fff 0 1px, var(--profile-fx-bright) 1.5px 2px, transparent 3.5px),
-    radial-gradient(circle at 12% 68%, #fff 0 1px, var(--profile-fx-gold) 1.5px 2px, transparent 3.5px),
-    radial-gradient(circle at 70% 92%, #fff 0 1px, var(--profile-fx-bright) 1.5px 2px, transparent 3.5px) !important;
-  box-shadow: none !important;
+  background: transparent;
   pointer-events: none;
-  animation: profile-avatar-star-twinkle 7.4s ease-in-out infinite;
+  transform: translate3d(-50%, -50%, 0);
 }
 
-.profile-avatar-fx > .membership-badge-icon {
+.profile-avatar-webgl.is-webgl-active::before { opacity: 0; }
+.profile-avatar-webgl.is-webgl-active > .topbar-avatar,
+.profile-avatar-webgl.is-webgl-active > .topbar-profile-photo,
+.profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child {
+  opacity: 0;
+}
+
+.profile-avatar-webgl > .membership-badge-icon {
   z-index: 6;
 }
 
-@keyframes profile-avatar-gold-orbit {
-  to { transform: rotate(1turn); }
+/* Header avatar uses a smaller canvas footprint. */
+.topbar-user .profile-avatar-webgl-canvas {
+  width: calc(100% + 12px) !important;
+  height: calc(100% + 12px) !important;
 }
 
-@keyframes profile-avatar-gold-breathe {
-  0%, 100% { opacity: .66; transform: scale(1); }
-  48% { opacity: .94; transform: scale(1.035); }
-  70% { opacity: .78; transform: scale(1.012); }
-}
-
-@keyframes profile-avatar-rainbow-scan {
-  0%, 20% { opacity: 0; transform: rotate(24deg) translate3d(0, 0, 0); }
-  30% { opacity: .78; }
-  58% { opacity: .72; transform: rotate(24deg) translate3d(470%, 0, 0); }
-  68%, 100% { opacity: 0; transform: rotate(24deg) translate3d(470%, 0, 0); }
-}
-
-@keyframes profile-avatar-star-twinkle {
-  0%, 100% { opacity: .28; transform: scale(.96) rotate(0deg); }
-  38% { opacity: .9; transform: scale(1.04) rotate(4deg); }
-  62% { opacity: .46; transform: scale(1) rotate(-2deg); }
-}
-
-/* Small header avatar: keep motion restrained and omit the rainbow scan. */
-.topbar-user .profile-avatar-fx-scan {
-  display: none !important;
-}
-
-.topbar-user .profile-avatar-fx-sparkles {
-  inset: -7px !important;
-  opacity: .58;
-}
-
-/* Board and list avatars intentionally stay flat to avoid many simultaneous animations. */
+/* Board/list avatars stay flat and never create a WebGL context. */
 .member-identity.is-board-author .member-avatar-wrap {
   width: 22px !important;
   height: 22px !important;
   filter: none !important;
 }
-
 .member-identity.is-board-author .member-avatar-wrap::before,
 .member-identity.is-board-author .member-avatar-wrap::after,
-.member-identity.is-board-author .profile-avatar-fx-scan,
-.member-identity.is-board-author .profile-avatar-fx-sparkles,
 .member-identity.is-board-author .membership-badge-icon {
   display: none !important;
 }
-
 .member-identity.is-board-author .member-avatar,
 .member-identity.is-board-author .member-avatar-fallback {
   box-sizing: border-box !important;
@@ -198,25 +100,21 @@
 }
 
 @media (max-width: 760px) {
-  .community-table .community-author-cell::before {
-    content: none !important;
+  .community-table .community-author-cell::before { content: none !important; }
+  .profile-avatar-webgl-canvas {
+    width: calc(100% + 16px) !important;
+    height: calc(100% + 16px) !important;
   }
-
-  .profile-avatar-fx::before { inset: -4px; }
-  .profile-avatar-fx::after { inset: -7px; }
-  .profile-avatar-fx-sparkles { inset: -8px !important; }
+  .topbar-user .profile-avatar-webgl-canvas {
+    width: calc(100% + 10px) !important;
+    height: calc(100% + 10px) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-avatar-fx::before,
-  .profile-avatar-fx::after,
-  .profile-avatar-fx-scan::before,
-  .profile-avatar-fx-sparkles {
-    animation: none !important;
-  }
-
-  .profile-avatar-fx-scan,
-  .profile-avatar-fx-sparkles {
-    display: none !important;
-  }
+  .profile-avatar-webgl-canvas { display: none !important; }
+  .profile-avatar-webgl.is-webgl-active::before { opacity: 1; }
+  .profile-avatar-webgl.is-webgl-active > .topbar-avatar,
+  .profile-avatar-webgl.is-webgl-active > .topbar-profile-photo,
+  .profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child { opacity: 1; }
 }

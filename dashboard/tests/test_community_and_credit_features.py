@@ -466,16 +466,30 @@ def test_board_author_identity_is_avatar_only_and_flat():
     aura_css = (root / "static" / "css" / "profile-aura.css").read_text(
         encoding="utf-8"
     )
-    assert "Reusable logged-in profile effect" in aura_css
+    assert "WebGL profile avatar" in aura_css
     assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
     assert "display: none !important" in aura_css
-    assert "profile-avatar-gold-orbit" in aura_css
-    assert "profile-avatar-rainbow-scan" in aura_css
-    assert "profile-avatar-star-twinkle" in aura_css
+    assert ".profile-avatar-webgl-canvas" in aura_css
+    assert "profile-avatar-gold-orbit" not in aura_css
     assert ".community-table .community-author-cell::before" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
+    assert "js/profile-avatar-webgl.js" in base_template
     topbar_template = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
-    assert topbar_template.count("profile-avatar-fx") >= 6
-    assert "account-avatar-wrap profile-avatar-fx" in account_template
+    assert topbar_template.count('data-profile-avatar-webgl="candidate"') == 2
+    assert "account-avatar-wrap profile-avatar-webgl" in account_template
+    webgl_js = (root / "static" / "js" / "profile-avatar-webgl.js").read_text(encoding="utf-8")
+    for setting in (
+        "animationSpeed", "ringThickness", "goldIntensity", "glowIntensity",
+        "iridescenceIntensity", "refractionStrength", "sparkleIntensity",
+        "pointerInfluence", "mobileQuality",
+    ):
+        assert setting in webgl_js
+    assert "THREE.WebGLRenderer" in webgl_js
+    assert "THREE.ShaderMaterial" in webgl_js
+    assert "THREE.PlaneGeometry" in webgl_js
+    assert "IntersectionObserver" in webgl_js
+    assert 'document.addEventListener("visibilitychange"' in webgl_js
+    assert "webglcontextlost" in webgl_js
+    assert "webglcontextrestored" in webgl_js
