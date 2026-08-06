@@ -114,7 +114,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 {% endif %}
 {% if current_username %}
 {% if request.endpoint != 'public_home' %}<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>{% endif %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/profile-avatar-webgl.js') }}?v=20260806-webgl-v2" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/profile-avatar-webgl.js') }}?v=20260806-webgl-v3" defer></script>
 {% endif %}
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");
