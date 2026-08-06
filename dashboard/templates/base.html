@@ -142,6 +142,19 @@ if (languageSwitch && profileMenu) {
     if (languageSwitch.open) profileMenu.removeAttribute("open");
   });
 }
+if (profileMenu) {
+  document.addEventListener("pointerdown", (event) => {
+    if (profileMenu.open && !profileMenu.contains(event.target)) {
+      profileMenu.removeAttribute("open");
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && profileMenu.open) {
+      profileMenu.removeAttribute("open");
+      profileMenu.querySelector("summary")?.focus();
+    }
+  });
+}
 const profileEffectToggle = document.getElementById("profile-effect-toggle");
 if (profileEffectToggle) {
   const preferenceForm = document.getElementById("profile-effect-preference-form");

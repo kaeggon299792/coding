@@ -57,6 +57,9 @@ def test_profile_popover_has_large_avatar_and_personal_greeting():
 def test_profile_and_language_menus_are_mutually_exclusive():
     base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
     assert 'const profileMenu = document.querySelector(".topbar-profile-menu")' in base
+    assert 'document.addEventListener("pointerdown"' in base
+    assert "!profileMenu.contains(event.target)" in base
+    assert 'event.key === "Escape"' in base
     assert 'if (profileMenu.open) languageSwitch.removeAttribute("open")' in base
     assert 'if (languageSwitch.open) profileMenu.removeAttribute("open")' in base
     assert 'topbarActions.insertBefore(languageSwitch, profileMenu' in base
