@@ -30,7 +30,8 @@ def test_profile_popover_has_large_avatar_and_personal_greeting():
     for orbit_point in ("16%", "49.3%", "82.7%"):
         assert orbit_point in css
     assert "animation:member-avatar-orbit 17s linear infinite" in css
-    assert "animation:member-avatar-elegant-pulse 11s ease-in-out infinite" in css
+    assert "animation:member-avatar-flat-breathe 11s ease-in-out infinite" in css
+    assert "border-width:2px" in css
 
 
 def test_mobile_navigation_and_company_filters_are_present():

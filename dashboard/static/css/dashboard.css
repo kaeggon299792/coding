@@ -2711,6 +2711,7 @@ html[data-theme="light"] .member-avatar-wrap,html[data-theme="light"] .account-a
 
 /* Flat profile treatment: retain the grade ring without cast shadows. */
 .member-avatar-wrap,.account-avatar-wrap{filter:none}.member-avatar-wrap:before,.account-avatar-wrap:before{box-shadow:none!important}
+.member-avatar-wrap:before,.account-avatar-wrap:before{border-width:1px;animation:member-avatar-flat-breathe 11s ease-in-out infinite}@keyframes member-avatar-flat-breathe{0%,100%{border-color:color-mix(in srgb,var(--grade-glow) 30%,var(--brand-border));opacity:.42;transform:scale(1)}38%{border-color:color-mix(in srgb,var(--grade-glow) 62%,#fff);opacity:.76;transform:scale(1.035)}56%,68%{border-width:2px;border-color:color-mix(in srgb,var(--grade-glow) 90%,#fff);opacity:1;transform:scale(1.075)}86%{border-width:1px;border-color:color-mix(in srgb,var(--grade-glow) 48%,var(--brand-border));opacity:.62;transform:scale(1.02)}}
 
 /* Keep dense comparison dashboards comfortably inside the viewport. */
 .fund-scenario-page{box-sizing:border-box;width:min(1200px,calc(100% - 48px));max-width:1200px;padding-right:0;padding-left:0}.fund-scenario-panel>.table-scroll-wrap,.company-comparison-table-panel>.table-scroll-wrap{box-sizing:border-box;width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}.fund-comparison-table,.company-comparison-table{max-width:none}
