@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from dashboard_db import schema
+from dashboard_db import queries, schema
 
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\nprivate-diary-image"
@@ -120,3 +120,45 @@ def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
         assert "🪫 지침" in page
         assert 'data-diary-date-button' in page
         assert 'js/diary.js' in page
+
+
+def test_diary_timeline_and_gallery_paginate_five_entries(monkeypatch, tmp_path):
+    db_path = tmp_path / "diary-views.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    import app as app_module
+
+    connection = schema.connect(str(db_path))
+    user_id = _user(connection, "diary-views")
+    image_url = "/board/diary/images/" + ("a" * 32) + ".png"
+    for index in range(6):
+        queries.create_diary_entry(
+            connection,
+            user_id,
+            "diary-views",
+            f"2026-08-0{index + 1}",
+            "calm",
+            f"기록 {index + 1}",
+            (
+                f"## 마크다운 본문 {index + 1}\n\n내용입니다."
+                + (f"\n\n![테스트]({image_url})" if index == 5 else "")
+            ),
+        )
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        _login(client, user_id, "diary-views", "t" * 64)
+        timeline = client.get("/board/diary").get_data(as_text=True)
+        assert timeline.count('class="diary-timeline-entry"') == 5
+        assert "마크다운 본문 6" in timeline
+        assert f'<img alt="테스트" src="{image_url}">' in timeline
+        assert "page=2&amp;view=timeline" in timeline
+
+        gallery = client.get("/board/diary?view=gallery").get_data(as_text=True)
+        assert 'class="diary-gallery"' in gallery
+        assert image_url in gallery
+        assert "기록 6" in gallery
+        assert "page=2&amp;view=gallery" in gallery
+
+        invalid_view = client.get("/board/diary?view=unknown").get_data(as_text=True)
+        assert 'class="diary-timeline"' in invalid_view

@@ -5384,16 +5384,37 @@ def _diary_form_data(source):
     }
 
 
-def _diary_board_context(connection, page=1, error=None, form_data=None):
-    page_size = 20
+_DIARY_IMAGE_URL_RE = re.compile(
+    r"/board/diary/images/[0-9a-f]{32}\.(?:png|jpg|gif|webp)"
+)
+
+
+def _diary_board_context(
+    connection, page=1, view_mode="timeline", error=None, form_data=None,
+):
+    page_size = 5
     owner_id = session["user_id"]
     total = queries.count_diary_entries(connection, owner_id)
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page), total_pages))
+    view_mode = view_mode if view_mode in {"timeline", "gallery"} else "timeline"
+    entries = queries.list_diary_entries(
+        connection, owner_id, page_size, (page - 1) * page_size
+    )
+    gallery_items = []
+    for entry in entries:
+        entry["content_html"] = _render_community_markdown(entry["content"])
+        entry["image_urls"] = list(dict.fromkeys(
+            _DIARY_IMAGE_URL_RE.findall(entry["content"] or "")
+        ))
+        gallery_items.extend(
+            {"entry_id": entry["id"], "title": entry["title"], "url": image_url}
+            for image_url in entry["image_urls"]
+        )
     return {
-        "entries": queries.list_diary_entries(
-            connection, owner_id, page_size, (page - 1) * page_size
-        ),
+        "entries": entries,
+        "gallery_items": gallery_items,
+        "view_mode": view_mode,
         "total": total,
         "page": page,
         "total_pages": total_pages,
@@ -5413,9 +5434,13 @@ def diary_board_page():
             page = int(request.args.get("page", 1))
         except (TypeError, ValueError):
             page = 1
+        view_mode = (request.args.get("view") or "timeline").strip().lower()
         if request.method == "GET":
             return render_template(
-                "diary_board.html", **_diary_board_context(connection, page=page)
+                "diary_board.html",
+                **_diary_board_context(
+                    connection, page=page, view_mode=view_mode
+                ),
             )
         raw_form = {
             key: (request.form.get(key) or "")

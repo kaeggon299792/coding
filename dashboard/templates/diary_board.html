@@ -23,9 +23,18 @@
     </form>
   </details>
   <section class="panel diary-list-panel">
-    <div class="section-heading"><div><p class="section-kicker">ARCHIVE</p><h2>나의 기록</h2></div><span>{{ total }}건</span></div>
-    {% if entries %}<div class="diary-entry-grid">{% for entry in entries %}{% set mood = moods.get(entry.mood_code, ('•','미선택')) %}<a href="{{ url_for('diary_entry_page', entry_id=entry.id) }}"><time datetime="{{ entry.diary_date }}">{{ entry.diary_date }}</time><span class="diary-entry-mood" aria-label="{{ mood[1] }}">{{ mood[0] }}</span><h3>{{ entry.title }}</h3><p>{{ entry.content|striptags|truncate(100, true, '…') }}</p></a>{% endfor %}</div>{% else %}<div class="community-empty"><span aria-hidden="true">✦</span><h3>아직 남긴 기록이 없습니다</h3><p>첫 일기를 작성해보세요.</p></div>{% endif %}
-    {% if total_pages > 1 %}<nav class="news-pagination" aria-label="일기장 페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('diary_board_page', page=page-1) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for('diary_board_page', page=page+1) }}">다음</a>{% endif %}</nav>{% endif %}
+    <div class="diary-archive-heading">
+      <div><p class="section-kicker">ARCHIVE</p><h2>나의 기록</h2></div>
+      <div class="diary-archive-actions"><span>{{ total }}건</span><nav class="diary-view-switch" aria-label="일기장 보기 방식"><a href="{{ url_for('diary_board_page', view='timeline') }}"{% if view_mode == 'timeline' %} class="is-active" aria-current="page"{% endif %}>타임라인</a><a href="{{ url_for('diary_board_page', view='gallery') }}"{% if view_mode == 'gallery' %} class="is-active" aria-current="page"{% endif %}>갤러리</a></nav></div>
+    </div>
+    {% if entries %}
+      {% if view_mode == 'gallery' %}
+        {% if gallery_items %}<div class="diary-gallery" aria-label="일기 사진 갤러리">{% for item in gallery_items %}<a class="diary-gallery-item" href="{{ url_for('diary_entry_page', entry_id=item.entry_id) }}"><img src="{{ item.url }}" alt="" loading="lazy" decoding="async"><span>{{ item.title }}</span></a>{% endfor %}</div>{% else %}<div class="community-empty diary-gallery-empty"><span aria-hidden="true">▧</span><h3>이 페이지에는 사진이 없습니다</h3><p>사진을 붙여넣은 일기는 갤러리에서 모아볼 수 있습니다.</p></div>{% endif %}
+      {% else %}
+        <div class="diary-timeline">{% for entry in entries %}{% set mood = moods.get(entry.mood_code, ('•','미선택')) %}<article class="diary-timeline-entry"><time datetime="{{ entry.diary_date }}"><strong>{{ entry.diary_date[8:10] }}</strong><span>{{ entry.diary_date[:7] }}</span></time><div class="diary-timeline-rail"><span aria-label="{{ mood[1] }}" title="{{ mood[1] }}">{{ mood[0] }}</span></div><div class="diary-timeline-content"><h3><a href="{{ url_for('diary_entry_page', entry_id=entry.id) }}">{{ entry.title }}</a></h3><div class="community-markdown">{{ entry.content_html }}</div><a class="diary-timeline-more" href="{{ url_for('diary_entry_page', entry_id=entry.id) }}">기록 열기 →</a></div></article>{% endfor %}</div>
+      {% endif %}
+    {% else %}<div class="community-empty"><span aria-hidden="true">✦</span><h3>아직 남긴 기록이 없습니다</h3><p>첫 일기를 작성해보세요.</p></div>{% endif %}
+    {% if total_pages > 1 %}<nav class="news-pagination" aria-label="일기장 페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('diary_board_page', page=page-1, view=view_mode) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for('diary_board_page', page=page+1, view=view_mode) }}">다음</a>{% endif %}</nav>{% endif %}
   </section>
 </main>
 {% include "_footer.html" %}
