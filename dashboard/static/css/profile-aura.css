@@ -99,13 +99,13 @@
       var(--profile-glow-hot) 78%,
       color-mix(in srgb, var(--profile-glow-mid) 58%, white) 84%,
       transparent 94%
-    );
+    ) !important;
   box-shadow:
     0 0 calc(var(--profile-glow-size) * 1.1) color-mix(in srgb, var(--profile-glow-hot) 30%, transparent),
     0 0 calc(var(--profile-glow-size) * 2.1) color-mix(in srgb, var(--profile-glow-mid) 24%, transparent),
     0 0 calc(var(--profile-glow-size) * 2.8) color-mix(in srgb, var(--profile-glow-cool) 18%, transparent) !important;
-  opacity: var(--profile-glow-opacity);
-  filter: blur(var(--profile-glow-blur)) saturate(1.12);
+  opacity: var(--profile-glow-opacity) !important;
+  filter: blur(var(--profile-glow-blur)) saturate(1.12) !important;
   scale: .98;
   transition: opacity .45s ease, filter .45s ease, scale .45s ease;
 }
@@ -125,9 +125,9 @@
     color-mix(in srgb, var(--profile-glow-cool) 70%, white) 66% 72%,
     transparent 80% 91%,
     color-mix(in srgb, var(--profile-glow-hot) 68%, white) 97%
-  );
+  ) !important;
   box-shadow: 0 0 calc(var(--profile-glow-size) * .7) color-mix(in srgb, var(--profile-glow-mid) 35%, transparent) !important;
-  opacity: min(1, calc(var(--profile-glow-opacity) + .2));
+  opacity: min(1, calc(var(--profile-glow-opacity) + .2)) !important;
   scale: 1;
   transition: opacity .35s ease, scale .45s ease;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -139,15 +139,15 @@
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::before,
 .my-account-page .account-avatar-wrap:hover::before {
-  opacity: min(1, calc(var(--profile-glow-opacity) + .25));
-  filter: blur(calc(var(--profile-glow-blur) * 1.22)) saturate(1.2);
+  opacity: min(1, calc(var(--profile-glow-opacity) + .25)) !important;
+  filter: blur(calc(var(--profile-glow-blur) * 1.22)) saturate(1.2) !important;
   scale: 1.09;
 }
 
 .topbar-profile-menu .topbar-profile-avatar-wrap:hover::after,
 .topbar-profile-menu[open] .topbar-profile-large-avatar::after,
 .my-account-page .account-avatar-wrap:hover::after {
-  opacity: 1;
+  opacity: 1 !important;
   scale: 1.045;
 }
 
