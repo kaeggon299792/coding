@@ -63,6 +63,12 @@
         {% endif %}
         <div class="overseas-news-actions">
           <a class="btn btn-small" href="{{ item.display_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ t('원문 보기 ↗') }}</a>
+          {% if current_user_role == 'admin' %}
+          <form method="post" action="{{ url_for('analyze_overseas_news_article', article_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+            <button class="btn btn-small" type="submit">{{ t('AI 재분석' if item.ai_analysis else 'AI 분석') }}</button>
+          </form>
+          {% endif %}
           {% if item.original_summary %}
           <details><summary>{{ t('원문 요약') }}</summary><p lang="{{ 'ja' if item.region == 'japan' else 'en' }}">{{ item.original_summary }}</p></details>
           {% endif %}

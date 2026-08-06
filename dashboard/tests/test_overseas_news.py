@@ -170,3 +170,76 @@ def test_important_filter_uses_admin_threshold():
     )
     assert overseas_news.count_articles(connection, important_only=True) == 1
     assert overseas_news.stats(connection)["important_count"] == 1
+
+
+def test_manual_analysis_updates_only_selected_article_and_bypasses_limit(monkeypatch):
+    connection = _connection()
+    connection.executemany(
+        """INSERT INTO overseas_news_articles (
+               article_key,region,original_title,publisher,original_url,source_feed,
+               collected_at,translation_status
+           ) VALUES (?,'japan',?,'Source',?,'feed',datetime('now'),'pending')""",
+        [
+            ("manual-1", "Osaka casino update", "https://example.com/1"),
+            ("manual-2", "Another article", "https://example.com/2"),
+        ],
+    )
+    calls = []
+
+    def translate(_connection, items, *, bypass_daily_limits=False):
+        calls.append((items[0]["id"], bypass_daily_limits))
+        return {
+            str(items[0]["id"]): {
+                "title_ko": "오사카 카지노 업데이트",
+                "summary_ko": "기사 요약",
+                "category": "규제·정책",
+                "impact_direction": "neutral",
+                "importance_score": 40,
+                "ai_analysis": "추가 확인이 필요합니다.",
+            }
+        }, None
+
+    monkeypatch.setattr(overseas_news.ai_insights, "translate_overseas_news_batch", translate)
+    result, error = overseas_news.analyze_article(
+        connection, 1, bypass_daily_limits=True
+    )
+
+    assert error is None
+    assert result["importance_score"] == 40
+    assert calls == [(1, True)]
+    analyzed = connection.execute(
+        "SELECT title_ko,ai_analysis,analysis_basis FROM overseas_news_articles WHERE id=1"
+    ).fetchone()
+    assert analyzed["title_ko"] == "오사카 카지노 업데이트"
+    assert analyzed["ai_analysis"] == "추가 확인이 필요합니다."
+    assert analyzed["analysis_basis"] == "rss_manual"
+    untouched = connection.execute(
+        "SELECT ai_analysis FROM overseas_news_articles WHERE id=2"
+    ).fetchone()
+    assert untouched["ai_analysis"] is None
+
+
+def test_manual_analysis_failure_is_saved_for_retry(monkeypatch):
+    connection = _connection()
+    connection.execute(
+        """INSERT INTO overseas_news_articles (
+               article_key,region,original_title,publisher,original_url,source_feed,
+               collected_at,translation_status
+           ) VALUES ('manual-error','macau','Headline','Source','https://example.com',
+                     'feed',datetime('now'),'pending')"""
+    )
+    monkeypatch.setattr(
+        overseas_news.ai_insights,
+        "translate_overseas_news_batch",
+        lambda *args, **kwargs: (None, "provider unavailable"),
+    )
+
+    result, error = overseas_news.analyze_article(connection, 1)
+
+    assert result is None
+    assert error == "provider unavailable"
+    row = connection.execute(
+        "SELECT translation_status,analysis_error FROM overseas_news_articles WHERE id=1"
+    ).fetchone()
+    assert row["translation_status"] == "retry"
+    assert row["analysis_error"] == "provider unavailable"

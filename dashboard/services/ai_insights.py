@@ -368,7 +368,7 @@ _OVERSEAS_NEWS_SCHEMA = {
 }
 
 
-def translate_overseas_news_batch(connection, items):
+def translate_overseas_news_batch(connection, items, *, bypass_daily_limits=False):
     """Translate and classify foreign news in one cached batch API call."""
     if not items:
         return {}, None
@@ -401,6 +401,7 @@ def translate_overseas_news_batch(connection, items):
         json.dumps(payload, ensure_ascii=False),
         "overseas_news_translation_analysis_ko",
         _OVERSEAS_NEWS_SCHEMA,
+        bypass_daily_limits=bypass_daily_limits,
         model=config.OPENAI_NEWS_MODEL,
     )
     if not data:
@@ -449,7 +450,9 @@ _OVERSEAS_NEWS_WEB_SCHEMA = {
 }
 
 
-def analyze_important_overseas_news_with_web(connection, item):
+def analyze_important_overseas_news_with_web(
+    connection, item, *, bypass_daily_limits=False
+):
     """Web-verify one high-impact RSS item; ordinary items never incur search cost."""
     system_prompt = (
         "You are a Korean casino-industry intelligence analyst. Use web search to verify "
@@ -473,6 +476,7 @@ def analyze_important_overseas_news_with_web(connection, item):
         json.dumps(payload, ensure_ascii=False),
         "overseas_news_web_verification_ko",
         _OVERSEAS_NEWS_WEB_SCHEMA,
+        bypass_daily_limits=bypass_daily_limits,
         model=config.OPENAI_NEWS_MODEL,
         tools=[{"type": "web_search", "search_context_size": "low"}],
     )

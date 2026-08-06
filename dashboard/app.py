@@ -3297,6 +3297,46 @@ def overseas_news_page():
     )
 
 
+@app.route("/news/overseas/<int:article_id>/analyze", methods=["POST"])
+@admin_required
+def analyze_overseas_news_article(article_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        article = connection.execute(
+            "SELECT id, original_title FROM overseas_news_articles WHERE id=?",
+            (article_id,),
+        ).fetchone()
+        if not article:
+            abort(404)
+        result, error = overseas_news.analyze_article(
+            connection, article_id, bypass_daily_limits=True
+        )
+        security_audit.log_event(
+            connection,
+            "OVERSEAS_NEWS_AI_ANALYSIS",
+            "overseas_news_article",
+            article_id,
+            {
+                "title": article["original_title"],
+                "result": "completed" if result else "failed",
+                "warning": error,
+            },
+            success=bool(result),
+        )
+        connection.commit()
+        if result and error:
+            flash("AI 분석은 완료했지만 중요 뉴스 웹 검증은 완료하지 못했습니다.", "warning")
+        elif result:
+            flash("해외뉴스 AI 분석이 완료되었습니다.", "success")
+        else:
+            flash(f"해외뉴스 AI 분석에 실패했습니다: {error}", "error")
+        return redirect(url_for("overseas_news_page", _anchor=f"overseas-news-{article_id}"))
+    finally:
+        connection.close()
+
+
 @app.route("/market/exchange-rates-and-oil")
 def economic_trend_page():
     connection = dashboard_db()

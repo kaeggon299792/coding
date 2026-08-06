@@ -275,6 +275,71 @@ def _analyze_pending(connection, limit=None):
     return analyzed_count, list(dict.fromkeys(errors))
 
 
+def analyze_article(connection, article_id, *, bypass_daily_limits=False):
+    """Analyze one selected article without touching other pending articles."""
+    row = connection.execute(
+        """
+        SELECT id, region, publisher, original_title, original_summary, original_url,
+               title_ko, summary_ko
+        FROM overseas_news_articles
+        WHERE id=?
+        """,
+        (article_id,),
+    ).fetchone()
+    if not row:
+        return None, "해외뉴스를 찾을 수 없습니다."
+
+    article = dict(row)
+    translated, error = ai_insights.translate_overseas_news_batch(
+        connection, [article], bypass_daily_limits=bypass_daily_limits
+    )
+    fields = (translated or {}).get(str(article_id))
+    if not fields:
+        message = str(error or "AI 분석 결과가 비어 있습니다.")[:500]
+        connection.execute(
+            """
+            UPDATE overseas_news_articles
+            SET translation_status='retry', translation_error=?, analysis_error=?
+            WHERE id=?
+            """,
+            (message, message, article_id),
+        )
+        connection.commit()
+        return None, message
+
+    fields["canonical_url"] = article.get("original_url")
+    _save_analysis(
+        connection, article_id, fields, _utc_now(), basis="rss_manual"
+    )
+    connection.commit()
+
+    if int(fields.get("importance_score") or 0) >= ai_runtime_settings.web_importance_threshold(
+        connection
+    ):
+        web_item = dict(article)
+        web_item.update(fields)
+        verified, web_error = ai_insights.analyze_important_overseas_news_with_web(
+            connection, web_item, bypass_daily_limits=bypass_daily_limits
+        )
+        if verified:
+            _save_analysis(
+                connection, article_id, verified, _utc_now(),
+                basis="web_search", web_verified=True,
+            )
+            connection.commit()
+            fields = verified
+        elif web_error:
+            warning = f"중요 뉴스 웹 검증 실패: {str(web_error)[:400]}"
+            connection.execute(
+                "UPDATE overseas_news_articles SET analysis_error=? WHERE id=?",
+                (warning, article_id),
+            )
+            connection.commit()
+            return fields, warning
+
+    return fields, None
+
+
 def sync(connection, per_feed=25, translate_limit=None):
     """Collect RSS, batch-analyze cheaply, then web-verify only important items."""
     checked_at = _utc_now()
