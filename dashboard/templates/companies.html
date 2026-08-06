@@ -1,23 +1,31 @@
 {% extends "base.html" %}
 {% block title %}기업 360°{% endblock %}
+{% block extra_head %}
+<link rel="preload" href="{{ url_for('static', filename='fonts/DMSans-Variable-Latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vega-components.css') }}?v=20260808-company-select1">
+{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
-<div class="page-container">
+<div class="page-container company-360-page">
   <div class="page-header">
     <p class="page-eyebrow">Intelligence / Company 360</p>
     <h1 class="page-title">기업 360° 비교</h1>
     <p class="page-description">공식 기업정보와 DART 재무자료를 기준점으로 두고, 뉴스·공시·규제 신호를 같은 기준으로 비교합니다.</p>
   </div>
 
-  <form class="form-inline" method="get">
-    <label for="days" class="item-meta">동향 비교 기간</label>
-    <select id="days" name="days" onchange="this.form.submit()">
-      <option value="30" {% if days == 30 %}selected{% endif %}>최근 30일</option>
-      <option value="90" {% if days == 90 %}selected{% endif %}>최근 90일</option>
-      <option value="180" {% if days == 180 %}selected{% endif %}>최근 180일</option>
-      <option value="365" {% if days == 365 %}selected{% endif %}>최근 1년</option>
-    </select>
+  <form class="form-inline company-period-filter" method="get">
+    <div class="company-period-field">
+      <label for="days" class="item-meta">동향 비교 기간</label>
+      <div class="vega-select" data-vega-select>
+        <select id="days" name="days" onchange="this.form.submit()" data-vega-select-native>
+          <option value="30" {% if days == 30 %}selected{% endif %}>최근 30일</option>
+          <option value="90" {% if days == 90 %}selected{% endif %}>최근 90일</option>
+          <option value="180" {% if days == 180 %}selected{% endif %}>최근 180일</option>
+          <option value="365" {% if days == 365 %}selected{% endif %}>최근 1년</option>
+        </select>
+      </div>
+    </div>
   </form>
 
   <div class="company-grid">
@@ -129,7 +137,7 @@
           </li>
           {% endfor %}
         </ul>
-        <a class="btn btn-text" href="{{ url_for('research_library_page', company=company.name) }}">이 회사 리서치 보기 →</a>
+        <a class="btn btn-text" data-ui-icon="arrow-right" data-ui-icon-position="end" href="{{ url_for('research_library_page', company=company.name) }}">이 회사 리서치 보기</a>
         {% else %}
         <p class="empty-state">등록된 리포트가 없습니다. <a href="{{ url_for('research_library_page', company=company.name) }}">자료 업로드</a></p>
         {% endif %}
@@ -198,7 +206,7 @@
           <summary>채용 동향</summary>
           {% if company.hiring %}
             <ul class="compact-feed">{% for item in company.hiring[:4] %}<li><a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a><small>{{ item.source_name }}{% if item.deadline %} · 마감 {{ item.deadline }}{% endif %}</small></li>{% endfor %}</ul>
-            <a class="btn btn-text" href="{{ url_for('recruitment_page', term=company.name) }}">이 회사 채용정보 보기 →</a>
+            <a class="btn btn-text" data-ui-icon="arrow-right" data-ui-icon-position="end" href="{{ url_for('recruitment_page', term=company.name) }}">이 회사 채용정보 보기</a>
           {% else %}<p class="empty-state">현재 활성 채용공고가 없습니다.</p>{% endif %}
         </details>
 
@@ -221,7 +229,7 @@
             </div>
             {% endfor %}
           {% else %}<p class="empty-state">등록된 중앙 재무제표가 없습니다.</p>{% endif %}
-          <a class="btn btn-text" href="{{ url_for('company_detail_page', company_slug=company.slug) }}#financial-statements">상세 재무제표 보기 →</a>
+          <a class="btn btn-text" data-ui-icon="arrow-right" data-ui-icon-position="end" href="{{ url_for('company_detail_page', company_slug=company.slug) }}#financial-statements">상세 재무제표 보기</a>
         </details>
 
         <details>
@@ -236,4 +244,7 @@
   </div>
 </div>
 {% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/vega-select.js') }}?v=20260808-company-select1" defer></script>
 {% endblock %}

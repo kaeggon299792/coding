@@ -1,0 +1,270 @@
+@font-face {
+  font-family: "DM Sans";
+  src: url("../fonts/DMSans-Variable-Latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --ui-font-sans: "DM Sans", "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ui-background: var(--brand-bg);
+  --ui-foreground: var(--brand-text-primary);
+  --ui-card: var(--brand-surface);
+  --ui-popover: var(--brand-surface);
+  --ui-muted: var(--brand-surface-muted);
+  --ui-muted-foreground: var(--brand-text-muted);
+  --ui-border: var(--brand-border);
+  --ui-border-strong: var(--brand-border-strong);
+  --ui-primary: var(--brand-accent);
+  --ui-primary-foreground: var(--brand-bg);
+  --ui-accent: var(--brand-surface-muted);
+  --ui-accent-foreground: var(--brand-text-primary);
+  --ui-ring: var(--brand-highlight);
+  --ui-radius: 7px;
+  --ui-control-height: 36px;
+  --ui-shadow-xs: 0 1px 2px color-mix(in srgb, var(--brand-text-primary) 6%, transparent);
+  --ui-shadow-popover: 0 10px 30px color-mix(in srgb, #000 22%, transparent),
+    0 2px 8px color-mix(in srgb, #000 14%, transparent);
+  --ui-transition: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.company-360-page {
+  font-family: var(--ui-font-sans);
+}
+
+.company-period-filter {
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.company-period-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.company-period-field > .item-meta {
+  color: var(--ui-muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+
+.vega-select {
+  position: relative;
+  display: inline-flex;
+  min-width: 164px;
+  max-width: 100%;
+}
+
+.vega-select > select {
+  min-width: 164px;
+  height: var(--ui-control-height);
+  padding: 0 32px 0 11px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  color: var(--ui-foreground);
+  font: 500 13px/1 var(--ui-font-sans);
+}
+
+.vega-select.is-enhanced > select {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 0 !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.vega-select-trigger {
+  display: inline-flex;
+  width: 100%;
+  min-width: 164px;
+  height: var(--ui-control-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px 0 11px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  color: var(--ui-foreground);
+  box-shadow: var(--ui-shadow-xs);
+  font: 500 13px/1 var(--ui-font-sans);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--ui-transition), background-color var(--ui-transition),
+    border-color var(--ui-transition), box-shadow var(--ui-transition);
+}
+
+.vega-select-trigger:hover,
+.vega-select-trigger[aria-expanded="true"] {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-accent);
+}
+
+.vega-select-trigger:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 2px;
+  box-shadow: var(--ui-shadow-xs);
+}
+
+.vega-select-trigger:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.vega-select-trigger .ui-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: var(--ui-muted-foreground);
+  transition: transform var(--ui-transition);
+}
+
+.vega-select-trigger[aria-expanded="true"] .ui-icon-chevron-down {
+  transform: rotate(180deg);
+}
+
+.vega-select-content {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  gap: 2px;
+  min-width: 164px;
+  max-height: min(288px, calc(100dvh - 16px));
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-popover);
+  color: var(--ui-foreground);
+  box-shadow: var(--ui-shadow-popover);
+  opacity: 0;
+  transform: translateY(-3px) scale(0.985);
+  transform-origin: var(--vega-transform-origin, top center);
+  transition: opacity var(--ui-transition), transform var(--ui-transition);
+}
+
+.vega-select-content[data-side="top"] {
+  transform: translateY(3px) scale(0.985);
+}
+
+.vega-select-content[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.vega-select-content[hidden] {
+  display: none;
+}
+
+.vega-select-option {
+  position: relative;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 7px 9px 7px 30px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--ui-foreground);
+  background: transparent;
+  font: 500 13px/1.25 var(--ui-font-sans);
+  cursor: default;
+  user-select: none;
+  outline: none;
+}
+
+.vega-select-option:hover,
+.vega-select-option.is-active,
+.vega-select-option:focus-visible {
+  background: var(--ui-accent);
+  color: var(--ui-accent-foreground);
+}
+
+.vega-select-option[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.vega-select-option .ui-icon-check {
+  position: absolute;
+  left: 9px;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+}
+
+.vega-select-option[aria-selected="true"] .ui-icon-check {
+  opacity: 1;
+}
+
+.company-360-page .btn:not(.btn-text) {
+  min-height: var(--ui-control-height);
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  box-shadow: var(--ui-shadow-xs);
+  font-family: var(--ui-font-sans);
+  font-weight: 600;
+}
+
+.company-360-page .btn:not(.btn-text):hover {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-accent);
+}
+
+.company-360-page .btn-text {
+  gap: 6px;
+  font-family: var(--ui-font-sans);
+  font-weight: 600;
+}
+
+.company-360-page .btn-text .ui-icon {
+  width: 14px;
+  height: 14px;
+  flex-basis: 14px;
+}
+
+@media (max-width: 520px) {
+  .company-period-filter,
+  .company-period-field,
+  .vega-select,
+  .vega-select-trigger {
+    width: 100%;
+  }
+
+  .vega-select-trigger {
+    min-height: 40px;
+  }
+
+  .vega-select-option {
+    min-height: 40px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vega-select-trigger,
+  .vega-select-trigger .ui-icon,
+  .vega-select-content {
+    transition: none;
+  }
+}
