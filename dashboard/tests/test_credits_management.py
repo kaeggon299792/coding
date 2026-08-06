@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 
 @pytest.fixture
@@ -41,7 +42,15 @@ def test_credits_page_uses_seeded_database_rows(credits_client):
     assert "대표 데이터 제공기관" in html
     assert "회원등급 안내" in html
     assert "Silver" in html and "Black" in html
+    assert html.count('class="site-guide-grade-icon"') == 5
+    assert html.count('class="member-avatar-third-ring"') == 5
     assert "source_url" not in html
+    css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".member-avatar-wrap.grade-diamond,.account-avatar-wrap.grade-diamond{--grade-glow:#0056f1}" in css
+    assert ".member-avatar-wrap.grade-black,.account-avatar-wrap.grade-black{--grade-glow:#f28c28}" in css
+    assert 'html[data-theme="light"] .site-guide-grade-grid .grade-platinum{--grade-glow:#111}' in css
     assert client.get("/admin/credits").status_code == 302
 
 

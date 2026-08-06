@@ -38,7 +38,7 @@
     <div class="section-heading"><div><h2>회원등급 안내</h2><p>회원등급은 사이트 활동량과 운영 정책에 따라 달라질 수 있습니다.</p></div></div>
     <div class="site-guide-grade-grid">
       {% for code, label, description in [('silver','Silver','방문자'),('gold','Gold','가입 기본등급'),('platinum','Platinum','프리미엄 회원'),('diamond','Diamond','최상위 회원'),('black','Black','관리자 최고등급')] %}
-      <article class="grade-{{ code }}"><img src="{{ url_for('static', filename='img/membership/' ~ code ~ '.svg') }}" alt="" width="36" height="36"><div><strong>{{ label }}</strong><p>{{ description }}</p></div></article>
+      <article class="grade-{{ code }}"><span class="site-guide-grade-icon"><span class="member-avatar-third-ring" aria-hidden="true"></span><img src="{{ url_for('static', filename='img/membership/' ~ code ~ '.svg') }}" alt="" width="36" height="36"></span><div><strong>{{ label }}</strong><p>{{ description }}</p></div></article>
       {% endfor %}
     </div>
     <p class="site-guide-membership-note">게시글 작성, 댓글, 자료 이용 등 활동과 운영 기준에 따라 등급이 조정될 수 있으며, 등급별 접근 권한은 게시판 정책에 따라 다릅니다.</p>

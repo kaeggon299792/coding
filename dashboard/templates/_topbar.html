@@ -30,6 +30,7 @@
       <details class="topbar-profile-menu">
       <summary class="topbar-user" title="회원 메뉴" aria-label="회원 메뉴 열기">
         <span class="member-avatar-wrap grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
+        <span class="member-avatar-third-ring" aria-hidden="true"></span>
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
         {% else %}
