@@ -116,25 +116,32 @@
       float photonRadius = uInnerRadius + .026;
       float photonSdf = abs(radius - photonRadius);
       float photonRing = smoothstep(uRingThickness + aa, uRingThickness - aa, photonSdf);
-      float warpedRadius = radius + sin(angle * 3.0 - t * .13) * .006 + sin(angle * 7.0 + t * .09) * .003;
-      float diskInner = uInnerRadius + .008;
-      float diskOuter = .495;
+      vec2 diskPoint = vec2(p.x, p.y * 3.75);
+      float diskAngle = atan(diskPoint.y, diskPoint.x);
+      float warpedRadius = length(diskPoint) + sin(diskAngle * 3.0 - t * .13) * .008
+                         + sin(diskAngle * 7.0 + t * .09) * .004;
+      float diskInner = uInnerRadius + .018;
+      float diskOuter = .49;
       float diskWindow = smoothstep(diskInner - .004, diskInner + .015, warpedRadius)
                        * smoothstep(diskOuter, diskOuter - .036, warpedRadius);
       float radial = clamp((warpedRadius - diskInner) / max(.001, diskOuter - diskInner), 0.0, 1.0);
       float kepler = uSpinSpeed * pow(max(.15, diskInner / max(warpedRadius, .01)), 1.5);
-      vec2 gasUv = vec2(angle * 2.7 - t * kepler, radial * (13.0 + uGrain * 15.0) + t * .035);
+      vec2 gasUv = vec2(diskAngle * 2.7 - t * kepler, radial * (13.0 + uGrain * 15.0) + t * .035);
       float clouds = fbm2(gasUv);
-      float spiral = .5 + .5 * sin(angle * 5.0 - t * kepler * 1.7 + radial * 18.0 + clouds * 4.0);
+      float spiral = .5 + .5 * sin(diskAngle * 5.0 - t * kepler * 1.7 + radial * 18.0 + clouds * 4.0);
       float filaments = smoothstep(.30, .88, clouds * .72 + spiral * .46);
       float heat = pow(max(.05, diskInner / max(warpedRadius, .01)), .8) * (.72 + clouds * .48);
       vec3 gasTint = mix(uCool, uMid, smoothstep(.20, .70, heat));
       gasTint = mix(gasTint, uHot, smoothstep(.70, 1.12, heat));
-      float approach = .5 + .5 * cos(angle - .25);
+      float approach = .5 + .5 * cos(diskAngle - .25);
       float beaming = mix(1.0, mix(.66, 1.42, approach), uDoppler);
       float gasAlpha = diskWindow * filaments * uDiskDensity * beaming * uMobileQuality;
-      float lensedArc = exp(-abs(radius - (photonRadius + .018 + .006 * sin(angle * 2.0))) * 95.0)
-                      * (.30 + .70 * smoothstep(.0, .13, abs(p.y))) * uMobileQuality;
+      float haloRadius = length(vec2(p.x, p.y * .82));
+      float haloTarget = uInnerRadius + .090 + .010 * sin(angle * 2.0 - t * .08);
+      float haloLine = exp(-abs(haloRadius - haloTarget) * 118.0);
+      float upperArc = haloLine * smoothstep(-.015, .055, p.y);
+      float lowerArc = haloLine * smoothstep(.015, -.060, p.y) * .38;
+      float lensedArc = (upperArc + lowerArc) * (.54 + clouds * .46) * uMobileQuality;
 
       float flowA = valueNoise(vec2(angle * 2.1 + t * .11, t * .09));
       float flowB = valueNoise(vec2(angle * 4.7 - t * .19, t * .045 + 7.));
@@ -220,7 +227,7 @@
           uGoldIntensity: {value: SETTINGS.goldIntensity}, uGlowIntensity: {value: SETTINGS.glowIntensity},
           uIridescenceIntensity: {value: SETTINGS.iridescenceIntensity}, uRefractionStrength: {value: SETTINGS.refractionStrength},
           uSparkleIntensity: {value: SETTINGS.sparkleIntensity}, uPointerInfluence: {value: SETTINGS.pointerInfluence},
-          uMobileQuality: {value: this.mobile ? SETTINGS.mobileQuality : 1}, uInnerRadius: {value: this.mobile ? .365 : .385},
+          uMobileQuality: {value: this.mobile ? SETTINGS.mobileQuality : 1}, uInnerRadius: {value: .30},
           uDiskDensity: {value: SETTINGS.diskDensity}, uSpinSpeed: {value: SETTINGS.spinSpeed},
           uGrain: {value: SETTINGS.grain}, uDoppler: {value: SETTINGS.doppler},
           uExposure: {value: SETTINGS.exposure},
@@ -233,6 +240,9 @@
         this.scene.add(new THREE.Mesh(this.geometry, this.material));
         this.container.insertBefore(canvas, this.container.querySelector(".membership-badge-icon"));
         this.canvas = canvas;
+        const wrapperWidth = Math.max(1, this.container.getBoundingClientRect().width);
+        const canvasWidth = Math.max(wrapperWidth, canvas.getBoundingClientRect().width);
+        this.uniforms.uInnerRadius.value = Math.max(.20, Math.min(.37, (wrapperWidth / canvasWidth) * .5));
         this.bindEvents();
         this.renderer.render(this.scene, this.camera);
         this.container.classList.add("is-webgl-active");

@@ -49,8 +49,8 @@
   z-index: 3;
   top: 50%;
   left: 50%;
-  width: calc(100% + 22px) !important;
-  height: calc(100% + 22px) !important;
+  width: calc(100% + 64px) !important;
+  height: calc(100% + 64px) !important;
   max-width: none !important;
   border: 0 !important;
   border-radius: 50%;
@@ -72,8 +72,8 @@
 
 /* Header avatar uses a smaller canvas footprint. */
 .topbar-user .profile-avatar-webgl-canvas {
-  width: calc(100% + 12px) !important;
-  height: calc(100% + 12px) !important;
+  width: calc(100% + 24px) !important;
+  height: calc(100% + 24px) !important;
 }
 
 /* Board/list avatars stay flat and never create a WebGL context. */
@@ -102,12 +102,12 @@
 @media (max-width: 760px) {
   .community-table .community-author-cell::before { content: none !important; }
   .profile-avatar-webgl-canvas {
-    width: calc(100% + 16px) !important;
-    height: calc(100% + 16px) !important;
+    width: calc(100% + 48px) !important;
+    height: calc(100% + 48px) !important;
   }
   .topbar-user .profile-avatar-webgl-canvas {
-    width: calc(100% + 10px) !important;
-    height: calc(100% + 10px) !important;
+    width: calc(100% + 20px) !important;
+    height: calc(100% + 20px) !important;
   }
 }
 
