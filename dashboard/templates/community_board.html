@@ -66,13 +66,13 @@
     {% if posts %}
     <div class="community-table-wrap">
       <table class="community-table">
-        <thead><tr><th class="community-number">번호</th><th>제목</th><th>작성자</th><th>조회</th><th>추천·댓글</th><th>작성일</th></tr></thead>
+        <thead><tr><th class="community-number">번호</th><th>제목</th><th aria-label="작성자 프로필"></th><th>조회</th><th>추천·댓글</th><th>작성일</th></tr></thead>
         <tbody>
         {% for post in posts %}
           <tr{% if post.is_pinned %} class="is-pinned"{% endif %}>
             <td class="community-number">{% if is_notice_board %}<b>공지</b>{% elif post.is_pinned %}<b>고정</b>{% else %}{{ total - (((page|default(1, true)) - 1) * 20 + loop.index0) }}{% endif %}</td>
             <td class="community-title-cell"><a href="{{ url_for('community_post_page', post_id=post.id) }}"><strong>{% if is_notice_board %}<em>NOTICE</em>{% elif post.is_pinned %}<em>PINNED</em>{% endif %}{{ post.title }}</strong><span>{{ post.content|striptags|truncate(90, true, '…') }}</span></a></td>
-            <td data-label="작성자">{{ identity(post.author_username, post.author_display_name, post.author_picture_url, post.author_membership_icon, post.author_membership_label, true) }}</td>
+            <td>{{ identity(post.author_username, post.author_display_name, post.author_picture_url, post.author_membership_icon, post.author_membership_label, true) }}</td>
             <td data-label="조회">{{ post.view_count or 0 }}</td>
             <td data-label="추천·댓글">↑ {{ post.recommendation_count }} · {{ post.comment_count }}</td>
             <td data-label="작성일"><time datetime="{{ post.created_at or '' }}">{{ (post.created_at or '')[:10] }}</time></td>

@@ -13,7 +13,7 @@
       <div>
         <div class="bug-detail-badges"><span class="feedback-type-badge">{{ item.feedback_type or '일반 의견' }}</span><span class="bug-severity severity-{{ item.priority }}">{{ item.priority }}</span><span class="status-badge">{{ item.status }}</span><span>비공개</span></div>
         <h1>{{ item.title }}</h1>
-        <p class="bug-author-line">{{ t('작성자') }} {{ identity(item.reported_by, item.author_display_name, item.author_picture_url, item.author_membership_icon, item.author_membership_label, true) }} · {{ t('등록') }} {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · {{ t('수정') }} {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %} · 조회 {{ item.view_count or 0 }}</p>
+        <p class="bug-author-line">{{ identity(item.reported_by, item.author_display_name, item.author_picture_url, item.author_membership_icon, item.author_membership_label, true) }} · {{ t('등록') }} {{ item.created_at|replace('T',' ')|truncate(17, true, '') }}{% if item.updated_at != item.created_at %} · {{ t('수정') }} {{ item.updated_at|replace('T',' ')|truncate(17, true, '') }}{% endif %} · 조회 {{ item.view_count or 0 }}</p>
       </div>
     </header>
     <dl class="bug-detail-meta">

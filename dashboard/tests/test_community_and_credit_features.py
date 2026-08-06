@@ -445,6 +445,12 @@ def test_board_author_identity_is_avatar_only_and_flat():
     macro = (root / "templates" / "_membership_badge.html").read_text(
         encoding="utf-8"
     )
+    community = (root / "templates" / "community_board.html").read_text(
+        encoding="utf-8"
+    )
+    action_items = (root / "templates" / "action_items.html").read_text(
+        encoding="utf-8"
+    )
     css = (root / "static" / "css" / "dashboard.css").read_text(
         encoding="utf-8"
     )
@@ -454,3 +460,6 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert ".member-identity.is-board-author .member-avatar-wrap:before" in css
     assert "display:none!important;content:none!important" in css
     assert ".member-identity.is-board-author .member-avatar{width:22px;height:22px" in css
+    assert "<th>작성자</th>" not in community
+    assert 'data-label="작성자"' not in community
+    assert "<th>작성자</th>" not in action_items
