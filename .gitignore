@@ -35,6 +35,7 @@ dashboard/static/uploads/
 dashboard/data/diary_images/
 dashboard/data/research_library/
 dashboard/backups/
+dashboard/.nfs*
 backups/
 deployment-candidates/
 pdf-fix-test-*/
