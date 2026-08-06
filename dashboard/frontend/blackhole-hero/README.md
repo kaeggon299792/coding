@@ -1,9 +1,11 @@
 # CASINO IN black-hole profile island
 
-This directory is an isolated React/TypeScript/Vite island used only by the
-Flask `/account` page. The Flask app continues to render the page and provides
-a static HTML fallback. Vite's hashed production files and `manifest.json` are
-written to `dashboard/static/blackhole-hero` and are committed because the
+This directory is an isolated React/TypeScript/Vite island used only for the
+authenticated top-bar account menu's centred avatar effect. Flask/Jinja keeps
+rendering the existing account menu, greeting, rank and links, while the island
+replaces only the bounded avatar-effect container. A static Jinja avatar remains
+as the no-JavaScript fallback. Vite's hashed production files and `manifest.json`
+are written to `dashboard/static/blackhole-hero` and are committed because the
 PythonAnywhere host does not provide Node/npm.
 
 Build from this directory with a current Node.js installation:

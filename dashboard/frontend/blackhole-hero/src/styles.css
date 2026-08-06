@@ -1,19 +1,103 @@
-.my-account-page{max-width:none;padding-top:0;padding-right:0;padding-left:0}
-.my-account-page>#blackhole-profile-root{display:block;width:100%}
-.my-account-page>.account-notice,.my-account-page>.account-profile-panel,.my-account-page>.account-settings-panel,.my-account-page>.account-withdrawal-panel{width:calc(100% - 48px);max-width:1392px;margin-right:auto;margin-left:auto}
-.blackhole-profile-hero{position:relative;width:100%;min-height:680px;overflow:hidden;background:#000;color:#fff;border-top:1px solid #242424;border-bottom:1px solid #242424}
-.blackhole-renderer{position:absolute;inset:0;overflow:hidden;background:#000}
-.blackhole-renderer>canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
-.blackhole-renderer-content{position:relative;z-index:2;width:100%;height:100%;min-height:inherit}
-.blackhole-profile-copy{display:flex;min-height:680px;align-items:center;padding:64px clamp(32px,6vw,96px);box-sizing:border-box}
-.blackhole-profile-identity{display:flex;align-items:center;gap:28px;max-width:520px}
-.blackhole-profile-avatar{position:relative;display:grid;width:112px;height:112px;flex:0 0 112px;place-items:center;border:1px solid rgba(255,255,255,.3);border-radius:50%;background:#111;overflow:visible}
-.blackhole-profile-avatar>img:first-child,.blackhole-profile-avatar>span:first-child{display:grid;width:100%;height:100%;place-items:center;border-radius:50%;object-fit:cover;background:#171717;color:#fff;font-size:36px;font-weight:800}
-.blackhole-profile-badge{position:absolute;right:-5px;bottom:-5px;z-index:3;width:31px;height:31px;border:3px solid #060606;border-radius:50%;background:#060606}
-.blackhole-profile-kicker{margin:0 0 12px;color:rgba(255,255,255,.52);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
-.blackhole-profile-copy h1{margin:0;color:#fff;font-size:clamp(34px,4vw,60px);font-weight:300;line-height:1.08;letter-spacing:-.035em}
-.blackhole-profile-copy h1 strong{font-weight:750}
-.blackhole-profile-rank{margin:22px 0 0;color:rgba(255,255,255,.62);font-size:14px}.blackhole-profile-rank b{color:#fff}
-.blackhole-profile-fallback[hidden]{display:none!important}
-@media(max-width:767px){.my-account-page>.account-notice,.my-account-page>.account-profile-panel,.my-account-page>.account-settings-panel,.my-account-page>.account-withdrawal-panel{width:calc(100% - 32px)}.blackhole-profile-hero{min-height:82svh}.blackhole-profile-copy{min-height:82svh;align-items:flex-start;padding:46px 24px}.blackhole-profile-identity{align-items:center;gap:18px}.blackhole-profile-avatar{width:76px;height:76px;flex-basis:76px}.blackhole-profile-badge{width:24px;height:24px}.blackhole-profile-copy h1{font-size:30px}.blackhole-profile-kicker{font-size:9px}.blackhole-profile-rank{margin-top:12px;font-size:12px}}
-@media(prefers-reduced-motion:reduce){.blackhole-profile-hero canvas{animation:none!important}}
+.account-profile-effect {
+  position: relative;
+  display: grid;
+  width: 196px;
+  height: 154px;
+  margin: -24px -60px -14px;
+  place-items: center;
+  overflow: visible;
+  isolation: isolate;
+}
+
+#blackhole-avatar-root {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.blackhole-renderer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  background: transparent;
+  isolation: isolate;
+}
+
+.blackhole-renderer-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.blackhole-renderer-front-canvas {
+  z-index: 3;
+  clip-path: inset(53% 0 0 0);
+}
+
+.blackhole-renderer-content {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.blackhole-avatar-image-layer {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+}
+
+.blackhole-avatar-image {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  box-sizing: border-box;
+  place-items: center;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 50%;
+  background: var(--brand-surface-elevated);
+  color: var(--brand-text-primary);
+  object-fit: cover;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.blackhole-avatar-rank-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 2px solid var(--brand-surface);
+  border-radius: 50%;
+  background: var(--brand-surface);
+  object-fit: contain;
+}
+
+.topbar-profile-effect-fallback[hidden] {
+  display: none !important;
+}
+
+.blackhole-avatar-renderer[data-webgl="unsupported"] .blackhole-avatar-image-layer,
+.blackhole-avatar-renderer[data-webgl="failed"] .blackhole-avatar-image-layer,
+.blackhole-avatar-renderer[data-webgl="restore-failed"] .blackhole-avatar-image-layer {
+  z-index: 4;
+}
+
+@media (max-width: 480px) {
+  .account-profile-effect {
+    width: 178px;
+    height: 142px;
+    margin: -21px -51px -12px;
+  }
+}

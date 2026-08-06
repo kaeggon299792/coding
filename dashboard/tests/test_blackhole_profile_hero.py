@@ -50,10 +50,29 @@ def test_profile_island_uses_original_raw_webgl_pipeline():
         "visibilitychange",
         "webglcontextlost",
         "webglcontextrestored",
+        "premultipliedAlpha:false",
+        "uTransparent",
+        "frontComposite",
+        "frontContext.drawImage",
     ):
         assert marker in component
     assert "THREE" not in component
     assert "radial-gradient" not in component
+
+
+def test_profile_island_is_bounded_to_existing_account_avatar_layout():
+    topbar = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
+    account = (ROOT / "templates" / "account.html").read_text(encoding="utf-8")
+    styles = (
+        ROOT / "frontend" / "blackhole-hero" / "src" / "styles.css"
+    ).read_text(encoding="utf-8")
+    assert 'id="blackhole-avatar-root"' in topbar
+    assert 'data-blackhole-avatar-fallback' in topbar
+    assert 'id="blackhole-profile-root"' not in account
+    assert "width: 196px" in styles
+    assert "height: 154px" in styles
+    assert "background: transparent" in styles
+    assert "blackhole-renderer-front-canvas" in styles
 
 
 def test_profile_island_build_is_self_hosted_and_manifested():

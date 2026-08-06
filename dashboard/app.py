@@ -72,6 +72,7 @@ from services import (
     telegram_alert,
     unified_search,
 )
+from services.vite_assets import vite_entry_assets
 from official_docs import official_docs_bp
 from seo_content import LOCALIZED_SEO_PAGE_COPY
 from tips import tips_bp
@@ -1320,6 +1321,11 @@ def inject_globals():
     return {
         "current_username": session.get("username") if account_active else None,
         "current_user": current_user,
+        "blackhole_assets": (
+            vite_entry_assets("blackhole-hero")
+            if current_user
+            else {"available": False, "js": "", "css": []}
+        ),
         "now_str": today_kst_str(),
         "current_user_role": role if account_active and role else "anonymous",
         "site_font": site_font,
