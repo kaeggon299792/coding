@@ -5,20 +5,20 @@
     animationSpeed: 0.72,
     ringThickness: 0.018,
     goldIntensity: 1.05,
-    glowIntensity: 0.72,
+    glowIntensity: 1.0,
     iridescenceIntensity: 0.34,
     refractionStrength: 0.008,
     sparkleIntensity: 0.86,
     pointerInfluence: 0.016,
     mobileQuality: 0.68,
-    diskDensity: 0.92,
+    diskDensity: 1.22,
     spinSpeed: 0.34,
     grain: 0.56,
-    doppler: 0.32,
+    doppler: 0.52,
     hotColor: 0xfff3de,
     midColor: 0xff9838,
     coolColor: 0x8e3a0b,
-    exposure: 0.92,
+    exposure: 1.08,
     resolution: 256,
     maxPixelRatio: 1.5,
   });
@@ -110,13 +110,13 @@
       photo += prism * band * uIridescenceIntensity * uMobileQuality;
       float photoMask = smoothstep(uInnerRadius + aa, uInnerRadius - aa, radius);
 
-      // Face-on accretion flow adapted from the supplied black-hole shader.
-      // The gas is one turbulent annulus, while the photon ring is its most
-      // strongly lensed inner image. Neither layer rotates as a rigid object.
+      // Edge-on accretion flow adapted from the supplied black-hole shader.
+      // The flattened gas sheet and its upper/lower lens images deliberately
+      // extend beyond the avatar so the silhouette reads as a black hole.
       float photonRadius = uInnerRadius + .026;
       float photonSdf = abs(radius - photonRadius);
       float photonRing = smoothstep(uRingThickness + aa, uRingThickness - aa, photonSdf);
-      vec2 diskPoint = vec2(p.x, p.y * 3.75);
+      vec2 diskPoint = vec2(p.x, p.y * 4.8);
       float diskAngle = atan(diskPoint.y, diskPoint.x);
       float warpedRadius = length(diskPoint) + sin(diskAngle * 3.0 - t * .13) * .008
                          + sin(diskAngle * 7.0 + t * .09) * .004;
@@ -141,7 +141,7 @@
       float haloLine = exp(-abs(haloRadius - haloTarget) * 118.0);
       float upperArc = haloLine * smoothstep(-.015, .055, p.y);
       float lowerArc = haloLine * smoothstep(.015, -.060, p.y) * .38;
-      float lensedArc = (upperArc + lowerArc) * (.54 + clouds * .46) * uMobileQuality;
+      float lensedArc = (upperArc + lowerArc) * (.62 + clouds * .58) * uMobileQuality;
 
       float flowA = valueNoise(vec2(angle * 2.1 + t * .11, t * .09));
       float flowB = valueNoise(vec2(angle * 4.7 - t * .19, t * .045 + 7.));
@@ -156,7 +156,7 @@
       float glow = exp(-abs(radius - photonRadius) * 43.0) * uGlowIntensity;
       glow += exp(-abs(radius - photonRadius) * 16.0) * .18 * uGlowIntensity;
       vec3 color = gasTint * gasAlpha * uExposure;
-      color += gasTint * lensedArc * .42 * uExposure;
+      color += mix(gasTint, uHot, .58) * lensedArc * .92 * uExposure;
       color = mix(color, photo, photoMask);
       color += gold * photonRing;
       color += warmGold * glow * (1.0 - photoMask) * .30;
