@@ -34,6 +34,15 @@ def test_profile_popover_has_large_avatar_and_personal_greeting():
     assert "animation:member-avatar-photo-breathe 11s ease-in-out infinite" in css
     assert "border-width:2px" in css
     assert css.count("color-mix(in srgb,var(--grade-glow) 68%,#202936)") == 3
+    assert ".topbar-profile-menu{z-index:1400}" in css
+    assert ".global-language-switch.is-profile-open" in css
+
+
+def test_profile_and_language_menus_are_mutually_exclusive():
+    base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
+    assert 'const profileMenu = document.querySelector(".topbar-profile-menu")' in base
+    assert 'languageSwitch.classList.toggle("is-profile-open", profileMenu.open)' in base
+    assert 'if (languageSwitch.open) profileMenu.removeAttribute("open")' in base
 
 
 def test_mobile_navigation_and_company_filters_are_present():

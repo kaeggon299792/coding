@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-profile-breathe2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-mobile-profile-menu">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -115,6 +115,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 const languageSwitch = document.querySelector(".global-language-switch");
 const topbarSearch = document.querySelector(".topbar-search-link");
 const publicHeader = document.querySelector(".public-header");
+const profileMenu = document.querySelector(".topbar-profile-menu");
 if (languageSwitch && (topbarSearch || publicHeader)) {
   languageSwitch.classList.add("is-embedded");
   if (topbarSearch) {
@@ -125,6 +126,15 @@ if (languageSwitch && (topbarSearch || publicHeader)) {
       publicHeader.querySelector(".public-login-link")
     );
   }
+}
+if (languageSwitch && profileMenu) {
+  profileMenu.addEventListener("toggle", () => {
+    if (profileMenu.open) languageSwitch.removeAttribute("open");
+    languageSwitch.classList.toggle("is-profile-open", profileMenu.open);
+  });
+  languageSwitch.addEventListener("toggle", () => {
+    if (languageSwitch.open) profileMenu.removeAttribute("open");
+  });
 }
 document.querySelectorAll("[data-locale-link]").forEach((link) => {
   link.addEventListener("click", (event) => {
