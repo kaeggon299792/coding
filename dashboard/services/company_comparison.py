@@ -39,6 +39,11 @@ METRICS = {
         "description": "손익계산서의 총종업원급여가 매출에서 차지하는 비율입니다. 낮을수록 부담이 작습니다.",
         "lower_is_better": True,
     },
+    "personnel_cost": {
+        "label": "총종업원급여", "unit": "억원", "group": "인력 부담",
+        "description": "선택 기간 손익계산서에 기록된 총종업원급여입니다. 인건비율의 분자에 사용하는 실제 금액입니다.",
+        "lower_is_better": True,
+    },
     "growth_gap": {
         "label": "매출·인원 증가율 차이", "unit": "%p", "group": "구조 진단",
         "description": "전년 대비 매출 증가율에서 국민연금 인원 증가율을 뺀 값입니다. 양수면 매출이 인원보다 빠르게 늘었습니다.",

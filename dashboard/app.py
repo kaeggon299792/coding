@@ -1228,6 +1228,9 @@ def inject_globals():
         "community_post_page": "자유 게시판",
         "admin_action_items_page": "미처리 과제",
         "create_admin_action_item_route": "미처리 과제",
+        "admin_memos_page": "메모",
+        "create_admin_memo_route": "메모",
+        "delete_admin_memo_route": "메모",
         "performance_page": "경영실적",
         "paradian_portal_page": "관리자 전용",
         "related_news_page": "국내 뉴스",
@@ -1467,6 +1470,7 @@ def _site_map_links():
                 {"label": "자동화 작업", "endpoint": "auth.admin_tasks"},
                 {"label": "Localization", "endpoint": "auth.localization_dashboard"},
                 {"label": "미처리 과제", "endpoint": "admin_action_items_page"},
+                {"label": "메모", "endpoint": "admin_memos_page"},
                 {"label": "공문·자료관리", "endpoint": "official_docs.dashboard"},
                 {"label": "경영 실적", "endpoint": "performance_page"},
             ],
@@ -2939,7 +2943,7 @@ def admin_action_items_page():
         return render_template(
             "admin_action_items.html",
             items=queries.list_action_items(
-                connection, exclude_source_type="bug_report"
+                connection, exclude_source_type=("bug_report", "admin_memo")
             ),
             csrf_token=get_csrf_token(),
         )
@@ -2987,6 +2991,116 @@ def create_admin_action_item_route():
     finally:
         connection.close()
     return redirect(url_for("admin_action_items_page"))
+
+
+def _remove_admin_memo_image(image_url):
+    """Remove only images created inside the dedicated safe editor directory."""
+
+    prefix = "/static/uploads/editor/"
+    if not image_url or not str(image_url).startswith(prefix):
+        return
+    filename = str(image_url)[len(prefix):]
+    if not filename or filename != Path(filename).name:
+        return
+    root = Path(config.EDITOR_IMAGE_DIR).resolve()
+    target = (root / filename).resolve()
+    if target.parent == root:
+        target.unlink(missing_ok=True)
+
+
+@app.get("/admin/memos")
+@admin_required
+def admin_memos_page():
+    connection = dashboard_db()
+    try:
+        return render_template(
+            "admin_memos.html",
+            memos=queries.list_action_items(connection, source_type="admin_memo"),
+            csrf_token=get_csrf_token(),
+        )
+    finally:
+        connection.close()
+
+
+@app.post("/admin/memos")
+@admin_required
+def create_admin_memo_route():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    purpose = (request.form.get("purpose") or "").strip()
+    content = (request.form.get("content") or "").strip()
+    if not purpose or len(purpose) > 100 or not content or len(content) > 5000:
+        abort(400)
+
+    image_url = None
+    uploaded = request.files.get("image")
+    if uploaded and uploaded.filename:
+        try:
+            filename = editor_images.save_pasted_image(
+                uploaded, config.EDITOR_IMAGE_DIR, config.EDITOR_IMAGE_MAX_BYTES
+            )
+            image_url = url_for("static", filename=f"uploads/editor/{filename}")
+        except ValueError as error:
+            flash(str(error), "error")
+            return redirect(url_for("admin_memos_page"))
+
+    connection = dashboard_db()
+    try:
+        try:
+            memo_id = queries.create_action_item(
+                connection,
+                title=purpose,
+                description=content,
+                source_type="admin_memo",
+                source_ref_id=image_url,
+                owner=purpose,
+                status="active",
+                reported_by=session.get("username"),
+            )
+        except Exception:
+            _remove_admin_memo_image(image_url)
+            raise
+        try:
+            security_audit.log_event(
+                connection, "ADMIN_MEMO_CREATED", "admin_memo", str(memo_id),
+                {"has_image": bool(image_url)},
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            logger.exception("Failed to write the admin memo creation audit log")
+    finally:
+        connection.close()
+    flash("메모를 등록했습니다.", "success")
+    return redirect(url_for("admin_memos_page"))
+
+
+@app.post("/admin/memos/<int:memo_id>/delete")
+@admin_required
+def delete_admin_memo_route(memo_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    image_url = None
+    try:
+        memo = queries.get_action_item(connection, memo_id)
+        if not memo or memo.get("source_type") != "admin_memo":
+            abort(404)
+        image_url = memo.get("source_ref_id")
+        queries.delete_action_item(connection, memo_id)
+        try:
+            security_audit.log_event(
+                connection, "ADMIN_MEMO_DELETED", "admin_memo", str(memo_id)
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            logger.exception("Failed to write the admin memo deletion audit log")
+    finally:
+        connection.close()
+    _remove_admin_memo_image(image_url)
+    flash("메모를 삭제했습니다.", "success")
+    return redirect(url_for("admin_memos_page"))
 
 
 @app.get("/board/bug-reports/<int:item_id>")

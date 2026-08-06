@@ -232,8 +232,16 @@ def list_action_items(
         clauses.append("item.source_type = ?")
         params.append(source_type)
     if exclude_source_type is not None:
-        clauses.append("item.source_type <> ?")
-        params.append(exclude_source_type)
+        excluded = (
+            list(exclude_source_type)
+            if isinstance(exclude_source_type, (list, tuple, set))
+            else [exclude_source_type]
+        )
+        excluded = [value for value in excluded if value is not None]
+        if excluded:
+            placeholders = ", ".join("?" for _ in excluded)
+            clauses.append(f"item.source_type NOT IN ({placeholders})")
+            params.extend(excluded)
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
     query += " ORDER BY CASE item.priority WHEN '긴급' THEN 0 WHEN 'urgent' THEN 0 ELSE 1 END, item.due_date IS NULL, item.due_date ASC"

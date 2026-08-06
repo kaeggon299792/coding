@@ -44,6 +44,7 @@ def test_company_comparison_builds_profitability_and_workforce_metrics(monkeypat
     assert paradise["margin"] == 12.0
     assert paradise["expense_ratio"] == 88.0
     assert paradise["personnel_cost_ratio"] == 30.0
+    assert paradise["personnel_cost"] == 300.0
     assert paradise["revenue_per_employee"] == 200.0
     assert paradise["operating_profit_per_employee"] == 24.0
     assert paradise["revenue_growth"] == 11.1
@@ -130,6 +131,7 @@ def test_company_comparison_page_is_public(client, monkeypatch):
     response = client.get("/companies/comparison")
     assert response.status_code == 200
     assert b"company-comparison-page" in response.data
+    assert "총종업원급여".encode() in response.data
     assert "효율·구조 진단".encode() in response.data
     assert "인당 영업이익".encode() in response.data
     assert b'name="metric" value="margin"' in response.data
@@ -227,3 +229,4 @@ def test_company_comparison_mobile_overflow_is_contained():
     assert ".company-comparison-page,.company-comparison-page>*{min-width:0}" in css
     assert ".company-comparison-table-panel .table-scroll-wrap{overflow-x:auto" in css
     assert ".company-comparison-track{grid-column:1/-1;grid-row:2}" in css
+    assert ".fund-scenario-page,.company-comparison-page{" not in css
