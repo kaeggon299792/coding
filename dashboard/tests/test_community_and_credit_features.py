@@ -472,6 +472,10 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert ".profile-avatar-webgl-canvas" in aura_css
     assert "profile-avatar-gold-orbit" not in aura_css
     assert ".community-table .community-author-cell::before" in aura_css
+    assert "profile-glowing-shadow-spin" in aura_css
+    assert ".topbar-profile-menu .topbar-profile-avatar-wrap::before" in aura_css
+    assert ".my-account-page .account-avatar-wrap::before" in aura_css
+    assert "conic-gradient" in aura_css
     base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert "css/profile-aura.css" in base_template
     assert "js/profile-avatar-webgl.js" not in base_template

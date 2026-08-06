@@ -321,3 +321,13 @@ def test_google_login_page_has_google_button(google_client):
     assert "Google 계정으로 로그인" in html
     assert 'href="/login/google"' in html
     assert "google-g.svg" in html
+
+
+def test_register_page_has_google_signup_button(google_client):
+    client, _, _ = google_client
+    response = client.get("/register")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Google로 가입하기" in html
+    assert 'href="/login/google"' in html
+    assert "google-g.svg" in html

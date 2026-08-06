@@ -119,16 +119,75 @@
   .profile-avatar-webgl.is-webgl-active.account-avatar-wrap > img:first-child { opacity: 1; }
 }
 
-/* Header avatars are intentionally flat. The full ray-marched black hole is
-   rendered only by the isolated React island on /account. */
+/* Header and account avatars use a lightweight rotating glow. Board/list
+   avatars remain flat through the dedicated rules above. */
 .topbar-profile-menu .topbar-profile-avatar-wrap {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
   filter: none !important;
+  --profile-glow-a: #ff4f9a;
+  --profile-glow-b: #755cff;
+  --profile-glow-c: #00c8ff;
+  --profile-glow-d: #ffc857;
 }
 .topbar-profile-menu .topbar-profile-avatar-wrap::before,
 .topbar-profile-menu .topbar-profile-avatar-wrap::after,
+.my-account-page .account-avatar-wrap::before,
+.my-account-page .account-avatar-wrap::after {
+  position: absolute;
+  display: block !important;
+  border-radius: 50%;
+  content: "" !important;
+  pointer-events: none;
+}
+.topbar-profile-menu .topbar-profile-avatar-wrap::before,
+.my-account-page .account-avatar-wrap::before {
+  z-index: 0;
+  inset: -7px;
+  background: conic-gradient(
+    from 0deg,
+    var(--profile-glow-a),
+    var(--profile-glow-b),
+    var(--profile-glow-c),
+    var(--profile-glow-d),
+    var(--profile-glow-a)
+  );
+  opacity: .42;
+  filter: blur(6px);
+  transform: scale(.98);
+  rotate: 0deg;
+  animation: profile-glowing-shadow-spin 14s linear infinite !important;
+  transition: opacity .35s ease, filter .35s ease, transform .35s ease;
+}
+.topbar-profile-menu .topbar-profile-avatar-wrap::after,
+.my-account-page .account-avatar-wrap::after {
+  z-index: 0;
+  inset: -3px;
+  padding: 1px;
+  background: conic-gradient(
+    from 90deg,
+    color-mix(in srgb, var(--profile-glow-a) 82%, white),
+    var(--profile-glow-b),
+    color-mix(in srgb, var(--profile-glow-c) 75%, white),
+    var(--profile-glow-d),
+    color-mix(in srgb, var(--profile-glow-a) 82%, white)
+  );
+  opacity: .72;
+  animation: profile-glowing-shadow-spin 14s linear infinite reverse !important;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.topbar-profile-menu .topbar-profile-avatar-wrap:hover::before,
+.topbar-profile-menu[open] .topbar-profile-large-avatar::before,
+.my-account-page .account-avatar-wrap:hover::before {
+  opacity: .78;
+  filter: blur(9px);
+  transform: scale(1.08);
+}
 .topbar-profile-menu .topbar-profile-avatar-wrap > .profile-avatar-webgl-canvas {
   display: none !important;
-  content: none !important;
 }
 .topbar-profile-menu .topbar-avatar,
 .topbar-profile-menu .topbar-avatar-fallback,
@@ -138,4 +197,40 @@
   box-shadow: none !important;
   filter: none !important;
   animation: none !important;
+}
+
+.my-account-page .account-avatar-wrap {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  --profile-glow-a: #ff4f9a;
+  --profile-glow-b: #755cff;
+  --profile-glow-c: #00c8ff;
+  --profile-glow-d: #ffc857;
+}
+.my-account-page .account-avatar-wrap > img:first-child,
+.my-account-page .account-avatar-wrap > span:first-child,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-avatar,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-avatar-fallback,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-profile-photo,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .topbar-profile-photo-fallback {
+  position: relative;
+  z-index: 1;
+}
+.my-account-page .account-avatar-wrap > .membership-badge-icon,
+.topbar-profile-menu .topbar-profile-avatar-wrap > .membership-badge-icon {
+  z-index: 3;
+}
+
+@keyframes profile-glowing-shadow-spin {
+  to { rotate: 1turn; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-profile-menu .topbar-profile-avatar-wrap::before,
+  .topbar-profile-menu .topbar-profile-avatar-wrap::after,
+  .my-account-page .account-avatar-wrap::before,
+  .my-account-page .account-avatar-wrap::after {
+    animation: none !important;
+  }
 }
