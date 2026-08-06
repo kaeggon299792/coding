@@ -463,3 +463,11 @@ def test_board_author_identity_is_avatar_only_and_flat():
     assert "<th>작성자</th>" not in community
     assert 'data-label="작성자"' not in community
     assert "<th>작성자</th>" not in action_items
+    aura_css = (root / "static" / "css" / "profile-aura.css").read_text(
+        encoding="utf-8"
+    )
+    assert "Continuous avatar aura" in aura_css
+    assert ".member-identity.is-board-author .membership-badge-icon" in aura_css
+    assert "display: none !important" in aura_css
+    base_template = (root / "templates" / "base.html").read_text(encoding="utf-8")
+    assert "css/profile-aura.css" in base_template

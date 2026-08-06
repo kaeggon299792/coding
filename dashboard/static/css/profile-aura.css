@@ -1,0 +1,83 @@
+/* Continuous avatar aura. Board bylines intentionally remain flat and compact. */
+.topbar-profile-menu .member-avatar-wrap::after,
+.account-avatar-wrap::after {
+  inset: -10px;
+  background: conic-gradient(
+    from 12deg,
+    var(--aura-primary) 0deg,
+    var(--aura-highlight) 38deg,
+    var(--aura-secondary) 92deg,
+    var(--aura-primary) 156deg,
+    var(--aura-highlight) 214deg,
+    var(--aura-secondary) 278deg,
+    var(--aura-primary) 360deg
+  );
+  filter: blur(.15px) drop-shadow(0 0 5px var(--aura-primary));
+  opacity: .9;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+}
+
+.topbar-profile-menu .member-avatar-wrap.grade-gold::after,
+.account-avatar-wrap.grade-gold::after,
+.topbar-profile-menu .member-avatar-wrap.grade-black::after,
+.account-avatar-wrap.grade-black::after {
+  background: conic-gradient(
+    from 8deg,
+    var(--aura-secondary) 0deg,
+    var(--aura-highlight) 44deg,
+    var(--aura-primary) 108deg,
+    var(--aura-secondary) 176deg,
+    var(--aura-highlight) 226deg,
+    var(--aura-primary) 292deg,
+    var(--aura-secondary) 360deg
+  );
+  filter: drop-shadow(0 0 4px var(--aura-primary)) drop-shadow(0 0 8px var(--aura-secondary));
+}
+
+.member-identity.is-board-author .member-avatar-wrap {
+  width: 22px !important;
+  height: 22px !important;
+  filter: none !important;
+  isolation: auto !important;
+}
+
+.member-identity.is-board-author .member-avatar-wrap::before,
+.member-identity.is-board-author .member-avatar-wrap::after {
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  content: none !important;
+  animation: none !important;
+}
+
+.member-identity.is-board-author .member-avatar,
+.member-identity.is-board-author .member-avatar-fallback {
+  box-sizing: border-box !important;
+  width: 22px !important;
+  height: 22px !important;
+  border: 1px solid #b8bdc4 !important;
+  background: #eef0f2 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  animation: none !important;
+}
+
+.member-identity.is-board-author .membership-badge-icon {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .topbar-profile-menu .member-avatar-wrap::after,
+  .account-avatar-wrap::after {
+    inset: -9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-profile-menu .member-avatar-wrap::after,
+  .account-avatar-wrap::after {
+    animation: none;
+  }
+}
