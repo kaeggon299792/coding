@@ -34,17 +34,12 @@ chmod 600 "${TARGET}/dashboard.db"
 
 git rev-parse HEAD > "${TARGET}/git-commit.txt"
 sha256sum "${TARGET}/dashboard.db" > "${TARGET}/SHA256SUMS"
-tar \
-  --exclude='dashboard/.env' \
-  --exclude='dashboard/data' \
-  --exclude='dashboard/dashboard.db*' \
-  --exclude='dashboard/logs' \
-  --exclude='dashboard/__pycache__' \
-  --exclude='dashboard/**/__pycache__' \
-  --exclude='dashboard/**/*.pyc' \
-  --exclude='dashboard/.pytest_cache' \
-  --exclude='dashboard/static/uploads' \
-  -czf "${TARGET}/source-before.tar.gz" \
-  -C "$(dirname "${APP_DIR}")" dashboard
+REPO_DIR="$(git rev-parse --show-toplevel)"
+git -C "${REPO_DIR}" ls-files -z -- \
+  dashboard \
+  ':(exclude)dashboard/data/**' \
+  ':(exclude)dashboard/static/uploads/**' \
+  | tar -C "${REPO_DIR}" --null --no-recursion -T - \
+      -czf "${TARGET}/source-before.tar.gz"
 chmod 600 "${TARGET}/git-commit.txt" "${TARGET}/SHA256SUMS" "${TARGET}/source-before.tar.gz"
 printf '%s\n' "${TARGET}"
