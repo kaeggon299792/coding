@@ -32,14 +32,10 @@ with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
 PY
 chmod 600 "${TARGET}/dashboard.db"
 
-git rev-parse HEAD > "${TARGET}/git-commit.txt"
 sha256sum "${TARGET}/dashboard.db" > "${TARGET}/SHA256SUMS"
 REPO_DIR="$(git rev-parse --show-toplevel)"
-git -C "${REPO_DIR}" ls-files -z -- \
-  dashboard \
-  ':(exclude)dashboard/data/**' \
-  ':(exclude)dashboard/static/uploads/**' \
-  | tar -C "${REPO_DIR}" --null --no-recursion -T - \
-      -czf "${TARGET}/source-before.tar.gz"
+DEPLOYED_REF="${DEPLOYED_REF:-origin/main}"
+git -C "${REPO_DIR}" rev-parse "${DEPLOYED_REF}" > "${TARGET}/git-commit.txt"
+git -C "${REPO_DIR}" archive "${DEPLOYED_REF}" dashboard | gzip > "${TARGET}/source-before.tar.gz"
 chmod 600 "${TARGET}/git-commit.txt" "${TARGET}/SHA256SUMS" "${TARGET}/source-before.tar.gz"
 printf '%s\n' "${TARGET}"

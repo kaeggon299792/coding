@@ -17,7 +17,7 @@
     <form method="post" action="{{ url_for('create_admin_memo_route') }}" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label><span>용도</span><input type="text" name="purpose" maxlength="100" placeholder="예: 회의 준비, 코드 참고, 데이터 확인" required></label>
-      <label class="is-wide"><span>내용</span><textarea name="content" maxlength="5000" rows="8" placeholder="메모 내용을 입력하세요." required></textarea></label>
+      <label class="is-wide"><span>내용</span><textarea name="content" maxlength="50000" rows="8" placeholder="메모 내용을 입력하세요." required></textarea></label>
       <label class="is-wide"><span>이미지 첨부</span><input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp"><small>PNG, JPG, GIF, WebP · 최대 5MB</small></label>
       <button class="btn btn-primary" type="submit">메모 등록</button>
     </form>

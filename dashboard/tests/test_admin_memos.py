@@ -118,3 +118,44 @@ def test_admin_memo_long_content_scrolls_inside_card():
     script = (root / "static" / "js" / "admin-memos.js").read_text(encoding="utf-8")
     assert ".admin-memo-card pre{min-height:150px;max-height:280px" in css
     assert 'navigator.clipboard.writeText(text)' in script
+
+
+def test_admin_memo_accepts_long_audit_notes(monkeypatch, tmp_path):
+    import app as app_module
+    from dashboard_db import schema
+
+    db_path = tmp_path / "long-admin-memo.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    db = schema.connect(str(db_path))
+    admin_id = db.execute(
+        """INSERT INTO dashboard_users
+               (username,password_hash,role,is_active,approval_status,created_at)
+           VALUES ('memo-admin','unused','admin',1,'approved','2026-08-06T00:00:00')"""
+    ).lastrowid
+    db.commit()
+    db.close()
+    app_module.app.config["TESTING"] = True
+
+    content = "운영 안정성 점검 항목\n" * 600
+    assert 5000 < len(content) < 50000
+    with app_module.app.test_client() as client:
+        with client.session_transaction() as session:
+            session.update(
+                user_id=admin_id, username="memo-admin", role="admin",
+                csrf_token="valid",
+            )
+        response = client.post(
+            "/admin/memos",
+            data={
+                "csrf_token": "valid", "purpose": "전체 품질 점검",
+                "content": content,
+            },
+        )
+        assert response.status_code == 302
+
+    db = schema.connect(str(db_path))
+    saved = db.execute(
+        "SELECT description FROM action_items WHERE source_type='admin_memo'"
+    ).fetchone()[0]
+    db.close()
+    assert saved == content.strip()

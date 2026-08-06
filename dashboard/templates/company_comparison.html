@@ -9,7 +9,7 @@
     <form method="get" class="company-comparison-filter" aria-label="기업 비교 기준 선택">
       <input type="hidden" name="metric" value="{{ comparison.selected_metric }}">
       <label for="company-comparison-year">기준 연도</label>
-      <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for option in comparison.year_options %}<option value="{{ option.value }}"{% if option.value == comparison.selected_year %} selected{% endif %}{% if not option.available and option.value != comparison.selected_year %} disabled{% endif %}>{{ option.value }}년{% if not option.available %} · 자료 없음{% endif %}</option>{% endfor %}</select>
+      <select id="company-comparison-year" name="year" onchange="this.form.submit()">{% for option in comparison.year_options %}<option value="{{ option.value }}"{% if option.value == comparison.selected_year %} selected{% endif %}{% if not option.available and option.value != comparison.selected_year %} disabled{% endif %}>{{ option.value }}{% if current_locale == 'ko' %}년{% elif current_locale in ('ja', 'yue-HK') %}年{% endif %}{% if not option.available %} · 자료 없음{% endif %}</option>{% endfor %}</select>
       <label for="company-comparison-period">기간</label>
       <select id="company-comparison-period" name="period" onchange="this.form.submit()">{% for key, period in comparison.periods.items() %}<option value="{{ key }}"{% if key == comparison.selected_period %} selected{% endif %}{% if not comparison.period_availability[key] and key != comparison.selected_period %} disabled{% endif %}>{{ period.label }}{% if not comparison.period_availability[key] %} · 자료 없음{% endif %}</option>{% endfor %}</select>
       <label class="company-comparison-toggle"><input type="checkbox" name="include_kangwon" value="1"{% if comparison.include_kangwon %} checked{% endif %} onchange="this.form.submit()"> 강원랜드 포함</label>
@@ -46,7 +46,7 @@
     </tr></thead><tbody>
       {% for item in comparison['items'] %}<tr>
         <th scope="row">{{ item.name }}</th>
-        <td>{% if item.headcount is not none %}{{ "{:,.0f}".format(item.headcount) }}명{% if item.headcount_date %}<small>{{ item.headcount_date[:7] }} 기준</small>{% endif %}{% else %}-{% endif %}</td>
+        <td>{% if item.headcount is not none %}{{ "{:,.0f}".format(item.headcount) }}{% if current_locale == 'ko' %}명{% elif current_locale in ('ja', 'yue-HK') %}人{% else %} people{% endif %}{% if item.headcount_date %}<small>{{ item.headcount_date[:7] }} 기준</small>{% endif %}{% else %}-{% endif %}</td>
         <td>{{ "{:.1f}%".format(item.margin) if item.margin is not none else '-' }}</td>
         <td>{{ "{:.1f}%".format(item.expense_ratio) if item.expense_ratio is not none else '-' }}</td>
         <td>{{ "{:,.1f}".format(item.revenue_per_employee) if item.revenue_per_employee is not none else '-' }}{% if item.revenue_per_employee is not none %}<small>백만원/명</small>{% endif %}</td>

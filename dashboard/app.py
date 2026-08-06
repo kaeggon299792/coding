@@ -3053,7 +3053,7 @@ def create_admin_memo_route():
         abort(400)
     purpose = (request.form.get("purpose") or "").strip()
     content = (request.form.get("content") or "").strip()
-    if not purpose or len(purpose) > 100 or not content or len(content) > 5000:
+    if not purpose or len(purpose) > 100 or not content or len(content) > 50000:
         abort(400)
 
     image_url = None

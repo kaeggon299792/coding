@@ -199,6 +199,11 @@ def test_google_password_change_requires_recent_authentication(account_client):
     _login(client)
     from utils import now_kst
 
+    with client.session_transaction() as flask_session:
+        flask_session["primary_authenticated_at"] = (
+            now_kst() - timedelta(minutes=30)
+        ).isoformat()
+
     connection = sqlite3.connect(db_path)
     employee_id = connection.execute(
         "SELECT id FROM dashboard_users WHERE username='employee'"
@@ -230,6 +235,50 @@ def test_google_password_change_requires_recent_authentication(account_client):
 
     assert response.status_code == 302
 
+    assert "error=" in response.headers["Location"]
+    connection = sqlite3.connect(db_path)
+    current_hash = connection.execute(
+        "SELECT password_hash FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()[0]
+    connection.close()
+    assert current_hash == original_hash
+
+
+def test_remember_restore_does_not_count_as_google_reauthentication(account_client):
+    client, db_path = account_client
+    _login(client, remember=True)
+    connection = sqlite3.connect(db_path)
+    employee_id = connection.execute(
+        "SELECT id FROM dashboard_users WHERE username='employee'"
+    ).fetchone()[0]
+    connection.execute(
+        "UPDATE dashboard_users SET google_sub='google-test-user' WHERE id=?",
+        (employee_id,),
+    )
+    original_hash = connection.execute(
+        "SELECT password_hash FROM dashboard_users WHERE id=?", (employee_id,)
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    with client.session_transaction() as flask_session:
+        flask_session.clear()
+    assert client.get("/account").status_code == 200
+    with client.session_transaction() as flask_session:
+        assert flask_session.get("user_id") == employee_id
+        assert "primary_authenticated_at" not in flask_session
+
+    response = client.post(
+        "/account/password",
+        data={
+            "csrf_token": _csrf(client, "/account"),
+            "current_password": "",
+            "new_password": "New-password-123!",
+            "new_password_confirmation": "New-password-123!",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
     assert "error=" in response.headers["Location"]
     connection = sqlite3.connect(db_path)
     current_hash = connection.execute(

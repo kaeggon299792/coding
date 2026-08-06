@@ -438,3 +438,19 @@ def test_community_table_keeps_metadata_columns_on_one_line():
     assert ".community-table th:nth-child(4),.community-table td:nth-child(4){width:110px;white-space:nowrap}" in css
     assert ".community-table th:nth-child(5),.community-table td:nth-child(5){width:120px;white-space:nowrap}" in css
     assert "@media(max-width:760px){.community-table th:nth-child(n+3),.community-table td:nth-child(n+3){width:auto;white-space:normal}}" in css
+
+
+def test_board_author_identity_is_avatar_only_and_flat():
+    root = Path(__file__).parents[1]
+    macro = (root / "templates" / "_membership_badge.html").read_text(
+        encoding="utf-8"
+    )
+    css = (root / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+    assert "is-compact is-board-author" in macro
+    assert "{% if not compact %}<img class=\"membership-badge-icon\"" in macro
+    assert "{% if not compact %}<span>{{ display_name or username" in macro
+    assert ".member-identity.is-board-author .member-avatar-wrap:before" in css
+    assert "display:none!important;content:none!important" in css
+    assert ".member-identity.is-board-author .member-avatar{width:22px;height:22px" in css

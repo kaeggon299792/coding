@@ -6,10 +6,12 @@ ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 BACKUP_PATH="${1:?backup_dashboard.sh가 만든 백업 디렉터리를 입력하세요}"
 BACKUP_DB="${BACKUP_PATH}/dashboard.db"
 BACKUP_SOURCE="${BACKUP_PATH}/source-before.tar.gz"
+BACKUP_COMMIT_FILE="${BACKUP_PATH}/git-commit.txt"
 
 cd "${APP_DIR}"
 test -f "${BACKUP_DB}"
 test -f "${BACKUP_SOURCE}"
+test -f "${BACKUP_COMMIT_FILE}"
 
 set -a
 source "${ENV_FILE}"
@@ -31,5 +33,10 @@ with sqlite3.connect(source) as src, sqlite3.connect(temporary) as dst:
 os.replace(temporary, target)
 PY
 
+REPO_DIR="$(git rev-parse --show-toplevel)"
+BACKUP_COMMIT="$(cat "${BACKUP_COMMIT_FILE}")"
+python "${APP_DIR}/deployment/sync_tracked_source.py" \
+  --repo "${REPO_DIR}" --previous origin/main --target "${BACKUP_COMMIT}"
 tar -xzf "${BACKUP_SOURCE}" -C "$(dirname "${APP_DIR}")"
+chmod 600 "${DB_PATH}"
 printf '%s\n' "롤백 완료. PythonAnywhere Web 탭에서 Reload 하세요."

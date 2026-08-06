@@ -342,6 +342,9 @@ class Supervisor:
 
 
 def main() -> int:
+    # Scheduled children inherit this restrictive mask, preventing operational
+    # logs and state files from becoming readable by other hosting users.
+    os.umask(0o077)
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="validate configured paths and exit")
     args = parser.parse_args()

@@ -604,7 +604,7 @@ def _landing_page_for_user(connection, user):
     return landing_page
 
 
-def _start_user_session(connection, user):
+def _start_user_session(connection, user, *, primary_authenticated=False):
     session.clear()
     raw_session_id = secrets.token_urlsafe(32)
     now = now_kst()
@@ -612,6 +612,10 @@ def _start_user_session(connection, user):
     session["username"] = user["username"]
     session["role"] = user.get("role") or "user"
     session["session_id"] = raw_session_id
+    if primary_authenticated:
+        # A sensitive action may rely on a recent primary credential check.
+        # Remember-cookie restoration deliberately does not set this marker.
+        session["primary_authenticated_at"] = now.isoformat()
     session.permanent = True
     connection.execute(
         """
@@ -904,7 +908,7 @@ def google_callback():
             )
             return _google_login_error("사용이 중지된 계정입니다. 관리자에게 문의해주세요.", 403)
         landing_page = _landing_page_for_user(connection, user)
-        _start_user_session(connection, user)
+        _start_user_session(connection, user, primary_authenticated=True)
         queries.touch_last_login(connection, user["id"])
         security_audit.log_event(
             connection,
@@ -1115,7 +1119,7 @@ def login():
                 ),
             ), 403 if blocked else 401
 
-        _start_user_session(connection, user)
+        _start_user_session(connection, user, primary_authenticated=True)
         if remember_me:
             remember_cookie = _issue_remember_token(connection, user["id"])
         landing_page = _landing_page_for_user(connection, user)
@@ -1275,7 +1279,12 @@ def update_account_password():
             session.clear()
             return redirect(url_for("auth.login"))
         if user["google_sub"]:
-            authenticated_at = getattr(g, "current_session_created_at", None)
+            try:
+                authenticated_at = datetime.fromisoformat(
+                    session.get("primary_authenticated_at", "")
+                )
+            except (TypeError, ValueError):
+                authenticated_at = None
             if (
                 authenticated_at is None
                 or now_kst() - authenticated_at > SENSITIVE_ACTION_REAUTH_WINDOW
