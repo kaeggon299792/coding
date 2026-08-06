@@ -1384,6 +1384,17 @@ def _site_map_links():
             ],
         },
         {
+            "label": "채용",
+            "description": "복리후생·연봉·채용·면접 정보",
+            "endpoint": "salary_trend_page",
+            "children": [
+                {"label": "연봉·평점", "endpoint": "salary_trend_page"},
+                {"label": "복리후생", "endpoint": "company_benefits_page"},
+                {"label": "채용정보", "endpoint": "recruitment_page"},
+                {"label": "족보", "endpoint": "company_recruitment_guide_page"},
+            ],
+        },
+        {
             "label": "시장 정보",
             "description": "카지노 산업·관광객·시장 지표",
             "endpoint": "casino_industry_page",
@@ -1408,13 +1419,9 @@ def _site_map_links():
                 {"label": "주요 국내기업", "endpoint": "companies_page"},
                 {"label": "기업 비교", "endpoint": "company_comparison_page"},
                 {"label": "전문정보", "endpoint": "company_expert_page"},
-                {"label": "복리후생", "endpoint": "company_benefits_page"},
                 {"label": "기업별 뉴스", "endpoint": "company_news_page"},
                 {"label": "기업별 공시", "endpoint": "disclosures_page"},
                 {"label": "기업별 리포트", "endpoint": "research_library_page"},
-                {"label": "연봉·평점", "endpoint": "salary_trend_page"},
-                {"label": "채용정보", "endpoint": "recruitment_page"},
-                {"label": "족보", "endpoint": "company_recruitment_guide_page"},
             ],
         },
         {

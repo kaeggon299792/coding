@@ -16,6 +16,21 @@ def test_primary_navigation_matches_confirmed_ia():
     assert ">공시·재무<" not in markup
     assert ">기업 360°<" not in markup
 
+    topbar_nav = markup.split('<nav class="topbar-nav"', 1)[1].split("</nav>", 1)[0]
+    assert topbar_nav.index(">뉴스</a>") < topbar_nav.index(">채용</a>")
+    assert topbar_nav.index(">채용</a>") < topbar_nav.index(">시장 정보</a>")
+    assert "url_for('salary_trend_page')" in topbar_nav
+    assert ">관리자 전용</a>" not in topbar_nav
+
+
+def test_recruitment_submenu_starts_with_salary_ratings():
+    markup = (ROOT / "templates" / "_data_subnav.html").read_text(encoding="utf-8")
+    recruitment = markup.split("request.endpoint in recruitment_endpoints", 1)[1]
+    recruitment = recruitment.split("{% elif request.endpoint in company_endpoints %}", 1)[0]
+    labels = ["연봉·평점", "복리후생", "채용정보", "족보"]
+    positions = [recruitment.index(f">{label}</a>") for label in labels]
+    assert positions == sorted(positions)
+
 
 def test_profile_popover_has_large_avatar_and_personal_greeting():
     markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
