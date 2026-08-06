@@ -1,107 +1,47 @@
 {% extends "base.html" %}
-{% block title %}출처 및 저작권{% endblock %}
+{% block title %}{{ 'Site Guide' if current_locale == 'en' else '사이트 안내' }}{% endblock %}
 {% block body %}
 {% if current_username %}
 {% include "_topbar.html" %}
 {% else %}
 <header class="error-public-header">
-  <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ MANAGEMENT DASHBOARD</span></a>
+  <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ SITE GUIDE</span></a>
   <a class="public-login-link" href="{{ url_for('auth.login', next=request.script_root ~ request.full_path.rstrip('?')) }}">로그인</a>
 </header>
 {% endif %}
-<main class="error-shell credits-page">
-  <div class="page-header">
-    <p class="page-eyebrow">Governance / Sources</p>
-    <h1 class="page-title">출처 및 저작권</h1>
-    <p class="page-description">대시보드에서 사용하는 주요 데이터의 출처와 자동 확인·자동 갱신 기준을 한 화면에서 확인합니다.</p>
-    <div class="data-freshness-row">
-      <span class="data-freshness"><b>기준</b>자동 확인은 마지막 점검 시각, 자동 갱신은 실제 데이터 최신 반영 시각입니다.</span>
-      {% if current_user_role == 'admin' %}<a class="btn btn-secondary" href="{{ url_for('credits_management_page') }}">출처 관리</a>{% endif %}
-    </div>
-  </div>
-
-  <section class="panel credits-summary-panel">
-    <div class="credits-summary-grid">
-      <article>
-        <span>정리된 데이터셋</span>
-        <strong>{{ credits_rows|length }}</strong>
-        <small>현재 표에 포함된 전체 항목 수</small>
-      </article>
-      <article>
-        <span>운영 기준</span>
-        <strong>자동 확인 / 자동 갱신 분리</strong>
-        <small>점검 시각과 실제 반영 시각을 구분해 표시합니다.</small>
-      </article>
-      <article>
-        <span>저작권 원칙</span>
-        <strong>원문 출처 유지</strong>
-        <small>외부 원문은 링크와 기관명을 함께 표시합니다.</small>
-      </article>
-    </div>
-  </section>
-
-  <section class="panel credits-table-panel">
-    <div class="section-heading">
-      <div>
-        <h2>데이터셋 현황</h2>
-        <p>외부 API, 내부 업로드, 운영 데이터베이스를 함께 정리한 기준표입니다.</p>
-      </div>
-      <span>{{ credits_rows|length }}건</span>
-    </div>
-    <div class="table-scroll" tabindex="0">
-      <table class="data-table credits-table">
-        <thead>
-          <tr>
-            <th>메뉴</th>
-            <th>데이터</th>
-            <th>출처</th>
-            <th>업데이트 주기</th>
-            <th>자동 확인</th>
-            <th>자동 갱신</th>
-            <th>비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in credits_rows %}
-          <tr>
-            <td>{{ row.menu }}</td>
-            <td>{{ row.dataset }}</td>
-            <td>
-              <strong>{{ row.source_name }}</strong>
-              {% if row.source_url %}<a href="{{ row.source_url }}" target="_blank" rel="noopener noreferrer">{{ row.source_url }}</a>{% endif %}
-            </td>
-            <td>{{ row.cadence }}</td>
-            <td>{{ row.checked_at or '-' }}</td>
-            <td>{{ row.changed_at or '-' }}</td>
-            <td>{{ row.notes or '-' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+<main class="error-shell credits-page site-guide-page">
+  <header class="page-header">
+    <p class="page-eyebrow">Governance / Site Guide</p>
+    <h1 class="page-title">{{ 'Site Guide' if current_locale == 'en' else '사이트 안내' }}</h1>
+    <p class="page-description">CASINO IN의 정보 이용 기준, 대표 데이터 제공기관과 회원등급을 안내합니다.</p>
+    {% if current_user_role == 'admin' %}<div class="page-header-actions"><a class="btn btn-secondary" href="{{ url_for('credits_management_page') }}">출처 관리</a></div>{% endif %}
+  </header>
 
   <section class="panel credits-policy-panel">
-    <div class="section-heading">
-      <div>
-        <h2>저작권 및 이용 안내</h2>
-        <p>대시보드 작성물과 외부 원문을 구분해 사용합니다.</p>
-      </div>
-    </div>
+    <div class="section-heading"><div><h2>정보 이용 안내</h2><p>업무와 투자 판단 전에는 반드시 원문과 공식 자료를 함께 확인해주세요.</p></div></div>
     <div class="credits-policy-grid">
-      <article>
-        <strong>대시보드 작성 콘텐츠</strong>
-        <p>직접 작성한 메모, 요약, 분류, 내부 기준표, 운영 로그는 CASINO IN 운영 목적에 맞춰 편집됩니다.</p>
-      </article>
-      <article>
-        <strong>외부 원문 링크</strong>
-        <p>공시, 법령, 뉴스, 채용, 통계 원문은 각 기관과 서비스의 정책을 따르며 원문 링크를 우선 제공합니다.</p>
-      </article>
-      <article>
-        <strong>업로드 자료</strong>
-        <p>리서치 PDF와 공문 자료는 업로드한 사용자의 업무 목적 범위에서 보관하며, 권한에 따라 접근이 제한될 수 있습니다.</p>
-      </article>
+      <article><strong>정보 제공 목적</strong><p>뉴스, 공시, 법령, 통계와 AI 분석은 빠른 정보 탐색을 돕기 위한 참고 자료입니다.</p></article>
+      <article><strong>정확성 확인</strong><p>자동 수집과 분석 과정에서 지연이나 오차가 생길 수 있으며, CASINO IN은 정확성·완전성·최신성을 보장하지 않습니다.</p></article>
+      <article><strong>저작권</strong><p>외부 자료의 권리는 각 제공기관과 원저작자에게 있으며, CASINO IN 제작 콘텐츠의 무단 복제·배포를 금지합니다.</p></article>
     </div>
+  </section>
+
+  <section class="panel site-guide-sources">
+    <div class="section-heading"><div><h2>대표 데이터 제공기관</h2><p>세부 메뉴나 외부 링크 대신 사이트에서 주로 활용하는 기관명만 안내합니다.</p></div></div>
+    {% set seen = namespace(names=[]) %}
+    <div class="site-guide-source-list">
+      {% for row in credits_rows %}{% if row.source_name and row.source_name not in seen.names %}{% set seen.names = seen.names + [row.source_name] %}<span>{{ row.source_name }}</span>{% endif %}{% endfor %}
+    </div>
+  </section>
+
+  <section class="panel site-guide-membership">
+    <div class="section-heading"><div><h2>회원등급 안내</h2><p>회원등급은 사이트 활동량과 운영 정책에 따라 달라질 수 있습니다.</p></div></div>
+    <div class="site-guide-grade-grid">
+      {% for code, label, description in [('silver','Silver','방문자'),('gold','Gold','가입 기본등급'),('platinum','Platinum','프리미엄 회원'),('diamond','Diamond','최상위 회원'),('black','Black','관리자 최고등급')] %}
+      <article class="grade-{{ code }}"><img src="{{ url_for('static', filename='img/membership/' ~ code ~ '.svg') }}" alt="" width="36" height="36"><div><strong>{{ label }}</strong><p>{{ description }}</p></div></article>
+      {% endfor %}
+    </div>
+    <p class="site-guide-membership-note">게시글 작성, 댓글, 자료 이용 등 활동과 운영 기준에 따라 등급이 조정될 수 있으며, 등급별 접근 권한은 게시판 정책에 따라 다릅니다.</p>
   </section>
 </main>
 {% endblock %}

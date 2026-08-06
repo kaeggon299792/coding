@@ -27,6 +27,7 @@ def test_company_expert_reads_central_source_data(tmp_path):
     assert per["current"] == 10.69
     assert per["vs_5y"] == "낮음"
     assert per["vs_industry"] == "낮음"
+    assert "주당순이익" in per["description"]
     assert dashboard["as_of"] == "2026-08-06"
     connection.close()
 
@@ -57,4 +58,6 @@ def test_company_expert_page_is_public_and_filters_company(client):
     assert "company-expert-kpis" in html
     assert "company-expert-group" in html
     assert "company-expert-card" in html
+    assert "metric-help" in html
+    assert "주가가 주당순이익" in html
     assert "company-expert-bars" not in html

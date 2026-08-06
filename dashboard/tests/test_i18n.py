@@ -218,14 +218,14 @@ def test_unknown_english_url_uses_localized_error_page(client):
     assert "/en/sitemap" in html
 
 
-def test_english_credits_page_shows_source_table(client):
+def test_english_credits_page_shows_site_guide(client):
     response = client.get("/en/credits")
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
     assert '<html lang="en"' in html
-    assert "Sources & Copyright" in html
-    assert "Dataset Status" in html
+    assert "Site Guide" in html
+    assert "Silver" in html and "Black" in html
 
 
 def test_dynamic_translation_patterns_expand_capture_groups():

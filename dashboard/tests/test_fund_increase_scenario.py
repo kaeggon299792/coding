@@ -75,3 +75,4 @@ def test_fund_scenario_page_is_public(client, monkeypatch):
     assert response.status_code == 200
     assert "기금인상 시나리오".encode() in response.data
     assert b"SCENARIO 01" in response.data
+    assert b"fund-scenario-tabs" in response.data

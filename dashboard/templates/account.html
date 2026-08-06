@@ -27,7 +27,7 @@
     <dl class="account-profile-grid">
       <div><dt>아이디</dt><dd>{{ user.username }}</dd></div>
       <div><dt>계정 유형</dt><dd>{{ 'Google 연동 계정' if user.google_sub else '아이디·비밀번호 계정' }}</dd></div>
-      <div><dt>권한</dt><dd>{{ '관리자' if user.role == 'admin' else '일반 사용자' }}</dd></div>
+      <div><dt>등급</dt><dd>{{ user.membership_label or ('Black' if user.role == 'admin' else 'Gold') }}</dd></div>
       <div><dt>가입일</dt><dd>{{ (user.created_at or '-')|replace('T',' ')|truncate(17,true,'') }}</dd></div>
       <div><dt>최근 로그인</dt><dd>{{ (user.last_login_at or '-')|replace('T',' ')|truncate(17,true,'') }}</dd></div>
       <div><dt>계정 상태</dt><dd>사용 중</dd></div>

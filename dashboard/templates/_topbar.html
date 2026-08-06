@@ -27,7 +27,8 @@
   </nav>
   <div class="topbar-actions">
     {% if current_user %}
-      <a class="topbar-user" href="{{ url_for('auth.my_account') }}" title="{{ t('내 계정') }} · {{ current_user.name or current_user.username }}">
+      <details class="topbar-profile-menu">
+      <summary class="topbar-user" title="회원 메뉴" aria-label="회원 메뉴 열기">
         <span class="member-avatar-wrap grade-{{ current_user.membership.code if current_user.membership else 'silver' }}">
         {% if current_user.picture_url %}
           <img class="topbar-avatar" src="{{ current_user.picture_url }}" alt="" width="28" height="28" referrerpolicy="no-referrer">
@@ -36,19 +37,18 @@
         {% endif %}
           {% if current_user.membership %}<img class="membership-badge-icon" src="{{ url_for('static', filename=current_user.membership.icon_path) }}" alt="{{ current_user.membership.label }} 등급" width="14" height="14">{% endif %}
         </span>
-        <span class="topbar-user-name">{{ current_user.name or current_user.username }}</span>
-      </a>
+      </summary>
+      <div class="topbar-profile-popover">
+        <div class="topbar-profile-grade"><span>현재 등급</span><strong>{{ current_user.membership.label if current_user.membership else 'Silver' }}</strong></div>
+        <a href="{{ url_for('auth.my_account') }}">회원정보관리</a>
+        <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}">
+          <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+          <button type="submit">로그아웃</button>
+        </form>
+      </div>
+      </details>
     {% endif %}
-    {% if current_username %}
-    <a class="topbar-account-link" href="{{ url_for('auth.my_account') }}">내 계정</a>
-    {% endif %}
-    <span class="topbar-meta">{{ now_str }}</span>
-    {% if current_username %}
-    <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}" style="display:inline">
-      <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
-      <button class="btn btn-text" type="submit">로그아웃</button>
-    </form>
-    {% else %}
+    {% if not current_username %}
     <a class="topbar-account-link" href="{{ url_for('auth.login', next=request.script_root ~ request.full_path.rstrip('?')) }}">로그인</a>
     {% endif %}
   </div>

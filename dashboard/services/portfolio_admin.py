@@ -120,3 +120,20 @@ def delete_file(raw_name):
     if target.parent != root or not target.is_file():
         raise FileNotFoundError(name)
     target.unlink()
+
+
+def delete_files(raw_names):
+    """Validate every selected file before deleting any of them."""
+    root = _root()
+    names = list(dict.fromkeys(_normalized_name(name) for name in raw_names))
+    if not names or len(names) > 2000:
+        raise ValueError("삭제할 파일을 선택해주세요.")
+    targets = []
+    for name in names:
+        target = (root / name).resolve()
+        if target.parent != root or not target.is_file():
+            raise FileNotFoundError(name)
+        targets.append((name, target))
+    for _, target in targets:
+        target.unlink()
+    return [name for name, _ in targets]

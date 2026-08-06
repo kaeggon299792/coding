@@ -8,7 +8,7 @@ def test_primary_navigation_matches_confirmed_ia():
     markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
     for label in (
         "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판",
-        "통합검색", "내 계정", "관리자 전용",
+        "통합검색", "회원정보관리", "관리자 전용",
     ):
         assert label in markup
     assert "파라디안 전용" not in markup

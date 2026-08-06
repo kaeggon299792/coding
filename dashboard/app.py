@@ -301,8 +301,8 @@ SEO_PAGE_COPY = {
             "카지노 산업 조사와 업무에 유용한 관련 사이트 링크를 모아 제공합니다.",
         ),
         "credits_page": (
-            "출처 및 저작권 | Casino IN",
-            "Casino IN에서 사용하는 데이터 출처, 업데이트 주기, 최종 확인 시각을 안내합니다.",
+            "사이트 안내 | Casino IN",
+            "Casino IN의 대표 데이터 제공기관, 이용 안내와 회원등급을 안내합니다.",
         ),
         "unified_search_page": (
             "통합검색 | Casino IN",
@@ -427,8 +427,8 @@ SEO_PAGE_COPY = {
             "A curated collection of external reference sites for casino-industry research and operations.",
         ),
         "credits_page": (
-            "Sources and Copyright | Casino IN",
-            "See the data sources, refresh cadence, and latest verification times used across Casino IN.",
+            "Site Guide | Casino IN",
+            "Learn about Casino IN's information policy, representative data providers, and membership grades.",
         ),
         "unified_search_page": (
             "Unified Search | Casino IN",
@@ -1266,7 +1266,7 @@ def inject_globals():
         "delete_research_document": "기업별 리포트",
         "unified_search_page": "통합검색",
         "sitemap_page": "사이트맵",
-        "credits_page": "출처 및 저작권",
+        "credits_page": "사이트 안내",
         "credits_management_page": "출처 관리",
         "create_credit_source_route": "출처 관리",
         "edit_credit_source_route": "출처 관리",
@@ -1438,8 +1438,8 @@ def _site_map_links():
             "endpoint": "unified_search_page",
         },
         {
-            "label": "출처 및 저작권",
-            "description": "데이터 출처, 갱신 주기와 저작권",
+            "label": "사이트 안내",
+            "description": "대표 데이터 출처, 이용 안내와 회원등급",
             "endpoint": "credits_page",
         },
     ]
@@ -2722,6 +2722,22 @@ def admin_portfolio_delete_file():
     finally:
         connection.close()
     return _portfolio_redirect("files", success=f"{filename} 파일을 삭제했습니다.")
+
+
+@app.post("/admin/portfolio/files/bulk-delete")
+@admin_required
+def admin_portfolio_bulk_delete_files():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    try:
+        filenames = portfolio_admin.delete_files(request.form.getlist("filenames"))
+    except ValueError as exc:
+        return _portfolio_redirect("files", error=str(exc))
+    except FileNotFoundError:
+        abort(404)
+    for filename in filenames:
+        _portfolio_log("PORTFOLIO_FILE_DELETED", "portfolio_file", filename, {"bulk": True})
+    return _portfolio_redirect("files", success=f"외부 링크 파일 {len(filenames)}개를 삭제했습니다.")
 
 
 # ============================================================

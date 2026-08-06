@@ -373,6 +373,20 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     )
     assert deleted.status_code == 200
     assert not (sharepoint_dir / "sample.png").exists()
+    (sharepoint_dir / "bulk-a.txt").write_text("a", encoding="utf-8")
+    (sharepoint_dir / "bulk-b.txt").write_text("b", encoding="utf-8")
+    bulk_deleted = client.post(
+        "/admin/portfolio/files/bulk-delete",
+        data={
+            "csrf_token": _csrf(client, "/admin/portfolio"),
+            "filenames": ["bulk-a.txt", "bulk-b.txt"],
+        },
+        follow_redirects=True,
+    )
+    assert bulk_deleted.status_code == 200
+    assert "외부 링크 파일 2개를 삭제했습니다." in bulk_deleted.get_data(as_text=True)
+    assert not (sharepoint_dir / "bulk-a.txt").exists()
+    assert not (sharepoint_dir / "bulk-b.txt").exists()
 
     from utils import now_kst
 

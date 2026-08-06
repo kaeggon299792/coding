@@ -21,6 +21,22 @@ FIELDS = (
     ("ntm", "NTM"), ("fy1", "FY+1"), ("fy2", "FY+2"),
 )
 PREFIX = "company_expert."
+METRIC_DESCRIPTIONS = {
+    "per": "주가가 주당순이익의 몇 배인지 보여주는 대표적인 수익가치 지표입니다.",
+    "pbr": "주가가 주당순자산의 몇 배인지 보여주는 자산가치 지표입니다.",
+    "psr": "시가총액이 연간 매출의 몇 배인지 보여줍니다.",
+    "p_fcf": "주가를 잉여현금흐름과 비교해 실제 남는 현금 대비 가격을 봅니다.",
+    "p_ocf": "주가를 영업현금흐름과 비교해 본업의 현금창출력 대비 가격을 봅니다.",
+    "ev_ebitda": "부채를 포함한 기업가치를 이자·세금·감가상각 전 이익과 비교합니다.",
+    "ev_sales": "부채를 포함한 기업가치가 매출의 몇 배인지 보여줍니다.",
+    "ev_ebit": "부채를 포함한 기업가치를 영업이익과 비교합니다.",
+    "ev_ebitda_capex": "설비투자까지 뺀 현금창출력과 기업가치를 비교합니다.",
+    "ev_nopat": "기업가치를 세후 영업이익과 비교합니다.",
+    "ev_ic": "기업가치를 사업에 실제 투입된 자본과 비교합니다.",
+    "peg_1y": "PER을 향후 1년 이익성장률로 나눠 성장성까지 함께 봅니다.",
+    "peg_2y": "PER을 향후 2년 이익성장률로 나눠 성장성까지 함께 봅니다.",
+    "peg_3y": "PER을 향후 3년 이익성장률로 나눠 성장성까지 함께 봅니다.",
+}
 
 
 def _comparison(current, benchmark):
@@ -64,6 +80,7 @@ def build_dashboard(connection, selected_company=None):
         }
         record.update({
             "code": metric_code, "label": label,
+            "description": METRIC_DESCRIPTIONS.get(metric_code, "기업가치를 같은 기준으로 비교하는 지표입니다."),
             "vs_5y": _comparison(record["current"], record["median_5y"]),
             "vs_industry": _comparison(record["current"], record["industry_median"]),
         })

@@ -37,9 +37,11 @@ def test_credits_page_uses_seeded_database_rows(credits_client):
     response = client.get("/credits")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "출처 및 저작권" in html
-    assert "카지노 관련 뉴스" in html
-    assert "18건" in html
+    assert "사이트 안내" in html
+    assert "대표 데이터 제공기관" in html
+    assert "회원등급 안내" in html
+    assert "Silver" in html and "Black" in html
+    assert "source_url" not in html
     assert client.get("/admin/credits").status_code == 302
 
 
@@ -65,7 +67,7 @@ def test_admin_can_create_edit_and_hide_credit_source(credits_client):
     )
     assert created.status_code == 302
     public_html = client.get("/credits").get_data(as_text=True)
-    assert "테스트 데이터" in public_html
+    assert "테스트 기관" in public_html
 
     from dashboard_db import schema
 
@@ -90,7 +92,7 @@ def test_admin_can_create_edit_and_hide_credit_source(credits_client):
         },
     )
     assert edited.status_code == 302
-    assert "수정된 데이터" in client.get("/credits").get_data(as_text=True)
+    assert "테스트 기관" in client.get("/credits").get_data(as_text=True)
     hidden = client.post(
         f"/admin/credits/{source_id}/hide", data={"csrf_token": "c" * 64}
     )
