@@ -24,15 +24,15 @@ def _employment_rows():
 
 def test_company_comparison_builds_profitability_and_workforce_metrics(monkeypatch):
     rows = [
-        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2024-12-31", "amount": 90_000_000_000},
-        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
-        {"company_name": "파라다이스", "account_code": "124001", "fiscal_date": "2025-12-31", "amount": 30_000_000_000},
-        {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 12_000_000_000},
-        {"company_name": "인스파이어", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 80_000_000_000},
-        {"company_name": "인스파이어", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": -8_000_000_000},
+        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2024-12-31", "period_type": "annual", "amount": 90_000_000_000},
+        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 100_000_000_000},
+        {"company_name": "파라다이스", "account_code": "124001", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 30_000_000_000},
+        {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 12_000_000_000},
+        {"company_name": "인스파이어", "account_code": "121000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 80_000_000_000},
+        {"company_name": "인스파이어", "account_code": "125000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": -8_000_000_000},
     ]
     monkeypatch.setattr(
-        "services.company_comparison.queries.list_casino_market_share_financials",
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
         lambda connection, start_year, end_year: rows,
     )
     monkeypatch.setattr(
@@ -61,13 +61,13 @@ def test_company_comparison_builds_profitability_and_workforce_metrics(monkeypat
 
 def test_company_comparison_distinguishes_paradise_city_and_cost_order(monkeypatch):
     rows = [
-        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
-        {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 10_000_000_000},
-        {"company_name": "파라다이스세가사미", "account_code": "121000", "fiscal_date": "2025-12-31", "amount": 100_000_000_000},
-        {"company_name": "파라다이스세가사미", "account_code": "125000", "fiscal_date": "2025-12-31", "amount": 20_000_000_000},
+        {"company_name": "파라다이스", "account_code": "121000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 100_000_000_000},
+        {"company_name": "파라다이스", "account_code": "125000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 10_000_000_000},
+        {"company_name": "파라다이스세가사미", "account_code": "121000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 100_000_000_000},
+        {"company_name": "파라다이스세가사미", "account_code": "125000", "fiscal_date": "2025-12-31", "period_type": "annual", "amount": 20_000_000_000},
     ]
     monkeypatch.setattr(
-        "services.company_comparison.queries.list_casino_market_share_financials",
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
         lambda connection, start_year, end_year: rows,
     )
     monkeypatch.setattr(
@@ -82,7 +82,7 @@ def test_company_comparison_distinguishes_paradise_city_and_cost_order(monkeypat
 
 def test_company_comparison_metric_and_year_validation(monkeypatch):
     monkeypatch.setattr(
-        "services.company_comparison.queries.list_casino_market_share_financials",
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
         lambda connection, start_year, end_year: [],
     )
     monkeypatch.setattr(
@@ -105,8 +105,10 @@ def test_company_comparison_metric_and_year_validation(monkeypatch):
 def test_company_comparison_page_is_public(client, monkeypatch):
     monkeypatch.setattr(
         "app.company_comparison.build_dashboard",
-        lambda connection, year, metric, include_kangwon: {
+        lambda connection, year, metric, include_kangwon, period: {
             "years": [2025], "selected_year": 2025,
+            "periods": company_comparison.PERIODS, "selected_period": "annual",
+            "period": company_comparison.PERIODS["annual"],
             "metrics": company_comparison.METRICS, "selected_metric": "margin",
             "metric": company_comparison.METRICS["margin"],
             "items": [{"name": "테스트 카지노", "revenue": 100.0,
@@ -132,6 +134,47 @@ def test_company_comparison_page_is_public(client, monkeypatch):
     assert "인당 영업이익".encode() in response.data
     assert b'name="metric" value="margin"' in response.data
     assert b'name="include_kangwon" value="1"' in response.data
+
+
+def test_company_comparison_derives_standalone_quarters(monkeypatch):
+    rows = []
+    period_values = {
+        "quarter_1": (100, 10), "semiannual": (230, 25),
+        "nine_month": (390, 45), "annual": (550, 65),
+    }
+    dates = {
+        "quarter_1": "2025-03-31", "semiannual": "2025-06-30",
+        "nine_month": "2025-09-30", "annual": "2025-12-31",
+    }
+    for period_type, (revenue, profit) in period_values.items():
+        rows.extend([
+            {"company_name": "GKL", "account_code": "121000",
+             "fiscal_date": dates[period_type], "period_type": period_type,
+             "amount": revenue * 100_000_000},
+            {"company_name": "GKL", "account_code": "125000",
+             "fiscal_date": dates[period_type], "period_type": period_type,
+             "amount": profit * 100_000_000},
+        ])
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_casino_company_financials_by_period",
+        lambda connection, start_year, end_year: rows,
+    )
+    monkeypatch.setattr(
+        "services.company_comparison.queries.list_latest_company_employment_metrics",
+        lambda connection: [],
+    )
+    second = company_comparison.build_dashboard(
+        object(), "2025", "revenue", False, "quarter_2"
+    )
+    third = company_comparison.build_dashboard(
+        object(), "2025", "revenue", False, "quarter_3"
+    )
+    fourth = company_comparison.build_dashboard(
+        object(), "2025", "revenue", False, "quarter_4"
+    )
+    assert next(item for item in second["items"] if item["name"] == "GKL")["revenue"] == 130.0
+    assert next(item for item in third["items"] if item["name"] == "GKL")["revenue"] == 160.0
+    assert next(item for item in fourth["items"] if item["name"] == "GKL")["revenue"] == 160.0
 
 
 def test_company_comparison_mobile_overflow_is_contained():

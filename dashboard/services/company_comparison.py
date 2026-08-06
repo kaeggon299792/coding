@@ -28,11 +28,11 @@ METRICS = {
     },
     "revenue_per_employee": {
         "label": "인당 매출", "unit": "백만원", "group": "인력 효율",
-        "description": "연간 매출을 국민연금 최신 가입자수로 나눈 값입니다.",
+        "description": "선택 기간 매출을 국민연금 최신 가입자수로 나눈 값입니다.",
     },
     "operating_profit_per_employee": {
         "label": "인당 영업이익", "unit": "백만원", "group": "인력 효율",
-        "description": "연간 영업이익을 국민연금 최신 가입자수로 나눈 값입니다.",
+        "description": "선택 기간 영업이익을 국민연금 최신 가입자수로 나눈 값입니다.",
     },
     "personnel_cost_ratio": {
         "label": "인건비율", "unit": "%", "group": "인력 부담",
@@ -51,6 +51,15 @@ METRICS = {
         "label": "영업이익", "unit": "억원", "group": "손익",
         "description": "선택 연도의 법인별 연간 영업이익입니다.",
     },
+}
+
+PERIODS = {
+    "annual": {"label": "연간", "source": "annual"},
+    "semiannual": {"label": "반기 누계", "source": "semiannual"},
+    "quarter_1": {"label": "1분기", "source": "quarter_1"},
+    "quarter_2": {"label": "2분기", "subtract": ("semiannual", "quarter_1")},
+    "quarter_3": {"label": "3분기", "subtract": ("nine_month", "semiannual")},
+    "quarter_4": {"label": "4분기", "subtract": ("annual", "nine_month")},
 }
 
 ACCOUNT_METRICS = {
@@ -86,6 +95,20 @@ def _latest_employment(connection):
     return values
 
 
+def _period_financials(values, company, year, period_key):
+    period = PERIODS[period_key]
+    if "source" in period:
+        return dict(values.get((company, year, period["source"]), {}))
+    later_key, earlier_key = period["subtract"]
+    later = values.get((company, year, later_key), {})
+    earlier = values.get((company, year, earlier_key), {})
+    result = {}
+    for metric in ACCOUNT_METRICS.values():
+        if later.get(metric) is not None and earlier.get(metric) is not None:
+            result[metric] = round(later[metric] - earlier[metric], 1)
+    return result
+
+
 def _chart_geometry(items):
     present = [item["metric_value"] for item in items if item["metric_value"] is not None]
     low = min([0, *present])
@@ -106,36 +129,47 @@ def _chart_geometry(items):
 
 
 def build_dashboard(
-    connection, selected_year=None, selected_metric=None, include_kangwon=False
+    connection, selected_year=None, selected_metric=None, include_kangwon=False,
+    selected_period=None,
 ):
-    years = [2023, 2024, 2025]
-    try:
-        selected_year = int(selected_year)
-    except (TypeError, ValueError):
-        selected_year = years[-1]
-    if selected_year not in years:
-        selected_year = years[-1]
+    selected_period = selected_period if selected_period in PERIODS else "annual"
     selected_metric = selected_metric if selected_metric in METRICS else "margin"
 
     values = {}
     company_names = {company for company, _label, _entity in COMPANIES}
-    for row in queries.list_casino_market_share_financials(
-        connection, years[0], years[-1]
+    for row in queries.list_casino_company_financials_by_period(
+        connection, 2023, 2026
     ):
         company = row["company_name"]
         metric = ACCOUNT_METRICS.get(str(row["account_code"]))
         if company not in company_names or not metric:
             continue
         year = int(str(row["fiscal_date"])[:4])
-        values.setdefault((company, year), {})[metric] = _eok(row["amount"])
+        values.setdefault((company, year, row["period_type"]), {})[metric] = _eok(
+            row["amount"]
+        )
+
+    years = sorted({
+        year for company, _label, _entity in COMPANIES for year in range(2023, 2027)
+        if _period_financials(values, company, year, selected_period).get("revenue")
+        is not None
+    }) or [2023, 2024, 2025]
+    try:
+        selected_year = int(selected_year)
+    except (TypeError, ValueError):
+        selected_year = years[-1]
+    if selected_year not in years:
+        selected_year = years[-1]
 
     employment = _latest_employment(connection)
     items = []
     for company, label, entity_code in COMPANIES:
         if company == "강원랜드" and not include_kangwon:
             continue
-        financials = values.get((company, selected_year), {})
-        previous = values.get((company, selected_year - 1), {})
+        financials = _period_financials(values, company, selected_year, selected_period)
+        previous = _period_financials(
+            values, company, selected_year - 1, selected_period
+        )
         workforce = employment.get(entity_code, {})
         revenue = financials.get("revenue")
         operating_profit = financials.get("operating_profit")
@@ -192,6 +226,9 @@ def build_dashboard(
     return {
         "years": years,
         "selected_year": selected_year,
+        "periods": PERIODS,
+        "selected_period": selected_period,
+        "period": PERIODS[selected_period],
         "metrics": METRICS,
         "selected_metric": selected_metric,
         "metric": METRICS[selected_metric],

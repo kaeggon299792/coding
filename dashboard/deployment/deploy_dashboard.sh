@@ -23,10 +23,15 @@ from app import app
 from config import DASHBOARD_DB_FILE
 from extensions import dashboard_db
 from scripts.import_paradise_vip_visits import import_paradise_vip_visits
+from scripts.import_company_financials import import_financials
 
 import_paradise_vip_visits(
     DASHBOARD_DB_FILE,
     Path("data/paradise_vip_visits_20260806.json"),
+)
+import_financials(
+    DASHBOARD_DB_FILE,
+    Path("data/company_financials_consolidated_20260806.json"),
 )
 
 required_endpoints = {

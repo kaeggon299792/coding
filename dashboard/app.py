@@ -4821,6 +4821,7 @@ def company_comparison_page():
                 request.args.get("year"),
                 request.args.get("metric"),
                 request.args.get("include_kangwon") == "1",
+                request.args.get("period"),
             ),
         )
     finally:
