@@ -14,7 +14,12 @@ def test_path_probe_alerts_only_at_threshold(monkeypatch, tmp_path):
 
     for _ in range(3):
         with app_module.app.test_request_context(
-            "/.env", environ_base={"REMOTE_ADDR": "203.0.113.9"}
+            "/.env",
+            headers={
+                "X-Real-IP": "172.68.10.20",
+                "CF-Connecting-IP": "203.0.113.9",
+            },
+            environ_base={"REMOTE_ADDR": "10.0.0.5"},
         ):
             response = Response(status=404)
             security_monitor.inspect_response(db, response)

@@ -30,6 +30,7 @@ from services import (
     localization_management, membership,
     security_audit, security_monitor, site_preferences, task_registry, telegram_alert,
 )
+from services.client_ip import get_client_ip, normalize_ip
 import config
 from utils import now_kst
 
@@ -150,8 +151,7 @@ def current_menu_permissions():
 
 
 def _client_ip():
-    # PythonAnywhere supplies the real client address to Flask as remote_addr.
-    return (request.remote_addr or "unknown").strip()[:100]
+    return get_client_ip()
 
 
 def _ip_security_row(connection, ip):
@@ -2634,7 +2634,7 @@ def block_user_ip(user_id):
     """Block a recorded signup/login IP for another account."""
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    ip = (request.form.get("ip_address") or "").strip()[:100]
+    ip = normalize_ip(request.form.get("ip_address"))
     if user_id == session.get("user_id"):
         return redirect(url_for(
             "auth.user_management", success="현재 관리자 계정의 IP는 여기서 차단할 수 없습니다."
@@ -2901,7 +2901,7 @@ def revoke_active_session(session_hash):
 def update_ip_security():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    ip = (request.form.get("ip_address") or "").strip()[:100]
+    ip = normalize_ip(request.form.get("ip_address"))
     action = request.form.get("action")
     note = (request.form.get("note") or "").strip()[:300]
     if not ip:

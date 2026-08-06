@@ -43,10 +43,14 @@ def test_profile_and_language_menus_are_mutually_exclusive():
     assert 'const profileMenu = document.querySelector(".topbar-profile-menu")' in base
     assert 'if (profileMenu.open) languageSwitch.removeAttribute("open")' in base
     assert 'if (languageSwitch.open) profileMenu.removeAttribute("open")' in base
-    assert '"language-menu-open", Boolean(languageSwitch.open)' in base
-    assert ".topbar-nav.language-menu-open{overflow:visible}" in (
+    assert 'topbarActions.insertBefore(languageSwitch, profileMenu' in base
+    assert 'window.matchMedia("(max-width: 768px)").matches' in base
+    assert ".topbar-actions>.global-language-switch" in (
         ROOT / "static" / "css" / "dashboard.css"
     ).read_text(encoding="utf-8")
+    topbar = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
+    assert "{% if current_user_role == 'admin' %}<a" in topbar
+    assert ">관리자 전용</a>{% endif %}" in topbar
 
 
 def test_mobile_navigation_and_company_filters_are_present():

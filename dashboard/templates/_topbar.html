@@ -51,6 +51,7 @@
           <strong class="topbar-profile-greeting">안녕하세요, {{ current_user.name or current_user.username }}님</strong>
         </div>
         <div class="topbar-profile-grade"><span>현재 등급</span><strong>{{ current_user.membership.label if current_user.membership else 'Silver' }}</strong></div>
+        {% if current_user_role == 'admin' %}<a href="{{ url_for('paradian_portal_page') }}">관리자 전용</a>{% endif %}
         <a href="{{ url_for('auth.my_account') }}">회원정보관리</a>
         <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}">
           <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">

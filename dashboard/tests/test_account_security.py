@@ -58,6 +58,36 @@ def _login(client, remember=False):
     return response
 
 
+def test_login_failure_is_counted_by_cloudflare_client_ip(account_client):
+    client, db_path = account_client
+    headers = {
+        "X-Real-IP": "172.69.1.2",
+        "CF-Connecting-IP": "2001:db8::77",
+    }
+    response = client.post(
+        "/login",
+        headers=headers,
+        data={
+            "username": "employee",
+            "password": "wrong-password",
+            "csrf_token": _csrf(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 401
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    counter = connection.execute(
+        "SELECT ip_address, failed_attempts FROM login_ip_security"
+    ).fetchone()
+    audit = connection.execute(
+        "SELECT ip_address FROM security_audit_log WHERE action='LOGIN_FAILED'"
+    ).fetchone()
+    connection.close()
+    assert dict(counter) == {"ip_address": "2001:db8::77", "failed_attempts": 1}
+    assert audit["ip_address"] == "2001:db8::77"
+
+
 def test_remember_login_stores_only_hash(account_client):
     client, db_path = account_client
     response = _login(client, remember=True)

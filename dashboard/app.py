@@ -479,7 +479,7 @@ app.config.update(
     ) + (512 * 1024),
 )
 app.wsgi_app = LocalePrefixMiddleware(
-    ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    ProxyFix(app.wsgi_app, x_for=0, x_proto=1)
 )
 
 init_oauth(app)
@@ -5221,7 +5221,7 @@ def _community_viewer_hash():
         identity = f"user:{session['user_id']}"
     else:
         identity = (
-            f"anonymous:{request.remote_addr or ''}:"
+            f"anonymous:{security_audit.client_ip()}:"
             f"{(request.headers.get('User-Agent') or '')[:500]}"
         )
     secret = str(app.secret_key or config.FLASK_SECRET_KEY).encode("utf-8")

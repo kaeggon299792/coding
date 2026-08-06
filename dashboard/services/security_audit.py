@@ -4,17 +4,13 @@ import json
 
 from flask import has_request_context, request, session
 
+from services.client_ip import get_client_ip
 from utils import now_kst
 
 
 def client_ip():
-    """Return the address supplied by the trusted PythonAnywhere proxy chain."""
-    if not has_request_context():
-        return ""
-    # Forwarding headers are attacker-controlled when the origin hostname is
-    # reached directly. PythonAnywhere already exposes the effective client as
-    # remote_addr, matching the login-rate-limit implementation.
-    return str(request.remote_addr or "")[:100]
+    """Return the common, validated request IP used by audit features."""
+    return get_client_ip(default="")
 
 
 def log_event(

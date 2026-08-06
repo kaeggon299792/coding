@@ -57,6 +57,7 @@ from services import (
     telegram_alert,
     unified_search,
 )
+from services.client_ip import get_client_ip
 from official_docs import official_docs_bp
 from tips import tips_bp
 from localization import (
@@ -399,7 +400,7 @@ app.config.update(
     ) + (512 * 1024),
 )
 app.wsgi_app = LocalePrefixMiddleware(
-    ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    ProxyFix(app.wsgi_app, x_for=0, x_proto=1)
 )
 
 init_oauth(app)
@@ -692,7 +693,7 @@ def log_user_activity(response):
                 current - timedelta(minutes=ANONYMOUS_ACTIVITY_DEDUPE_MINUTES)
             ).isoformat(timespec="seconds")
             day_since = (current - timedelta(days=1)).isoformat(timespec="seconds")
-            ip_address = str(request.remote_addr or "")[:100]
+            ip_address = get_client_ip(default="")
             duplicate = connection.execute(
                 """
                 SELECT 1 FROM security_audit_log
