@@ -75,8 +75,6 @@ gtag('config', 'G-PTRL0XC53Z');
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260806-flat-topbar-v1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-aura.css') }}?v=20260806-flat-topbar-v1">
-{% if blackhole_assets.available %}{% for asset in blackhole_assets.css %}<link rel="stylesheet" href="{{ url_for('static', filename=asset) }}">
-{% endfor %}{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/breathing-dots-contrast.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1">
 {% block extra_head %}{% endblock %}
@@ -114,7 +112,6 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"></script>
 {% endif %}
-{% if blackhole_assets.available %}<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename=blackhole_assets.js) }}"></script>{% endif %}
 <script nonce="{{ csp_nonce }}">
 const languageSwitch = document.querySelector(".global-language-switch");
 const topbarSearch = document.querySelector(".topbar-search-link");

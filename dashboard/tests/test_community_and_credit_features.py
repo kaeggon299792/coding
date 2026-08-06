@@ -479,8 +479,8 @@ def test_board_author_identity_is_avatar_only_and_flat():
     account_template = (root / "templates" / "account.html").read_text(encoding="utf-8")
     assert 'data-profile-avatar-webgl="candidate"' not in topbar_template
     assert topbar_template.count("topbar-profile-avatar-wrap") == 2
-    assert 'id="blackhole-avatar-root"' in topbar_template
-    assert 'data-blackhole-avatar-fallback' in topbar_template
+    assert 'id="blackhole-avatar-root"' not in topbar_template
+    assert 'data-blackhole-avatar-fallback' not in topbar_template
     assert 'id="blackhole-profile-root"' not in account_template
     assert 'class="page-header"' in account_template
     assert "account-avatar-wrap profile-avatar-webgl" not in account_template

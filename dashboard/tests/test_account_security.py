@@ -362,15 +362,15 @@ def test_webgl_bundle_is_limited_to_home(account_client):
     assert "profile-avatar-webgl.js" not in login
 
 
-def test_account_loads_bounded_blackhole_avatar_island(account_client):
+def test_account_does_not_load_blackhole_avatar_effect(account_client):
     client, _ = account_client
     _login(client)
     response = client.get("/account")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert 'id="blackhole-avatar-root"' in html
-    assert "/static/blackhole-hero/assets/main-" in html
-    assert 'data-blackhole-avatar-fallback' in html
+    assert 'id="blackhole-avatar-root"' not in html
+    assert "/static/blackhole-hero/" not in html
+    assert 'data-blackhole-avatar-fallback' not in html
     assert "profile-avatar-webgl.js" not in html
     assert "three.r149.min.js" not in html
     csp = response.headers["Content-Security-Policy"]
