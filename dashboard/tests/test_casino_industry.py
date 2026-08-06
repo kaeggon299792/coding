@@ -38,6 +38,8 @@ def test_casino_industry_page_is_public(client):
     assert "국내 카지노 산업".encode() in response.data
     assert "파라다이스카지노 워커힐점".encode() in response.data
     assert "2,263,762".encode() in response.data
+    assert b"3,494.1" in response.data
+    assert b"3,494,051" not in response.data
 
 
 def test_casino_market_share_page_is_public(client, monkeypatch):
