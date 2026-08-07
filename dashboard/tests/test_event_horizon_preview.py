@@ -117,7 +117,7 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
     assert "event-horizon-hero.css') }}?v=20260808-home5" in partial
-    assert "mesh-gradient-hero.css') }}?v=20260808-home3" in partial
+    assert "mesh-gradient-hero.css') }}?v=20260808-shared2" in partial
     assert 'html[data-home-hero="event-horizon"] .home-hero-slot::before' in event_horizon_css
     assert (
         'html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before'

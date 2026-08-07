@@ -2,34 +2,14 @@
 {% block body_class %}mesh-gradient-preview-page{% endblock %}
 {% block extra_head %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-shared2">
 {% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="mesh-gradient-preview">
-  <section class="mesh-gradient-hero" id="mesh-gradient-hero" aria-labelledby="mesh-gradient-title">
-    <div class="mesh-gradient-shaders" aria-hidden="true">
-      <div class="mesh-gradient-layer mesh-gradient-layer-primary" data-mesh-gradient-layer="primary"></div>
-      <div class="mesh-gradient-layer mesh-gradient-layer-secondary" data-mesh-gradient-layer="secondary"></div>
-    </div>
-    <div class="mesh-gradient-scrim" aria-hidden="true"></div>
-    <div class="mesh-gradient-content">
-      <p class="mesh-gradient-badge">CASINO INDUSTRY INTELLIGENCE</p>
-      <h1 id="mesh-gradient-title">
-        <span data-stagger-text>산업의 흐름을</span>
-        <span data-stagger-text>한발 먼저 읽다</span>
-      </h1>
-      <p class="mesh-gradient-description">카지노 산업의 뉴스, 시장정보, 기업정보와 주요 데이터를 한곳에서 확인하세요.</p>
-      <div class="mesh-gradient-actions">
-        <a class="btn btn-primary" href="{{ url_for('casino_industry_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">시장정보 보기</a>
-        <a class="btn btn-outline" href="{{ url_for('companies_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">기업정보 보기</a>
-      </div>
-      <p class="mesh-gradient-credit">Powered by Paper Shaders</p>
-    </div>
-    <p class="mesh-gradient-status" data-mesh-gradient-status aria-live="polite"></p>
-  </section>
+  {% include "_hero_mesh_gradient.html" %}
 </main>
 {% endblock %}
 {% block extra_scripts %}
-<script type="module" src="{{ url_for('static', filename='js/mesh-gradient-hero.js') }}?v=20260808-1"></script>
+<script type="module" src="{{ url_for('static', filename='js/mesh-gradient-hero.js') }}?v=20260808-shared2"></script>
 {% endblock %}

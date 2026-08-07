@@ -28,7 +28,7 @@
   stylesheet.href = selected === "event-horizon"
     ? "{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-home5"
     : selected === "mesh-gradient"
-      ? "{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-home3"
+      ? "{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-shared2"
       : "{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1";
   stylesheet.dataset.homeHeroAsset = selected;
   document.head.appendChild(stylesheet);
@@ -41,7 +41,7 @@
   data-wave-src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"
   data-spotlight-src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260808-random-hero1"
   data-event-horizon-src="{{ url_for('static', filename='js/event-horizon-hero.js') }}?v=20260808-fullbleed4"
-  data-mesh-gradient-src="{{ url_for('static', filename='js/mesh-gradient-hero.js') }}?v=20260808-home2"
+  data-mesh-gradient-src="{{ url_for('static', filename='js/mesh-gradient-hero.js') }}?v=20260808-shared2"
 >
   <template data-home-hero-template="spotlight">{% include "_hero_spotlight.html" %}</template>
   <template data-home-hero-template="event-horizon">{% include "_hero_event_horizon.html" %}</template>

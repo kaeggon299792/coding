@@ -37,6 +37,9 @@ def test_mesh_gradient_preview_uses_pinned_official_vanilla_shader_only():
     template = (ROOT / "templates" / "test_mesh_gradient_hero.html").read_text(
         encoding="utf-8"
     )
+    shared_template = (ROOT / "templates" / "_hero_mesh_gradient.html").read_text(
+        encoding="utf-8"
+    )
 
     assert 'PAPER_SHADER_VERSION = "0.0.78"' in javascript
     assert "@paper-design/shaders@${PAPER_SHADER_VERSION}/dist" in javascript
@@ -50,8 +53,9 @@ def test_mesh_gradient_preview_uses_pinned_official_vanilla_shader_only():
     assert "reducedMotion ? 0 : 0.25" in javascript
     assert "reducedMotion ? 0 : 0.15" in javascript
     assert "@paper-design/shaders-react" not in javascript
-    assert "react" not in template.lower()
-    assert "framer" not in template.lower()
+    assert '{% include "_hero_mesh_gradient.html" %}' in template
+    assert "react" not in (template + shared_template).lower()
+    assert "framer" not in (template + shared_template).lower()
     assert "three" not in javascript.lower()
 
 
@@ -65,7 +69,10 @@ def test_mesh_gradient_preview_preserves_fonts_and_has_fallback_lifecycle():
     javascript = (ROOT / "static" / "js" / "mesh-gradient-hero.js").read_text(
         encoding="utf-8"
     )
-    combined = "\n".join((template, css, javascript))
+    shared_template = (ROOT / "templates" / "_hero_mesh_gradient.html").read_text(
+        encoding="utf-8"
+    )
+    combined = "\n".join((template, shared_template, css, javascript))
 
     assert "font-family" not in combined
     assert "@font-face" not in combined
@@ -114,5 +121,4 @@ def test_home_dot_is_one_theme_aware_original_and_mesh_matches_preview_copy():
     assert "public-hero-actions" not in dot
     assert "CASINO INDUSTRY INTELLIGENCE" in mesh
     assert "산업의 흐름을" in mesh and "한발 먼저 읽다" in mesh
-    assert "CASINO INDUSTRY INTELLIGENCE" in preview
-    assert "산업의 흐름을" in preview and "한발 먼저 읽다" in preview
+    assert '{% include "_hero_mesh_gradient.html" %}' in preview
