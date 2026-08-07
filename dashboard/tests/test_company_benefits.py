@@ -112,6 +112,7 @@ def test_company_benefits_navigation_and_template_contract():
     template = (root / "templates" / "company_benefits.html").read_text(encoding="utf-8")
     css = (root / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
     base = (root / "templates" / "base.html").read_text(encoding="utf-8")
+    topbar = (root / "templates" / "_topbar.html").read_text(encoding="utf-8")
     assert "company_benefits_page" in subnav
     assert ">복리후생</a>" in subnav
     assert "benefit.ended_on" in template
@@ -120,7 +121,9 @@ def test_company_benefits_navigation_and_template_contract():
     assert template.count('name="ended_on"') == 1
     assert "종료 이력 남기기" in template
     assert ".company-benefit-card.is-ended" in css
-    assert "data-sticky-nav-toggle" in subnav
+    assert "data-sticky-nav-toggle" not in subnav
+    assert "data-sticky-nav-toggle" in topbar
+    assert "메뉴 고정" in topbar
     assert 'html[data-sticky-nav="true"] .topbar' in css
     assert 'html[data-sticky-nav="true"] .data-subnav' in css
     assert 'casino-in-sticky-nav' in base

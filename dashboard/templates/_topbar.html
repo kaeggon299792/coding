@@ -21,7 +21,7 @@
     <a href="{{ url_for('tips.list_page') }}"{% if request.blueprint == 'tips' or request.endpoint == 'source_download_page' %} class="active" aria-current="true"{% endif %}>자료실</a>
     <a href="{{ url_for('community_board_page') }}"{% if request.endpoint in board_endpoints %} class="active" aria-current="true"{% endif %}>게시판</a>
     <details class="topbar-private-menu topbar-member-menu">
-      <summary{% if request.blueprint == 'work_notes' or request.endpoint in ('auth.my_account', 'diary_board_page', 'diary_entry_page', 'edit_diary_entry_route', 'source_download_page') %} class="active"{% endif %}>회원전용 <span aria-hidden="true">⌄</span></summary>
+      <summary data-ui-icon="chevron-down" data-ui-icon-position="end" aria-haspopup="menu"{% if request.blueprint == 'work_notes' or request.endpoint in ('auth.my_account', 'diary_board_page', 'diary_entry_page', 'edit_diary_entry_route', 'source_download_page') %} class="active"{% endif %}>회원전용</summary>
       <div>
         <a href="{{ url_for('work_notes.board') }}">업무노트</a>
         <a href="{{ url_for('auth.my_account') }}#account-email">메일</a>
@@ -61,14 +61,20 @@
         <div class="topbar-profile-grade"><span>현재 등급</span><strong>{{ current_user.membership.label if current_user.membership else 'Silver' }}</strong></div>
         {% if current_user_role == 'admin' %}<a href="{{ url_for('paradian_portal_page') }}" data-ui-icon="layout-dashboard">관리자 전용</a>{% endif %}
         <a href="{{ url_for('auth.my_account') }}">회원정보관리</a>
-        <a href="{{ url_for('member_area.telegram') }}">Telegram 알림</a>
-        <form id="profile-effect-preference-form" class="topbar-profile-effect-form" method="post" action="{{ url_for('auth.update_animation_preference') }}">
-          <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
-          <label class="topbar-profile-effect-toggle" for="profile-effect-toggle">
-            <span>애니메이션 끄기</span>
-            <input id="profile-effect-toggle" type="checkbox"{% if current_user.animations_enabled is defined and not current_user.animations_enabled %} checked{% endif %}>
+        <a href="{{ url_for('member_area.telegram') }}" data-ui-icon="bot">Telegram 알림</a>
+        <div class="topbar-profile-toggle-grid">
+          <form id="profile-effect-preference-form" class="topbar-profile-effect-form" method="post" action="{{ url_for('auth.update_animation_preference') }}">
+            <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+            <label class="topbar-profile-effect-toggle" for="profile-effect-toggle">
+              <span data-ui-icon="sparkles">애니메이션 끄기</span>
+              <input id="profile-effect-toggle" type="checkbox"{% if current_user.animations_enabled is defined and not current_user.animations_enabled %} checked{% endif %}>
+            </label>
+          </form>
+          <label class="topbar-profile-effect-toggle topbar-profile-sticky-toggle" for="profile-sticky-nav-toggle">
+            <span data-ui-icon="pin">메뉴 고정</span>
+            <input id="profile-sticky-nav-toggle" type="checkbox" data-sticky-nav-toggle checked>
           </label>
-        </form>
+        </div>
         <form id="profile-hero-preference-form" class="topbar-profile-hero-form" method="post" action="{{ url_for('auth.update_hero_preference') }}">
           <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
           <fieldset>

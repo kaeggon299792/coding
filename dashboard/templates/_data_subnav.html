@@ -33,5 +33,4 @@
     <a href="{{ url_for('economic_trend_page') }}"{% if request.endpoint == 'economic_trend_page' %} class="active" aria-current="page"{% endif %}>환율·유가</a>
     <a href="{{ url_for('holiday_calendar_page') }}"{% if request.endpoint == 'holiday_calendar_page' %} class="active" aria-current="page"{% endif %}>나라별 연휴</a>
   {% endif %}
-  <label class="sticky-nav-toggle" title="상단 메뉴를 화면에 고정"><input type="checkbox" data-sticky-nav-toggle checked><span>메뉴 고정</span></label>
 </nav>

@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-ui-tune2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-menu-controls1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-expand1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-2">
 <script src="{{ url_for('static', filename='js/file-upload.js') }}?v=20260808-file-upload1" defer></script>
@@ -117,6 +117,7 @@ const languageSwitch = document.querySelector(".global-language-switch");
 const topbarSearch = document.querySelector(".topbar-search-link");
 const publicHeader = document.querySelector(".public-header");
 const profileMenu = document.querySelector(".topbar-profile-menu");
+const memberMenu = document.querySelector(".topbar-member-menu");
 const topbarActions = document.querySelector(".topbar-actions");
 const placeLanguageSwitch = () => {
   if (!languageSwitch) return;
@@ -136,10 +137,32 @@ placeLanguageSwitch();
 window.addEventListener("resize", placeLanguageSwitch, { passive: true });
 if (languageSwitch && profileMenu) {
   profileMenu.addEventListener("toggle", () => {
-    if (profileMenu.open) languageSwitch.removeAttribute("open");
+    if (profileMenu.open) {
+      languageSwitch.removeAttribute("open");
+      memberMenu?.removeAttribute("open");
+    }
   });
   languageSwitch.addEventListener("toggle", () => {
-    if (languageSwitch.open) profileMenu.removeAttribute("open");
+    if (languageSwitch.open) {
+      profileMenu.removeAttribute("open");
+      memberMenu?.removeAttribute("open");
+    }
+  });
+}
+if (memberMenu) {
+  memberMenu.addEventListener("toggle", () => {
+    if (!memberMenu.open) return;
+    languageSwitch?.removeAttribute("open");
+    profileMenu?.removeAttribute("open");
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (memberMenu.open && !memberMenu.contains(event.target)) memberMenu.removeAttribute("open");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && memberMenu.open) {
+      memberMenu.removeAttribute("open");
+      memberMenu.querySelector("summary")?.focus();
+    }
   });
 }
 if (profileMenu) {
