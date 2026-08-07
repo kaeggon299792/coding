@@ -21,7 +21,7 @@
   const stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
   stylesheet.href = selected === "event-horizon"
-    ? "{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-home3"
+    ? "{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-home4"
     : "{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1";
   stylesheet.dataset.homeHeroAsset = selected;
   document.head.appendChild(stylesheet);
@@ -33,7 +33,7 @@
   data-three-src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"
   data-wave-src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"
   data-spotlight-src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260808-random-hero1"
-  data-event-horizon-src="{{ url_for('static', filename='js/event-horizon-hero.js') }}?v=20260808-home1"
+  data-event-horizon-src="{{ url_for('static', filename='js/event-horizon-hero.js') }}?v=20260808-fullbleed4"
 >
   <template data-home-hero-template="spotlight">{% include "_hero_spotlight.html" %}</template>
   <template data-home-hero-template="event-horizon">{% include "_hero_event_horizon.html" %}</template>

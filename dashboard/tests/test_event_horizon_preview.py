@@ -41,7 +41,8 @@ def test_event_horizon_preview_uses_real_routes_and_local_asset(client):
     assert 'href="/market/casino-industry"' in page
     assert 'href="/companies"' in page
     assert 'data-effect-src="/static/hero-effects/event-horizon.html?v=20260807-1"' in page
-    assert 'src="/static/js/event-horizon-hero.js?v=20260807-1"' in page
+    assert 'href="/static/css/event-horizon-hero.css?v=20260808-home4"' in page
+    assert 'src="/static/js/event-horizon-hero.js?v=20260808-fullbleed4"' in page
 
 
 def test_event_horizon_assets_preserve_fonts_and_original_shader_features():
@@ -110,7 +111,7 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
-    assert "event-horizon-hero.css') }}?v=20260808-home3" in partial
+    assert "event-horizon-hero.css') }}?v=20260808-home4" in partial
     assert 'html[data-home-hero="event-horizon"] .home-hero-slot::before' in event_horizon_css
     assert (
         'html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before'
@@ -119,6 +120,14 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert "top: calc(-1 * var(--space-6));" in event_horizon_css
     assert "top: calc(-1 * var(--space-4));" in event_horizon_css
     assert "width: 100vw;" in event_horizon_css
+    assert "margin-inline: calc(50% - 50vw);" in event_horizon_css
+    assert "max-width: 1440px;" in event_horizon_css
+    assert 'name: "BH_CENTER_X", value: mobile ? 0.5 : 0.69' in (
+        ROOT / "static" / "js" / "event-horizon-hero.js"
+    ).read_text(encoding="utf-8")
+    assert 'name: "BH_SCALE", value: mobile ? 0.72 : 1.08' in (
+        ROOT / "static" / "js" / "event-horizon-hero.js"
+    ).read_text(encoding="utf-8")
     assert "casino-wave-webgl.css" not in base
     assert "three.r149.min.js" not in base
     assert "casino-wave-webgl-v2.js" not in base

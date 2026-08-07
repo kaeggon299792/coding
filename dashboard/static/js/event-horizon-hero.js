@@ -30,9 +30,9 @@
 
     const applyComposition = () => {
       const mobile = window.matchMedia("(max-width: 760px)").matches;
-      post({ type: "param", name: "BH_CENTER_X", value: mobile ? 0.5 : 0.7 });
+      post({ type: "param", name: "BH_CENTER_X", value: mobile ? 0.5 : 0.69 });
       post({ type: "param", name: "BH_CENTER_Y", value: mobile ? 0.3 : 0.5 });
-      post({ type: "param", name: "BH_SCALE", value: mobile ? 0.72 : 0.76 });
+      post({ type: "param", name: "BH_SCALE", value: mobile ? 0.72 : 1.08 });
     };
 
     const pause = () => post({ type: "event-horizon:pause" });

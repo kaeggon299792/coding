@@ -8,9 +8,13 @@
   overflow: clip;
 }
 
-/* Fill the home container gutters with black only when Event Horizon is selected. */
+/* Break only the Event Horizon slot out of the shared content container. */
 html[data-home-hero="event-horizon"] .home-hero-slot {
   position: relative;
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: none;
+  margin-inline: calc(50% - 50vw);
   background: #000;
 }
 
@@ -19,12 +23,11 @@ html[data-home-hero="event-horizon"] .home-hero-slot::before {
   z-index: 0;
   top: 0;
   bottom: 0;
-  left: 50%;
-  width: 100vw;
+  left: 0;
+  width: 100%;
   background: #000;
   content: "";
   pointer-events: none;
-  transform: translateX(-50%);
 }
 
 /* Authenticated home keeps a content gutter below the menu; continue black through that gap. */
@@ -33,6 +36,9 @@ html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before {
 }
 
 html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
+  width: 100%;
+  max-width: none;
+  margin: 0;
   z-index: 1;
 }
 
@@ -81,7 +87,9 @@ html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
 }
 
 .event-horizon-content {
-  width: min(100%, 1440px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
   margin: auto;
   padding: clamp(96px, 12vh, 152px) clamp(24px, 6vw, 92px);
   align-self: center;
