@@ -36,6 +36,7 @@
     <button class="btn" type="submit">조회</button>
   </form>
 
+  <div class="news-layout overseas-news-layout">
   <section class="news-feed overseas-news-feed">
     <div class="section-heading"><div><p class="page-eyebrow">Translated Archive</p><h2>뉴스 목록</h2></div><span>{% if current_locale == 'en' %}{{ news_total_count }} items · Page {{ news_page }} of {{ news_page_count }}{% else %}총 {{ news_total_count }}건 · {{ news_page }}/{{ news_page_count }}페이지{% endif %}</span></div>
     {% if articles %}
@@ -86,6 +87,36 @@
       <div class="news-empty"><h3>{{ t('조건에 맞는 해외 뉴스가 없습니다.') }}</h3><p>{{ t('수집 배치 실행 후 표시되며, 검색어나 기간 필터를 변경할 수도 있습니다.') }}</p></div>
     {% endif %}
   </section>
+
+  <aside class="insight-feed overseas-insight-feed" aria-labelledby="overseas-ai-insights-title">
+    <div class="section-heading">
+      <div>
+        <p class="page-eyebrow">AI Analysis</p>
+        <h2 id="overseas-ai-insights-title">AI 분석</h2>
+      </div>
+      <span>{{ ai_insights|length }}건</span>
+    </div>
+    {% if ai_insights %}
+      {% for insight in ai_insights %}
+      <article class="insight-card overseas-insight-card">
+        <div class="news-card-meta">
+          <span class="region-badge is-{{ insight.region }}">{{ t('마카오' if insight.region == 'macau' else '일본') }}</span>
+          <span>{{ t(insight.category or '미분류') }}</span>
+          {% if insight.impact_direction %}<span class="impact-badge is-{{ insight.impact_direction }}">{{ t({'positive':'긍정', 'negative':'부정', 'neutral':'중립', 'mixed':'혼합'}.get(insight.impact_direction, insight.impact_direction)) }}</span>{% endif %}
+        </div>
+        <h3><a href="{{ insight.display_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ insight.title_ko or insight.original_title }}</a></h3>
+        <p>{{ insight.ai_analysis }}</p>
+        <div class="overseas-insight-footer">
+          <span>{{ insight.publisher or t('출처 미상') }}</span>
+          <time datetime="{{ insight.published_at or insight.collected_at }}">{{ (insight.published_at or insight.collected_at or '')[:10] }}</time>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="news-empty compact"><p>선택한 조건의 AI 분석이 없습니다.</p></div>
+    {% endif %}
+  </aside>
+  </div>
 
   <p class="overseas-news-notice">{{ t('일반 뉴스는 RSS 제목·요약을 저비용 일괄 분석하고, 중요 뉴스만 웹 검색으로 추가 검증합니다. 정확한 내용은 반드시 원문과 해당 언론사의 정정 내역을 확인하세요.') }}</p>
 </main>

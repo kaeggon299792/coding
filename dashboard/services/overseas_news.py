@@ -452,6 +452,10 @@ def list_articles(
             params,
         ).fetchall()
     ]
+    return _prepare_articles(articles)
+
+
+def _prepare_articles(articles):
     for article in articles:
         try:
             citations = json.loads(article.get("source_citations_json") or "[]")
@@ -463,6 +467,30 @@ def list_articles(
         ][:3]
         article["display_url"] = article.get("canonical_url") or article.get("original_url")
     return articles
+
+
+def list_ai_insights(
+    connection, days=30, region="", term="", category="", impact="",
+    important_only=False, limit=8,
+):
+    clauses, params = _article_filters(
+        connection, days, region, term, category, impact, important_only
+    )
+    clauses.append("ai_analysis IS NOT NULL AND TRIM(ai_analysis)<>''")
+    params.append(max(1, min(int(limit), 30)))
+    articles = [
+        dict(row)
+        for row in connection.execute(
+            f"""
+            SELECT * FROM overseas_news_articles
+            WHERE {' AND '.join(clauses)}
+            ORDER BY COALESCE(published_at, collected_at) DESC, id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    ]
+    return _prepare_articles(articles)
 
 
 def count_articles(

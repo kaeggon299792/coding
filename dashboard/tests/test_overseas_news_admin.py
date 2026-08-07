@@ -53,6 +53,40 @@ def test_analysis_button_is_visible_only_to_admin(overseas_admin_client):
     assert "AI 분석" in html
 
 
+def test_public_page_has_separate_ai_analysis_panel(overseas_admin_client):
+    _, client, db_path, _, _, article = overseas_admin_client
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    connection.execute(
+        """UPDATE overseas_news_articles
+           SET title_ko='오사카 IR 업데이트', ai_analysis='해외뉴스 AI 분석 결과',
+               category='시장', impact_direction='positive'
+           WHERE id=?""",
+        (article,),
+    )
+    connection.commit()
+    connection.close()
+
+    html = client.get("/news/overseas").get_data(as_text=True)
+
+    assert 'class="insight-feed overseas-insight-feed"' in html
+    assert 'id="overseas-ai-insights-title">AI 분석</h2>' in html
+    assert "해외뉴스 AI 분석 결과" in html
+
+
+def test_research_company_checkboxes_keep_compact_dimensions():
+    from pathlib import Path
+
+    css = (Path(__file__).parents[1] / "static" / "css" / "dashboard.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert '.company-multi-select input[type="checkbox"]' in css
+    assert "flex:0 0 16px" in css
+    assert "min-height:0" in css
+
+
 def test_analysis_route_requires_admin_and_csrf(overseas_admin_client):
     _, client, _, admin, user, article = overseas_admin_client
     route = f"/news/overseas/{article}/analyze"

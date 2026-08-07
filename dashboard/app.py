@@ -3774,6 +3774,15 @@ def overseas_news_page():
             limit=page_size,
             offset=(page - 1) * page_size,
         )
+        ai_insights = overseas_news.list_ai_insights(
+            connection,
+            days=days,
+            region=region,
+            term=term,
+            category=category,
+            impact=impact,
+            important_only=important_only,
+        )
         news_stats = overseas_news.stats(connection, days=days)
         categories = overseas_news.list_categories(connection)
         sync_state = overseas_news.sync_state(connection)
@@ -3783,6 +3792,7 @@ def overseas_news_page():
     return render_template(
         "overseas_news.html",
         articles=articles,
+        ai_insights=ai_insights,
         news_stats=news_stats,
         categories=categories,
         sync_state=sync_state,

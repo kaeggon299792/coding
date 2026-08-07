@@ -152,6 +152,33 @@ def test_list_filters_region_and_searches_korean_title():
     assert overseas_news.list_articles(connection, impact="positive")[0]["article_key"] == "a"
 
 
+def test_list_ai_insights_only_returns_analyzed_articles_and_follows_filters():
+    connection = _connection()
+    connection.executemany(
+        """
+        INSERT INTO overseas_news_articles (
+            article_key, region, original_title, title_ko, publisher, original_url,
+            source_feed, published_at, collected_at, translation_status,
+            category, impact_direction, importance_score, ai_analysis
+        ) VALUES (?, ?, ?, ?, ?, ?, 'feed', ?, datetime('now'), 'translated', ?, ?, ?, ?)
+        """,
+        [
+            ("latest", "japan", "Latest", "최근 분석", "A", "https://a", "2026-08-07 09:00:00", "시장", "positive", 80, "최근 AI 분석"),
+            ("older", "japan", "Older", "이전 분석", "B", "https://b", "2026-08-06 09:00:00", "시장", "neutral", 60, "이전 AI 분석"),
+            ("pending", "japan", "Pending", "분석 대기", "C", "https://c", "2026-08-07 10:00:00", "시장", "neutral", 40, None),
+            ("macau", "macau", "Macau", "마카오 분석", "D", "https://d", "2026-08-07 08:00:00", "규제", "negative", 90, "마카오 AI 분석"),
+        ],
+    )
+
+    rows = overseas_news.list_ai_insights(
+        connection, days=365, region="japan", category="시장", limit=2
+    )
+
+    assert [row["article_key"] for row in rows] == ["latest", "older"]
+    assert all(row["ai_analysis"] for row in rows)
+    assert rows[0]["display_url"] == "https://a"
+
+
 def test_important_filter_uses_admin_threshold():
     connection = _connection()
     connection.executemany(
