@@ -19,6 +19,8 @@ def test_shared_file_upload_ui_preserves_native_inputs_and_form_contracts():
     assert 'button.dataset.uiIcon = "upload"' in script
     assert 'input.closest(".markdown-image-button")' in script
     assert ".file-upload-input:focus-visible + .file-upload-display" in css
+    assert "width: auto !important" in css
+    assert "max-width: 55%" in css
     assert "text-overflow: ellipsis" in css
     assert "min-width: 0" in css
 

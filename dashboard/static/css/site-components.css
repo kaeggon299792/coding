@@ -481,6 +481,8 @@ table.data-table tbody tr:hover,
 
 .file-upload-button.btn {
   flex: 0 0 auto;
+  width: auto !important;
+  max-width: 55%;
   height: 100%;
   min-height: 0;
   padding: 0 14px;
@@ -490,6 +492,7 @@ table.data-table tbody tr:hover,
   background: var(--ui-muted);
   color: var(--ui-foreground);
   font-size: var(--text-xs);
+  white-space: nowrap;
   cursor: pointer;
   box-shadow: none;
 }
