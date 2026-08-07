@@ -60,6 +60,14 @@ def create_link(connection, user_id, current=None):
 
 
 def consume_link(connection, raw_token, chat_id, telegram_username=None, current=None):
+    """Consume a fresh site token and bind the Telegram chat to that account.
+
+    A person can legitimately sign into a different CASINO IN account while
+    using the same Telegram account.  The fresh, member-scoped one-time token
+    proves control of the new site session, while the incoming update proves
+    control of the Telegram chat.  Transfer that chat instead of leaving the
+    new page permanently "not connected" behind a UNIQUE constraint.
+    """
     current = current or now_kst()
     if not raw_token or not str(chat_id).lstrip("-").isdigit():
         return False
@@ -76,7 +84,10 @@ def consume_link(connection, raw_token, chat_id, telegram_username=None, current
         (str(chat_id), row["user_id"]),
     ).fetchone()
     if conflict:
-        return False
+        connection.execute(
+            "DELETE FROM member_telegram_connections WHERE user_id=?",
+            (conflict["user_id"],),
+        )
     connection.execute(
         """INSERT INTO member_telegram_connections
            (user_id,telegram_chat_id,telegram_username,connected_at,updated_at,enabled)

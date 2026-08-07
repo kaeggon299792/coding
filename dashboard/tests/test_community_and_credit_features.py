@@ -54,6 +54,20 @@ def test_attachment_links_require_safe_https_and_expected_extension():
             app_module._community_attachment_url(value, kind)
 
 
+def test_anonymous_view_identity_cannot_be_multiplied_by_user_agent():
+    with app_module.app.test_request_context(
+        "/", headers={"User-Agent": "first-agent"},
+        environ_base={"REMOTE_ADDR": "203.0.113.10"},
+    ):
+        first = app_module._community_viewer_hash()
+    with app_module.app.test_request_context(
+        "/", headers={"User-Agent": "changed-agent"},
+        environ_base={"REMOTE_ADDR": "203.0.113.10"},
+    ):
+        second = app_module._community_viewer_hash()
+    assert first == second
+
+
 def test_board_types_and_recommendation_toggle(db_connection):
     user_id = _user(db_connection)
     community_id = queries.create_community_post(

@@ -626,7 +626,7 @@ def get_document(connection, document_id):
     return item
 
 
-def list_documents(connection, filters=None, page=1, per_page=30, review_only=False):
+def _document_filter_sql(filters=None, review_only=False):
     filters = filters or {}
     clauses = ["d.is_active = 1"]
     params = []
@@ -680,9 +680,14 @@ def list_documents(connection, filters=None, page=1, per_page=30, review_only=Fa
             "(d.location IS NULL OR TRIM(d.location) = '' OR d.file_count = 0)) "
             "OR (d.video_exported = '예' AND d.export_pledge != '확인완료'))"
         )
+    return " AND ".join(clauses), params
+
+
+def list_documents(connection, filters=None, page=1, per_page=30, review_only=False):
+    filters = filters or {}
+    where_sql, params = _document_filter_sql(filters, review_only)
     sort_sql = ALLOWED_SORTS.get(filters.get("sort"), "d.receipt_date")
     direction = "ASC" if filters.get("direction") == "asc" else "DESC"
-    where_sql = " AND ".join(clauses)
     total = connection.execute(
         f"SELECT COUNT(*) FROM official_documents d WHERE {where_sql}",
         params,
@@ -706,6 +711,31 @@ def list_documents(connection, filters=None, page=1, per_page=30, review_only=Fa
     for item in items:
         item["review_reasons"] = review_reasons(item)
     return items, total
+
+
+def list_overdue_documents(connection, filters=None, limit=10):
+    """Return a bounded dashboard list of incomplete documents older than 7 days."""
+    where_sql, params = _document_filter_sql(filters)
+    rows = connection.execute(
+        f"""
+        SELECT d.*, c.label AS category_label, f.label AS folder_category_label
+        FROM official_documents d
+        LEFT JOIN official_doc_reference_values c
+          ON c.kind='category' AND c.code=d.category_code
+        LEFT JOIN official_doc_reference_values f
+          ON f.kind='folder_category' AND f.code=d.folder_category_code
+        WHERE {where_sql}
+          AND COALESCE(d.processing_result, '') != '완료'
+          AND date(d.receipt_date) <= date(?, '-7 days')
+        ORDER BY d.receipt_date ASC, d.id ASC
+        LIMIT ?
+        """,
+        (*params, date.today().isoformat(), max(1, min(int(limit), 100))),
+    ).fetchall()
+    items = [dict(row) for row in rows]
+    for item in items:
+        item["review_reasons"] = review_reasons(item)
+    return items
 
 
 def list_documents_by_ids(connection, document_ids, registered_user_id=None):
@@ -736,18 +766,32 @@ def list_documents_by_ids(connection, document_ids, registered_user_id=None):
 
 
 def dashboard_metrics(connection, filters=None):
-    documents, _ = list_documents(connection, filters, per_page=100000)
+    where_sql, params = _document_filter_sql(filters)
     today_str = date.today().isoformat()
-    return {
-        "total": len(documents),
-        "today": sum(item["receipt_date"] == today_str for item in documents),
-        "incomplete": sum(item["processing_result"] != "완료" for item in documents),
-        "overdue": sum("접수 후 7일 경과" in item["review_reasons"] for item in documents),
-        "pending": sum(item["storage_status"] == "UPLOADED" for item in documents),
-        "failed": sum(item["storage_status"] == "FAILED" for item in documents),
-        "missing": sum(item["storage_status"] == "MISSING" for item in documents),
-        "pledge": sum("반출확약서 확인 필요" in item["review_reasons"] for item in documents),
-    }
+    row = connection.execute(
+        f"""
+        SELECT COUNT(*) AS total,
+               COALESCE(SUM(d.receipt_date=?), 0) AS today,
+               COALESCE(SUM(COALESCE(d.processing_result, '')!='완료'), 0) AS incomplete,
+               COALESCE(SUM(
+                   COALESCE(d.processing_result, '')!='완료'
+                   AND date(d.receipt_date) <= date(?, '-7 days')
+               ), 0) AS overdue,
+               COALESCE(SUM(d.storage_status='UPLOADED'), 0) AS pending,
+               COALESCE(SUM(d.storage_status='FAILED'), 0) AS failed,
+               COALESCE(SUM(d.storage_status='MISSING'), 0) AS missing,
+               COALESCE(SUM(
+                   d.video_exported='예' AND d.export_pledge!='확인완료'
+               ), 0) AS pledge
+        FROM official_documents d
+        WHERE {where_sql}
+        """,
+        (today_str, today_str, *params),
+    ).fetchone()
+    return {key: int(row[key] or 0) for key in (
+        "total", "today", "incomplete", "overdue",
+        "pending", "failed", "missing", "pledge",
+    )}
 
 
 def data_update_status(connection):

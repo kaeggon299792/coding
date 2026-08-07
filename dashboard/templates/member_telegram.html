@@ -2,7 +2,7 @@
 {% block title %}Telegram 알림{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}{% include "_member_subnav.html" %}
-<main class="page-container member-telegram-page">
+<main class="page-container member-telegram-page"{% if not telegram_state %} data-telegram-awaiting data-telegram-status-url="{{ url_for('member_area.telegram_status') }}"{% endif %}>
   <header class="page-header"><p class="page-eyebrow">MEMBER / NOTIFICATIONS</p><h1 class="page-title">Telegram 알림</h1><p class="page-description">회원 전용 Bot과 연결하고 받을 소식을 직접 선택합니다.</p></header>
   <section class="panel member-telegram-card">
     <div><span>Telegram 알림</span><strong>{{ '연결됨' if telegram_state else '연결되지 않음' }}</strong>{% if telegram_state and telegram_state.telegram_username %}<small>@{{ telegram_state.telegram_username }}</small>{% endif %}</div>
@@ -11,7 +11,7 @@
     {% else %}
     {% if telegram_deep_link %}<a class="btn btn-primary" href="{{ telegram_deep_link }}">Telegram 연결</a>{% else %}<button class="btn btn-primary" type="button" disabled>Telegram 연결</button>{% endif %}
     {% if not telegram_configured %}<p class="page-note">운영 환경의 회원용 Bot 설정 후 연결할 수 있습니다.</p>{% endif %}
-    {% if telegram_configured %}<p class="page-note">Telegram 앱에서 <strong>START</strong>를 누르면 연결됩니다. 연결 후 이 페이지로 돌아와 새로고침해 주세요.</p>{% endif %}
+    {% if telegram_configured %}<p class="page-note">Telegram 앱에서 <strong>START</strong>를 누른 뒤 이 페이지로 돌아오면 연결 상태가 자동으로 반영됩니다.</p>{% endif %}
     {% endif %}
   </section>
   {% if telegram_state %}
@@ -29,3 +29,4 @@
 </main>
 {% include "_footer.html" %}
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/member-telegram.js') }}?v=20260808-status1" defer></script>{% endblock %}

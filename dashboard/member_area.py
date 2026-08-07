@@ -38,6 +38,20 @@ def telegram():
     )
 
 
+@member_area_bp.get("/telegram/status")
+@login_required
+def telegram_status():
+    """Expose only the current member's connection state for return polling."""
+    connection = dashboard_db()
+    try:
+        state = member_telegram.status(connection, session["user_id"])
+    finally:
+        connection.close()
+    response = jsonify({"connected": bool(state)})
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @member_area_bp.post("/telegram/connect")
 @login_required
 def telegram_connect():

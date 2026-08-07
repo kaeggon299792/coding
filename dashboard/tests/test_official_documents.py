@@ -13,6 +13,8 @@ from services.official_document_manager import (
     review_reasons,
     sanitize_windows_component,
     create_document,
+    dashboard_metrics,
+    list_overdue_documents,
 )
 from services.official_excel_export import HEADERS, create_workbook
 from sync_client.file_manager import UnsafeArchivePath, drive_path_to_unc
@@ -118,6 +120,46 @@ def test_existing_folder_can_be_registered_without_pdf(db_connection):
         "temp_file_status": "LINK_PENDING",
         "storage_status": "UPLOADED",
     }
+
+
+def test_dashboard_metrics_and_overdue_list_use_bounded_database_queries(db_connection):
+    old_id, errors = create_document(
+        db_connection, _existing_folder_form(), [], {"id": None, "username": "tester"}
+    )
+    assert errors is None
+    recent_form = _existing_folder_form()
+    recent_form["receipt_date"] = date.today().isoformat()
+    recent_form["organization"] = "부산세관"
+    recent_id, errors = create_document(
+        db_connection, recent_form, [], {"id": None, "username": "tester"}
+    )
+    assert errors is None
+    db_connection.execute(
+        "UPDATE official_documents SET receipt_date=?, processing_result='처리 필요', "
+        "storage_status='FAILED', video_exported='예', export_pledge='미접수' WHERE id=?",
+        ((date.today() - timedelta(days=8)).isoformat(), old_id),
+    )
+    db_connection.execute(
+        "UPDATE official_documents SET processing_result='완료', storage_status='MISSING' "
+        "WHERE id=?",
+        (recent_id,),
+    )
+    db_connection.commit()
+
+    metrics = dashboard_metrics(db_connection)
+    assert metrics == {
+        "total": 2,
+        "today": 1,
+        "incomplete": 1,
+        "overdue": 1,
+        "pending": 0,
+        "failed": 1,
+        "missing": 1,
+        "pledge": 1,
+    }
+    overdue = list_overdue_documents(db_connection, limit=1)
+    assert [item["id"] for item in overdue] == [old_id]
+    assert "접수 후 7일 경과" in overdue[0]["review_reasons"]
 
 
 def test_excel_export_structure_and_safety(db_connection):

@@ -2179,7 +2179,12 @@ def list_research_documents(
     params.append(max(1, int(limit)))
     rows = connection.execute(
         f"""
-        SELECT d.*, (
+        SELECT d.id, d.document_type, d.company_name, d.title, d.publisher,
+               d.report_date, d.file_size, d.page_count, d.extraction_status,
+               d.ai_summary, d.investment_stance, d.target_price,
+               d.key_points_json, d.risks_json, d.error_message,
+               d.ai_suggested_title, d.industry_impact,
+               d.created_at, d.updated_at, (
             SELECT GROUP_CONCAT(company_name, char(31))
             FROM research_document_companies rc WHERE rc.document_id=d.id
         ) AS company_names_csv

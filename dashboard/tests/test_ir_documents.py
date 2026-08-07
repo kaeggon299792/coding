@@ -63,9 +63,9 @@ def test_document_type_migration_preserves_existing_research_rows(tmp_path):
         row["name"] for row in connection.execute("PRAGMA table_info(research_documents)")
     }
     assert "document_type" in columns
-    assert [item["id"] for item in queries.list_research_documents(connection)] == [
-        research_id
-    ]
+    listed_research = queries.list_research_documents(connection)
+    assert [item["id"] for item in listed_research] == [research_id]
+    assert "extracted_text" not in listed_research[0]
     assert [
         item["id"]
         for item in queries.list_research_documents(connection, document_type="ir")
@@ -256,6 +256,29 @@ def test_research_management_urls_cannot_manipulate_ir(monkeypatch, tmp_path):
     connection = schema.connect(str(db_path))
     assert queries.get_research_document(connection, ir_id, document_type="ir")
     connection.close()
+
+
+def test_member_triggered_research_reanalysis_respects_daily_limits(monkeypatch, tmp_path):
+    app_module, db_path, user_id = _configure_app_db(monkeypatch, tmp_path)
+    connection = schema.connect(str(db_path))
+    research_id = _create_document(connection, "research", "r" * 64)
+    connection.close()
+    calls = []
+    monkeypatch.setattr(
+        "services.ai_insights.analyze_research_document",
+        lambda connection, document, *, bypass_daily_limits=False: (
+            calls.append(bypass_daily_limits)
+            or ({"ai_summary": "한도 내 분석", "key_points": [], "risks": []}, None)
+        ),
+    )
+    with app_module.app.test_client() as client:
+        _login(client, user_id)
+        response = client.post(
+            f"/companies/reports/{research_id}/reanalyze",
+            data={"csrf_token": "i" * 64},
+        )
+    assert response.status_code == 302
+    assert calls == [False]
 
 
 def test_ir_can_be_reanalyzed_and_deleted_by_disclosures_admin(monkeypatch, tmp_path):

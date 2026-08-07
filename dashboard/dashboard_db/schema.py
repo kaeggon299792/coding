@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080711
+SCHEMA_VERSION = 2026080801
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -410,9 +410,16 @@ def migrate(connection):
             ('benefits', '복지게시판', 'silver', 'black', 'gold'),
             ('recruitment_guide', '족보게시판', 'silver', 'black', 'gold'),
             ('source_data', '원천 데이터 다운', 'gold', 'black', 'black'),
-            ('diary', '아카이브', 'gold', 'gold', 'gold'),
+            ('diary', '아카이브', 'silver', 'black', 'black'),
             ('reviews', '리뷰 게시판', 'gold', 'gold', 'gold'),
         ),
+    )
+    # 아카이브의 공개 열람/관리자 작성 정책은 route에서도 강제한다. 기존
+    # 설치의 등급 표도 실제 동작과 일치시켜 관리자 화면의 오해를 막는다.
+    connection.execute(
+        """UPDATE board_grade_permissions
+           SET read_grade='silver', write_grade='black', comment_grade='black'
+           WHERE board_key='diary'"""
     )
     connection.execute(
         """
@@ -1484,6 +1491,18 @@ def migrate(connection):
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         """,
         [row + (credit_seed_time, credit_seed_time) for row in CREDIT_SOURCE_SEEDS],
+    )
+    # 공개 요청은 저장된 시세만 읽고, 외부 수집은 전용 scheduler가 담당한다.
+    connection.execute(
+        """UPDATE credit_sources
+           SET cadence='정기 배치 수집',
+               notes=CASE source_key
+                 WHEN 'domestic_market' THEN '국내 4개 카지노 기업과 KOSPI를 정기 배치로 수집하며 마지막 정상값을 유지합니다.'
+                 WHEN 'global_market' THEN '마카오 주요 카지노 운영사 4개 종목을 정기 배치로 수집하며 실패 시 마지막 정상값을 유지합니다.'
+                 WHEN 'oil' THEN '보통휘발유·경유·부탄 평균가를 정기 배치로 수집하며 마지막 정상값을 유지합니다.'
+                 WHEN 'exchange' THEN 'USD·JPY·CNH·EUR 기준 환율을 정기 배치로 수집하며 마지막 정상값을 유지합니다.'
+                 ELSE notes END
+           WHERE source_key IN ('domestic_market','global_market','oil','exchange')"""
     )
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_credit_sources_active_order "

@@ -8,21 +8,21 @@ from services import membership
 PNG_BYTES = b"\x89PNG\r\n\x1a\nprivate-diary-image"
 
 
-def _user(connection, username):
+def _user(connection, username, role="user"):
     user_id = connection.execute(
         """INSERT INTO dashboard_users
            (username,password_hash,role,is_active,created_at,updated_at,membership_level)
-           VALUES (?, 'hash', 'user', 1, '2026-08-06', '2026-08-06', 'gold')""",
-        (username,),
+           VALUES (?, 'hash', ?, 1, '2026-08-06', '2026-08-06', ?)""",
+        (username, role, "black" if role == "admin" else "gold"),
     ).lastrowid
     connection.commit()
     return user_id
 
 
-def _login(client, user_id, username, csrf):
+def _login(client, user_id, username, csrf, role="user"):
     with client.session_transaction() as browser_session:
         browser_session.update(
-            user_id=user_id, username=username, role="user", csrf_token=csrf
+            user_id=user_id, username=username, role=role, csrf_token=csrf
         )
 
 
@@ -34,14 +34,14 @@ def test_diary_entries_and_images_are_owner_only(monkeypatch, tmp_path):
     import app as app_module
 
     connection = schema.connect(str(db_path))
-    owner_id = _user(connection, "diary-owner")
+    owner_id = _user(connection, "diary-owner", role="admin")
     other_id = _user(connection, "diary-other")
     connection.close()
 
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        assert client.get("/board/diary").status_code == 302
-        _login(client, owner_id, "diary-owner", "o" * 64)
+        assert client.get("/board/diary").status_code == 200
+        _login(client, owner_id, "diary-owner", "o" * 64, role="admin")
         created = client.post(
             "/board/diary",
             data={
@@ -78,7 +78,7 @@ def test_diary_entries_and_images_are_owner_only(monkeypatch, tmp_path):
         assert client.post(
             f"/board/diary/{entry_id}/delete",
             data={"csrf_token": "x" * 64},
-        ).status_code == 404
+        ).status_code == 403
 
 
 def test_diary_validates_csrf_date_and_mood(monkeypatch, tmp_path):
@@ -87,11 +87,11 @@ def test_diary_validates_csrf_date_and_mood(monkeypatch, tmp_path):
     import app as app_module
 
     connection = schema.connect(str(db_path))
-    user_id = _user(connection, "diary-validator")
+    user_id = _user(connection, "diary-validator", role="admin")
     connection.close()
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        _login(client, user_id, "diary-validator", "v" * 64)
+        _login(client, user_id, "diary-validator", "v" * 64, role="admin")
         invalid_csrf = client.post(
             "/board/diary",
             data={"csrf_token": "bad", "diary_date": "2026-08-06",
@@ -112,11 +112,11 @@ def test_diary_uses_twenty_emoji_categories(monkeypatch, tmp_path):
     import app as app_module
 
     connection = schema.connect(str(db_path))
-    user_id = _user(connection, "diary-moods")
+    user_id = _user(connection, "diary-moods", role="admin")
     connection.close()
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        _login(client, user_id, "diary-moods", "m" * 64)
+        _login(client, user_id, "diary-moods", "m" * 64, role="admin")
         page = client.get("/board/diary").get_data(as_text=True)
         assert '<select class="diary-mood-select" name="mood_code"' in page
         assert page.count('<option value="') == 21
@@ -182,12 +182,12 @@ def test_public_diary_and_image_are_visible_to_other_members(monkeypatch, tmp_pa
     import app as app_module
 
     connection = schema.connect(str(db_path))
-    owner_id = _user(connection, "public-diary-owner")
+    owner_id = _user(connection, "public-diary-owner", role="admin")
     viewer_id = _user(connection, "public-diary-viewer")
     connection.close()
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        _login(client, owner_id, "public-diary-owner", "p" * 64)
+        _login(client, owner_id, "public-diary-owner", "p" * 64, role="admin")
         uploaded = client.post(
             "/board/diary/images",
             data={
@@ -210,7 +210,6 @@ def test_public_diary_and_image_are_visible_to_other_members(monkeypatch, tmp_pa
         entry_url = created.headers["Location"]
 
     with app_module.app.test_client() as viewer:
-        _login(viewer, viewer_id, "public-diary-viewer", "v" * 64)
         board = viewer.get("/board/diary")
         assert board.status_code == 200
         assert "모두에게 보이는 기록" in board.get_data(as_text=True)
@@ -218,7 +217,7 @@ def test_public_diary_and_image_are_visible_to_other_members(monkeypatch, tmp_pa
         assert viewer.get(image_url).status_code == 200
 
     with app_module.app.test_client() as owner:
-        _login(owner, owner_id, "public-diary-owner", "p" * 64)
+        _login(owner, owner_id, "public-diary-owner", "p" * 64, role="admin")
         private_update = owner.post(
             f"{entry_url}/edit",
             data={
@@ -233,7 +232,6 @@ def test_public_diary_and_image_are_visible_to_other_members(monkeypatch, tmp_pa
         assert private_update.status_code == 302
 
     with app_module.app.test_client() as viewer:
-        _login(viewer, viewer_id, "public-diary-viewer", "v" * 64)
         assert viewer.get(entry_url).status_code == 404
         assert viewer.get(image_url).status_code == 404
 
@@ -272,7 +270,44 @@ def test_review_board_defaults_to_timeline_and_is_separate(monkeypatch, tmp_path
         assert "나의 기록" not in review_page
 
 
-def test_archive_read_grade_is_member_by_default_and_admin_configurable(
+def test_private_review_cannot_be_reached_through_generic_board_routes(
+    monkeypatch, tmp_path,
+):
+    db_path = tmp_path / "private-review-generic-route.db"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    import app as app_module
+
+    connection = schema.connect(str(db_path))
+    owner_id = _user(connection, "private-review-owner")
+    admin_id = _user(connection, "private-review-admin", role="admin")
+    review_id = queries.create_diary_entry(
+        connection, owner_id, "private-review-owner", "2026-08-07", "calm",
+        "비공개 리뷰", "소유자만 읽어야 합니다.", board_type="review",
+        is_private=True,
+    )
+    connection.close()
+
+    app_module.app.config["TESTING"] = True
+    csrf = "a" * 64
+    with app_module.app.test_client() as client:
+        _login(client, admin_id, "private-review-admin", csrf, role="admin")
+        assert client.get(f"/board/{review_id}").status_code == 404
+        assert client.get(f"/board/{review_id}/edit").status_code == 404
+        assert client.post(
+            f"/board/{review_id}/comments", data={"csrf_token": csrf, "content": "x"}
+        ).status_code == 404
+        assert client.post(
+            f"/board/{review_id}/recommend", data={"csrf_token": csrf}
+        ).status_code == 404
+        assert client.post(
+            f"/board/{review_id}/delete", data={"csrf_token": csrf}
+        ).status_code == 404
+        assert client.post(
+            f"/board/{review_id}/pin", data={"csrf_token": csrf, "is_pinned": "1"}
+        ).status_code == 404
+
+
+def test_archive_is_public_read_only_regardless_of_configured_grade(
     monkeypatch, tmp_path,
 ):
     db_path = tmp_path / "archive-permission.db"
@@ -289,7 +324,7 @@ def test_archive_read_grade_is_member_by_default_and_admin_configurable(
     permission = connection.execute(
         "SELECT read_grade FROM board_grade_permissions WHERE board_key='diary'"
     ).fetchone()
-    assert permission["read_grade"] == "gold"
+    assert permission["read_grade"] == "silver"
     membership.update_board_permission(
         connection, "diary", "platinum", "platinum", "platinum", actor_id=1,
     )
@@ -298,9 +333,11 @@ def test_archive_read_grade_is_member_by_default_and_admin_configurable(
 
     app_module.app.config["TESTING"] = True
     with app_module.app.test_client() as client:
-        assert client.get("/board/diary").status_code == 302
+        assert client.get("/board/diary").status_code == 200
+        assert client.post("/board/diary", data={}).status_code == 302
         _login(client, gold_id, "archive-gold", "g" * 64)
-        assert client.get("/board/diary").status_code == 403
+        assert client.get("/board/diary").status_code == 200
+        assert client.post("/board/diary", data={"csrf_token": "g" * 64}).status_code == 403
 
     with app_module.app.test_client() as client:
         _login(client, platinum_id, "archive-platinum", "p" * 64)

@@ -126,7 +126,7 @@ def test_economy_page_shows_oil_and_exchange_freshness_separately(monkeypatch, t
     assert "2026-07-30 09:10" in body
 
 
-def test_market_page_refreshes_stale_domestic_quotes_on_request(monkeypatch, tmp_path):
+def test_market_page_serves_stale_cache_without_blocking_on_external_api(monkeypatch, tmp_path):
     import app as app_module
 
     db_path = tmp_path / "market-refresh.db"
@@ -161,42 +161,22 @@ def test_market_page_refreshes_stale_domestic_quotes_on_request(monkeypatch, tmp
         "global_market_quotes_need_refresh",
         lambda *_args, **_kwargs: False,
     )
-    monkeypatch.setattr(
-        app_module.market_data,
-        "fetch_dashboard_quotes",
-        lambda: {
-            "quotes": [{
-                "symbol": "034230",
-                "name": "파라다이스",
-                "asset_type": "stock",
-                "market": "KOSDAQ",
-                "base_date": "20260731",
-                "close_price": 12500,
-                "change_value": 500,
-                "change_rate": 4.17,
-                "open_price": 12100,
-                "high_price": 12600,
-                "low_price": 12050,
-                "volume": 3000,
-                "market_cap": 1_250_000_000_000,
-                "currency": "KRW",
-                "source": "테스트",
-                "history": [{"base_date": "20260731", "close_price": 12500}],
-            }],
-            "errors": [],
-        },
-    )
+    def unexpected_fetch():
+        raise AssertionError("public request must not call a market provider")
+
+    monkeypatch.setattr(app_module.market_data, "fetch_dashboard_quotes", unexpected_fetch)
+    monkeypatch.setattr(app_module.market_data, "fetch_global_quotes", unexpected_fetch)
 
     app_module.app.testing = True
     response = app_module.app.test_client().get("/market/stocks")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "20260731" in body
-    assert "12,500" in body
+    assert "20260729" in body
+    assert "12,000" in body
 
 
-def test_economy_page_refreshes_stale_series_on_request(monkeypatch, tmp_path):
+def test_economy_page_serves_stale_cache_without_blocking_on_external_api(monkeypatch, tmp_path):
     import app as app_module
 
     db_path = tmp_path / "economy-refresh.db"
@@ -218,32 +198,16 @@ def test_economy_page_refreshes_stale_series_on_request(monkeypatch, tmp_path):
     connection.close()
 
     monkeypatch.setattr(app_module, "dashboard_db", lambda: schema.connect(db_path))
-    monkeypatch.setattr(
-        app_module.economic_data,
-        "fetch_oil",
-        lambda: {
-            "items": [{
-                "series_code": "OIL_B027",
-                "observation_date": "20260731",
-                "label": "보통휘발유",
-                "category": "oil",
-                "value": 1700.5,
-                "unit": "원/L",
-                "source": "한국석유공사 오피넷",
-            }],
-            "errors": [],
-        },
-    )
-    monkeypatch.setattr(
-        app_module.economic_data,
-        "fetch_exchange",
-        lambda days=35: {"items": [], "errors": []},
-    )
+    def unexpected_fetch(*_args, **_kwargs):
+        raise AssertionError("public request must not call an economic provider")
+
+    monkeypatch.setattr(app_module.economic_data, "fetch_oil", unexpected_fetch)
+    monkeypatch.setattr(app_module.economic_data, "fetch_exchange", unexpected_fetch)
 
     app_module.app.testing = True
     response = app_module.app.test_client().get("/market/exchange-rates-and-oil")
     body = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "20260731" in body
-    assert "1,700.50" in body
+    assert "20260728" in body
+    assert "1,660.00" in body

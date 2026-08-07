@@ -7,7 +7,7 @@
   <article class="panel diary-detail-card">
     <header><div><p class="page-eyebrow">DAILY ARCHIVE / {{ entry.diary_date }}{% if entry.is_private %} · PRIVATE{% endif %}</p><h1>{{ entry.title }}</h1><time datetime="{{ entry.diary_date }}">{{ entry.diary_date }}</time>{% if board_type == 'review' and entry.tags %}<div class="review-tags" aria-label="태그">{% for tag in entry.tags %}<span>#{{ tag }}</span>{% endfor %}</div>{% endif %}</div><span class="diary-detail-mood" aria-label="{{ mood[1] }}">{{ mood[0] }}<small>{{ mood[1] }}</small></span></header>
     <div class="community-post-content community-markdown">{{ entry_html }}</div>
-    {% if current_user and current_user.id == entry.author_id %}<footer><a class="btn" href="{{ url_for(archive_settings.edit_endpoint, entry_id=entry.id) }}">수정</a><form method="post" action="{{ url_for(archive_settings.delete_endpoint, entry_id=entry.id) }}" onsubmit="return confirm('이 기록을 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">삭제</button></form></footer>{% endif %}
+    {% if current_user_role == 'admin' and current_user and current_user.id == entry.author_id %}<footer><a class="btn" href="{{ url_for(archive_settings.edit_endpoint, entry_id=entry.id) }}">수정</a><form method="post" action="{{ url_for(archive_settings.delete_endpoint, entry_id=entry.id) }}" onsubmit="return confirm('이 기록을 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">삭제</button></form></footer>{% endif %}
   </article>
 </main>{% include "_footer.html" %}
 {% endblock %}

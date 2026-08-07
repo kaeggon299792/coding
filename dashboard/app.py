@@ -582,6 +582,9 @@ PUBLIC_READ_ENDPOINTS = {
     "tips.detail_page",
     "tips.attachment_file",
     "action_items_page",
+    "diary_board_page",
+    "diary_entry_page",
+    "diary_image_file",
 }
 
 
@@ -1034,6 +1037,12 @@ def log_user_activity(response):
                     request.host.split(":", 1)[0].lower(),
                 ),
             ).fetchone()
+            # The same visitor and page are intentionally deduplicated for five
+            # minutes.  Once that is known, the two daily COUNT queries cannot
+            # change the decision and only add SQLite read load to every repeat
+            # navigation.
+            if duplicate:
+                return response
             per_ip_count = connection.execute(
                 """
                 SELECT COUNT(*) FROM security_audit_log
@@ -1050,8 +1059,7 @@ def log_user_activity(response):
                 (day_since,),
             ).fetchone()[0]
             if (
-                duplicate
-                or per_ip_count >= ANONYMOUS_ACTIVITY_PER_IP_DAILY_LIMIT
+                per_ip_count >= ANONYMOUS_ACTIVITY_PER_IP_DAILY_LIMIT
                 or global_count >= ANONYMOUS_ACTIVITY_GLOBAL_DAILY_LIMIT
             ):
                 return response
@@ -1218,7 +1226,7 @@ def inject_globals():
     current_user = None
     account_active = not bool(session.get("user_id"))
     member_nav_access = {
-        "archive": False,
+        "archive": True,
         "work_notes": False,
         "source_data": False,
     }
@@ -1249,16 +1257,19 @@ def inject_globals():
                 session["role"] = role
                 if connection is None:
                     connection = dashboard_db()
+                membership_grades = membership.grade_map(connection)
                 current_user["membership"] = membership.user_grade(
-                    connection, current_user["id"], role
+                    connection, current_user["id"], role,
+                    grades=membership_grades,
+                    membership_code=current_user.get("membership_level"),
                 )
                 member_nav_access = {
-                    "archive": membership.can_board(
-                        connection, "diary", "read", current_user["id"], role
-                    ),
+                    "archive": True,
                     "work_notes": True,
                     "source_data": membership.can_board(
-                        connection, "source_data", "read", current_user["id"], role
+                        connection, "source_data", "read", current_user["id"], role,
+                        grades=membership_grades,
+                        current_grade=current_user["membership"],
                     ),
                 }
                 if role == "admin" and request.path.startswith("/admin"):
@@ -1872,60 +1883,19 @@ def _timestamp_is_stale(value, *, max_age_hours=None, max_age_minutes=None):
 
 
 def _refresh_market_quotes_if_needed(connection):
-    quotes = queries.list_market_quotes(connection)
-    freshness = _market_freshness(quotes)
-    domestic_stale = _timestamp_is_stale(
-        freshness.get("domestic_checked_at"), max_age_hours=6
-    )
-    global_stale = queries.global_market_quotes_need_refresh(
-        connection, max_age_minutes=10
-    )
+    """Read the scheduler-maintained quote cache without blocking a request.
 
-    if domestic_stale:
-        result = market_data.fetch_dashboard_quotes()
-        for quote in result["quotes"]:
-            queries.upsert_market_quote(connection, quote)
-            queries.upsert_market_quote_history(
-                connection, quote["symbol"], quote.get("history") or []
-            )
-        if result["errors"]:
-            logger.warning("국내 주가 수동 보정 갱신 중 오류: %s", result["errors"])
-
-    if global_stale:
-        global_result = market_data.fetch_global_quotes()
-        for quote in global_result["quotes"]:
-            queries.upsert_market_quote(connection, quote)
-            queries.upsert_market_quote_history(
-                connection, quote["symbol"], quote.get("history") or []
-            )
-        for failure in global_result["errors"]:
-            queries.mark_market_quote_failure(
-                connection, failure.get("symbol"), failure.get("error")
-            )
-        if global_result["errors"]:
-            logger.warning(
-                "해외 주가 수동 보정 갱신 중 오류: %s",
-                [item.get("error") for item in global_result["errors"]],
-            )
-
-    if domestic_stale or global_stale:
-        quotes = queries.list_market_quotes(connection)
-    return quotes
+    Market synchronization already runs as ``sync_market_quotes``.  Performing
+    the same network calls inside a public page request made the first visitor
+    after a worker reload wait for several providers and serialized hundreds of
+    SQLite writes.  Freshness remains visible in the UI/admin dashboard while a
+    provider outage can no longer delay the page itself.
+    """
+    return queries.list_market_quotes(connection)
 
 
 def _refresh_economic_series_if_needed(connection):
-    series = queries.list_economic_series(connection)
-    freshness = _economic_freshness(series)
-    if not _timestamp_is_stale(freshness.get("checked_at"), max_age_hours=12):
-        return series
-
-    results = (economic_data.fetch_oil(), economic_data.fetch_exchange())
-    items = [item for result in results for item in result["items"]]
-    errors = [error for result in results for error in result["errors"]]
-    for item in items:
-        queries.upsert_economic_observation(connection, item)
-    if errors:
-        logger.warning("유가·환율 수동 보정 갱신 중 오류: %s", errors[:10])
+    """Read the scheduler-maintained economic cache without network I/O."""
     return queries.list_economic_series(connection)
 
 
@@ -2632,7 +2602,8 @@ def public_home():
     connection = dashboard_db()
     try:
         important_news = news_reader.today_important_articles()
-        official_documents = []
+        important_news_count = news_reader.count_today_important_articles()
+        official_recent = []
         official_overdue = []
         official_metrics = None
         official_db_updated_at = None
@@ -2642,13 +2613,12 @@ def public_home():
                 None if session.get("role") == "admin"
                 else (session.get("username") or "")
             )
-            official_documents, _ = official_document_manager.list_documents(
-                connection, per_page=100000
+            official_recent, _ = official_document_manager.list_documents(
+                connection, per_page=6
             )
-            official_overdue = [
-                item for item in official_documents
-                if "접수 후 7일 경과" in item["review_reasons"]
-            ]
+            official_overdue = official_document_manager.list_overdue_documents(
+                connection, limit=10
+            )
             official_metrics = official_document_manager.dashboard_metrics(connection)
             official_update_status = official_document_manager.data_update_status(connection)
             official_db_updated_at = (
@@ -2664,9 +2634,9 @@ def public_home():
 
         kpis = {
             "today_news": news_reader.count_today_articles(),
-            "important_news": news_reader.count_today_important_articles(),
+            "important_news": important_news_count,
             "important_news_delta": _percent_delta(
-                news_reader.count_today_important_articles(),
+                important_news_count,
                 news_reader.count_yesterday_important_articles(),
             ),
             "pending_action_items": (
@@ -2702,7 +2672,7 @@ def public_home():
             important_news=important_news[:12],
             official_metrics=official_metrics,
             official_overdue=official_overdue[:10],
-            official_recent=official_documents[:6],
+            official_recent=official_recent,
             market_quotes=market_quotes,
             economic_series=economic_series,
             market_updated_at=(
@@ -5536,10 +5506,10 @@ def _community_viewer_hash():
     if session.get("user_id"):
         identity = f"user:{session['user_id']}"
     else:
-        identity = (
-            f"anonymous:{security_audit.client_ip()}:"
-            f"{(request.headers.get('User-Agent') or '')[:500]}"
-        )
+        # User-Agent is attacker-controlled and previously made the persistent
+        # view table unbounded for a single IP/post pair. Keep anonymous
+        # de-duplication coarse so header variation cannot create new rows.
+        identity = f"anonymous:{security_audit.client_ip()}"
     secret = str(app.secret_key or config.FLASK_SECRET_KEY).encode("utf-8")
     return hmac.new(secret, identity.encode("utf-8"), hashlib.sha256).hexdigest()
 
@@ -5883,6 +5853,14 @@ def _diary_board_context(
         "form_data": form_data or {
             "diary_date": today_kst_str(), "mood_code": "daily", "tags": [],
         },
+        "archive_can_write": (
+            session.get("role") == "admin"
+            if board_type == "diary"
+            else membership.can_board(
+                connection, "reviews", "write",
+                session.get("user_id"), session.get("role"),
+            )
+        ),
     }
 
 
@@ -5929,7 +5907,15 @@ def _archive_board_response(board_type):
     connection = dashboard_db()
     try:
         action = "write" if request.method == "POST" else "read"
-        if not membership.can_board(
+        # The archive is a public read-only board.  Private records remain
+        # protected by the owner filter in queries.get/list_diary_entry.
+        # Every mutation is explicitly administrator-only on the server.
+        if board_type == "diary":
+            if action == "write" and session.get("role") != "admin":
+                if not session.get("user_id"):
+                    return redirect(url_for("auth.login", next=request.path))
+                abort(403)
+        elif not membership.can_board(
             connection, settings["permission_key"], action,
             session.get("user_id"), session.get("role"),
         ):
@@ -6018,7 +6004,7 @@ def _archive_entry_response(entry_id, board_type):
     settings = _ARCHIVE_BOARDS[board_type]
     connection = dashboard_db()
     try:
-        if not membership.can_board(
+        if board_type != "diary" and not membership.can_board(
             connection, settings["permission_key"], "read",
             session.get("user_id"), session.get("role"),
         ):
@@ -6056,9 +6042,13 @@ def _edit_archive_entry_response(entry_id, board_type):
     settings = _ARCHIVE_BOARDS[board_type]
     connection = dashboard_db()
     try:
-        if not membership.can_board(
-            connection, settings["permission_key"], "write",
-            session.get("user_id"), session.get("role"),
+        if (
+            board_type == "diary" and session.get("role") != "admin"
+        ) or (
+            board_type != "diary" and not membership.can_board(
+                connection, settings["permission_key"], "write",
+                session.get("user_id"), session.get("role"),
+            )
         ):
             abort(403)
         entry = queries.get_owned_diary_entry(
@@ -6129,9 +6119,13 @@ def _delete_archive_entry_response(entry_id, board_type):
         abort(400)
     connection = dashboard_db()
     try:
-        if not membership.can_board(
-            connection, settings["permission_key"], "write",
-            session.get("user_id"), session.get("role"),
+        if (
+            board_type == "diary" and session.get("role") != "admin"
+        ) or (
+            board_type != "diary" and not membership.can_board(
+                connection, settings["permission_key"], "write",
+                session.get("user_id"), session.get("role"),
+            )
         ):
             abort(403)
         try:
@@ -6171,10 +6165,14 @@ def upload_diary_image_route():
         return jsonify({"error": "허용되지 않은 기록 유형입니다."}), 400
     permission_connection = dashboard_db()
     try:
-        if not membership.can_board(
+        if (
+            scope == "diary" and session.get("role") != "admin"
+        ) or (
+            scope != "diary" and not membership.can_board(
             permission_connection,
             _ARCHIVE_BOARDS[scope]["permission_key"], "write",
             session.get("user_id"), session.get("role"),
+            )
         ):
             abort(403)
     finally:
@@ -6203,16 +6201,16 @@ def upload_diary_image_route():
 
 
 @app.get("/board/diary/images/<filename>")
-@login_required
 def diary_image_file(filename):
     if not re.fullmatch(r"[0-9a-f]{32}\.(?:png|jpg|gif|webp)", filename):
         abort(404)
     connection = dashboard_db()
     try:
-        allowed_board_types = tuple(
+        allowed_board_types = ["diary"]
+        allowed_board_types.extend(
             board_type
             for board_type, settings in _ARCHIVE_BOARDS.items()
-            if membership.can_board(
+            if board_type != "diary" and membership.can_board(
                 connection, settings["permission_key"], "read",
                 session.get("user_id"), session.get("role"),
             )
@@ -6401,7 +6399,7 @@ def community_post_page(post_id):
         )
         if not post:
             abort(404)
-        if post["board_type"] == "diary":
+        if post["board_type"] in {"diary", "review"}:
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "read",
@@ -6439,7 +6437,7 @@ def edit_community_post_route(post_id):
         post = queries.get_community_post(connection, post_id)
         if not post:
             abort(404)
-        if post["board_type"] == "diary":
+        if post["board_type"] in {"diary", "review"}:
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "write",
@@ -6511,7 +6509,7 @@ def create_community_comment_route(post_id):
         )
         if not post:
             abort(404)
-        if post["board_type"] == "diary":
+        if post["board_type"] in {"diary", "review"}:
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "comment",
@@ -6579,7 +6577,7 @@ def recommend_community_post_route(post_id):
     connection = dashboard_db()
     try:
         post = queries.get_community_post(connection, post_id)
-        if not post or post["board_type"] == "diary":
+        if not post or post["board_type"] in {"diary", "review"}:
             abort(404)
         try:
             recommended, count = queries.toggle_community_post_recommendation(
@@ -6607,6 +6605,9 @@ def delete_community_comment_route(post_id, comment_id):
         abort(400)
     connection = dashboard_db()
     try:
+        post = queries.get_community_post(connection, post_id)
+        if not post or post["board_type"] in {"diary", "review"}:
+            abort(404)
         comment = queries.get_community_comment(connection, comment_id)
         if not comment or int(comment["post_id"]) != post_id:
             abort(404)
@@ -6637,7 +6638,7 @@ def delete_community_post_route(post_id):
         post = queries.get_community_post(connection, post_id)
         if not post:
             abort(404)
-        if post["board_type"] == "diary":
+        if post["board_type"] in {"diary", "review"}:
             abort(404)
         if not membership.can_board(
             connection, post["board_type"], "write",
@@ -6673,6 +6674,9 @@ def set_community_post_pinned_route(post_id):
     is_pinned = request.form.get("is_pinned") == "1"
     connection = dashboard_db()
     try:
+        post = queries.get_community_post(connection, post_id)
+        if not post or post["board_type"] in {"diary", "review"}:
+            abort(404)
         try:
             queries.set_community_post_pinned(connection, post_id, is_pinned)
         except ValueError:
@@ -6895,9 +6899,9 @@ def reanalyze_research_document(document_id):
         document = queries.get_research_document(connection, document_id)
         if not document:
             abort(404)
-        analysis, error = ai_insights.analyze_research_document(
-            connection, document, bypass_daily_limits=True
-        )
+        # Interactive member requests must respect the configured API call and
+        # cost ceilings. Administrative batch paths retain their own policy.
+        analysis, error = ai_insights.analyze_research_document(connection, document)
         queries.update_research_document_analysis(
             connection, document_id, analysis=analysis, error_message=error
         )

@@ -46,10 +46,14 @@ def list_board_permissions(connection):
     ]
 
 
-def user_grade(connection, user_id=None, role=None):
-    grades = grade_map(connection)
+def user_grade(
+    connection, user_id=None, role=None, *, grades=None, membership_code=None,
+):
+    grades = grades or grade_map(connection)
     if role == "admin":
         return grades["black"]
+    if membership_code is not None:
+        return grades.get(membership_code) or grades["gold"]
     if not user_id:
         return grades["silver"]
     row = connection.execute(
@@ -62,7 +66,10 @@ def user_grade(connection, user_id=None, role=None):
     return grades.get(code) or grades["gold"]
 
 
-def can_board(connection, board_key, action, user_id=None, role=None):
+def can_board(
+    connection, board_key, action, user_id=None, role=None, *,
+    grades=None, current_grade=None,
+):
     if role == "admin":
         return True
     if board_key not in BOARD_KEYS or action not in {"read", "write", "comment"}:
@@ -72,8 +79,10 @@ def can_board(connection, board_key, action, user_id=None, role=None):
     ).fetchone()
     if not permission:
         return False
-    grades = grade_map(connection)
-    current = user_grade(connection, user_id, role)
+    grades = grades or grade_map(connection)
+    current = current_grade or user_grade(
+        connection, user_id, role, grades=grades
+    )
     required = grades.get(permission[f"{action}_grade"])
     return bool(required and current["rank_order"] >= required["rank_order"])
 
