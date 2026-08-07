@@ -62,3 +62,4 @@ def test_admin_navigation_is_iconized_and_bounded():
     assert 'data-ui-icon="briefcase"' in sidebar
     assert ".admin-global-sidebar" in css
     assert "max-width: 1160px" in css
+    assert ":is(main.page-container, main.page-shell, div.page-container)" in css

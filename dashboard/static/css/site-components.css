@@ -550,14 +550,15 @@ table.data-table tbody tr:hover,
 
 .admin-global-sidebar .ui-icon { width: 15px; height: 15px; flex: 0 0 15px; }
 
-body:has(> .admin-global-sidebar) > main.page-container {
+body > .admin-global-sidebar ~ :is(main.page-container, main.page-shell, div.page-container) {
+  box-sizing: border-box;
   width: min(calc(100% - 282px), 1160px);
   max-width: 1160px;
   margin-right: max(18px, calc((100vw - 1440px) / 2));
   margin-left: auto;
 }
 
-body:has(> .admin-global-sidebar) .admin-overview-grid {
+body > .admin-global-sidebar ~ :is(main.page-container, main.page-shell, div.page-container) .admin-overview-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
@@ -811,7 +812,7 @@ body:has(> .admin-global-sidebar) .admin-overview-grid {
   .admin-global-sidebar header { display: none; }
   .admin-global-sidebar nav { display: flex; overflow-x: auto; }
   .admin-global-sidebar nav a { min-width: max-content; border-right: 1px solid var(--ui-border); border-bottom: 0; }
-  body:has(> .admin-global-sidebar) > main.page-container {
+  body > .admin-global-sidebar ~ :is(main.page-container, main.page-shell, div.page-container) {
     width: min(calc(100% - 32px), 940px);
     margin-right: auto;
     margin-left: auto;
