@@ -215,6 +215,10 @@ SEO_PAGE_COPY = {
             "Event Horizon Hero Preview | Casino IN",
             "Radiant Event Horizon WebGL 효과를 CASINO IN Hero 후보로 검증하는 비공개 테스트 페이지입니다.",
         ),
+        "test_mesh_gradient_hero_page": (
+            "Mesh Gradient Hero Preview | Casino IN",
+            "Paper Shaders MeshGradient 효과를 CASINO IN Hero 후보로 검증하는 비공개 테스트 페이지입니다.",
+        ),
         "public_home": (
             "Casino IN | 카지노 산업 정보와 인사이트",
             "국내외 카지노 기업, 관광객, 환율, 공시, 시장 동향과 산업 데이터를 한곳에서 확인하는 카지노 산업 인텔리전스 플랫폼입니다.",
@@ -344,6 +348,10 @@ SEO_PAGE_COPY = {
         "test_event_horizon_page": (
             "Event Horizon Hero Preview | Casino IN",
             "A private preview for evaluating Radiant Event Horizon as a Casino IN hero candidate.",
+        ),
+        "test_mesh_gradient_hero_page": (
+            "Mesh Gradient Hero Preview | Casino IN",
+            "A private preview for evaluating Paper Shaders MeshGradient as a Casino IN hero candidate.",
         ),
         "public_home": (
             "Casino IN | Casino Industry Information and Insights",
@@ -852,6 +860,8 @@ def apply_security_headers(response):
         if is_event_horizon_asset
         else f"'self' 'nonce-{nonce}' https://www.googletagmanager.com"
     )
+    if request.endpoint == "test_mesh_gradient_hero_page":
+        script_sources = f"{script_sources} https://cdn.jsdelivr.net"
     frame_sources = "https://www.googletagmanager.com"
     if request.endpoint in {"test_event_horizon_page", "public_home"}:
         frame_sources = f"'self' {frame_sources}"
@@ -2457,6 +2467,14 @@ def _percent_delta(today_value, prev_value):
 def test_event_horizon_page():
     return render_template(
         "test_event_horizon.html",
+        seo_robots="noindex,nofollow",
+    )
+
+
+@app.get("/test/mesh-gradient-hero")
+def test_mesh_gradient_hero_page():
+    return render_template(
+        "test_mesh_gradient_hero.html",
         seo_robots="noindex,nofollow",
     )
 
