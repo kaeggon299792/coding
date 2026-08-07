@@ -29,6 +29,24 @@ html[data-home-hero="spotlight"] .public-hero-wordmark {
   padding-inline: 18px;
 }
 
+.public-hero-actions .ui-icon {
+  transform: translateY(1px);
+}
+
+.public-hero-actions .public-hero-company-cta,
+html[data-theme="light"] .public-hero-actions .public-hero-company-cta {
+  border-color: #fff !important;
+  background: #fff !important;
+  color: #09090b !important;
+}
+
+.public-hero-actions .public-hero-company-cta:hover,
+html[data-theme="light"] .public-hero-actions .public-hero-company-cta:hover {
+  border-color: #e4e4e7 !important;
+  background: #f4f4f5 !important;
+  color: #09090b !important;
+}
+
 .public-hero-secondary {
   border-color: rgba(255, 255, 255, .34) !important;
   background: rgba(10, 10, 10, .34) !important;
@@ -54,12 +72,16 @@ html[data-theme="light"] .public-hero-secondary:hover {
 
 @media (max-width: 640px) {
   .public-hero-actions {
-    width: min(100%, 320px);
-    flex-direction: column;
+    width: min(100%, 356px);
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .public-hero-actions .btn {
-    width: 100%;
+    width: auto;
+    max-width: 174px;
+    flex: 1 1 0;
+    padding-inline: 12px;
   }
 }
 
