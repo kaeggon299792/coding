@@ -43,6 +43,15 @@ INSPIRE_DETAIL_URL = "https://inspireresorts.career.greetinghr.com/ko/o/{opening
 PARADISE_URL = "https://recruit.paradise.co.kr/"
 PARADISE_LIST_URL = "https://recruit.paradise.co.kr/Application.do"
 
+COMPANY_PATTERNS = (
+    ("롯데관광개발", re.compile(r"롯데관광개발|제주\s*드림타워|dream\s*tower", re.I)),
+    ("파라다이스", re.compile(r"파라다이스|paradise", re.I)),
+    ("인스파이어", re.compile(r"인스파이어|inspire", re.I)),
+    ("GKL", re.compile(r"그랜드코리아레저|세븐럭|\bGKL\b", re.I)),
+    ("강원랜드", re.compile(r"강원랜드|kangwon\s*land", re.I)),
+    ("워커힐", re.compile(r"워커힐|walkerhill", re.I)),
+)
+
 
 class _LinkParser(HTMLParser):
     def __init__(self):
@@ -94,6 +103,11 @@ def _plain_text(value):
     value = re.sub(r"<(script|style).*?</\1>", " ", value, flags=re.I | re.S)
     value = re.sub(r"<[^>]+>", " ", value)
     return re.sub(r"\s+", " ", html.unescape(value)).strip()
+
+
+def _infer_company_name(value):
+    text = str(value or "")
+    return next((name for name, pattern in COMPANY_PATTERNS if pattern.search(text)), "기타·미분류")
 
 
 def _meta(html_text, name):
@@ -187,7 +201,8 @@ def collect_source(source, limit=15):
             rules = _rule_analysis(raw_text)
             items.append({
                 "source_name": source["name"], "source_job_id": identifier,
-                "company_name": "", "title": title[:300] or "채용공고",
+                "company_name": _infer_company_name(f"{title} {raw_text}"),
+                "title": title[:300] or "채용공고",
                 "source_url": url, "raw_text": raw_text,
                 "posted_at": None, "deadline": None, "location": None,
                 "first_seen_at": timestamp, "last_seen_at": timestamp,

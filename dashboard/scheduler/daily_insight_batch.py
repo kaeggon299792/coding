@@ -1,8 +1,9 @@
 """
 PythonAnywhere Scheduled Task 진입점 (1일 1회, 뉴스 수집 이후 시간대 권장).
 
-오늘의 중요 뉴스 + 공문·자료관리 현황 + 오늘 실적 데이터를 모아 AI에게
-경영진 관점 시사점을 생성하도록 요청하고 executive_insights에 저장한다.
+오늘의 중요 뉴스 + 공문·자료관리 현황 + 최근 리서치 자료를 모아 AI에게
+분석을 요청하고 executive_insights에 저장한다. 텔레그램으로 수신하는 내부
+실적 정보는 이 공개 뉴스용 분석 입력에 포함하지 않는다.
 페이지를 열 때마다 재분석하지 않고 하루 1회만 실행한다(스펙 12절).
 """
 
@@ -28,7 +29,6 @@ def _build_context_text(connection, today):
     official_documents, _ = official_document_manager.list_documents(
         connection, per_page=100000, review_only=True
     )
-    performance = queries.get_latest_performance_report(connection, today)
     research_documents = queries.list_research_documents(connection, limit=10)
 
     lines = [f"기준일: {today}", ""]
@@ -55,15 +55,6 @@ def _build_context_text(connection, today):
             )
     else:
         lines.append("- 없음")
-    lines.append("")
-
-    lines.append("## 오늘 실적(텔레그램 데이터랩 알림 기준, 일부 지표만 확인 가능)")
-    if performance and performance.get("parsed"):
-        parsed = performance["parsed"]
-        for key, value in parsed.items():
-            lines.append(f"- {key}: {value}")
-    else:
-        lines.append("- 오늘 파싱된 실적 데이터 없음")
     lines.append("")
 
     lines.append(f"## 최근 업로드 리서치 자료 ({len(research_documents)}건)")

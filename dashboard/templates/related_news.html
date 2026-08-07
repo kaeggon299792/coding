@@ -7,7 +7,7 @@
   <header class="page-header">
     <p class="page-eyebrow">Intelligence / Domestic News</p>
     <h1 class="page-title">국내 뉴스</h1>
-    <p class="page-description">카지노·관광산업 관련 누적 뉴스와 AI 관점 분석을 한곳에서 확인합니다.</p>
+    <p class="page-description">카지노·관광산업 관련 누적 뉴스와 AI 분석을 한곳에서 확인합니다.</p>
     <div class="data-freshness-row">
       <span class="data-freshness"><b>뉴스 최종 확인</b>{{ news_updated_at[:16]|replace('T', ' ') if news_updated_at else t('확인 기록 없음') }}</span>
     </div>
@@ -43,7 +43,7 @@
           </div>
           <h3><a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a></h3>
           <p class="news-source">{{ item.publisher or t('출처 미상') }} · {{ t('중요도') }} {{ item.importance_score if item.importance_score is not none else '-' }}</p>
-          {% if item.latest_summary %}<div class="news-ai-summary"><b>AI 관점</b><p>{{ item.latest_summary }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
+          {% if item.latest_summary %}<div class="news-ai-summary"><b>AI 분석</b><p>{{ item.latest_summary }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
         </article>
         {% endfor %}
         {% if news_page_count > 1 %}
@@ -60,7 +60,7 @@
 
     {% if show_executive_insights %}
     <aside class="insight-feed" data-i18n-ignore>
-      <div class="section-heading"><div><p class="page-eyebrow">AI Perspective</p><h2>경영진 관점 분석</h2></div></div>
+      <div class="section-heading"><div><p class="page-eyebrow">AI Analysis</p><h2>AI 분석</h2></div></div>
       {% if executive_insights %}
         {% for insight in executive_insights %}
         <article class="insight-card">
@@ -72,7 +72,7 @@
         </article>
         {% endfor %}
       {% else %}
-        <div class="news-empty compact"><p>선택한 기간의 AI 관점 분석이 없습니다.</p></div>
+        <div class="news-empty compact"><p>선택한 기간의 AI 분석이 없습니다.</p></div>
       {% endif %}
     </aside>
     {% endif %}

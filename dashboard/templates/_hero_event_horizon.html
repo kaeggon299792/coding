@@ -7,8 +7,8 @@
   <div class="event-horizon-visual" data-event-horizon-visual aria-hidden="true"></div>
   <div class="event-horizon-scrim" aria-hidden="true"></div>
   <div class="event-horizon-content">
-    <p class="event-horizon-eyebrow">CASINO INDUSTRY INTELLIGENCE</p>
-    <h1 id="event-horizon-title">CASINO IN</h1>
+    <p class="event-horizon-eyebrow">CASINO IN · INDUSTRY INTELLIGENCE</p>
+    <h1 id="event-horizon-title">{{ selected_home_tagline[1] if current_locale == 'en' else selected_home_tagline[0] }}</h1>
     <p class="event-horizon-description">카지노 산업의 뉴스, 시장정보, 기업정보와 주요 데이터를 한곳에서 확인하세요.</p>
     <div class="event-horizon-actions">
       <a class="btn btn-primary" href="{{ url_for('casino_industry_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">시장정보 보기</a>

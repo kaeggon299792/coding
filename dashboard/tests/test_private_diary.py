@@ -106,7 +106,7 @@ def test_diary_validates_csrf_date_and_mood(monkeypatch, tmp_path):
         assert invalid_form.status_code == 400
 
 
-def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
+def test_diary_uses_twenty_emoji_categories(monkeypatch, tmp_path):
     db_path = tmp_path / "diary-moods.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
     import app as app_module
@@ -119,10 +119,11 @@ def test_diary_mood_is_a_large_dropdown(monkeypatch, tmp_path):
         _login(client, user_id, "diary-moods", "m" * 64)
         page = client.get("/board/diary").get_data(as_text=True)
         assert '<select class="diary-mood-select" name="mood_code"' in page
-        assert page.count('<option value="') == 151
-        assert "🤩 황홀함" in page
-        assert "🪫 지침" in page
-        assert "🕯️ 깊이 슬픔" in page
+        assert page.count('<option value="') == 21
+        assert "🎰 카지노" in page
+        assert "🏨 호텔·숙박" in page
+        assert "📝 일상" in page
+        assert "오늘의 기분" not in page
         assert 'data-diary-date-button' in page
         assert 'js/diary.js' in page
 
@@ -233,7 +234,7 @@ def test_public_diary_and_image_are_visible_to_other_members(monkeypatch, tmp_pa
         assert viewer.get(image_url).status_code == 404
 
 
-def test_review_board_defaults_to_gallery_and_is_separate(monkeypatch, tmp_path):
+def test_review_board_defaults_to_timeline_and_is_separate(monkeypatch, tmp_path):
     db_path = tmp_path / "reviews.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
     import app as app_module
@@ -259,7 +260,7 @@ def test_review_board_defaults_to_gallery_and_is_separate(monkeypatch, tmp_path)
         review_page = client.get("/blog/reviews").get_data(as_text=True)
         assert "첫 번째 리뷰" in review_page
         assert "아카이브 글" not in review_page
-        assert 'aria-current="page">갤러리</a>' in review_page
+        assert 'aria-current="page">타임라인</a>' in review_page
         assert "블로그" in review_page
         assert "아카이브" in review_page
         assert "리뷰 모음" in review_page

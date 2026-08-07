@@ -36,10 +36,17 @@
 
   <section class="panel account-settings-panel">
     <div class="section-heading"><div><h2>프로필 사진</h2><p>PNG, JPG, WebP 형식의 3MB 이하 이미지를 사용할 수 있습니다.</p></div></div>
-    <form method="post" action="{{ url_for('auth.update_account_picture') }}" enctype="multipart/form-data" class="account-create-form">
+    <form method="post" action="{{ url_for('auth.update_account_picture') }}" enctype="multipart/form-data" class="account-create-form account-picture-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label><span>새 프로필 사진</span><input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required></label>
-      <button class="btn" type="submit">사진 변경</button>
+      <label class="account-picture-picker">
+        <span>새 프로필 사진</span>
+        <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required data-account-picture-input>
+        <span class="account-picture-control">
+          <span class="btn btn-outline account-picture-button" data-ui-icon="upload">사진 선택</span>
+          <small data-account-picture-name>선택된 파일 없음</small>
+        </span>
+      </label>
+      <button class="btn btn-primary" type="submit">사진 변경</button>
     </form>
   </section>
 
@@ -84,4 +91,16 @@
   </section>
 </main>
 {% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const input = document.querySelector("[data-account-picture-input]");
+  const name = document.querySelector("[data-account-picture-name]");
+  if (!input || !name) return;
+  input.addEventListener("change", () => {
+    name.textContent = input.files?.[0]?.name || "선택된 파일 없음";
+  });
+})();
+</script>
 {% endblock %}

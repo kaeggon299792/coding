@@ -32,3 +32,33 @@ def test_page_width_regressions_are_bounded_and_centered():
     assert ".fund-scenario-page{box-sizing:border-box;width:min(1440px,calc(100% - 48px));max-width:1440px" in css
     assert ".bug-report-page{box-sizing:border-box;width:min(1180px,calc(100% - 48px));" in css
     assert ".fund-scenario-page,.bug-report-page{width:calc(100% - 32px)" in css
+
+
+def test_account_picture_uses_the_existing_button_system_around_native_upload():
+    template = (ROOT / "templates" / "account.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "css" / "site-components.css").read_text(encoding="utf-8")
+
+    assert 'type="file" name="picture"' in template
+    assert 'class="btn btn-outline account-picture-button"' in template
+    assert 'data-account-picture-name' in template
+    assert '.account-picture-picker > input[type="file"]' in css
+
+
+def test_source_data_controls_are_collapsed_until_a_query_is_active():
+    template = (ROOT / "templates" / "source_download.html").read_text(encoding="utf-8")
+
+    assert '<details class="source-download-disclosure"{% if request.args %} open{% endif %}>' in template
+    assert "원천 데이터 조회·다운로드" in template
+    assert "원천 데이터 다운로드" in template
+
+
+def test_admin_navigation_is_iconized_and_bounded():
+    topbar = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
+    sidebar = (ROOT / "templates" / "_admin_sidebar.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "css" / "site-components.css").read_text(encoding="utf-8")
+
+    assert 'data-ui-icon="layout-dashboard">관리자 전용' in topbar
+    assert 'class="admin-global-sidebar"' in sidebar
+    assert 'data-ui-icon="briefcase"' in sidebar
+    assert ".admin-global-sidebar" in css
+    assert "max-width: 1160px" in css

@@ -83,9 +83,22 @@ def test_mesh_gradient_preview_preserves_fonts_and_has_fallback_lifecycle():
     assert "opacity: 0.4;" in css
 
 
-def test_homepage_does_not_load_mesh_gradient_preview_assets(client):
+def test_homepage_registers_mesh_gradient_without_eager_script_or_stylesheet(client):
     page = client.get("/").get_data(as_text=True)
 
-    assert "mesh-gradient-hero.css" not in page
-    assert "mesh-gradient-hero.js" not in page
+    assert 'data-home-hero-template="mesh-gradient"' in page
+    assert '<script type="module" src="/static/js/mesh-gradient-hero.js' not in page
+    assert '<link rel="stylesheet" href="/static/css/mesh-gradient-hero.css' not in page
     assert "@paper-design/shaders" not in page
+
+
+def test_home_loader_keeps_three_candidates_but_initializes_only_the_selection():
+    config = (ROOT / "config.py").read_text(encoding="utf-8")
+    loader = (ROOT / "static" / "js" / "home-hero-loader.js").read_text(encoding="utf-8")
+
+    assert '{"value": "spotlight", "label": "Spotlight"}' in config
+    assert '{"value": "event-horizon", "label": "Event Horizon"}' in config
+    assert '{"value": "mesh-gradient", "label": "Mesh Gradient"}' in config
+    assert 'const allowed = ["spotlight", "event-horizon", "mesh-gradient"]' in loader
+    assert 'if (selected === "mesh-gradient")' in loader
+    assert 'if (selected === "event-horizon")' in loader

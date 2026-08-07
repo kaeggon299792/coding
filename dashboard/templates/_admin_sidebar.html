@@ -1,0 +1,18 @@
+<aside class="admin-global-sidebar" aria-label="관리자 메뉴">
+  <header><span>CASINO IN</span><strong>Administration</strong></header>
+  <nav>
+    <a href="{{ url_for('paradian_portal_page') }}" data-ui-icon="layout-dashboard"{% if request.endpoint == 'paradian_portal_page' %} class="active" aria-current="page"{% endif %}>대시보드</a>
+    <a href="{{ url_for('admin_portfolio_page') }}" data-ui-icon="briefcase"{% if request.endpoint == 'admin_portfolio_page' %} class="active" aria-current="page"{% endif %}>포트폴리오</a>
+    <a href="{{ url_for('auth.user_management') }}" data-ui-icon="users"{% if request.endpoint == 'auth.user_management' %} class="active" aria-current="page"{% endif %}>계정 관리</a>
+    <a href="{{ url_for('auth.membership_management') }}" data-ui-icon="shield-check"{% if request.endpoint in ('auth.membership_management', 'auth.membership_user_detail') %} class="active" aria-current="page"{% endif %}>회원·권한</a>
+    <a href="{{ url_for('auth.ai_settings') }}" data-ui-icon="sparkles"{% if request.endpoint == 'auth.ai_settings' %} class="active" aria-current="page"{% endif %}>API·AI</a>
+    <a href="{{ url_for('auth.admin_logs') }}" data-ui-icon="file-text"{% if request.endpoint == 'auth.admin_logs' %} class="active" aria-current="page"{% endif %}>로그</a>
+    <a href="{{ url_for('auth.localization_dashboard') }}" data-ui-icon="languages"{% if request.endpoint and request.endpoint.startswith('auth.localization_') %} class="active" aria-current="page"{% endif %}>Localization</a>
+    <a href="{{ url_for('auth.admin_tasks') }}" data-ui-icon="bot"{% if request.endpoint == 'auth.admin_tasks' %} class="active" aria-current="page"{% endif %}>자동화 작업</a>
+    <a href="{{ url_for('credits_management_page') }}" data-ui-icon="database"{% if request.endpoint == 'credits_management_page' %} class="active" aria-current="page"{% endif %}>출처 관리</a>
+    <a href="{{ url_for('admin_action_items_page') }}" data-ui-icon="check"{% if request.endpoint in ('admin_action_items_page', 'create_admin_action_item_route') %} class="active" aria-current="page"{% endif %}>미처리 과제</a>
+    <a href="{{ url_for('admin_memos_page') }}" data-ui-icon="pencil"{% if request.endpoint == 'admin_memos_page' %} class="active" aria-current="page"{% endif %}>메모</a>
+    <a href="{{ url_for('official_docs.dashboard') }}" data-ui-icon="file-text"{% if request.blueprint == 'official_docs' %} class="active" aria-current="page"{% endif %}>공문·자료관리</a>
+    <a href="{{ url_for('performance_page') }}" data-ui-icon="chart-column"{% if request.endpoint == 'performance_page' %} class="active" aria-current="page"{% endif %}>경영 실적</a>
+  </nav>
+</aside>

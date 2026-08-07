@@ -1,0 +1,18 @@
+<section class="mesh-gradient-hero home-mesh-gradient" id="mesh-gradient-hero" aria-labelledby="mesh-gradient-title">
+  <div class="mesh-gradient-shaders" aria-hidden="true">
+    <div class="mesh-gradient-layer mesh-gradient-layer-primary" data-mesh-gradient-layer="primary"></div>
+    <div class="mesh-gradient-layer mesh-gradient-layer-secondary" data-mesh-gradient-layer="secondary"></div>
+  </div>
+  <div class="mesh-gradient-scrim" aria-hidden="true"></div>
+  <div class="mesh-gradient-content">
+    <p class="mesh-gradient-badge">CASINO IN · INDUSTRY INTELLIGENCE</p>
+    <h1 id="mesh-gradient-title"><span data-stagger-text>{{ selected_home_tagline[1] if current_locale == 'en' else selected_home_tagline[0] }}</span></h1>
+    <p class="mesh-gradient-description">카지노 산업의 뉴스, 시장정보, 기업정보와 주요 데이터를 한곳에서 확인하세요.</p>
+    <div class="mesh-gradient-actions">
+      <a class="btn btn-primary" href="{{ url_for('casino_industry_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">시장정보 보기</a>
+      <a class="btn btn-outline" href="{{ url_for('companies_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">기업정보 보기</a>
+    </div>
+    <p class="mesh-gradient-credit">Powered by Paper Shaders</p>
+  </div>
+  <p class="mesh-gradient-status" data-mesh-gradient-status aria-live="polite"></p>
+</section>

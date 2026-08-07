@@ -760,7 +760,7 @@ def analyze_legislative_bill(connection, bill, source_text):
 
 
 # ============================================================
-# 경영진 관점 종합 시사점 (일 1회 배치)
+# 국내 뉴스 AI 종합 분석 (일 1회 배치)
 # ============================================================
 
 _EXEC_INSIGHT_SCHEMA = {
@@ -795,8 +795,8 @@ _EXEC_INSIGHT_SCHEMA = {
 
 _EXEC_INSIGHT_SYSTEM_PROMPT = (
     "당신은 카지노·복합리조트 그룹 경영기획팀의 AI 분석 보조자입니다. "
-    "제공된 오늘의 중요 뉴스, 공문·자료관리 현황, 실적 변동 데이터를 종합해 "
-    "경영진 관점의 시사점을 작성하세요.\n"
+    "제공된 오늘의 중요 뉴스, 공문·자료관리 현황, 공개 리서치 자료를 종합해 "
+    "AI 분석을 작성하세요. 텔레그램 실적이나 내부 성과 데이터는 분석하지 마세요.\n"
     "반드시 지킬 것:\n"
     "- 근거 데이터에 없는 내용을 단정적으로 만들어내지 마세요.\n"
     "- 상관관계를 인과관계로 단정하지 마세요. 원인이 데이터로 확인되지 않으면 "
@@ -808,7 +808,7 @@ _EXEC_INSIGHT_SYSTEM_PROMPT = (
 
 
 def generate_daily_insights(connection, context_text):
-    """context_text: 뉴스/공문/실적 요약을 사람이 읽을 수 있는 텍스트로 미리 만든 것."""
+    """뉴스·공문·공개 리서치 요약으로 일일 AI 분석을 생성한다."""
     data, error = _call(
         connection, "daily_executive_insight", _EXEC_INSIGHT_SYSTEM_PROMPT, context_text,
         "executive_insights", _EXEC_INSIGHT_SCHEMA,

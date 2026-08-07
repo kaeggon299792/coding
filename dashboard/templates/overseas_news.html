@@ -57,7 +57,7 @@
           {% elif item.analysis_basis == 'title_only' %}<span class="analysis-basis is-title">{{ t('제목 기반') }}</span>{% endif %}
         </p>
         {% if item.summary_ko %}<div class="overseas-article-summary"><b>{{ t('기사 요약') }}</b><p>{{ item.summary_ko }}</p></div>{% endif %}
-        {% if item.ai_analysis %}<div class="news-ai-summary"><b>AI 관점</b><p>{{ item.ai_analysis }}</p></div>{% elif item.translation_status != 'translated' %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
+        {% if item.ai_analysis %}<div class="news-ai-summary overseas-ai-analysis"><b>AI 분석</b><p>{{ item.ai_analysis }}</p></div>{% else %}<p class="news-analysis-pending">AI 분석 대기</p>{% endif %}
         {% if item.source_citations %}
         <details class="overseas-grounding-sources"><summary>{% if current_locale == 'en' %}{{ item.source_citations|length }} supporting sources{% else %}분석 근거 {{ item.source_citations|length }}개{% endif %}</summary><ul>{% for citation in item.source_citations %}<li><a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ citation.title or citation.url }}</a></li>{% endfor %}</ul></details>
         {% endif %}

@@ -241,7 +241,7 @@ SEO_PAGE_COPY = {
         ),
         "related_news_page": (
             "국내 카지노 산업 뉴스 | Casino IN",
-            "국내 카지노·관광 산업 뉴스와 AI 관점 분석을 한곳에서 확인합니다.",
+            "국내 카지노·관광 산업 뉴스와 AI 분석을 한곳에서 확인합니다.",
         ),
         "overseas_news_page": (
             "마카오·일본 카지노 해외 뉴스 | Casino IN",
@@ -860,7 +860,7 @@ def apply_security_headers(response):
         if is_event_horizon_asset
         else f"'self' 'nonce-{nonce}' https://www.googletagmanager.com"
     )
-    if request.endpoint == "test_mesh_gradient_hero_page":
+    if request.endpoint in {"test_mesh_gradient_hero_page", "public_home"}:
         script_sources = f"{script_sources} https://cdn.jsdelivr.net"
     frame_sources = "https://www.googletagmanager.com"
     if request.endpoint in {"test_event_horizon_page", "public_home"}:
@@ -1017,9 +1017,14 @@ def log_user_activity(response):
                 WHERE username='anonymous' AND COALESCE(ip_address, '')=?
                   AND action='PAGE_VIEW' AND resource_type='endpoint'
                   AND resource_id=? AND created_at>=?
+                  AND json_valid(detail_json)=1
+                  AND COALESCE(json_extract(detail_json, '$.host'), '')=?
                 LIMIT 1
                 """,
-                (ip_address, resource_id, dedupe_since),
+                (
+                    ip_address, resource_id, dedupe_since,
+                    request.host.split(":", 1)[0].lower(),
+                ),
             ).fetchone()
             per_ip_count = connection.execute(
                 """
@@ -1068,6 +1073,7 @@ def log_user_activity(response):
                 "endpoint": endpoint,
                 "method": request.method,
                 "path": path,
+                "host": request.host.split(":", 1)[0].lower(),
                 "locale": getattr(g, "locale", "ko"),
                 "status_code": response.status_code,
             },
@@ -1321,7 +1327,7 @@ def inject_globals():
         "salary_trend_page": "연봉·평점",
         "recruitment_page": "채용정보",
         "company_recruitment_guide_page": "족보",
-        "source_download_page": "원천 데이터 다운",
+        "source_download_page": "원천 데이터 다운로드",
         "casino_industry_page": "국내 카지노 산업",
         "casino_insights_page": "카지노 인사이트",
         "casino_market_share_page": "산업 M/S",
@@ -1388,6 +1394,7 @@ def inject_globals():
         "number_font": number_font,
         "animations_enabled": effective_animations_enabled,
         "home_hero_variants": config.HOME_HERO_VARIANTS,
+        "home_hero_taglines": config.HOME_HERO_TAGLINES,
         "menu_permissions": current_menu_permissions(),
         "localization_pending_count": localization_pending_count,
         "csp_nonce": getattr(g, "csp_nonce", ""),
@@ -1507,7 +1514,7 @@ def _site_map_links():
                 {"label": "관련 사이트", "endpoint": "tips.sites_page"},
                 {"label": "카지노 용어집", "endpoint": "tips.glossary_page"},
                 {
-                    "label": "원천 데이터 다운",
+                    "label": "원천 데이터 다운로드",
                     "endpoint": "source_download_page",
                     "locked": not account_active,
                 },
@@ -1525,11 +1532,11 @@ def _site_map_links():
         },
         {
             "label": "블로그",
-            "description": "일상 아카이브와 사진 중심 리뷰",
-            "endpoint": "diary_board_page",
+            "description": "리뷰와 일상 아카이브",
+            "endpoint": "review_board_page",
             "children": [
-                {"label": "아카이브", "endpoint": "diary_board_page"},
                 {"label": "리뷰", "endpoint": "review_board_page"},
+                {"label": "아카이브", "endpoint": "diary_board_page"},
             ],
         },
         {
@@ -3700,9 +3707,8 @@ def related_news_page():
             articles = content_translation.apply_cached(
                 connection, "news", articles, id_field="article_id"
             )
-        # Executive insights combine internal performance, official documents,
-        # and research uploads. They must never be exposed to public or regular
-        # user sessions through the otherwise-public news page.
+        # Daily AI analysis combines news, official documents, and research
+        # uploads. Keep the operational analysis visible to administrators only.
         show_executive_insights = session.get("role") == "admin"
         executive_insights = (
             queries.list_recent_executive_insights(connection, days=days, limit=10)
@@ -3893,15 +3899,24 @@ def recruitment_page():
     term = request.args.get("q", "").strip()
     source = request.args.get("source", "").strip()
     employment_type = request.args.get("employment_type", "").strip()
+    company = request.args.get("company", "").strip()
+    sort = request.args.get("sort", "registered").strip()
+    if sort not in {"registered", "deadline"}:
+        sort = "registered"
     connection = dashboard_db()
     try:
         jobs = queries.list_recruitment_jobs(
-            connection, term=term, source=source, employment_type=employment_type
+            connection, term=term, source=source,
+            employment_type=employment_type, company=company, sort=sort,
         )
+        filter_options = queries.list_recruitment_filter_options(connection)
         latest_run = queries.get_latest_completed_run(connection, "recruitment_sync")
         return render_template(
             "recruitment.html", jobs=jobs, term=term, selected_source=source,
             selected_employment_type=employment_type,
+            selected_company=company, selected_sort=sort,
+            recruitment_companies=filter_options["companies"],
+            recruitment_sources=filter_options["sources"],
             recruitment_checked_at=latest_run.get("finished_at") if latest_run else None,
             recruitment_check_status=latest_run.get("status") if latest_run else None,
         )
@@ -5547,6 +5562,33 @@ _DIARY_MOODS.update({
 assert len(_DIARY_MOODS) == 150
 
 
+# 기존 게시물의 mood_code 값은 그대로 읽을 수 있게 보존하고, 새 작성·수정 UI는
+# 리뷰/아카이브 양쪽에서 함께 쓰는 간결한 콘텐츠 카테고리 20개만 제공한다.
+_BLOG_CATEGORIES = {
+    "casino": ("🎰", "카지노"),
+    "resort": ("🌴", "리조트"),
+    "hotel": ("🏨", "호텔·숙박"),
+    "dining": ("🍽️", "다이닝"),
+    "bar": ("🍸", "바·라운지"),
+    "entertainment": ("🎭", "공연·엔터테인먼트"),
+    "travel": ("✈️", "여행"),
+    "service": ("🤝", "서비스"),
+    "facilities": ("🏊", "시설"),
+    "event": ("🎉", "이벤트"),
+    "game": ("🃏", "게임 경험"),
+    "shopping": ("🛍️", "쇼핑"),
+    "wellness": ("🧖", "스파·웰니스"),
+    "business": ("💼", "비즈니스"),
+    "book": ("📚", "도서"),
+    "movie": ("🎬", "영화"),
+    "music": ("🎵", "음악"),
+    "product": ("📦", "제품"),
+    "technology": ("💻", "기술"),
+    "daily": ("📝", "일상"),
+}
+_BLOG_ENTRY_LABELS = {**_DIARY_MOODS, **_BLOG_CATEGORIES}
+
+
 def _diary_form_data(source):
     diary_date = (source.get("diary_date") or "").strip()
     mood_code = (source.get("mood_code") or "").strip()
@@ -5556,8 +5598,8 @@ def _diary_form_data(source):
         datetime.strptime(diary_date, "%Y-%m-%d")
     except ValueError as error:
         raise ValueError("날짜를 올바르게 선택해주세요.") from error
-    if mood_code not in _DIARY_MOODS:
-        raise ValueError("오늘의 기분을 선택해주세요.")
+    if mood_code not in _BLOG_ENTRY_LABELS:
+        raise ValueError("카테고리를 선택해주세요.")
     return {
         "diary_date": diary_date,
         "mood_code": mood_code,
@@ -5606,10 +5648,11 @@ def _diary_board_context(
         "total": total,
         "page": page,
         "total_pages": total_pages,
-        "moods": _DIARY_MOODS,
+        "categories": _BLOG_CATEGORIES,
+        "entry_labels": _BLOG_ENTRY_LABELS,
         "csrf_token": get_csrf_token(),
         "error": error,
-        "form_data": form_data or {"diary_date": today_kst_str(), "mood_code": "calm"},
+        "form_data": form_data or {"diary_date": today_kst_str(), "mood_code": "daily"},
     }
 
 
@@ -5642,7 +5685,7 @@ _ARCHIVE_BOARDS = {
         "list_title": "리뷰 모음",
         "empty_title": "아직 등록된 리뷰가 없습니다",
         "empty_description": "첫 리뷰를 작성해보세요.",
-        "default_view": "gallery",
+        "default_view": "timeline",
         "board_endpoint": "review_board_page",
         "entry_endpoint": "review_entry_page",
         "edit_endpoint": "edit_review_entry_route",
@@ -5756,7 +5799,7 @@ def _archive_entry_response(entry_id, board_type):
             abort(404)
         return render_template(
             "diary_entry.html", entry=entry,
-            mood=_DIARY_MOODS.get(entry.get("mood_code"), ("•", "미선택")),
+            mood=_BLOG_ENTRY_LABELS.get(entry.get("mood_code"), ("•", "미선택")),
             entry_html=_render_community_markdown(entry["content"]),
             csrf_token=get_csrf_token(),
             archive_settings=settings,
@@ -5823,7 +5866,8 @@ def _edit_archive_entry_response(entry_id, board_type):
                         url_for(settings["entry_endpoint"], entry_id=entry_id)
                     )
         return render_template(
-            "diary_edit.html", entry=entry, form_data=form_data, moods=_DIARY_MOODS,
+            "diary_edit.html", entry=entry, form_data=form_data,
+            categories=_BLOG_CATEGORIES,
             error=error, csrf_token=get_csrf_token(),
             archive_settings=settings, board_type=board_type,
         ), status

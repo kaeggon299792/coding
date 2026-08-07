@@ -765,8 +765,29 @@ def get_admin_dashboard_metrics(connection, date_key):
                 WHERE action LIKE 'SECURITY_%'
                   AND SUBSTR(created_at, 1, 10) = ?
             ) AS security_events
+            ,(
+                SELECT COUNT(DISTINCT COALESCE(ip_address, username))
+                FROM security_audit_log
+                WHERE action='PAGE_VIEW'
+                  AND SUBSTR(created_at, 1, 10) = ?
+                  AND json_valid(detail_json)=1
+                  AND json_extract(detail_json, '$.host') IN (
+                      'casino.shingoon.me', 'www.casino.shingoon.me'
+                  )
+            ) AS casino_domain_visitors
+            ,(
+                SELECT COUNT(DISTINCT COALESCE(ip_address, username))
+                FROM security_audit_log
+                WHERE action='PAGE_VIEW'
+                  AND SUBSTR(created_at, 1, 10) = ?
+                  AND json_valid(detail_json)=1
+                  AND json_extract(detail_json, '$.host')='dashboard.shingoon.me'
+            ) AS dashboard_domain_visitors
         """,
-        (date_key, date_key, date_key, date_key, date_key, date_key),
+        (
+            date_key, date_key, date_key, date_key, date_key, date_key,
+            date_key, date_key,
+        ),
     ).fetchone()
     return dict(row) if row else {
         "new_members": 0,
@@ -3141,7 +3162,10 @@ def upsert_recruitment_job(connection, item):
     connection.commit()
 
 
-def list_recruitment_jobs(connection, term="", source="", employment_type="", limit=200):
+def list_recruitment_jobs(
+    connection, term="", source="", employment_type="", company="",
+    sort="registered", limit=200,
+):
     conditions = ["is_active=1"]
     params = []
     if term:
@@ -3156,13 +3180,47 @@ def list_recruitment_jobs(connection, term="", source="", employment_type="", li
     if employment_type:
         conditions.append("employment_type=?")
         params.append(employment_type)
+    if company:
+        conditions.append("company_name=?")
+        params.append(company)
+    order_by = (
+        "CASE WHEN deadline IS NULL OR TRIM(deadline)='' THEN 1 ELSE 0 END, "
+        "date(REPLACE(REPLACE(SUBSTR(deadline, 1, 10), '.', '-'), '/', '-')) ASC, "
+        "first_seen_at DESC, id DESC"
+        if sort == "deadline"
+        else "first_seen_at DESC, id DESC"
+    )
     params.append(max(1, int(limit)))
     rows = connection.execute(
         f"SELECT * FROM recruitment_jobs WHERE {' AND '.join(conditions)} "
-        "ORDER BY COALESCE(posted_at, first_seen_at) DESC LIMIT ?",
+        f"ORDER BY {order_by} LIMIT ?",
         params,
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def list_recruitment_filter_options(connection):
+    companies = [
+        row["company_name"]
+        for row in connection.execute(
+            """SELECT DISTINCT company_name FROM recruitment_jobs
+               WHERE is_active=1 AND company_name IS NOT NULL
+                 AND TRIM(company_name)!=''
+               ORDER BY CASE company_name
+                 WHEN '롯데관광개발' THEN 1 WHEN '파라다이스' THEN 2
+                 WHEN '인스파이어' THEN 3 WHEN 'GKL' THEN 4
+                 WHEN '강원랜드' THEN 5 WHEN '워커힐' THEN 6 ELSE 99 END,
+                 company_name"""
+        ).fetchall()
+    ]
+    sources = [
+        row["source_name"]
+        for row in connection.execute(
+            """SELECT DISTINCT source_name FROM recruitment_jobs
+               WHERE is_active=1 ORDER BY source_name"""
+        ).fetchall()
+    ]
+    return {"companies": companies, "sources": sources}
 
 
 def search_recruitment_jobs(connection, term, days=365, limit=100):

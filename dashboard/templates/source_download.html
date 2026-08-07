@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}원천 데이터 다운{% endblock %}
+{% block title %}원천 데이터 다운로드{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
 <main class="page-container source-download-page">
   <header class="page-header">
     <p class="page-eyebrow">DATA / SOURCE DOWNLOAD</p>
-    <h1 class="page-title">원천 데이터 다운</h1>
+    <h1 class="page-title">원천 데이터 다운로드</h1>
     <p class="page-description">{{ t('사이트에서 수집하는 숫자 데이터를 중앙 DB에 계속 누적하고, 일자·월·연도 단위로 조회해 Excel에 바로 붙여넣을 수 있습니다.') }}</p>
     <div class="source-repository-stats" aria-label="{{ t('누적 데이터 현황') }}">
       <span><b>{{ source_view.stats.series_count or 0 }}</b> {{ t('데이터 종류') }}</span>
@@ -16,6 +16,12 @@
     <p class="page-note">{{ t('새로운 수집값은 기존 원본 DB와 함께 이 저장소에도 자동 기록됩니다. 경영실적 데이터는 관리자에게만 표시됩니다.') }}</p>
   </header>
 
+  <details class="source-download-disclosure"{% if request.args %} open{% endif %}>
+    <summary class="panel source-download-summary">
+      <span><b>원천 데이터 조회·다운로드</b><small>조회 조건, 데이터 선택, 표·CSV 도구</small></span>
+      <span class="source-download-summary-state" aria-hidden="true">열기</span>
+    </summary>
+  <div class="source-download-disclosure-body">
   <form class="panel source-filter" method="get">
     <div class="source-filter-row">
       <label>{{ t('조회 단위') }}
@@ -106,6 +112,8 @@
     </div>
     <div class="source-chart" id="source-chart" role="img" aria-label="{{ t('선택 데이터 추이 그래프') }}"></div>
   </section>
+  </div>
+  </details>
 </main>
 <script type="application/json" id="source-download-data">{{ {'periods': source_view.periods, 'rows': source_view.rows, 'rawRows': source_view.raw_rows}|tojson }}</script>
 {% endblock %}

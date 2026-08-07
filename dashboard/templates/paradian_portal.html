@@ -42,6 +42,16 @@
         <div class="admin-metric-value"><strong data-metric="security-events">{{ admin_metrics.security_events }}</strong><em>건</em></div>
         <p><b>오늘</b> 공격·이상행동 감지</p>
       </article>
+      <article class="admin-metric-card is-domain-casino">
+        <div class="admin-metric-top"><span>casino.shingoon.me</span><i aria-hidden="true">◎</i></div>
+        <div class="admin-metric-value"><strong data-metric="casino-domain-visitors">{{ admin_metrics.casino_domain_visitors }}</strong><em>명</em></div>
+        <p><b>오늘</b> 고유 방문자</p>
+      </article>
+      <article class="admin-metric-card is-domain-dashboard">
+        <div class="admin-metric-top"><span>dashboard.shingoon.me</span><i aria-hidden="true">◎</i></div>
+        <div class="admin-metric-value"><strong data-metric="dashboard-domain-visitors">{{ admin_metrics.dashboard_domain_visitors }}</strong><em>명</em></div>
+        <p><b>오늘</b> 고유 방문자</p>
+      </article>
     </div>
     <section class="admin-activity-panel" aria-labelledby="admin-activity-title">
       <header>
@@ -73,56 +83,6 @@
         </dl>
       </div>
     </section>
-  </section>
-  <section class="paradian-menu-grid">
-    <a href="{{ url_for('admin_portfolio_page') }}">
-      <span>Portfolio Administration</span><h2>포트폴리오 관리</h2>
-      <p>프로필·프로젝트·연락처·로고·Tips와 외부 링크 파일을 이 관리자 화면 안에서 관리합니다.</p><b>관리 화면 열기 →</b>
-    </a>
-    <a href="{{ url_for('auth.user_management') }}">
-      <span>Site Administration</span><h2>관리자 페이지</h2>
-      <p>가입 승인, 권한, 계정과 사이트 표시 설정을 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('auth.membership_management') }}">
-      <span>Members &amp; Board Access</span><h2>회원관리</h2>
-      <p>회원등급, 등급 아이콘과 게시판별 읽기·쓰기·댓글 권한을 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('auth.ai_settings') }}">
-      <span>API &amp; AI Operations</span><h2>API 설정</h2>
-      <p>AI 기능별 모델, 호출 한도, 사용량과 예상 비용을 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('auth.admin_logs') }}">
-      <span>Security &amp; Activity Logs</span><h2>로그</h2>
-      <p>로그인, 활동과 비가입자 접근 기록을 확인합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('auth.localization_dashboard') }}">
-      <span>Localization Management</span><h2>Localization</h2>
-      <p>사이트 전체 번역 현황, 누락 검사, 품질 검사를 관리합니다.</p><b>열기 ↗</b>
-    </a>
-    <a href="{{ url_for('auth.admin_tasks') }}">
-      <span>Automation Operations</span><h2>자동화 작업</h2>
-      <p>PythonAnywhere와 로컬 PC의 실행 일정, 데이터 흐름과 최근 상태를 확인합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('credits_management_page') }}">
-      <span>Sources &amp; Copyright</span><h2>출처 관리</h2>
-      <p>공개 출처 페이지의 데이터셋, 기관, 링크와 표시 순서를 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('admin_action_items_page') }}">
-      <span>Operational Action Items</span><h2>미처리 과제</h2>
-      <p>기존 운영 과제와 처리 상태를 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('admin_memos_page') }}">
-      <span>Private Memo Board</span><h2>메모</h2>
-      <p>내용과 용도를 코드블록 형태로 기록하고 참고 이미지를 함께 보관합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('official_docs.dashboard') }}">
-      <span>Official Documents</span><h2>공문·자료관리</h2>
-      <p>공문 접수, 자료 처리와 Y디스크 보관 상태를 관리합니다.</p><b>열기 →</b>
-    </a>
-    <a href="{{ url_for('performance_page') }}">
-      <span>Management Performance</span><h2>경영 실적</h2>
-      <p>일별 실적과 워커힐 카지노 매출 추이를 확인합니다.</p><b>열기 →</b>
-    </a>
   </section>
 </main>
 {% endblock %}

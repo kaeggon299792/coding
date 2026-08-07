@@ -20,6 +20,17 @@ KST = ZoneInfo("Asia/Seoul")
 HOME_HERO_VARIANTS = (
     {"value": "spotlight", "label": "Spotlight"},
     {"value": "event-horizon", "label": "Event Horizon"},
+    {"value": "mesh-gradient", "label": "Mesh Gradient"},
+)
+
+HOME_HERO_TAGLINES = (
+    ("카지노인을 위한 모든 정보.", "Everything casino professionals need."),
+    ("카지노인을 위한 하나의 공간.", "One space for the casino industry."),
+    ("카지노 업계를 한눈에.", "The casino industry at a glance."),
+    ("필요한 정보를, 필요한 순간에.", "The right information, right when you need it."),
+    ("업계의 흐름을 가장 빠르게.", "Stay ahead of the industry."),
+    ("정보는 흩어져 있어도, 인사이트는 하나로.", "Scattered information. Connected insight."),
+    ("카지노 산업을 더 가까이.", "Bringing the casino industry closer."),
 )
 
 load_dotenv(ENV_FILE)

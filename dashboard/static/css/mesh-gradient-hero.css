@@ -8,6 +8,35 @@
   overflow: clip;
 }
 
+html[data-home-hero="mesh-gradient"] .home-hero-slot {
+  position: relative;
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: none;
+  margin-inline: calc(50% - 50vw);
+  background: #000;
+}
+
+html[data-home-hero="mesh-gradient"] .home-hero-slot::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: #000;
+  content: "";
+  pointer-events: none;
+}
+
+html[data-home-hero="mesh-gradient"] .page-container > .home-hero-slot::before {
+  top: calc(-1 * var(--space-6));
+}
+
+html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
+  z-index: 1;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
 .mesh-gradient-hero {
   position: relative;
   isolation: isolate;
@@ -98,6 +127,11 @@
   line-height: 0.96;
   letter-spacing: -0.055em;
   text-wrap: balance;
+}
+
+.home-mesh-gradient .mesh-gradient-content h1 {
+  font-size: clamp(2.8rem, 5.8vw, 6rem);
+  line-height: 1.02;
 }
 
 .mesh-gradient-content h1 > span {
