@@ -19,6 +19,8 @@ def test_navigation_shadows_and_alignment_animation_are_removed():
     dashboard_css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
 
     assert ".global-language-switch nav { box-shadow: none; }" in site_css
+    assert ".global-language-switch { backdrop-filter: none; }" in site_css
+    assert ".topbar-private-menu > div { box-shadow: none; }" in site_css
     assert "transition:margin-left" not in dashboard_css
 
 
