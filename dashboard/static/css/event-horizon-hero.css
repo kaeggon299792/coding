@@ -168,6 +168,11 @@ html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
 }
 
 @media (max-width: 760px) {
+  html[data-home-hero="event-horizon"] .home-hero-slot {
+    width: 100%;
+    margin-inline: 0;
+  }
+
   html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before {
     top: calc(-1 * var(--space-4));
   }

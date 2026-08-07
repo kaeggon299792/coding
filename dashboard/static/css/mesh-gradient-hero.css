@@ -251,6 +251,11 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
 }
 
 @media (max-width: 760px) {
+  html[data-home-hero="mesh-gradient"] .home-hero-slot {
+    width: 100%;
+    margin-inline: 0;
+  }
+
   .mesh-gradient-hero {
     min-height: max(620px, calc(92svh - var(--sticky-topbar-height, 0px)));
   }
