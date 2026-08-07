@@ -14,6 +14,19 @@ def test_archive_template_uses_board_specific_list_copy():
     assert "{{ archive_settings.empty_description }}" in template
 
 
+def test_timeline_long_content_uses_progressive_expand_control():
+    template = (ROOT / "templates" / "diary_board.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "css" / "site-components.css").read_text(encoding="utf-8")
+    script = (ROOT / "static" / "js" / "diary.js").read_text(encoding="utf-8")
+
+    assert "data-diary-timeline-excerpt" in template
+    assert 'aria-expanded="false" hidden' in template
+    assert "diary-timeline-collapse-height: 360px" in css
+    assert ".diary-timeline-excerpt.is-collapsible:not(.is-expanded)::after" in css
+    assert 'label.textContent = expanded ? "접기" : "전체 보기"' in script
+    assert 'content.scrollHeight > limit + 8' in script
+
+
 def test_navigation_shadows_and_alignment_animation_are_removed():
     site_css = (ROOT / "static" / "css" / "site-components.css").read_text(encoding="utf-8")
     dashboard_css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")

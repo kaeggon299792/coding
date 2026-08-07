@@ -156,12 +156,16 @@ def test_diary_timeline_and_gallery_paginate_ten_entries(monkeypatch, tmp_path):
         _login(client, user_id, "diary-views", "t" * 64)
         timeline = client.get("/board/diary").get_data(as_text=True)
         assert timeline.count('class="diary-timeline-entry"') == 10
+        assert timeline.count("data-diary-timeline-excerpt") == 10
+        assert timeline.count("data-diary-timeline-expand aria-controls") == 10
+        assert 'aria-expanded="false" hidden' in timeline
         assert "마크다운 본문 11" in timeline
         assert f'<img alt="테스트" src="{image_url}">' in timeline
         assert "page=2&amp;view=timeline" in timeline
 
         gallery = client.get("/board/diary?view=gallery").get_data(as_text=True)
         assert 'class="diary-gallery"' in gallery
+        assert "data-diary-timeline-expand" not in gallery
         assert image_url in gallery
         assert "기록 11" in gallery
         assert "page=2&amp;view=gallery" in gallery

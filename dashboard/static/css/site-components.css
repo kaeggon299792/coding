@@ -960,6 +960,84 @@ body > .admin-global-sidebar ~ :is(main.page-container, main.page-shell, div.pag
 .casino-chart-tooltip,
 [role="tooltip"] { border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-popover); }
 
+/* Timeline entries stay scannable while preserving the complete rendered
+   Markdown as a progressive-enhancement fallback. */
+.diary-timeline-excerpt {
+  --diary-timeline-collapse-height: 360px;
+  position: relative;
+  min-width: 0;
+}
+
+.diary-timeline-excerpt > .community-markdown {
+  color: var(--brand-text-secondary);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.diary-timeline-excerpt > .community-markdown img {
+  max-height: 520px;
+  object-fit: contain;
+}
+
+.diary-timeline-excerpt.is-collapsible:not(.is-expanded) {
+  box-sizing: content-box;
+  max-height: var(--diary-timeline-collapse-height);
+  padding-bottom: 54px;
+  overflow: hidden;
+}
+
+.diary-timeline-excerpt.is-collapsible:not(.is-expanded)::after {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 108px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ui-card) 84%, transparent) 48%,
+    var(--ui-card) 82%
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.diary-timeline-expand.btn {
+  display: none;
+  min-height: 34px;
+  padding-inline: 13px;
+  border-color: var(--ui-border);
+  background: var(--ui-card);
+  font-size: 11px;
+}
+
+.diary-timeline-excerpt.is-collapsible .diary-timeline-expand {
+  display: inline-flex;
+  z-index: 2;
+}
+
+.diary-timeline-excerpt.is-collapsible:not(.is-expanded) .diary-timeline-expand {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.diary-timeline-excerpt.is-expanded .diary-timeline-expand {
+  width: max-content;
+  margin: 12px auto 0;
+}
+
+.diary-timeline-excerpt.is-expanded .diary-timeline-expand .ui-icon {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 620px) {
+  .diary-timeline-excerpt { --diary-timeline-collapse-height: 280px; }
+  .diary-timeline-excerpt > .community-markdown { font-size: 12px; }
+}
+
 @media (max-width: 760px) {
   .btn,
   .button,

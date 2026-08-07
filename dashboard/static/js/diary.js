@@ -236,4 +236,38 @@
     window.addEventListener("scroll", position, { passive: true });
     syncLabel();
   });
+
+  document.querySelectorAll("[data-diary-timeline-excerpt]").forEach(function (wrapper) {
+    var content = wrapper.querySelector(".community-markdown");
+    var button = wrapper.querySelector("[data-diary-timeline-expand]");
+    var label = button && button.querySelector("[data-diary-timeline-expand-label]");
+    if (!content || !button || !label) return;
+
+    function syncCollapsibleState() {
+      var limit = parseFloat(getComputedStyle(wrapper).getPropertyValue("--diary-timeline-collapse-height")) || 360;
+      var collapsible = content.scrollHeight > limit + 8;
+      wrapper.classList.toggle("is-collapsible", collapsible);
+      button.hidden = !collapsible;
+      if (!collapsible) {
+        wrapper.classList.remove("is-expanded");
+        button.setAttribute("aria-expanded", "false");
+        label.textContent = "전체 보기";
+      }
+    }
+
+    button.addEventListener("click", function () {
+      var expanded = wrapper.classList.toggle("is-expanded");
+      button.setAttribute("aria-expanded", expanded ? "true" : "false");
+      label.textContent = expanded ? "접기" : "전체 보기";
+      if (!expanded) wrapper.scrollIntoView({ block: "nearest", behavior: "auto" });
+    });
+
+    syncCollapsibleState();
+    if (typeof ResizeObserver === "function") {
+      var observer = new ResizeObserver(syncCollapsibleState);
+      observer.observe(content);
+    } else {
+      window.addEventListener("load", syncCollapsibleState, { once: true });
+    }
+  });
 })();
