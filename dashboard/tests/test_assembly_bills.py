@@ -1,3 +1,8 @@
+from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
+
+import pytest
+
 from dashboard_db import queries
 from services import ai_insights, assembly_bill_client
 
@@ -21,6 +26,37 @@ class FakeResponse:
                 }]},
             ]
         }
+
+
+def _zip(payload):
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("bill.pdf", payload)
+    return output.getvalue()
+
+
+def test_bill_archive_download_and_expansion_limits(monkeypatch):
+    class StreamResponse:
+        headers = {}
+        content = b""
+
+        def iter_content(self, chunk_size):
+            yield b"12345"
+            yield b"67890"
+
+    with pytest.raises(assembly_bill_client.AssemblyDocumentLimitError):
+        assembly_bill_client._read_response_limited(StreamResponse(), 9)
+
+    monkeypatch.setattr("config.ASSEMBLY_BILL_PDF_MAX_BYTES", 8)
+    with pytest.raises(assembly_bill_client.AssemblyDocumentLimitError):
+        assembly_bill_client._read_pdf_from_archive(_zip(b"%PDF-" + b"x" * 20))
+
+
+def test_bill_archive_rejects_extreme_compression_ratio(monkeypatch):
+    monkeypatch.setattr("config.ASSEMBLY_BILL_PDF_MAX_BYTES", 2_000_000)
+    monkeypatch.setattr("config.ASSEMBLY_BILL_ZIP_MAX_RATIO", 2)
+    with pytest.raises(assembly_bill_client.AssemblyDocumentLimitError):
+        assembly_bill_client._read_pdf_from_archive(_zip(b"%PDF-" + b"0" * 100_000))
 
 
 def test_search_and_normalize_bill(monkeypatch):

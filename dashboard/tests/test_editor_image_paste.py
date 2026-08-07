@@ -57,8 +57,9 @@ def test_editor_image_upload_obeys_board_and_library_permissions(monkeypatch, tm
         _login(client, regular_id, "paste-user", "user", "u" * 64)
         community = _upload(client, "community", "u" * 64)
         assert community.status_code == 200
-        assert community.get_json()["url"].startswith("/static/uploads/editor/")
+        assert community.get_json()["url"].startswith("/media/editor/")
         assert community.get_json()["url"].endswith(".png")
+        assert client.get(community.get_json()["url"]).status_code == 200
         assert _upload(client, "bug_report", "u" * 64).status_code == 200
         assert _upload(client, "notice", "u" * 64).status_code == 403
         assert _upload(client, "tips", "u" * 64).status_code == 403
@@ -74,6 +75,50 @@ def test_editor_image_upload_obeys_board_and_library_permissions(monkeypatch, tm
     saved = list(image_dir.iterdir())
     assert len(saved) == 4
     assert all(path.suffix == ".png" and path.read_bytes() == PNG_BYTES for path in saved)
+
+
+def test_editor_image_requires_owner_or_referenced_post_permission(monkeypatch, tmp_path):
+    db_path = tmp_path / "protected-editor.db"
+    protected, legacy = tmp_path / "protected", tmp_path / "legacy"
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    monkeypatch.setattr("config.EDITOR_IMAGE_DIR", str(protected))
+    monkeypatch.setattr("config.EDITOR_IMAGE_LEGACY_DIR", str(legacy))
+    import app as app_module
+    from dashboard_db import schema
+
+    connection = schema.connect(str(db_path))
+    owner = _create_user(connection, "owner", "user")
+    other = _create_user(connection, "other", "user")
+    filename = "a" * 32 + ".png"
+    legacy.mkdir()
+    (legacy / filename).write_bytes(PNG_BYTES)
+    url = f"/media/editor/{filename}"
+    connection.execute(
+        """INSERT INTO community_posts
+           (author_id,author_username,title,content,created_at,updated_at,
+            board_type,is_private,is_deleted)
+           VALUES (?,?,?,?,'2026-08-08','2026-08-08','community',0,0)""",
+        (owner, "owner", "public", f"![image]({url})"),
+    )
+    connection.commit()
+    connection.close()
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as client:
+        assert client.get(url).status_code == 200
+        assert (protected / filename).is_file()
+        assert not (legacy / filename).exists()
+        assert client.get("/media/editor/not-generated.png").status_code == 404
+
+    connection = schema.connect(str(db_path))
+    connection.execute("UPDATE community_posts SET is_private=1")
+    connection.commit()
+    connection.close()
+    with app_module.app.test_client() as client:
+        assert client.get(url).status_code == 404
+        _login(client, other, "other", "user", "o" * 64)
+        assert client.get(url).status_code == 404
+        _login(client, owner, "owner", "user", "u" * 64)
+        assert client.get(url).status_code == 200
 
 
 def test_markdown_editors_enable_clipboard_images_and_render_safely():
@@ -95,8 +140,8 @@ def test_markdown_editors_enable_clipboard_images_and_render_safely():
     assert "data-image-upload-for" in script
 
     rendered = str(app_module._render_community_markdown(
-        "![안전 이미지](/static/uploads/editor/test.png)\n\n"
+        "![안전 이미지](/media/editor/test.png)\n\n"
         "![위험 이미지](javascript:alert(1))"
     ))
-    assert '<img alt="안전 이미지" src="/static/uploads/editor/test.png">' in rendered
+    assert '<img alt="안전 이미지" src="/media/editor/test.png">' in rendered
     assert "javascript:" not in rendered

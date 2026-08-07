@@ -1,13 +1,14 @@
 """인증된 리서치 업로드 파일의 검증·보관·PDF 텍스트 추출."""
 
 import hashlib
+import json
 import os
+import subprocess
+import sys
 import unicodedata
 import uuid
 from pathlib import Path
 
-from pypdf import PdfReader
-from pypdf.errors import PdfReadError
 import config
 from services import pdf_security
 
@@ -36,6 +37,34 @@ def _validated_original_name(filename):
     return f"{stem[:175]}.pdf"
 
 
+def _extract_in_subprocess(raw):
+    command = [
+        sys.executable, str(Path(__file__).with_name("pdf_worker.py")),
+        str(config.RESEARCH_MAX_FILE_BYTES), str(config.RESEARCH_MAX_PDF_PAGES),
+        str(config.RESEARCH_MAX_EXTRACTED_CHARS),
+        str(config.RESEARCH_PDF_PROCESS_MEMORY_MB),
+        str(config.RESEARCH_PDF_PROCESS_CPU_SECONDS),
+    ]
+    try:
+        completed = subprocess.run(
+            command, input=raw, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            timeout=config.RESEARCH_PDF_PROCESS_TIMEOUT_SECONDS, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise DocumentUploadError(
+            "PDF 처리 시간이 초과되었거나 처리기를 실행할 수 없습니다."
+        ) from error
+    try:
+        payload = json.loads(completed.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError, AttributeError) as error:
+        raise DocumentUploadError("PDF 처리 중 오류가 발생했습니다.") from error
+    if not payload.get("ok"):
+        if payload.get("kind") == "invalid" and payload.get("message"):
+            raise DocumentUploadError(str(payload["message"]))
+        raise DocumentUploadError("PDF 내용을 안전하게 처리할 수 없습니다.")
+    return int(payload["page_count"]), str(payload.get("text") or "")
+
+
 def save_and_extract(file_storage):
     original_name = _validated_original_name(file_storage.filename)
     raw = file_storage.read(config.RESEARCH_MAX_FILE_BYTES + 1)
@@ -44,11 +73,6 @@ def save_and_extract(file_storage):
     if len(raw) > config.RESEARCH_MAX_FILE_BYTES:
         max_mb = config.RESEARCH_MAX_FILE_BYTES // (1024 * 1024)
         raise DocumentUploadError(f"파일은 {max_mb}MB 이하만 업로드할 수 있습니다.")
-    try:
-        page_count = pdf_security.validate_pdf_content(raw)
-    except pdf_security.PdfSecurityError as error:
-        raise DocumentUploadError(str(error)) from error
-
     digest = hashlib.sha256(raw).hexdigest()
     stored_name = f"{uuid.uuid4().hex}.pdf"
     target = ensure_library_dir() / stored_name
@@ -56,19 +80,7 @@ def save_and_extract(file_storage):
 
     try:
         pdf_security.scan_file(target)
-        reader = PdfReader(str(target))
-        chunks = []
-        current_chars = 0
-        for page in reader.pages[: config.RESEARCH_MAX_PDF_PAGES]:
-            text = (page.extract_text() or "").strip()
-            if not text:
-                continue
-            remaining = config.RESEARCH_MAX_EXTRACTED_CHARS - current_chars
-            if remaining <= 0:
-                break
-            chunks.append(text[:remaining])
-            current_chars += len(chunks[-1])
-        extracted_text = "\n\n".join(chunks).strip()
+        page_count, extracted_text = _extract_in_subprocess(raw)
         status = "complete" if extracted_text else "no_text"
         return {
             "original_filename": original_name,
@@ -81,7 +93,7 @@ def save_and_extract(file_storage):
             "extraction_status": status,
             "path": target,
         }
-    except (PdfReadError, DocumentUploadError, pdf_security.PdfSecurityError) as error:
+    except (DocumentUploadError, pdf_security.PdfSecurityError) as error:
         target.unlink(missing_ok=True)
         if isinstance(error, (DocumentUploadError, pdf_security.PdfSecurityError)):
             if isinstance(error, pdf_security.PdfSecurityError):

@@ -1,7 +1,12 @@
-"""Safe storage helpers for images pasted into Markdown editors."""
+"""Safe storage helpers for images pasted into protected editors."""
 
+import os
+import re
 import uuid
 from pathlib import Path
+
+
+SAFE_FILENAME_RE = re.compile(r"\A[0-9a-f]{32}\.(?:png|jpg|gif|webp)\Z")
 
 
 def image_suffix(data):
@@ -34,3 +39,52 @@ def save_pasted_image(uploaded, directory, max_bytes):
     filename = f"{uuid.uuid4().hex}{suffix}"
     (root / filename).write_bytes(data)
     return filename
+
+
+def safe_image_path(directory, filename):
+    """Resolve only application-generated image names inside ``directory``."""
+    value = str(filename or "")
+    if not SAFE_FILENAME_RE.fullmatch(value):
+        raise ValueError("Invalid editor image name")
+    root = Path(directory).resolve()
+    candidate = (root / value).resolve()
+    if candidate.parent != root:
+        raise ValueError("Invalid editor image path")
+    return candidate
+
+
+def migrate_legacy_image(filename, legacy_directory, protected_directory):
+    """Move one legacy static image into protected storage, race-safely."""
+    target = safe_image_path(protected_directory, filename)
+    if target.is_file():
+        return target
+    source = safe_image_path(legacy_directory, filename)
+    if not source.is_file():
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.replace(source, target)
+    except FileNotFoundError:
+        # Another WSGI worker may have completed the same lazy migration.
+        pass
+    return target
+
+
+def migrate_legacy_directory(legacy_directory, protected_directory):
+    """Move all generated legacy images out of the public static tree."""
+    legacy = Path(legacy_directory).resolve()
+    protected = Path(protected_directory).resolve()
+    if legacy == protected or not legacy.is_dir():
+        return 0
+    migrated = 0
+    for source in legacy.iterdir():
+        if not source.is_file() or not SAFE_FILENAME_RE.fullmatch(source.name):
+            continue
+        target = protected / source.name
+        protected.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(source, target)
+            migrated += 1
+        except FileNotFoundError:
+            pass
+    return migrated

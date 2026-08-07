@@ -1,4 +1,5 @@
 from io import BytesIO
+import subprocess
 
 import pytest
 from pypdf import PdfWriter
@@ -52,6 +53,20 @@ def test_oversized_pdf_is_rejected_without_leaving_a_file(monkeypatch, tmp_path)
     monkeypatch.setattr("config.RESEARCH_MAX_FILE_BYTES", 10)
     uploaded = FileStorage(stream=BytesIO(b"%PDF-" + b"x" * 20), filename="large.pdf")
     with pytest.raises(document_library.DocumentUploadError):
+        document_library.save_and_extract(uploaded)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_pdf_worker_timeout_removes_temporary_file(monkeypatch, tmp_path):
+    monkeypatch.setattr("config.RESEARCH_LIBRARY_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "services.document_library.subprocess.run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(args[0], 1)
+        ),
+    )
+    uploaded = FileStorage(stream=_blank_pdf(), filename="slow.pdf")
+    with pytest.raises(document_library.DocumentUploadError, match="처리"):
         document_library.save_and_extract(uploaded)
     assert list(tmp_path.iterdir()) == []
 

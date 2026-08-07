@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080801
+SCHEMA_VERSION = 2026080802
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -656,6 +656,20 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_diary_images_owner_created "
         "ON diary_images(owner_id, created_at DESC)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS editor_image_uploads (
+            filename TEXT PRIMARY KEY,
+            owner_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            scope TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_editor_image_uploads_owner "
+        "ON editor_image_uploads(owner_id, created_at DESC)"
     )
 
     # ---- community_comments ----
@@ -2508,6 +2522,28 @@ def migrate(connection):
            ON comment_telegram_subscriptions(scope_type, scope_id, is_active)"""
     )
     connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS member_telegram_notification_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient_user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            notification_type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK(status IN ('pending','processing','sent','failed')),
+            attempts INTEGER NOT NULL DEFAULT 0,
+            available_at TEXT NOT NULL,
+            claimed_at TEXT,
+            sent_at TEXT,
+            last_error TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_member_telegram_queue_pending
+           ON member_telegram_notification_queue(status, available_at, id)"""
+    )
+    connection.execute(
         """INSERT OR IGNORE INTO comment_telegram_subscriptions
            (scope_type,scope_id,user_id,is_active,created_at,updated_at)
            SELECT s.scope_type,s.scope_id,s.author_id,s.is_active,s.created_at,s.updated_at
@@ -2518,6 +2554,21 @@ def migrate(connection):
         "CREATE INDEX IF NOT EXISTS idx_member_telegram_tokens_user "
         "ON member_telegram_link_tokens(user_id, expires_at, used_at)"
     )
+    # Existing editor URLs pointed at a web-server-owned /static directory.
+    # Rewrite stored references after every participating table is available.
+    for table_name, column_name in (
+        ("community_posts", "content"),
+        ("tips_articles", "body"),
+        ("action_items", "description"),
+        ("action_items", "source_ref_id"),
+    ):
+        connection.execute(
+            f"""UPDATE {table_name}
+                SET {column_name}=REPLACE(
+                    {column_name}, '/static/uploads/editor/', '/media/editor/'
+                )
+                WHERE {column_name} LIKE '%/static/uploads/editor/%'"""
+        )
     work_note_categories = (
         ("주간회의", "📅", 10), ("월간회의", "🗓️", 20),
         ("경영회의", "📊", 30), ("프로젝트", "🚀", 40),

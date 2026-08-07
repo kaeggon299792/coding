@@ -486,6 +486,9 @@ _STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 
 app = Flask(__name__)
+editor_images.migrate_legacy_directory(
+    config.EDITOR_IMAGE_LEGACY_DIR, config.EDITOR_IMAGE_DIR
+)
 if not config.FLASK_SECRET_KEY:
     raise RuntimeError("FLASK_SECRET_KEY must be configured before the application starts")
 app.secret_key = config.FLASK_SECRET_KEY
@@ -3234,8 +3237,11 @@ def create_admin_action_item_route():
 def _remove_admin_memo_image(image_url):
     """Remove only images created inside the dedicated safe editor directory."""
 
-    prefix = "/static/uploads/editor/"
-    if not image_url or not str(image_url).startswith(prefix):
+    prefixes = ("/media/editor/", "/static/uploads/editor/")
+    prefix = next(
+        (item for item in prefixes if str(image_url or "").startswith(item)), None
+    )
+    if not prefix:
         return
     filename = str(image_url)[len(prefix):]
     if not filename or filename != Path(filename).name:
@@ -3277,7 +3283,7 @@ def create_admin_memo_route():
             filename = editor_images.save_pasted_image(
                 uploaded, config.EDITOR_IMAGE_DIR, config.EDITOR_IMAGE_MAX_BYTES
             )
-            image_url = url_for("static", filename=f"uploads/editor/{filename}")
+            image_url = url_for("protected_editor_image", filename=filename)
         except ValueError as error:
             flash(str(error), "error")
             return redirect(url_for("admin_memos_page"))
@@ -3285,6 +3291,15 @@ def create_admin_memo_route():
     connection = dashboard_db()
     try:
         try:
+            if image_url:
+                connection.execute(
+                    """INSERT OR REPLACE INTO editor_image_uploads
+                       (filename,owner_id,scope,created_at) VALUES (?,?,?,?)""",
+                    (
+                        image_url.rsplit("/", 1)[-1], session["user_id"],
+                        "admin_memo", now_kst().isoformat(timespec="seconds"),
+                    ),
+                )
             memo_id = queries.create_action_item(
                 connection,
                 title=purpose,
@@ -5543,9 +5558,14 @@ def upload_editor_image_route():
         )
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
-    image_url = url_for("static", filename=f"uploads/editor/{filename}")
+    image_url = url_for("protected_editor_image", filename=filename)
     connection = dashboard_db()
     try:
+        connection.execute(
+            """INSERT INTO editor_image_uploads
+               (filename,owner_id,scope,created_at) VALUES (?,?,?,?)""",
+            (filename, session["user_id"], scope, now_kst().isoformat(timespec="seconds")),
+        )
         security_audit.log_event(
             connection, "EDITOR_IMAGE_UPLOAD", "editor_image", filename,
             {"scope": scope},
@@ -5554,6 +5574,79 @@ def upload_editor_image_route():
     finally:
         connection.close()
     return jsonify({"url": image_url})
+
+
+def _can_read_editor_image(connection, filename):
+    """Apply the current post permission to an editor image reference."""
+    user_id = session.get("user_id")
+    role = session.get("role")
+    if role == "admin":
+        return True
+
+    upload = connection.execute(
+        "SELECT owner_id FROM editor_image_uploads WHERE filename=?", (filename,)
+    ).fetchone()
+    if upload and user_id and int(upload["owner_id"]) == int(user_id):
+        return True
+
+    needles = (
+        f"%/media/editor/{filename}%",
+        f"%/static/uploads/editor/{filename}%",
+    )
+    post = connection.execute(
+        """SELECT author_id,board_type,is_private
+           FROM community_posts
+           WHERE is_deleted=0 AND (content LIKE ? OR content LIKE ?)
+           LIMIT 1""",
+        needles,
+    ).fetchone()
+    if post:
+        if user_id and int(post["author_id"]) == int(user_id):
+            return True
+        if not int(post["is_private"] or 0) and membership.can_board(
+            connection, post["board_type"], "read", user_id, role
+        ):
+            return True
+
+    tip = connection.execute(
+        """SELECT author_id,draft FROM tips_articles
+           WHERE is_deleted=0 AND (body LIKE ? OR body LIKE ?) LIMIT 1""",
+        needles,
+    ).fetchone()
+    if tip and (not int(tip["draft"] or 0) or (
+        user_id and tip["author_id"] and int(tip["author_id"]) == int(user_id)
+    )):
+        return True
+
+    action = connection.execute(
+        """SELECT source_type FROM action_items
+           WHERE (description LIKE ? OR description LIKE ?) LIMIT 1""",
+        needles,
+    ).fetchone()
+    if action and action["source_type"] != "admin_memo" and membership.can_board(
+        connection, "bug_reports", "read", user_id, role
+    ):
+        return True
+    return False
+
+
+@app.get("/media/editor/<filename>")
+def protected_editor_image(filename):
+    try:
+        target = editor_images.migrate_legacy_image(
+            filename, config.EDITOR_IMAGE_LEGACY_DIR, config.EDITOR_IMAGE_DIR
+        )
+    except ValueError:
+        abort(404)
+    connection = dashboard_db()
+    try:
+        if not _can_read_editor_image(connection, filename):
+            abort(404)
+    finally:
+        connection.close()
+    if not target.is_file():
+        abort(404)
+    return send_file(target, conditional=True, max_age=3600)
 
 
 def _community_attachment_url(raw_value, kind):

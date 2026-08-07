@@ -64,11 +64,14 @@ def test_comment_telegram_notifies_other_participants_without_rate_limit(tmp_pat
     sent = []
     sender = lambda chat_id, text: sent.append((chat_id, text)) or True
 
-    assert _notify(connection, author_id=first, comment_id=1, sender=sender)["sent"] == 0
-    assert _notify(connection, author_id=second, comment_id=2, sender=sender)["sent"] == 1
+    assert _notify(connection, author_id=first, comment_id=1, sender=sender)["queued"] == 0
+    assert _notify(connection, author_id=second, comment_id=2, sender=sender)["queued"] == 1
+    assert sent == []
+    assert comment_telegram_notifications.process_pending(connection, sender=sender)["sent"] == 1
     assert sent[0][0] == "111"
     assert "테스트 게시글" in sent[0][1]
-    assert _notify(connection, author_id=second, comment_id=3, sender=sender)["sent"] == 1
+    assert _notify(connection, author_id=second, comment_id=3, sender=sender)["queued"] == 1
+    assert comment_telegram_notifications.process_pending(connection, sender=sender)["sent"] == 1
     assert [chat_id for chat_id, _ in sent] == ["111", "111"]
     connection.close()
 
@@ -84,5 +87,27 @@ def test_comment_telegram_excludes_self_and_disabled_preference(tmp_path):
 
     _notify(connection, author_id=first, comment_id=1, sender=sender)
     _notify(connection, author_id=second, comment_id=2, sender=sender)
+    comment_telegram_notifications.process_pending(connection, sender=sender)
     assert sent == []
+    connection.close()
+
+
+def test_comment_telegram_failure_is_retried_durably(tmp_path):
+    connection = schema.connect(str(tmp_path / "retry.db"))
+    first = _user(connection, "first")
+    second = _user(connection, "second")
+    _connect(connection, first, "111")
+    _connect(connection, second, "222")
+    _notify(connection, author_id=first, comment_id=1, sender=None)
+    _notify(connection, author_id=second, comment_id=2, sender=None)
+    result = comment_telegram_notifications.process_pending(
+        connection, sender=lambda chat_id, text: False
+    )
+    assert result == {"claimed": 1, "sent": 0, "failed": 1}
+    queued = connection.execute(
+        "SELECT status,attempts,last_error FROM member_telegram_notification_queue"
+    ).fetchone()
+    assert dict(queued) == {
+        "status": "pending", "attempts": 1, "last_error": "delivery_failed"
+    }
     connection.close()

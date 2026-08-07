@@ -18,6 +18,55 @@ DETAIL_PAGE_URL = "https://likms.assembly.go.kr/bill/bi/billDetailPage.do"
 DETAIL_ZIP_URL = "https://likms.assembly.go.kr/bill/bi/bill/detail/downloadDtlZip.do"
 
 
+class AssemblyDocumentLimitError(ValueError):
+    """Raised when a supplier archive exceeds the configured safety budget."""
+
+
+def _read_response_limited(response, max_bytes):
+    content_length = response.headers.get("Content-Length") if hasattr(response, "headers") else None
+    if content_length:
+        try:
+            if int(content_length) > max_bytes:
+                raise AssemblyDocumentLimitError("archive_too_large")
+        except ValueError:
+            pass
+    iterator = getattr(response, "iter_content", None)
+    source = iterator(chunk_size=64 * 1024) if callable(iterator) else (response.content,)
+    chunks, total = [], 0
+    for chunk in source:
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > max_bytes:
+            raise AssemblyDocumentLimitError("archive_too_large")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _read_pdf_from_archive(raw_archive):
+    with ZipFile(BytesIO(raw_archive)) as archive:
+        entries = archive.infolist()
+        if len(entries) > config.ASSEMBLY_BILL_ZIP_MAX_ENTRIES:
+            raise AssemblyDocumentLimitError("too_many_entries")
+        if sum(max(0, item.file_size) for item in entries) > config.ASSEMBLY_BILL_ZIP_MAX_UNCOMPRESSED_BYTES:
+            raise AssemblyDocumentLimitError("archive_expands_too_large")
+        pdf_entries = [item for item in entries if item.filename.lower().endswith(".pdf")]
+        if not pdf_entries:
+            return None
+        item = pdf_entries[0]
+        if item.flag_bits & 0x1:
+            raise AssemblyDocumentLimitError("encrypted_archive")
+        if item.file_size > config.ASSEMBLY_BILL_PDF_MAX_BYTES:
+            raise AssemblyDocumentLimitError("pdf_too_large")
+        if item.file_size / max(1, item.compress_size) > config.ASSEMBLY_BILL_ZIP_MAX_RATIO:
+            raise AssemblyDocumentLimitError("compression_ratio_too_high")
+        with archive.open(item, "r") as stream:
+            pdf_bytes = stream.read(config.ASSEMBLY_BILL_PDF_MAX_BYTES + 1)
+        if len(pdf_bytes) > config.ASSEMBLY_BILL_PDF_MAX_BYTES:
+            raise AssemblyDocumentLimitError("pdf_too_large")
+        return pdf_bytes
+
+
 def _rows_from_response(data):
     payload = data.get("ALLBILLV2", [])
     if not isinstance(payload, list):
@@ -87,6 +136,7 @@ def normalize_bill(row, matched_keyword):
 
 def fetch_bill_source_text(bill_id, bill_kind="법률안"):
     """국회 의안 원문 ZIP의 PDF에서 AI 분석용 텍스트를 추출한다."""
+    session = None
     try:
         session = requests.Session()
         session.get(
@@ -98,13 +148,15 @@ def fetch_bill_source_text(bill_id, bill_kind="법률안"):
             DETAIL_ZIP_URL,
             data={"billId": bill_id, "billCd": bill_kind or "법률안"},
             timeout=config.ASSEMBLY_REQUEST_TIMEOUT_SECONDS,
+            stream=True,
         )
         response.raise_for_status()
-        with ZipFile(BytesIO(response.content)) as archive:
-            pdf_names = [name for name in archive.namelist() if name.lower().endswith(".pdf")]
-            if not pdf_names:
-                return {"ok": False, "error": "의안 원문 PDF를 찾지 못했습니다."}
-            pdf_bytes = archive.read(pdf_names[0])
+        archive_bytes = _read_response_limited(
+            response, config.ASSEMBLY_BILL_ARCHIVE_MAX_BYTES
+        )
+        pdf_bytes = _read_pdf_from_archive(archive_bytes)
+        if not pdf_bytes:
+            return {"ok": False, "error": "의안 원문 PDF를 찾지 못했습니다."}
         reader = PdfReader(BytesIO(pdf_bytes))
         chunks = []
         char_count = 0
@@ -121,6 +173,12 @@ def fetch_bill_source_text(bill_id, bill_kind="법률안"):
         if not extracted:
             return {"ok": False, "error": "의안 원문에서 텍스트를 추출하지 못했습니다."}
         return {"ok": True, "text": extracted, "source": "국회 의안 원문 PDF"}
+    except AssemblyDocumentLimitError:
+        logger.warning("Assembly bill archive rejected by resource limits (%s)", bill_id)
+        return {"ok": False, "error": "의안 원문 파일이 안전한 처리 한도를 초과했습니다."}
     except (requests.RequestException, BadZipFile, PdfReadError, KeyError, ValueError) as error:
         logger.error("의안 원문 수집 실패(%s): %s", bill_id, type(error).__name__)
         return {"ok": False, "error": f"의안 원문 수집 실패: {type(error).__name__}"}
+    finally:
+        if session is not None:
+            session.close()
