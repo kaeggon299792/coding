@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ '업무노트 수정' if note else '업무 등록' }}{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+{% include "_topbar.html" %}{% include "_board_subnav.html" %}
 <main class="page-container work-notes-page">
   <header class="page-header"><p class="page-eyebrow">ADMIN / WORK NOTES</p><h1 class="page-title">{{ '업무노트 수정' if note else '새 업무 등록' }}</h1></header>
   {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}

@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_primary_navigation_matches_confirmed_ia():
     markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
     for label in (
-        "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판", "블로그",
+        "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판",
         "통합검색", "회원정보관리", "관리자 전용",
     ):
         assert label in markup
@@ -20,7 +20,11 @@ def test_primary_navigation_matches_confirmed_ia():
     assert topbar_nav.index(">뉴스</a>") < topbar_nav.index(">채용</a>")
     assert topbar_nav.index(">채용</a>") < topbar_nav.index(">시장 정보</a>")
     assert "url_for('salary_trend_page')" in topbar_nav
-    assert topbar_nav.index(">게시판</a>") < topbar_nav.index(">블로그</a>")
+    assert ">블로그</a>" not in topbar_nav
+    board_subnav = (ROOT / "templates" / "_board_subnav.html").read_text(encoding="utf-8")
+    for label in ("자유 게시판", "공지사항", "리뷰", "아카이브", "버그 및 건의", "업무노트"):
+        assert f">{label}</a>" in board_subnav
+    assert not (ROOT / "templates" / "_blog_subnav.html").exists()
     assert ">관리자 전용</a>" not in topbar_nav
 
 
@@ -107,6 +111,7 @@ def test_english_catalog_and_sitemap_match_ia():
     assert catalog["게시판"] == "Boards"
     for label in ("시장 정보", "기업정보", "법률·규제", "자료실", "게시판"):
         assert f'"label": "{label}"' in app_source
+    assert '"label": "블로그"' not in app_source
 
 
 def test_canonical_routes_and_legacy_redirect_map_match_navigation():

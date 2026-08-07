@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ archive_settings.title }} 수정{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+{% include "_topbar.html" %}{% include "_board_subnav.html" %}
 <main class="page-container diary-page">
   <header class="page-header"><p class="page-eyebrow">BLOG / EDIT</p><h1 class="page-title">{{ archive_settings.title }} 수정</h1></header>
   {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}

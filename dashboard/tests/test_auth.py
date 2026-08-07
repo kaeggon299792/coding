@@ -251,7 +251,8 @@ def test_home_hero_preference_persists_per_account(client):
 
     anonymous = client.get("/").get_data(as_text=True)
     assert "const preferred = null;" in anonymous
-    assert "sessionStorage.getItem(key)" in anonymous
+    assert "sessionStorage.getItem(queueKey)" in anonymous
+    assert "selected = queue.shift()" in anonymous
 
     csrf = _get_csrf(client, "/login")
     client.post(

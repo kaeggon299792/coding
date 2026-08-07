@@ -1528,21 +1528,14 @@ def _site_map_links():
         },
         {
             "label": "게시판",
-            "description": "자유 게시판, 공지사항과 버그 및 건의",
+            "description": "자유 게시판, 리뷰, 아카이브와 버그 및 건의",
             "endpoint": "community_board_page",
             "children": [
                 {"label": "자유 게시판", "endpoint": "community_board_page"},
                 {"label": "공지사항", "endpoint": "notice_board_page"},
-                {"label": "버그 및 건의", "endpoint": "action_items_page"},
-            ],
-        },
-        {
-            "label": "블로그",
-            "description": "리뷰와 일상 아카이브",
-            "endpoint": "review_board_page",
-            "children": [
                 {"label": "리뷰", "endpoint": "review_board_page"},
                 {"label": "아카이브", "endpoint": "diary_board_page"},
+                {"label": "버그 및 건의", "endpoint": "action_items_page"},
             ],
         },
         {
@@ -2252,6 +2245,70 @@ def _credits_rows(connection):
     return rows
 
 
+# 관리자 대시보드의 경고는 실제 데이터가 바뀐 시각이 아니라 수집기가 마지막으로
+# 확인한 시각을 기준으로 한다. 월간·연간 데이터가 정상적으로 오래 유지되는 경우를
+# 오류로 표시하지 않기 위해 직접 등록형 항목에는 임의의 만료 시간을 두지 않는다.
+ADMIN_FRESHNESS_MAX_AGE_HOURS = {
+    "domestic_news": 24,
+    "overseas_news": 36,
+    "dart": 36,
+    "laws": 36,
+    "assembly_bills": 36,
+    "government_notices": 36,
+    "domestic_market": 24,
+    "global_market": 24,
+    "tourism": 48,
+    "oil": 36,
+    "exchange": 36,
+    "salary": 48,
+    "recruitment": 36,
+}
+
+
+def _admin_freshness_groups(connection):
+    freshness = _credit_freshness(connection)
+    groups = []
+    group_by_menu = {}
+    attention_count = 0
+    now = datetime.now(config.KST)
+
+    for source in queries.list_credit_sources(connection):
+        freshness_key = source.get("freshness_key") or ""
+        checked_at, changed_at = freshness.get(freshness_key, (None, None))
+        max_age_hours = ADMIN_FRESHNESS_MAX_AGE_HOURS.get(freshness_key)
+        checked_timestamp = _parse_iso_timestamp(checked_at)
+        if checked_timestamp and checked_timestamp.tzinfo is None:
+            checked_timestamp = checked_timestamp.replace(tzinfo=config.KST)
+        is_attention = bool(
+            max_age_hours is not None
+            and (
+                checked_timestamp is None
+                or now - checked_timestamp >= timedelta(hours=max_age_hours)
+            )
+        )
+        if is_attention:
+            attention_count += 1
+
+        menu = source.get("menu") or "기타"
+        group = group_by_menu.get(menu)
+        if group is None:
+            group = {"menu": menu, "entries": [], "attention_count": 0}
+            group_by_menu[menu] = group
+            groups.append(group)
+        if is_attention:
+            group["attention_count"] += 1
+        group["entries"].append({
+            "dataset": source.get("dataset") or "-",
+            "cadence": source.get("cadence") or "-",
+            "checked_at": _format_minute(checked_at),
+            "changed_at": _format_minute(changed_at),
+            "is_attention": is_attention,
+            "is_manual": max_age_hours is None,
+        })
+
+    return groups, attention_count
+
+
 CREDIT_FRESHNESS_OPTIONS = (
     ("", "수동 항목(시각 표시 안 함)"),
     ("domestic_news", "국내 뉴스"),
@@ -2604,6 +2661,7 @@ def paradian_portal_page():
     try:
         today = now_kst().date().isoformat()
         activity = queries.get_admin_dashboard_activity(connection, today)
+        freshness_groups, freshness_attention_count = _admin_freshness_groups(connection)
         activity_max = max(
             (
                 value
@@ -2630,6 +2688,8 @@ def paradian_portal_page():
                 for key in ("new_members", "new_posts", "withdrawals")
             },
             metric_date=today,
+            freshness_groups=freshness_groups,
+            freshness_attention_count=freshness_attention_count,
         )
     finally:
         connection.close()

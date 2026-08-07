@@ -106,9 +106,13 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     )
     base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
 
-    assert 'sessionStorage.getItem(key)' in partial
-    assert 'sessionStorage.setItem(key, selected)' in partial
-    assert '"casino-in-home-hero-v1"' in partial
+    assert 'sessionStorage.getItem(queueKey)' in partial
+    assert 'sessionStorage.setItem(queueKey, JSON.stringify(queue))' in partial
+    assert '"casino-in-home-hero-queue-v2"' in partial
+    assert '"casino-in-home-hero-last-v2"' in partial
+    assert "selected = queue.shift()" in partial
+    assert "queue = shuffled()" in partial
+    assert "queue[0] === last" in partial
     assert 'stylesheet.dataset.homeHeroAsset = selected' in partial
     assert "home_hero_variants | map(attribute='value')" in partial
     assert "variants.includes(preferred)" in partial

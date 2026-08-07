@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-admin-dashboard2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-admin-freshness1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-expand1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-1">
 <script src="{{ url_for('static', filename='js/file-upload.js') }}?v=20260808-file-upload1" defer></script>
@@ -207,7 +207,11 @@ if (profileHeroForm) {
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         savedHero = nextHero;
-        try { sessionStorage.removeItem("casino-in-home-hero-v1"); } catch (error) {}
+        try {
+          sessionStorage.removeItem("casino-in-home-hero-v1");
+          sessionStorage.removeItem("casino-in-home-hero-queue-v2");
+          sessionStorage.removeItem("casino-in-home-hero-last-v2");
+        } catch (error) {}
         if (document.getElementById("home-hero-slot")) {
           window.location.reload();
           return;

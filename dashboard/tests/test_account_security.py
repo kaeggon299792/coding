@@ -599,3 +599,9 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     assert "최근 7일 활동" in html
     assert html.count('class="admin-activity-day"') == 7
     assert "7일 신규 가입" in html
+    assert "게시판·데이터 확인 현황" in html
+    assert "마지막 확인 시각을 기준" in html
+    assert "월간·연간 자료는 업데이트 시각이 오래될 수 있습니다." in html
+    assert 'class="admin-freshness-grid"' in html
+    assert "카지노 관련 뉴스" in html
+    assert "DART 공시 / AI 요약" in html

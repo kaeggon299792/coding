@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ note.title }} · 업무노트{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+{% include "_topbar.html" %}{% include "_board_subnav.html" %}
 <main class="page-container work-notes-page work-note-detail-page">
   <nav class="community-detail-toolbar"><a href="{{ url_for('work_notes.board') }}">← 업무노트</a></nav>
   <article class="panel work-note-detail">

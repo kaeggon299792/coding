@@ -88,6 +88,37 @@
         </dl>
       </div>
     </section>
+    <section class="admin-freshness-panel" aria-labelledby="admin-freshness-title">
+      <header>
+        <div>
+          <span>Source Freshness</span>
+          <h3 id="admin-freshness-title">게시판·데이터 확인 현황</h3>
+          <p>강조 표시는 데이터 변경 시각이 아닌 마지막 확인 시각을 기준으로 합니다. 월간·연간 자료는 업데이트 시각이 오래될 수 있습니다.</p>
+        </div>
+        <strong{% if freshness_attention_count %} class="has-attention"{% endif %}>확인 필요 {{ freshness_attention_count }}건</strong>
+      </header>
+      <div class="admin-freshness-grid">
+        {% for group in freshness_groups %}
+        <article class="admin-freshness-card{% if group.attention_count %} has-attention{% endif %}">
+          <div class="admin-freshness-card-heading">
+            <h4>{{ group.menu }}</h4>
+            {% if group.attention_count %}<span>{{ group.attention_count }}건 지연</span>{% else %}<span>정상</span>{% endif %}
+          </div>
+          <ul>
+            {% for item in group.entries %}
+            <li{% if item.is_attention %} class="is-attention"{% elif item.is_manual %} class="is-manual"{% endif %}>
+              <div><strong>{{ item.dataset }}</strong><small>{{ item.cadence }}</small></div>
+              <dl>
+                <div><dt>확인</dt><dd>{{ item.checked_at or ('수동 반영' if item.is_manual else '기록 없음') }}</dd></div>
+                <div><dt>업데이트</dt><dd>{{ item.changed_at or '-' }}</dd></div>
+              </dl>
+            </li>
+            {% endfor %}
+          </ul>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
   </section>
 </main>
 {% endblock %}

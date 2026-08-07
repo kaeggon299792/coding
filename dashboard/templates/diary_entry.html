@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ entry.title }} · {{ archive_settings.title }}{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+{% include "_topbar.html" %}{% include "_board_subnav.html" %}
 <main class="page-container diary-page diary-detail-page">
   <nav class="community-detail-toolbar"><a href="{{ url_for(archive_settings.board_endpoint) }}">← {{ archive_settings.title }}</a></nav>
   <article class="panel diary-detail-card">
