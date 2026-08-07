@@ -34,6 +34,16 @@
     "title",
     "data-confirm",
   ];
+  var englishProperNouns = [
+    ["㈜파라다이스세가사미", "Paradise Segasammy Co., Ltd."],
+    ["파라다이스세가사미", "Paradise Segasammy"],
+    ["파라다이스 호텔앤리조트", "Paradise Hotel & Resort"],
+    ["파라다이스시티", "Paradise City"],
+    ["파라다이스호텔", "Paradise Hotel"],
+    ["파라다이스카지노", "Paradise Casino"],
+    ["㈜파라다이스", "Paradise Co., Ltd."],
+    ["파라다이스", "Paradise"],
+  ];
 
   function translate(value) {
     if (typeof value !== "string" || !value) return value;
@@ -48,6 +58,9 @@
         translated = translated.replace(entry[0], entry[1]);
       });
     }
+    englishProperNouns.forEach(function (entry) {
+      translated = translated.split(entry[0]).join(entry[1]);
+    });
     return match[1] + translated + match[3];
   }
 

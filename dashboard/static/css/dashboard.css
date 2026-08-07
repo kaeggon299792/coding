@@ -2765,6 +2765,35 @@ html[data-theme="light"] .member-avatar-wrap,html[data-theme="light"] .account-a
 .topbar-profile-popover{min-width:280px}.topbar-profile-hero{display:grid;justify-items:center;gap:17px;padding:30px 22px 22px;border-bottom:1px solid var(--brand-border);text-align:center}.topbar-profile-large-avatar{margin:5px 0 7px}.topbar-profile-photo{position:relative;z-index:1;display:block;width:76px;height:76px;border:1px solid var(--brand-border-strong);border-radius:50%;object-fit:cover}.topbar-profile-photo-fallback{display:grid;place-items:center;background:var(--brand-surface-elevated);color:var(--brand-text-primary);font-size:27px;font-weight:800}.topbar-profile-large-avatar .membership-badge-icon{right:-3px;bottom:-3px;width:24px;height:24px}.topbar-profile-large-avatar:before{inset:-9px}.topbar-profile-large-avatar:after{inset:-15px}.topbar-profile-greeting{max-width:236px;overflow-wrap:anywhere;font-size:15px;line-height:1.45}
 @media(max-width:480px){.topbar-profile-popover{min-width:min(280px,calc(100vw - 28px))}.topbar-profile-hero{padding-top:27px}}
 @media(max-width:760px){.admin-portfolio-form>button,.admin-portfolio-form>.admin-portfolio-actions{justify-self:stretch;width:100%}.admin-portfolio-inline-form>.btn{width:100%}.member-avatar-wrap:before,.account-avatar-wrap:before{inset:-6px}.member-avatar-wrap:after,.account-avatar-wrap:after{inset:-10px}}
+
+/* Admin dashboard: visible metric accents and complete daily visitor count. */
+.admin-metric-card.is-visitors{--metric-color:#0b8f87}
+.admin-metric-card.is-withdrawals{--metric-color:#8b5cf6}
+.admin-metric-card.is-domain-casino{--metric-color:#15803d}
+.admin-metric-card.is-domain-dashboard{--metric-color:#7c3aed}
+.admin-activity-legend .is-withdrawals{color:#8b5cf6}
+.admin-activity-bars i.is-withdrawals{--bar-color:#8b5cf6}
+
+/* Portfolio administration uses one global left rail and a local top menu. */
+.admin-portfolio-layout{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:18px;min-width:0}
+.admin-portfolio-toolbar{position:sticky;top:var(--sticky-topbar-height,0px);z-index:5;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:stretch;overflow:hidden;border:1px solid var(--brand-border-strong);background:color-mix(in srgb,var(--brand-bg) 94%,transparent);box-shadow:0 10px 26px color-mix(in srgb,var(--brand-text-primary) 5%,transparent);backdrop-filter:blur(12px)}
+.admin-portfolio-toolbar .admin-portfolio-brand{display:grid;align-content:center;gap:2px;min-width:180px;padding:10px 16px;border-right:1px solid var(--brand-border);border-bottom:0;background:color-mix(in srgb,var(--brand-highlight) 7%,var(--brand-surface))}
+.admin-portfolio-toolbar .admin-portfolio-brand span{font-size:7px}
+.admin-portfolio-toolbar .admin-portfolio-brand strong{font-size:14px}
+.admin-portfolio-toolbar .admin-portfolio-brand small{font-size:8px}
+.admin-portfolio-toolbar .admin-portfolio-nav{position:static;display:flex;min-width:0;overflow-x:auto;border:0;background:transparent;backdrop-filter:none}
+.admin-portfolio-toolbar .admin-portfolio-nav a{position:relative;justify-content:center;gap:6px;min-width:max-content;min-height:52px;padding:0 13px;border-right:1px solid var(--brand-border);border-bottom:0;font-size:9px;transition:background .18s,color .18s}
+.admin-portfolio-toolbar .admin-portfolio-nav a span{width:auto;color:var(--brand-text-muted);font-size:7px}
+.admin-portfolio-toolbar .admin-portfolio-nav a:after{position:absolute;right:0;bottom:0;left:0;height:2px;background:transparent;content:""}
+.admin-portfolio-toolbar .admin-portfolio-nav a:hover{padding-left:13px;background:var(--brand-surface-elevated)}
+.admin-portfolio-toolbar .admin-portfolio-nav a.active{box-shadow:none;background:color-mix(in srgb,var(--brand-highlight) 8%,var(--brand-surface));color:var(--brand-text-primary)}
+.admin-portfolio-toolbar .admin-portfolio-nav a.active:after{background:var(--brand-highlight)}
+.admin-portfolio-toolbar .admin-portfolio-nav a.active span{color:var(--brand-highlight)}
+.admin-portfolio-toolbar .admin-portfolio-sidebar-status{display:grid;align-content:center;gap:3px;min-width:165px;padding:8px 14px;border-left:1px solid var(--brand-border)}
+.admin-portfolio-toolbar .admin-portfolio-sidebar-status>span,.admin-portfolio-toolbar .admin-portfolio-sidebar-status small{font-size:7px}
+.admin-portfolio-toolbar .admin-portfolio-sidebar-status strong{font-size:8px}
+@media(max-width:1080px){.admin-portfolio-toolbar{grid-template-columns:minmax(0,1fr)}.admin-portfolio-toolbar .admin-portfolio-brand,.admin-portfolio-toolbar .admin-portfolio-sidebar-status{display:none}.admin-portfolio-toolbar .admin-portfolio-nav a{flex:1}}
+@media(max-width:760px){.admin-portfolio-toolbar{position:static;overflow:visible;box-shadow:none}.admin-portfolio-toolbar .admin-portfolio-nav{overflow-x:auto}.admin-portfolio-toolbar .admin-portfolio-nav a{flex:0 0 auto;min-height:44px;padding:0 14px}.admin-portfolio-toolbar .admin-portfolio-nav a:hover{padding-left:14px}}
 @media(prefers-reduced-motion:reduce){.member-avatar-wrap:before,.account-avatar-wrap:before,.member-avatar-wrap:after,.account-avatar-wrap:after{animation:none}}
 
 /* Company comparison: profitability, cost and workforce efficiency. */

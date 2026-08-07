@@ -17,6 +17,11 @@
       <time datetime="{{ metric_date }}">{{ metric_date }}</time>
     </div>
     <div class="admin-overview-grid">
+      <article class="admin-metric-card is-visitors">
+        <div class="admin-metric-top"><span>Total Visitors Today</span><i aria-hidden="true">◎</i></div>
+        <div class="admin-metric-value"><strong data-metric="total-visitors">{{ admin_metrics.total_visitors }}</strong><em>명</em></div>
+        <p><b>오늘</b> 전체 도메인 고유 방문자</p>
+      </article>
       <article class="admin-metric-card is-members">
         <div class="admin-metric-top"><span>New Members</span><i aria-hidden="true">＋</i></div>
         <div class="admin-metric-value"><strong data-metric="new-members">{{ admin_metrics.new_members }}</strong><em>명</em></div>

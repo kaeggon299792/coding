@@ -413,6 +413,8 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     assert 'class="admin-portfolio-layout"' in portfolio_html
     assert 'data-portfolio-target="projects"' in portfolio_html
     assert 'data-portfolio-view="projects"' in portfolio_html
+    assert 'class="admin-portfolio-toolbar"' in portfolio_html
+    assert 'class="admin-portfolio-sidebar"' not in portfolio_html
     assert 'src="https://www.shingoon.me/admin"' not in portfolio_html
     assert "https://www.shingoon.me" not in portfolio.headers["Content-Security-Policy"]
     for marker in (
@@ -526,6 +528,7 @@ def test_admin_portal_requires_admin_and_renders_daily_metrics(account_client, m
     page = client.get("/admin")
     assert page.status_code == 200
     html = page.get_data(as_text=True)
+    assert 'data-metric="total-visitors"' in html
     assert 'data-metric="new-members">2<' in html
     assert 'data-metric="total-members">2<' in html
     assert 'data-metric="new-posts">2<' in html

@@ -62,6 +62,17 @@ _EOK_WON_RE = re.compile(r"^([+-]?[0-9,]+(?:\.[0-9]+)?)억원$")
 _MAN_WON_RE = re.compile(r"^([+-]?[0-9,]+(?:\.[0-9]+)?)만원$")
 _PEOPLE_RE = re.compile(r"^([+-]?[0-9,]+)명$")
 
+_ENGLISH_PROPER_NOUNS = (
+    ("㈜파라다이스세가사미", "Paradise Segasammy Co., Ltd."),
+    ("파라다이스세가사미", "Paradise Segasammy"),
+    ("파라다이스 호텔앤리조트", "Paradise Hotel & Resort"),
+    ("파라다이스시티", "Paradise City"),
+    ("파라다이스호텔", "Paradise Hotel"),
+    ("파라다이스카지노", "Paradise Casino"),
+    ("㈜파라다이스", "Paradise Co., Ltd."),
+    ("파라다이스", "Paradise"),
+)
+
 
 def locale_for_country(country_code: str | None) -> str | None:
     """Return the first-visit locale for a trusted two-letter country code."""
@@ -167,6 +178,9 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
         translated = _apply_patterns(core, catalog.get("patterns", {}).items())
     if translated is None:
         translated = core
+    if locale == "en":
+        for source, target in _ENGLISH_PROPER_NOUNS:
+            translated = translated.replace(source, target)
     return f"{leading}{translated}{trailing}"
 
 

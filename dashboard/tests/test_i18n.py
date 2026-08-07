@@ -280,6 +280,17 @@ def test_dynamic_translation_patterns_expand_capture_groups():
     )
 
 
+def test_english_translation_replaces_paradise_names_inside_dynamic_copy():
+    from localization import translate_text
+
+    assert translate_text("파라다이스 신규 채용", "en") == "Paradise 신규 채용"
+    assert translate_text("파라다이스시티 실적", "en") == "Paradise City 실적"
+    assert (
+        translate_text("㈜파라다이스세가사미 공시", "en")
+        == "Paradise Segasammy Co., Ltd. 공시"
+    )
+
+
 def test_visible_dynamic_korean_is_discovered_without_scripts_or_code():
     from localization import extract_translatable_html_strings
 

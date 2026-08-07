@@ -438,7 +438,11 @@ def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path)
     assert upgraded.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     assert upgraded.execute(
         "SELECT COUNT(*) FROM localization_glossary"
-    ).fetchone()[0] == 8
+    ).fetchone()[0] == 12
+    assert upgraded.execute(
+        "SELECT target_text FROM localization_glossary "
+        "WHERE source_text='파라다이스시티' AND language_code='en'"
+    ).fetchone()[0] == "Paradise City"
     assert upgraded.execute("PRAGMA user_version").fetchone()[0] == schema.SCHEMA_VERSION
     upgraded.close()
 

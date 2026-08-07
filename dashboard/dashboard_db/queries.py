@@ -794,6 +794,12 @@ def get_admin_dashboard_metrics(connection, date_key):
                 FROM security_audit_log
                 WHERE action='PAGE_VIEW'
                   AND SUBSTR(created_at, 1, 10) = ?
+            ) AS total_visitors
+            ,(
+                SELECT COUNT(DISTINCT COALESCE(ip_address, username))
+                FROM security_audit_log
+                WHERE action='PAGE_VIEW'
+                  AND SUBSTR(created_at, 1, 10) = ?
                   AND json_valid(detail_json)=1
                   AND json_extract(detail_json, '$.host') IN (
                       'casino.shingoon.me', 'www.casino.shingoon.me'
@@ -810,7 +816,7 @@ def get_admin_dashboard_metrics(connection, date_key):
         """,
         (
             date_key, date_key, date_key, date_key, date_key, date_key,
-            date_key, date_key,
+            date_key, date_key, date_key,
         ),
     ).fetchone()
     return dict(row) if row else {
@@ -819,6 +825,9 @@ def get_admin_dashboard_metrics(connection, date_key):
         "new_posts": 0,
         "withdrawals": 0,
         "security_events": 0,
+        "total_visitors": 0,
+        "casino_domain_visitors": 0,
+        "dashboard_domain_visitors": 0,
     }
 
 

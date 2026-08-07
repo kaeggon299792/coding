@@ -46,5 +46,6 @@ def test_admin_dashboard_counts_unique_visitors_by_legacy_domain(db_connection):
 
     metrics = queries.get_admin_dashboard_metrics(db_connection, "2026-08-06")
 
+    assert metrics["total_visitors"] == 3
     assert metrics["casino_domain_visitors"] == 2
     assert metrics["dashboard_domain_visitors"] == 1

@@ -11,7 +11,7 @@
   {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
 
   <div class="admin-portfolio-layout">
-    <aside class="admin-portfolio-sidebar">
+    <section class="admin-portfolio-toolbar" aria-label="포트폴리오 관리 도구">
       <div class="admin-portfolio-brand">
         <span>PORTFOLIO CONTROL</span>
         <strong>shingoon.me</strong>
@@ -23,7 +23,7 @@
         {% endfor %}
       </nav>
       <div class="admin-portfolio-sidebar-status"><span>연결 상태</span><strong><i aria-hidden="true"></i> 운영 콘텐츠 연결됨</strong><small>저장 즉시 shingoon.me에 반영</small></div>
-    </aside>
+    </section>
 
     <div class="admin-portfolio-workspace">
   <section class="admin-portfolio-overview" id="overview" data-portfolio-view="overview">
