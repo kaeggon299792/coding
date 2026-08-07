@@ -1292,7 +1292,9 @@ table.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   border-radius: var(--radius-md);
   font: inherit;
 }
-.library-form input[type="file"] { padding: 8px; font-size: var(--text-xs); }
+.library-form input[type="file"] { padding: 6px; font-size: var(--text-xs); cursor: pointer; }
+.library-form input[type="file"]::file-selector-button { min-height: 30px; margin-right: 10px; padding: 0 12px; border: 1px solid var(--brand-border-strong); border-radius: var(--radius-sm); background: var(--brand-surface-muted); color: var(--brand-text-primary); font: inherit; font-weight: 700; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast); }
+.library-form input[type="file"]::file-selector-button:hover { border-color: var(--brand-text-secondary); background: var(--brand-surface); }
 .library-file-field { grid-column: span 3; }
 .library-toolbar {
   display: flex;

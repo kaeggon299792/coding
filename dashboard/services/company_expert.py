@@ -17,7 +17,7 @@ METRICS = (
 )
 FIELDS = (
     ("current", "현재"), ("median_5y", "5Y 중앙값"),
-    ("average_5y", "5Y 평균"), ("industry_median", "산업 중앙값"),
+    ("average_5y", "5Y 평균"), ("industry_median", "업종 중앙값"),
     ("ntm", "NTM"), ("fy1", "FY+1"), ("fy2", "FY+2"),
 )
 PREFIX = "company_expert."
@@ -30,7 +30,7 @@ METRIC_DESCRIPTIONS = {
     "ev_ebitda": "부채를 포함한 기업가치를 이자·세금·감가상각 전 이익과 비교합니다.",
     "ev_sales": "부채를 포함한 기업가치가 매출의 몇 배인지 보여줍니다.",
     "ev_ebit": "부채를 포함한 기업가치를 영업이익과 비교합니다.",
-    "ev_ebitda_capex": "설비투자까지 뺀 현금창출력과 기업가치를 비교합니다.",
+    "ev_ebitda_capex": "설비투자를 뺀 현금창출력과 기업가치를 비교합니다.",
     "ev_nopat": "기업가치를 세후 영업이익과 비교합니다.",
     "ev_ic": "기업가치를 사업에 실제 투입된 자본과 비교합니다.",
     "peg_1y": "PER을 향후 1년 이익성장률로 나눠 성장성까지 함께 봅니다.",
@@ -79,8 +79,11 @@ def build_dashboard(connection, selected_company=None):
             for field, _ in FIELDS
         }
         record.update({
-            "code": metric_code, "label": label,
-            "description": METRIC_DESCRIPTIONS.get(metric_code, "기업가치를 같은 기준으로 비교하는 지표입니다."),
+            "code": metric_code,
+            "label": label,
+            "description": METRIC_DESCRIPTIONS.get(
+                metric_code, "기업가치를 같은 기준으로 비교하는 지표입니다."
+            ),
             "vs_5y": _comparison(record["current"], record["median_5y"]),
             "vs_industry": _comparison(record["current"], record["industry_median"]),
         })
@@ -90,12 +93,15 @@ def build_dashboard(connection, selected_company=None):
     groups = (
         ("market", "주가 기준 멀티플", "기업가치가 매출·순이익·현금흐름 대비 어느 수준인지 봅니다.", metrics[:5]),
         ("enterprise", "기업가치 기준 멀티플", "순차입금을 포함한 기업가치를 영업성과와 비교합니다.", metrics[5:11]),
-        ("growth", "성장 조정 멀티플", "이익 성장률까지 반영해 현재 밸류에이션을 점검합니다.", metrics[11:]),
+        ("growth", "성장 조정 멀티플", "이익 성장률까지 반영해 현재 밸류에이션을 평가합니다.", metrics[11:]),
     )
     return {
-        "companies": COMPANIES, "selected_company": selected_company,
+        "companies": COMPANIES,
+        "selected_company": selected_company,
         "selected_company_name": COMPANIES[selected_company],
-        "metrics": metrics, "fields": FIELDS, "as_of": latest_date,
+        "metrics": metrics,
+        "fields": FIELDS,
+        "as_of": latest_date,
         "groups": groups,
         "available_count": len(available),
         "below_5y_count": sum(item["vs_5y"] == "낮음" for item in available),

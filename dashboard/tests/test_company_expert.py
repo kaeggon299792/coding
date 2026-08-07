@@ -7,11 +7,19 @@ from services import company_expert
 def _insert(connection, company, metric, field, value):
     key = f"company_expert.{company}.{metric}.{field}"
     queries.upsert_source_data_series(
-        connection, series_key=key, category="기업 전문정보",
-        label=key, unit="배", frequency="snapshot", source_name="운영자 제공",
+        connection,
+        series_key=key,
+        category="기업 전문정보",
+        label=key,
+        unit="배",
+        frequency="snapshot",
+        source_name="운영자 제공",
     )
     queries.upsert_source_data_point(
-        connection, series_key=key, observation_date="2026-08-06", value=value,
+        connection,
+        series_key=key,
+        observation_date="2026-08-06",
+        value=value,
         source_record_key=f"expert:{company}:{metric}:{field}:2026-08-06",
     )
 
@@ -28,6 +36,7 @@ def test_company_expert_reads_central_source_data(tmp_path):
     assert per["vs_5y"] == "낮음"
     assert per["vs_industry"] == "낮음"
     assert "주당순이익" in per["description"]
+    assert dashboard["selected_company_name"] == "파라다이스"
     assert dashboard["as_of"] == "2026-08-06"
     connection.close()
 
@@ -60,4 +69,13 @@ def test_company_expert_page_is_public_and_filters_company(client):
     assert "company-expert-card" in html
     assert "metric-help" in html
     assert "주가가 주당순이익" in html
+    assert "????" not in html
     assert "company-expert-bars" not in html
+
+
+def test_company_expert_labels_do_not_contain_mojibake():
+    labels = list(company_expert.COMPANIES.values())
+    labels += [label for _, label in company_expert.FIELDS]
+    labels += list(company_expert.METRIC_DESCRIPTIONS.values())
+
+    assert all("?" not in label for label in labels)

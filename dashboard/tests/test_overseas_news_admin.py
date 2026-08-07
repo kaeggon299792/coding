@@ -85,6 +85,7 @@ def test_research_company_checkboxes_keep_compact_dimensions():
     assert '.company-multi-select input[type="checkbox"]' in css
     assert "flex:0 0 16px" in css
     assert "min-height:0" in css
+    assert '.library-form input[type="file"]::file-selector-button' in css
 
 
 def test_analysis_route_requires_admin_and_csrf(overseas_admin_client):
