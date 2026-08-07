@@ -63,7 +63,7 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
     box-sizing: border-box;
     min-height: inherit;
     align-content: start;
-    padding: clamp(68px, 10vh, 92px) 20px 96px;
+    padding: clamp(148px, 20vh, 188px) 20px 96px;
     text-align: center;
   }
 
@@ -76,7 +76,6 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
     min-height: 0;
     padding: 0;
   }
-  html[data-home-hero="spotlight"] .public-hero-wordmark { width: min(88vw, 520px); }
   html[data-home-hero="spotlight"] .public-hero-title {
     max-width: 480px;
     margin: clamp(20px, 3.5vh, 30px) auto 0;
