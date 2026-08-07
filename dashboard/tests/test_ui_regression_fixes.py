@@ -63,7 +63,7 @@ def test_source_data_controls_are_collapsed_until_a_query_is_active():
 
     assert '<details class="source-download-disclosure"{% if request.args %} open{% endif %}>' in template
     assert "원천 데이터 조회·다운로드" in template
-    assert "원천 데이터 다운로드" in template
+    assert "데이터 다운" in template
 
 
 def test_admin_navigation_is_iconized_and_bounded():

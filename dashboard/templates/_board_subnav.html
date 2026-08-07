@@ -2,7 +2,5 @@
   <a href="{{ url_for('community_board_page') }}"{% if request.endpoint in ('community_board_page', 'create_community_post_route') or (request.endpoint == 'community_post_page' and post is defined and post.board_type != 'notice') %} class="active" aria-current="page"{% endif %}>자유 게시판</a>
   <a href="{{ url_for('notice_board_page') }}"{% if request.endpoint in ('notice_board_page', 'create_notice_post_route') or (request.endpoint == 'community_post_page' and post is defined and post.board_type == 'notice') %} class="active" aria-current="page"{% endif %}>공지사항</a>
   <a href="{{ url_for('review_board_page') }}"{% if request.endpoint in ('review_board_page', 'review_entry_page', 'edit_review_entry_route') %} class="active" aria-current="page"{% endif %}>리뷰</a>
-  <a href="{{ url_for('diary_board_page') }}"{% if request.endpoint in ('diary_board_page', 'diary_entry_page', 'edit_diary_entry_route') %} class="active" aria-current="page"{% endif %}>아카이브</a>
   <a href="{{ url_for('action_items_page') }}"{% if request.endpoint in ('action_items_page', 'create_action_item_route', 'action_item_detail') %} class="active" aria-current="page"{% endif %}>버그 및 건의</a>
-  {% if current_user_role == 'admin' %}<a href="{{ url_for('work_notes.board') }}"{% if request.blueprint == 'work_notes' %} class="active" aria-current="page"{% endif %}>업무노트</a>{% endif %}
 </nav>

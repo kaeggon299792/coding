@@ -11,6 +11,19 @@
   animation: hero-copy-in .9s .72s cubic-bezier(.22, 1, .36, 1) forwards;
 }
 
+html[data-home-hero="spotlight"] .public-hero-content,
+html[data-home-hero="spotlight"] .public-hero-art,
+html[data-home-hero="spotlight"] .public-hero-art-image {
+  justify-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+html[data-home-hero="spotlight"] .public-hero-art-image,
+html[data-home-hero="spotlight"] .public-hero-wordmark {
+  margin-inline: auto;
+}
+
 .public-hero-actions .btn {
   min-height: 42px;
   padding-inline: 18px;

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}업무노트{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}{% include "_board_subnav.html" %}
+{% include "_topbar.html" %}{% include "_member_subnav.html" %}
 <main class="page-container work-notes-page">
   <header class="page-header work-notes-header">
-    <div><p class="page-eyebrow">ADMIN / WORK NOTES</p><h1 class="page-title">업무노트</h1><p class="page-description">회의·과제·마감과 반복 업무를 한곳에서 기록하고 추적합니다.</p></div>
-    <div class="work-note-header-actions"><a class="btn" href="{{ url_for('work_notes.categories') }}">카테고리 관리</a><a class="btn btn-primary" href="{{ url_for('work_notes.create') }}" data-ui-icon="plus">업무 등록</a></div>
+    <div><p class="page-eyebrow">MEMBER / WORK NOTES</p><h1 class="page-title">업무노트</h1><p class="page-description">회의·과제·마감과 반복 업무를 한곳에서 기록하고 추적합니다.</p></div>
+    <div class="work-note-header-actions">{% if current_user_role == 'admin' %}<a class="btn" href="{{ url_for('work_notes.categories') }}">카테고리 관리</a>{% endif %}<a class="btn btn-primary" href="{{ url_for('work_notes.create') }}" data-ui-icon="plus">업무 등록</a></div>
   </header>
 
   <section class="work-note-dashboard" aria-label="업무 현황">

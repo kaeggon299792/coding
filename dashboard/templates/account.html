@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}내 계정{% endblock %}
 {% block body %}
-{% include "_topbar.html" %}
+{% include "_topbar.html" %}{% include "_member_subnav.html" %}
 <main class="page-container my-account-page">
   <header class="page-header">
     <p class="page-eyebrow">Account / Profile</p>
@@ -46,7 +46,7 @@
     </form>
   </section>
 
-  <section class="panel account-settings-panel">
+  <section id="account-email" class="panel account-settings-panel">
     <div class="section-heading"><div><h2>이메일 변경</h2><p>로그인 알림과 계정 식별에 사용할 이메일을 변경합니다.</p></div></div>
     <form method="post" action="{{ url_for('auth.update_account_email') }}" class="account-create-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

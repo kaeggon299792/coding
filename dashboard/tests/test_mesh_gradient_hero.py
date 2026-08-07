@@ -121,7 +121,9 @@ def test_home_dot_is_one_theme_aware_and_visual_heroes_use_the_wordmark_lockup()
 
     assert "public-hero-wordmark-dark" in dot
     assert "public-hero-wordmark-light" in dot
-    assert "public-hero-actions" not in dot
+    assert "public-hero-actions" in dot
+    assert "url_for('casino_industry_page')" in dot
+    assert "url_for('companies_page')" in dot
     assert "mesh-gradient-wordmark" in mesh
     assert "event-horizon-wordmark" in event_horizon
     assert "casino-in-wordmark-white-smooth.svg" in mesh

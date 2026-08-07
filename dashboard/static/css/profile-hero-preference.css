@@ -34,13 +34,21 @@
   color: var(--brand-text-secondary);
   font-size: 10px;
   cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.topbar-profile-hero-form label:hover,
-.topbar-profile-hero-form label:has(input:checked) {
+.topbar-profile-hero-form label:hover {
   border-color: var(--brand-border-strong);
   background: var(--brand-surface-elevated);
   color: var(--brand-text-primary);
+}
+
+.topbar-profile-hero-form label:has(input:checked) {
+  border-color: var(--brand-highlight);
+  background: var(--brand-highlight);
+  color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-highlight) 32%, transparent);
+  font-weight: 800;
 }
 
 .topbar-profile-hero-form input {

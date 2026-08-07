@@ -8,7 +8,7 @@ def test_primary_navigation_matches_confirmed_ia():
     markup = (ROOT / "templates" / "_topbar.html").read_text(encoding="utf-8")
     for label in (
         "홈", "뉴스", "시장 정보", "기업정보", "법률·규제", "자료실", "게시판",
-        "통합검색", "회원정보관리", "관리자 전용",
+        "통합검색", "회원전용", "회원정보관리", "관리자 전용",
     ):
         assert label in markup
     assert "파라디안 전용" not in markup
@@ -22,8 +22,11 @@ def test_primary_navigation_matches_confirmed_ia():
     assert "url_for('salary_trend_page')" in topbar_nav
     assert ">블로그</a>" not in topbar_nav
     board_subnav = (ROOT / "templates" / "_board_subnav.html").read_text(encoding="utf-8")
-    for label in ("자유 게시판", "공지사항", "리뷰", "아카이브", "버그 및 건의", "업무노트"):
+    for label in ("자유 게시판", "공지사항", "리뷰", "버그 및 건의"):
         assert f">{label}</a>" in board_subnav
+    member_subnav = (ROOT / "templates" / "_member_subnav.html").read_text(encoding="utf-8")
+    for label in ("업무노트", "메일", "아카이브", "데이터 다운"):
+        assert f">{label}</a>" in member_subnav
     assert not (ROOT / "templates" / "_blog_subnav.html").exists()
     assert ">관리자 전용</a>" not in topbar_nav
 

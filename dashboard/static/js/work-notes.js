@@ -6,10 +6,12 @@
   var textarea = form.querySelector("#work-note-content");
   var status = form.querySelector("[data-autosave-status]");
   var preview = form.querySelector("[data-markdown-preview]");
+  var previewDialog = form.querySelector("[data-work-note-preview-dialog]");
+  var previewOpen = form.querySelector("[data-work-note-preview-open]");
+  var previewClose = form.querySelector("[data-work-note-preview-close]");
   var recurrence = form.querySelector("[data-recurrence-select]");
   var customRecurrence = form.querySelector("[data-custom-recurrence]");
   var draftKey = form.dataset.draftKey;
-  var previewTimer = 0;
   var dirty = false;
 
   function setStatus(message) {
@@ -36,7 +38,6 @@
       else field.value = data[name];
     });
     syncRecurrence();
-    requestPreview();
   }
 
   function saveDraft() {
@@ -117,6 +118,7 @@
 
   async function updatePreview() {
     if (!preview || !textarea) return;
+    preview.innerHTML = '<p class="item-meta">미리보기를 불러오는 중입니다.</p>';
     var payload = new FormData();
     payload.append("content", textarea.value);
     payload.append("csrf_token", preview.dataset.previewCsrf || "");
@@ -132,10 +134,21 @@
       preview.textContent = "미리보기를 불러오지 못했습니다.";
     }
   }
-  function requestPreview() {
-    window.clearTimeout(previewTimer);
-    previewTimer = window.setTimeout(updatePreview, 250);
+
+  function openPreview() {
+    if (!previewDialog) return;
+    if (typeof previewDialog.showModal === "function") previewDialog.showModal();
+    else previewDialog.setAttribute("open", "");
+    updatePreview();
   }
-  textarea && textarea.addEventListener("input", requestPreview);
-  requestPreview();
+  function closePreview() {
+    if (!previewDialog) return;
+    if (typeof previewDialog.close === "function") previewDialog.close();
+    else previewDialog.removeAttribute("open");
+  }
+  previewOpen && previewOpen.addEventListener("click", openPreview);
+  previewClose && previewClose.addEventListener("click", closePreview);
+  previewDialog && previewDialog.addEventListener("click", function (event) {
+    if (event.target === previewDialog) closePreview();
+  });
 })();
