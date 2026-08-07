@@ -47,6 +47,42 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
 }
 
 @media (max-width: 700px) {
+  html[data-home-hero="spotlight"] .home-hero-slot,
+  html[data-home-hero="spotlight"] .public-hero {
+    min-height: max(620px, calc(92svh - var(--sticky-topbar-height, 0px)));
+  }
+
+  html[data-home-hero="spotlight"] .public-hero {
+    box-sizing: border-box;
+    display: grid;
+    align-items: start;
+    padding: 0;
+  }
+
+  html[data-home-hero="spotlight"] .public-hero-content {
+    box-sizing: border-box;
+    min-height: inherit;
+    align-content: start;
+    padding: clamp(68px, 10vh, 92px) 20px 96px;
+    text-align: center;
+  }
+
+  html[data-home-hero="spotlight"] .public-hero-eyebrow { margin: 0; }
+  html[data-home-hero="spotlight"] .public-hero-art {
+    margin: clamp(24px, 4.5vh, 38px) 0 0;
+    padding: 0;
+  }
+  html[data-home-hero="spotlight"] .public-hero-art-image {
+    min-height: 0;
+    padding: 0;
+  }
+  html[data-home-hero="spotlight"] .public-hero-wordmark { width: min(88vw, 520px); }
+  html[data-home-hero="spotlight"] .public-hero-title {
+    max-width: 480px;
+    margin: clamp(20px, 3.5vh, 30px) auto 0;
+    line-height: 1.45;
+  }
+
   body.cinematic-home.webgl-wave-ready .casino-wave-canvas {
     opacity: 1;
   }

@@ -139,3 +139,13 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert "casino-wave-webgl.css" not in base
     assert "three.r149.min.js" not in base
     assert "casino-wave-webgl-v2.js" not in base
+
+
+def test_dot_mobile_hero_keeps_footer_below_full_height_logo_layout():
+    css = (ROOT / "static" / "css" / "casino-wave-webgl.css").read_text(
+        encoding="utf-8"
+    )
+    assert 'html[data-home-hero="spotlight"] .home-hero-slot' in css
+    assert "calc(92svh - var(--sticky-topbar-height, 0px))" in css
+    assert "width: min(88vw, 520px)" in css
+    assert "padding: clamp(68px, 10vh, 92px) 20px 96px" in css
