@@ -55,6 +55,7 @@ class Schedule:
     hour: int | None = None
     minute: int = 0
     hourly: bool = False
+    interval_hours: int | None = None
 
 
 WORKERS = (
@@ -79,7 +80,7 @@ WORKERS = (
 )
 
 
-def _scheduled(name: str, script: str, hour: int | None, minute: int, *, hourly=False):
+def _scheduled(name: str, script: str, hour: int | None, minute: int, *, hourly=False, interval_hours=None):
     return Schedule(
         name,
         (MGMT_PYTHON, str(PROJECT_ROOT / f"scheduler/{script}")),
@@ -87,6 +88,7 @@ def _scheduled(name: str, script: str, hour: int | None, minute: int, *, hourly=
         hour=hour,
         minute=minute,
         hourly=hourly,
+        interval_hours=interval_hours,
     )
 
 
@@ -96,7 +98,7 @@ SCHEDULES = (
     _scheduled("dart_sync", "sync_dart_disclosures.py", None, 30, hourly=True),
     _scheduled("tourism_stats_sync", "sync_tourism_stats.py", 6, 27),
     _scheduled("salary_sync", "sync_salary_data.py", 21, 10),
-    _scheduled("recruitment_sync", "sync_recruitment_jobs.py", 21, 20),
+    _scheduled("recruitment_sync", "sync_recruitment_jobs.py", None, 20, interval_hours=6),
     _scheduled("localization_translation", "translate_localization.py", 14, 30),
 )
 
@@ -111,6 +113,12 @@ def due_slot(schedule: Schedule, now: datetime, setting=None) -> str | None:
     current = now.astimezone(timezone.utc)
     setting = setting or {}
     minute = int(setting.get("minute_utc", schedule.minute))
+    interval_hours = schedule.interval_hours
+    if interval_hours:
+        if current.minute < minute:
+            return None
+        bucket_hour = current.hour - (current.hour % interval_hours)
+        return current.replace(hour=bucket_hour).strftime("%Y-%m-%dT%H")
     hourly = setting.get("timing") == "hourly" if setting else schedule.hourly
     hour = int(setting.get("hour_utc", schedule.hour or 0)) if not hourly else None
     if hourly:

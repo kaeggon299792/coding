@@ -30,6 +30,14 @@ def test_hourly_due_slot_changes_each_hour_after_minute_30():
     assert casinoinbot.due_slot(schedule, datetime(2026, 8, 6, 13, 45, tzinfo=timezone.utc)) == "2026-08-06T13"
 
 
+def test_recruitment_due_slot_changes_every_six_hours():
+    schedule = next(item for item in casinoinbot.SCHEDULES if item.name == "recruitment_sync")
+    assert casinoinbot.due_slot(schedule, datetime(2026, 8, 6, 5, 19, tzinfo=timezone.utc)) is None
+    assert casinoinbot.due_slot(schedule, datetime(2026, 8, 6, 5, 20, tzinfo=timezone.utc)) == "2026-08-06T00"
+    assert casinoinbot.due_slot(schedule, datetime(2026, 8, 6, 6, 20, tzinfo=timezone.utc)) == "2026-08-06T06"
+    assert casinoinbot.due_slot(schedule, datetime(2026, 8, 6, 11, 59, tzinfo=timezone.utc)) == "2026-08-06T06"
+
+
 def test_initial_state_marks_only_already_due_slots(monkeypatch, tmp_path):
     monkeypatch.setattr(casinoinbot, "STATE_DIR", tmp_path)
     monkeypatch.setattr(casinoinbot, "STATE_FILE", tmp_path / "state.json")

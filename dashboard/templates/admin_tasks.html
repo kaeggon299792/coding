@@ -64,6 +64,8 @@
               <label class="task-setting-schedule"><span class="task-setting-copy"><b>반복 주기</b><small>CASINOINBOT이 다시 확인할 간격입니다.</small></span><div class="task-setting-input"><input type="number" name="interval_minutes" min="1" max="1440" value="{{ task.settings.interval_minutes }}"><em>분</em></div></label>
               {% elif task.settings.timing == 'hourly' %}
               <label class="task-setting-schedule"><span class="task-setting-copy"><b>매시간 실행 분</b><small>UTC 기준, 매시간 선택한 분에 실행합니다.</small></span><div class="task-setting-input"><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
+              {% elif task.settings.timing == 'interval' %}
+              <label class="task-setting-schedule"><span class="task-setting-copy"><b>반복 실행</b><small>{{ task.settings.interval_hours }}시간마다 UTC 기준 선택한 분에 실행합니다.</small></span><div class="task-setting-input"><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}"><em>분</em></div></label>
               {% else %}
               <label class="task-setting-schedule"><span class="task-setting-copy"><b>실행 시각</b><small>UTC 기준으로 매일 실행할 시간을 지정합니다.</small></span><div class="task-setting-input"><input type="number" name="hour_utc" min="0" max="23" value="{{ task.settings.hour_utc }}" aria-label="실행 시"><em>시</em><input type="number" name="minute_utc" min="0" max="59" value="{{ task.settings.minute_utc }}" aria-label="실행 분"><em>분</em></div></label>
               {% endif %}

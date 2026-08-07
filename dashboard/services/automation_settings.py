@@ -18,7 +18,7 @@ DEFAULTS = {
     "dart_sync": {"enabled": True, "timing": "hourly", "minute_utc": 30, "notify_error": True, "notify_success": False},
     "tourism_stats_sync": {"enabled": True, "timing": "daily", "hour_utc": 6, "minute_utc": 27, "notify_error": True, "notify_success": False},
     "salary_sync": {"enabled": True, "timing": "daily", "hour_utc": 21, "minute_utc": 10, "notify_error": True, "notify_success": False},
-    "recruitment_sync": {"enabled": True, "timing": "daily", "hour_utc": 21, "minute_utc": 20, "notify_error": True, "notify_success": False},
+    "recruitment_sync": {"enabled": True, "timing": "interval", "interval_hours": 6, "minute_utc": 20, "notify_error": True, "notify_success": False},
     "localization_translation": {"enabled": True, "timing": "daily", "hour_utc": 14, "minute_utc": 30, "notify_error": True, "notify_success": False},
 }
 
@@ -35,6 +35,9 @@ def _validated(task_key, raw):
         try:
             if default["timing"] == "continuous":
                 value["interval_minutes"] = max(1, min(1440, int(raw.get("interval_minutes", default["interval_minutes"]))))
+            elif default["timing"] == "interval":
+                value["interval_hours"] = max(1, min(24, int(default["interval_hours"])))
+                value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
             elif default["timing"] == "hourly":
                 value["minute_utc"] = max(0, min(59, int(raw.get("minute_utc", default["minute_utc"]))))
             else:

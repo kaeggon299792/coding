@@ -2,13 +2,15 @@
 
 import hashlib
 import html
+import json
 import re
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
 import config
 from services import ai_insights
-from services.http_utils import get_with_hard_timeout
+from services.http_utils import get_with_hard_timeout, post_with_hard_timeout
 from utils import now_kst
 
 
@@ -36,6 +38,11 @@ SEARCH_SOURCES = (
     },
 )
 
+INSPIRE_URL = "https://inspireresorts.career.greetinghr.com/ko/beefit1"
+INSPIRE_DETAIL_URL = "https://inspireresorts.career.greetinghr.com/ko/o/{opening_id}"
+PARADISE_URL = "https://recruit.paradise.co.kr/"
+PARADISE_LIST_URL = "https://recruit.paradise.co.kr/Application.do"
+
 
 class _LinkParser(HTMLParser):
     def __init__(self):
@@ -56,6 +63,26 @@ def _get(url, **kwargs):
         retry_attempts=2,
         timeout=(5, config.RECRUITMENT_REQUEST_TIMEOUT_SECONDS),
         headers={"User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/126 Safari/537.36"},
+        **kwargs,
+    )
+    response.raise_for_status()
+    response.encoding = response.apparent_encoding or response.encoding
+    return response.text
+
+
+def _post(url, **kwargs):
+    response = post_with_hard_timeout(
+        url,
+        hard_timeout_seconds=config.RECRUITMENT_REQUEST_TIMEOUT_SECONDS,
+        retry_attempts=2,
+        timeout=(5, config.RECRUITMENT_REQUEST_TIMEOUT_SECONDS),
+        headers={
+            "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/126 Safari/537.36",
+            "Accept": "*/*",
+            "Referer": PARADISE_URL,
+            "ajax": "true",
+            "X-Requested-With": "XMLHttpRequest",
+        },
         **kwargs,
     )
     response.raise_for_status()
@@ -171,8 +198,123 @@ def collect_source(source, limit=15):
     return items, errors
 
 
+def _walk_dicts(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_dicts(child)
+
+
+def parse_inspire_jobs(page_html, timestamp=None):
+    """Parse only openings visibly linked from INSPIRE's official careers page."""
+    timestamp = timestamp or now_kst().isoformat()
+    visible_ids = set(re.findall(r'/ko/o/(\d+)', page_html))
+    match = re.search(
+        r'<script[^>]+id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>',
+        page_html, re.I | re.S,
+    )
+    if not match:
+        raise ValueError("INSPIRE careers payload was not found")
+    payload = json.loads(html.unescape(match.group(1)))
+    openings = {}
+    for item in _walk_dicts(payload):
+        opening_id = str(item.get("openingId") or "")
+        if opening_id in visible_ids and item.get("title"):
+            openings[opening_id] = item
+
+    results = []
+    for opening_id, item in openings.items():
+        division = item.get("workspaceDivision") or {}
+        group = item.get("group") or {}
+        company = group.get("name") or "인스파이어 엔터테인먼트 리조트"
+        metadata = [
+            item.get("title", ""), company, division.get("division", ""),
+            item.get("openDate", ""), item.get("dueDate", ""),
+        ]
+        raw_text = " | ".join(str(value).strip() for value in metadata if value)
+        results.append({
+            "source_name": "인스파이어 공식채용",
+            "source_job_id": opening_id,
+            "company_name": company,
+            "title": str(item["title"]).strip()[:300],
+            "source_url": INSPIRE_DETAIL_URL.format(opening_id=opening_id),
+            "raw_text": raw_text,
+            "posted_at": item.get("openDate"),
+            "deadline": item.get("dueDate"),
+            "location": division.get("division") or None,
+            "first_seen_at": timestamp,
+            "last_seen_at": timestamp,
+            **_rule_analysis(raw_text),
+        })
+    return results
+
+
+def parse_paradise_jobs(xml_text, timestamp=None):
+    """Parse Paradise's official recruitment XSheet response."""
+    timestamp = timestamp or now_kst().isoformat()
+    root = ET.fromstring(xml_text.strip())
+    data = root.find(".//DATA[@KEY='default']")
+    if data is None:
+        raise ValueError("Paradise recruitment list was not found")
+    headers = [(cell.text or "").strip() for cell in data.find("HTR").findall("TD")]
+    results = []
+    for row in data.findall("TR"):
+        values = [(cell.text or "").strip() for cell in row.findall("TD")]
+        record = dict(zip(headers, values))
+        identity = ":".join((record.get("C_CD", ""), record.get("RE_NO", ""), record.get("ANN_SEQ_NO", "")))
+        title = record.get("ANN_TITLE", "").strip()
+        if not identity.strip(":") or not title:
+            continue
+        period = record.get("GIGAN", "")
+        dates = re.findall(r"\d{4}\.\d{2}\.\d{2}", period)
+        company = record.get("COM_NM") or "파라다이스"
+        raw_text = " | ".join(filter(None, (company, title, record.get("RE_TYPE_NM"), period, record.get("STATUS"))))
+        results.append({
+            "source_name": "파라다이스 공식채용",
+            "source_job_id": identity,
+            "company_name": company,
+            "title": title[:300],
+            "source_url": PARADISE_URL,
+            "raw_text": raw_text,
+            "posted_at": dates[0] if dates else None,
+            "deadline": dates[1] if len(dates) > 1 else None,
+            "location": None,
+            "first_seen_at": timestamp,
+            "last_seen_at": timestamp,
+            **_rule_analysis(raw_text),
+        })
+    return results
+
+
+def collect_official_sources():
+    items, errors = [], []
+    try:
+        items.extend(parse_inspire_jobs(_get(INSPIRE_URL)))
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"인스파이어 공식채용: {error}")
+    try:
+        payload = {
+            "S_DSCLASS": "biz.rem.apply.recruit.Apply_list",
+            "S_DSMETHOD": "search01",
+            "S_FORWARD": "xsheetResultXML",
+            "S_PAGE_NO": "1",
+            "S_PAGE_CNT": "1",
+            "S_ANN_SEQ_NO": "",
+        }
+        items.extend(parse_paradise_jobs(_post(PARADISE_LIST_URL, data=payload)))
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"파라다이스 공식채용: {error}")
+    return items, errors
+
+
 def fetch_all():
     items, errors = [], []
+    official_items, official_errors = collect_official_sources()
+    items.extend(official_items)
+    errors.extend(official_errors)
     for source in SEARCH_SOURCES:
         try:
             source_items, source_errors = collect_source(source)

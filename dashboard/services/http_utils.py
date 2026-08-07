@@ -25,12 +25,12 @@ class HardTimeoutError(Exception):
     """정해진 시간 안에 응답을 받지 못했을 때 발생한다."""
 
 
-def _get_once(url, hard_timeout_seconds, **kwargs):
+def _request_once(request_callable, url, hard_timeout_seconds, **kwargs):
     result_queue: "queue.Queue" = queue.Queue(maxsize=1)
 
     def _worker():
         try:
-            response = requests.get(url, **kwargs)
+            response = request_callable(url, **kwargs)
             result_queue.put(("ok", response))
         except Exception as error:  # noqa: BLE001 - 그대로 호출측에 다시 던짐
             result_queue.put(("error", error))
@@ -67,7 +67,33 @@ def get_with_hard_timeout(
     last_error = None
     for attempt in range(attempts):
         try:
-            response = _get_once(url, hard_timeout_seconds, **kwargs)
+            response = _request_once(requests.get, url, hard_timeout_seconds, **kwargs)
+            if response.status_code != 429 and response.status_code < 500:
+                return response
+            last_error = requests.HTTPError(f"HTTP {response.status_code}")
+            if attempt == attempts - 1:
+                return response
+        except (requests.RequestException, HardTimeoutError) as error:
+            last_error = error
+            if attempt == attempts - 1:
+                raise
+        time.sleep(max(0, retry_backoff_seconds) * (2 ** attempt))
+    raise last_error
+
+
+def post_with_hard_timeout(
+    url,
+    hard_timeout_seconds,
+    retry_attempts=3,
+    retry_backoff_seconds=0.1,
+    **kwargs,
+):
+    """POST with the same wall-clock timeout and bounded retry policy as GET."""
+    attempts = max(1, int(retry_attempts))
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            response = _request_once(requests.post, url, hard_timeout_seconds, **kwargs)
             if response.status_code != 429 and response.status_code < 500:
                 return response
             last_error = requests.HTTPError(f"HTTP {response.status_code}")
