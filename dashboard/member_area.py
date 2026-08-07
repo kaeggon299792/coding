@@ -20,11 +20,21 @@ def telegram():
     connection = dashboard_db()
     try:
         state = member_telegram.status(connection, session["user_id"])
+        deep_link = None
+        if not state and member_telegram.configured():
+            # Build the one-time link while rendering the settings page so the
+            # user's click is a direct navigation to t.me. Redirecting a POST
+            # inside a new window is blocked by some mobile browsers.
+            deep_link = member_telegram.create_link(
+                connection, session["user_id"]
+            )
     finally:
         connection.close()
     return render_template(
         "member_telegram.html", telegram_state=state,
-        telegram_configured=member_telegram.configured(), csrf_token=get_csrf_token(),
+        telegram_configured=member_telegram.configured(),
+        telegram_deep_link=deep_link,
+        csrf_token=get_csrf_token(),
     )
 
 

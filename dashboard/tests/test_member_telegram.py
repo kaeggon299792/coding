@@ -100,8 +100,9 @@ def test_member_telegram_preferences_filter_broadcasts(tmp_path):
     connection.close()
 
 
-def test_member_telegram_page_opens_connect_and_exposes_three_preferences():
+def test_member_telegram_page_uses_direct_deep_link_and_exposes_three_preferences():
     template = (ROOT / "templates" / "member_telegram.html").read_text("utf-8")
-    assert 'action="{{ url_for(\'member_area.telegram_connect\') }}" target="_blank"' in template
+    assert 'href="{{ telegram_deep_link }}"' in template
+    assert 'target="_blank"' not in template
     for field in ("notify_comments", "notify_news", "notify_recruitment"):
         assert f'name="{field}"' in template

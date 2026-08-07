@@ -9,9 +9,9 @@
     {% if telegram_state %}
     <div class="member-telegram-actions"><form method="post" action="{{ url_for('member_area.telegram_test') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">테스트 메시지</button></form><form method="post" action="{{ url_for('member_area.telegram_disconnect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-ghost" type="submit">연결 해제</button></form></div>
     {% else %}
-    <form method="post" action="{{ url_for('member_area.telegram_connect') }}" target="_blank"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit"{% if not telegram_configured %} disabled{% endif %}>Telegram 연결</button></form>
+    {% if telegram_deep_link %}<a class="btn btn-primary" href="{{ telegram_deep_link }}">Telegram 연결</a>{% else %}<button class="btn btn-primary" type="button" disabled>Telegram 연결</button>{% endif %}
     {% if not telegram_configured %}<p class="page-note">운영 환경의 회원용 Bot 설정 후 연결할 수 있습니다.</p>{% endif %}
-    {% if telegram_configured %}<p class="page-note">새 창에서 <strong>START</strong>를 누르면 연결됩니다. 연결 후 이 페이지를 새로고침해 주세요.</p>{% endif %}
+    {% if telegram_configured %}<p class="page-note">Telegram 앱에서 <strong>START</strong>를 누르면 연결됩니다. 연결 후 이 페이지로 돌아와 새로고침해 주세요.</p>{% endif %}
     {% endif %}
   </section>
   {% if telegram_state %}
