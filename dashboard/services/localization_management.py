@@ -17,6 +17,7 @@ from utils import now_kst
 
 
 HANGUL_RE = re.compile(r"[가-힣]")
+CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]")
 TAG_RE = re.compile(r"<[^>]+>")
 HTML_TEXT_RE = re.compile(r">\s*([^<>{%]*[가-힣][^<>{%]*)\s*<")
 ATTRIBUTE_RE = re.compile(
@@ -1084,7 +1085,10 @@ def qa_report(connection, language_code="en"):
         if not target:
             issues.append("영어 누락/빈 문자열")
         else:
-            if HANGUL_RE.search(target): issues.append("한국어가 그대로 포함됨")
+            if language_code == "en" and CJK_RE.search(target):
+                issues.append("영문 번역에 한글·한자·일본어가 포함됨")
+            elif HANGUL_RE.search(target):
+                issues.append("한국어가 그대로 포함됨")
             if sorted(VARIABLE_RE.findall(source)) != sorted(VARIABLE_RE.findall(target)):
                 issues.append("변수 누락 또는 변경")
             if len(TAG_RE.findall(source)) != len(TAG_RE.findall(target)):

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 
 import config
 from services import ai_insights, news_reader
@@ -15,6 +16,8 @@ SOURCE_FIELDS = {
     "research": ("title", "ai_summary", "key_points_json", "risks_json", "industry_impact"),
     "news": ("title", "issue_title", "category", "latest_summary"),
 }
+
+CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]")
 
 
 def _as_dict(item):
@@ -66,6 +69,19 @@ def apply_cached(connection, content_type, items, id_field="id"):
 def apply_one(connection, content_type, item, id_field="id"):
     translated = apply_cached(connection, content_type, [item], id_field=id_field)
     return translated[0] if translated else item
+
+
+def mask_cjk_fallbacks(items, field_fallbacks):
+    """Prevent untranslated CJK source text from leaking into English pages."""
+    results = []
+    for original in items or []:
+        item = _as_dict(original)
+        for field, fallback in field_fallbacks.items():
+            value = str(item.get(field) or "")
+            if value and CJK_RE.search(value):
+                item[field] = fallback
+        results.append(item)
+    return results
 
 
 def _collect_dashboard_entries(connection):

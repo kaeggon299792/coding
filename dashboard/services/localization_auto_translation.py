@@ -43,6 +43,7 @@ TARGET_SCRIPT_RE = {
     "ja": re.compile(r"[ぁ-ゖァ-ヺ一-龯]"),
     "yue-HK": re.compile(r"[一-龯]"),
 }
+ENGLISH_CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]")
 RUN_TYPE = "localization_auto_translation"
 RUN_LOCK_TIMEOUT = timedelta(hours=2)
 
@@ -181,6 +182,8 @@ def _validation_error(source, target, language_code):
     text = str(target or "").strip()
     if not text:
         return "empty translation"
+    if language_code == "en" and ENGLISH_CJK_RE.search(text):
+        return "CJK text remains in English translation"
     if localization_management.HANGUL_RE.search(text):
         return "Korean text remains"
     if not TARGET_SCRIPT_RE[language_code].search(text):

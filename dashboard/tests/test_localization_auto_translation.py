@@ -100,7 +100,8 @@ def test_english_is_supported_and_rejects_untranslated_hangul(monkeypatch):
 
     assert auto.configured_languages() == ["en", "ja", "yue-HK"]
     assert auto._validation_error("홈", "Home", "en") is None
-    assert auto._validation_error("홈", "홈", "en") == "Korean text remains"
+    assert auto._validation_error("홈", "홈", "en") == "CJK text remains in English translation"
+    assert auto._validation_error("기업", "企業", "en") == "CJK text remains in English translation"
 
 
 def test_manual_translation_runs_all_pending_rows_in_batches(

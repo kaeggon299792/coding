@@ -3712,9 +3712,18 @@ def related_news_page():
             articles = content_translation.apply_cached(
                 connection, "news", articles, id_field="article_id"
             )
+            articles = content_translation.mask_cjk_fallbacks(
+                articles,
+                {
+                    "title": "English translation pending",
+                    "issue_title": "",
+                    "category": "Uncategorized",
+                    "latest_summary": "",
+                },
+            )
         # Daily AI analysis combines news, official documents, and research
         # uploads. Keep the operational analysis visible to administrators only.
-        show_executive_insights = session.get("role") == "admin"
+        show_executive_insights = session.get("role") == "admin" and g.locale == "ko"
         executive_insights = (
             queries.list_recent_executive_insights(connection, days=days, limit=10)
             if show_executive_insights

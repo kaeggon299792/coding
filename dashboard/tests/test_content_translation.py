@@ -51,3 +51,34 @@ def test_failed_refresh_preserves_previous_json_but_marks_error():
     row = connection.execute("SELECT * FROM content_translations").fetchone()
     assert row["status"] == "error"
     assert json.loads(row["translated_json"])["title"] == "Old"
+
+
+def test_cjk_source_fallbacks_are_masked_on_english_pages():
+    items = [
+        {
+            "title": "한국어 제목",
+            "category": "기업 동향",
+            "latest_summary": "한국어 요약",
+            "publisher": "example.com",
+        },
+        {
+            "title": "Already translated",
+            "category": "Market",
+            "latest_summary": "English summary",
+        },
+    ]
+
+    masked = content_translation.mask_cjk_fallbacks(
+        items,
+        {
+            "title": "English translation pending",
+            "category": "Uncategorized",
+            "latest_summary": "",
+        },
+    )
+
+    assert masked[0]["title"] == "English translation pending"
+    assert masked[0]["category"] == "Uncategorized"
+    assert masked[0]["latest_summary"] == ""
+    assert masked[0]["publisher"] == "example.com"
+    assert masked[1] == items[1]
