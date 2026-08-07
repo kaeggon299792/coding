@@ -27,6 +27,11 @@ html[data-home-hero="event-horizon"] .home-hero-slot::before {
   transform: translateX(-50%);
 }
 
+/* Authenticated home keeps a content gutter below the menu; continue black through that gap. */
+html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before {
+  top: calc(-1 * var(--space-6));
+}
+
 html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
   z-index: 1;
 }
@@ -155,6 +160,10 @@ html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
 }
 
 @media (max-width: 760px) {
+  html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before {
+    top: calc(-1 * var(--space-4));
+  }
+
   .event-horizon-hero {
     min-height: max(620px, calc(92svh - var(--sticky-topbar-height, 0px)));
     background:

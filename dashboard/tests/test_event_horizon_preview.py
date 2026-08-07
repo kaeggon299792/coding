@@ -110,8 +110,14 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
-    assert "event-horizon-hero.css') }}?v=20260808-home2" in partial
+    assert "event-horizon-hero.css') }}?v=20260808-home3" in partial
     assert 'html[data-home-hero="event-horizon"] .home-hero-slot::before' in event_horizon_css
+    assert (
+        'html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before'
+        in event_horizon_css
+    )
+    assert "top: calc(-1 * var(--space-6));" in event_horizon_css
+    assert "top: calc(-1 * var(--space-4));" in event_horizon_css
     assert "width: 100vw;" in event_horizon_css
     assert "casino-wave-webgl.css" not in base
     assert "three.r149.min.js" not in base
