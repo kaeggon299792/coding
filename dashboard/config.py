@@ -18,7 +18,7 @@ ENV_FILE = BASE_DIR / ".env"
 KST = ZoneInfo("Asia/Seoul")
 
 HOME_HERO_VARIANTS = (
-    {"value": "spotlight", "label": "Spotlight"},
+    {"value": "spotlight", "label": "DOT"},
     {"value": "event-horizon", "label": "Event Horizon"},
     {"value": "mesh-gradient", "label": "Mesh Gradient"},
 )

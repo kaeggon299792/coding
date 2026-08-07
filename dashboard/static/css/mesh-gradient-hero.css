@@ -129,11 +129,6 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
   text-wrap: balance;
 }
 
-.home-mesh-gradient .mesh-gradient-content h1 {
-  font-size: clamp(2.8rem, 5.8vw, 6rem);
-  line-height: 1.02;
-}
-
 .mesh-gradient-content h1 > span {
   display: block;
 }

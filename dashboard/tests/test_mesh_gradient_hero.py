@@ -96,9 +96,23 @@ def test_home_loader_keeps_three_candidates_but_initializes_only_the_selection()
     config = (ROOT / "config.py").read_text(encoding="utf-8")
     loader = (ROOT / "static" / "js" / "home-hero-loader.js").read_text(encoding="utf-8")
 
-    assert '{"value": "spotlight", "label": "Spotlight"}' in config
+    assert '{"value": "spotlight", "label": "DOT"}' in config
     assert '{"value": "event-horizon", "label": "Event Horizon"}' in config
     assert '{"value": "mesh-gradient", "label": "Mesh Gradient"}' in config
     assert 'const allowed = ["spotlight", "event-horizon", "mesh-gradient"]' in loader
     assert 'if (selected === "mesh-gradient")' in loader
     assert 'if (selected === "event-horizon")' in loader
+
+
+def test_home_dot_is_one_theme_aware_original_and_mesh_matches_preview_copy():
+    dot = (ROOT / "templates" / "_hero_spotlight.html").read_text(encoding="utf-8")
+    mesh = (ROOT / "templates" / "_hero_mesh_gradient.html").read_text(encoding="utf-8")
+    preview = (ROOT / "templates" / "test_mesh_gradient_hero.html").read_text(encoding="utf-8")
+
+    assert "public-hero-wordmark-dark" in dot
+    assert "public-hero-wordmark-light" in dot
+    assert "public-hero-actions" not in dot
+    assert "CASINO INDUSTRY INTELLIGENCE" in mesh
+    assert "산업의 흐름을" in mesh and "한발 먼저 읽다" in mesh
+    assert "CASINO INDUSTRY INTELLIGENCE" in preview
+    assert "산업의 흐름을" in preview and "한발 먼저 읽다" in preview
