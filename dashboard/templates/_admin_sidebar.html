@@ -15,4 +15,87 @@
     <a href="{{ url_for('official_docs.dashboard') }}" data-ui-icon="file-text"{% if request.blueprint == 'official_docs' %} class="active" aria-current="page"{% endif %}>공문·자료관리</a>
     <a href="{{ url_for('performance_page') }}" data-ui-icon="chart-column"{% if request.endpoint == 'performance_page' %} class="active" aria-current="page"{% endif %}>경영 실적</a>
   </nav>
+  <section
+    class="admin-runtime-status"
+    data-pythonanywhere-status
+    data-status-url="{{ url_for('pythonanywhere_status_api') }}"
+    aria-labelledby="pythonanywhere-status-title"
+  >
+    <div class="admin-runtime-status-heading">
+      <strong id="pythonanywhere-status-title">PythonAnywhere</strong>
+      <small data-pa-checked-at>확인 중</small>
+    </div>
+    <div class="admin-runtime-meter" data-pa-section="cpu">
+      <div><span>CPU</span><strong data-pa-percent>--</strong></div>
+      <progress max="100" value="0" aria-label="PythonAnywhere CPU 사용률"></progress>
+      <small data-pa-summary>조회 중</small>
+    </div>
+    <div class="admin-runtime-meter" data-pa-section="storage">
+      <div><span>Storage</span><strong data-pa-percent>--</strong></div>
+      <progress max="100" value="0" aria-label="PythonAnywhere 저장공간 사용률"></progress>
+      <small data-pa-summary>조회 중</small>
+    </div>
+    <details class="admin-runtime-details">
+      <summary>상세정보</summary>
+      <dl>
+        <div><dt>CPU 사용</dt><dd data-pa-cpu-used>--</dd></div>
+        <div><dt>CPU 한도</dt><dd data-pa-cpu-limit>--</dd></div>
+        <div><dt>다음 초기화</dt><dd data-pa-cpu-reset>--</dd></div>
+        <div><dt>저장공간 잔여</dt><dd data-pa-storage-remaining>--</dd></div>
+      </dl>
+    </details>
+  </section>
 </aside>
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const root = document.querySelector("[data-pythonanywhere-status]");
+  if (!root) return;
+  const section = (name) => root.querySelector(`[data-pa-section="${name}"]`);
+  const setUnavailable = (name) => {
+    const target = section(name);
+    target.querySelector("[data-pa-percent]").textContent = "조회 불가";
+    target.querySelector("progress").value = 0;
+    target.querySelector("[data-pa-summary]").textContent = "설정을 확인하세요";
+  };
+  const formatSeconds = (value) => `${Number(value || 0).toLocaleString("ko-KR")} sec`;
+  const formatGb = (value) => `${(Number(value || 0) / (1024 ** 3)).toFixed(2)} GB`;
+
+  fetch(root.dataset.statusUrl, { credentials: "same-origin", headers: { Accept: "application/json" } })
+    .then((response) => {
+      if (!response.ok) throw new Error("status unavailable");
+      return response.json();
+    })
+    .then((data) => {
+      if (data.cpu?.available) {
+        const target = section("cpu");
+        target.querySelector("[data-pa-percent]").textContent = `${data.cpu.usage_percent}%`;
+        target.querySelector("progress").value = data.cpu.usage_percent;
+        target.querySelector("[data-pa-summary]").textContent = `${formatSeconds(data.cpu.remaining_seconds)} 남음`;
+        root.querySelector("[data-pa-cpu-used]").textContent = formatSeconds(data.cpu.used_seconds);
+        root.querySelector("[data-pa-cpu-limit]").textContent = formatSeconds(data.cpu.limit_seconds);
+        root.querySelector("[data-pa-cpu-reset]").textContent = data.cpu.next_reset_time || "--";
+      } else setUnavailable("cpu");
+
+      if (data.storage?.available) {
+        const target = section("storage");
+        target.querySelector("[data-pa-percent]").textContent = `${data.storage.usage_percent}%`;
+        target.querySelector("progress").value = data.storage.usage_percent;
+        target.querySelector("[data-pa-summary]").textContent = `${formatGb(data.storage.used_bytes)} / ${formatGb(data.storage.quota_bytes)}`;
+        root.querySelector("[data-pa-storage-remaining]").textContent = formatGb(data.storage.remaining_bytes);
+      } else setUnavailable("storage");
+
+      const checked = new Date(data.checked_at);
+      const checkedText = Number.isNaN(checked.getTime())
+        ? "확인 완료"
+        : `${checked.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 기준`;
+      root.querySelector("[data-pa-checked-at]").textContent = data.stale
+        ? `${checkedText} · 이전 정상 데이터`
+        : checkedText;
+    })
+    .catch(() => {
+      setUnavailable("cpu");
+      setUnavailable("storage");
+      root.querySelector("[data-pa-checked-at]").textContent = "조회 불가";
+    });
+})();
+</script>

@@ -63,6 +63,7 @@ from services import (
     performance_parser,
     portfolio_admin,
     portfolio_content,
+    pythonanywhere_status,
     rss_feed,
     salary_data,
     security_audit,
@@ -2632,6 +2633,14 @@ def paradian_portal_page():
         )
     finally:
         connection.close()
+
+
+@app.route("/api/admin/pythonanywhere-status")
+@admin_required
+def pythonanywhere_status_api():
+    response = jsonify(pythonanywhere_status.get_status())
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/admin/portfolio")

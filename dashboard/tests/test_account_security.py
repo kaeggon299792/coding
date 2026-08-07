@@ -58,6 +58,20 @@ def _login(client, remember=False):
     return response
 
 
+def _login_admin(client):
+    response = client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "admin-password-123!",
+            "csrf_token": _csrf(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    return response
+
+
 def test_login_failure_is_counted_by_cloudflare_client_ip(account_client):
     client, db_path = account_client
     headers = {
@@ -360,6 +374,55 @@ def test_webgl_bundle_is_limited_to_home(account_client):
     assert "three.r149.min.js" not in login
     assert "casino-wave-webgl-v2.js" not in login
     assert "profile-avatar-webgl.js" not in login
+
+
+def test_pythonanywhere_status_is_admin_only_and_keeps_secrets_server_side(
+    account_client, monkeypatch
+):
+    client, _ = account_client
+    endpoint = "/api/admin/pythonanywhere-status"
+    assert client.get(endpoint).status_code == 401
+
+    _login(client)
+    assert client.get(endpoint).status_code == 403
+    assert "PythonAnywhere" not in client.get("/account").get_data(as_text=True)
+
+    client.post("/logout", data={"csrf_token": _csrf(client, "/account")})
+    _login_admin(client)
+    monkeypatch.setattr(
+        "services.pythonanywhere_status.get_status",
+        lambda: {
+            "cpu": {
+                "available": True,
+                "usage_percent": 42.0,
+                "used_seconds": 42_000,
+                "limit_seconds": 100_000,
+                "remaining_seconds": 58_000,
+                "next_reset_time": "2026-08-08T00:00:00Z",
+            },
+            "storage": {
+                "available": True,
+                "usage_percent": 71.0,
+                "used_bytes": 3_812_062_720,
+                "quota_bytes": 5_368_709_120,
+                "remaining_bytes": 1_556_646_400,
+            },
+            "checked_at": "2026-08-07T08:05:00+00:00",
+            "stale": False,
+        },
+    )
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    cache_control = response.headers["Cache-Control"]
+    assert "private" in cache_control
+    assert "no-store" in cache_control
+    assert response.get_json()["cpu"]["remaining_seconds"] == 58_000
+
+    admin_html = client.get("/admin").get_data(as_text=True)
+    assert 'data-pythonanywhere-status' in admin_html
+    assert 'data-status-url="/api/admin/pythonanywhere-status"' in admin_html
+    assert "PYTHONANYWHERE_API_TOKEN" not in admin_html
+    assert "private-token" not in admin_html
 
 
 def test_account_does_not_load_blackhole_avatar_effect(account_client):
