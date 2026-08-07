@@ -97,7 +97,7 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
 .mesh-gradient-content {
   align-self: center;
   justify-self: center;
-  width: min(760px, calc(100% - 48px));
+  width: min(1120px, calc(100% - 48px));
   padding: clamp(92px, 12vh, 148px) 0;
   text-align: center;
 }
@@ -119,13 +119,28 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
   backdrop-filter: blur(8px);
 }
 
+.mesh-gradient-wordmark {
+  width: min(86vw, 980px);
+  margin: clamp(28px, 5vh, 52px) auto 0;
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.mesh-gradient-wordmark img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 12px 36px rgba(0, 0, 0, 0.24));
+}
+
 .mesh-gradient-content h1 {
-  margin: 24px 0 0;
-  color: #fff;
-  font-size: clamp(3.2rem, 7.4vw, 7rem);
-  font-weight: 720;
-  line-height: 0.96;
-  letter-spacing: -0.055em;
+  max-width: 760px;
+  margin: clamp(24px, 4vh, 42px) auto 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: clamp(1rem, 1.65vw, 1.35rem);
+  font-weight: 760;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
   text-wrap: balance;
 }
 
@@ -141,9 +156,9 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
 
 .mesh-gradient-description {
   max-width: 560px;
-  margin: 30px auto 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: clamp(0.96rem, 1.35vw, 1.1rem);
+  margin: 12px auto 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: clamp(0.82rem, 1.1vw, 0.96rem);
   font-weight: 450;
   line-height: 1.75;
   word-break: keep-all;
@@ -205,6 +220,7 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
 }
 
 .mesh-gradient-badge,
+.mesh-gradient-wordmark,
 .mesh-gradient-description,
 .mesh-gradient-actions,
 .mesh-gradient-credit {
@@ -216,21 +232,25 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
   animation: mesh-gradient-fade-up 620ms 80ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.mesh-gradient-hero.is-content-ready .mesh-gradient-wordmark {
+  animation: mesh-gradient-fade-up 760ms 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .mesh-gradient-hero.is-content-ready .mesh-gradient-character {
   animation: mesh-gradient-character-in 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: calc(180ms + var(--character-index) * 42ms);
+  animation-delay: calc(420ms + var(--character-index) * 24ms);
 }
 
 .mesh-gradient-hero.is-content-ready .mesh-gradient-description {
-  animation: mesh-gradient-fade-up 720ms 1040ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: mesh-gradient-fade-up 720ms 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .mesh-gradient-hero.is-content-ready .mesh-gradient-actions {
-  animation: mesh-gradient-fade-up 720ms 1220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: mesh-gradient-fade-up 720ms 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .mesh-gradient-hero.is-content-ready .mesh-gradient-credit {
-  animation: mesh-gradient-fade-up 720ms 1400ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: mesh-gradient-fade-up 720ms 1040ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .mesh-gradient-hero.is-shader-fallback .mesh-gradient-shaders {
@@ -265,16 +285,21 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
     letter-spacing: 0.11em;
   }
 
+  .mesh-gradient-wordmark {
+    width: min(92vw, 560px);
+    margin-top: clamp(28px, 5vh, 42px);
+  }
+
   .mesh-gradient-content h1 {
-    margin-top: 20px;
-    font-size: clamp(2.75rem, 14vw, 4.2rem);
-    line-height: 1;
+    margin-top: clamp(24px, 4vh, 34px);
+    font-size: clamp(0.94rem, 4.2vw, 1.12rem);
+    line-height: 1.45;
   }
 
   .mesh-gradient-description {
     max-width: 390px;
-    margin-top: 24px;
-    font-size: 0.95rem;
+    margin-top: 10px;
+    font-size: 0.84rem;
     line-height: 1.68;
   }
 
@@ -308,6 +333,7 @@ html[data-home-hero="mesh-gradient"] .home-hero-slot > .home-mesh-gradient {
   }
 
   .mesh-gradient-badge,
+  .mesh-gradient-wordmark,
   .mesh-gradient-character,
   .mesh-gradient-description,
   .mesh-gradient-actions,

@@ -2,11 +2,12 @@
 {% block body_class %}mesh-gradient-preview-page{% endblock %}
 {% block extra_head %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-shared2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-logo1">
 {% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="mesh-gradient-preview">
+  {% set selected_home_tagline = ('산업의 흐름을 한발 먼저 읽다.', 'Read the casino industry one step ahead.') %}
   {% include "_hero_mesh_gradient.html" %}
 </main>
 {% endblock %}

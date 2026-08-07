@@ -111,14 +111,21 @@ def test_home_loader_keeps_three_candidates_but_initializes_only_the_selection()
     assert 'if (selected === "event-horizon")' in loader
 
 
-def test_home_dot_is_one_theme_aware_original_and_mesh_matches_preview_copy():
+def test_home_dot_is_one_theme_aware_and_visual_heroes_use_the_wordmark_lockup():
     dot = (ROOT / "templates" / "_hero_spotlight.html").read_text(encoding="utf-8")
     mesh = (ROOT / "templates" / "_hero_mesh_gradient.html").read_text(encoding="utf-8")
+    event_horizon = (ROOT / "templates" / "_hero_event_horizon.html").read_text(
+        encoding="utf-8"
+    )
     preview = (ROOT / "templates" / "test_mesh_gradient_hero.html").read_text(encoding="utf-8")
 
     assert "public-hero-wordmark-dark" in dot
     assert "public-hero-wordmark-light" in dot
     assert "public-hero-actions" not in dot
-    assert "CASINO INDUSTRY INTELLIGENCE" in mesh
-    assert "산업의 흐름을" in mesh and "한발 먼저 읽다" in mesh
+    assert "mesh-gradient-wordmark" in mesh
+    assert "event-horizon-wordmark" in event_horizon
+    assert "casino-in-wordmark-white-smooth.svg" in mesh
+    assert "casino-in-wordmark-white-smooth.svg" in event_horizon
+    assert "selected_home_tagline" in mesh
+    assert "selected_home_tagline" in event_horizon
     assert '{% include "_hero_mesh_gradient.html" %}' in preview

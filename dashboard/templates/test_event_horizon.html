@@ -2,31 +2,13 @@
 {% block title %}Event Horizon Hero Preview{% endblock %}
 {% block body_class %}event-horizon-preview-page{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-home4">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-logo1">
 {% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 <main class="event-horizon-preview">
-  <section
-    class="event-horizon-hero"
-    id="event-horizon-hero"
-    data-effect-src="{{ url_for('static', filename='hero-effects/event-horizon.html') }}?v=20260807-1"
-    aria-labelledby="event-horizon-title"
-  >
-    <div class="event-horizon-visual" data-event-horizon-visual aria-hidden="true"></div>
-    <div class="event-horizon-scrim" aria-hidden="true"></div>
-    <div class="event-horizon-content">
-      <p class="event-horizon-eyebrow">CASINO INDUSTRY INTELLIGENCE</p>
-      <h1 id="event-horizon-title">CASINO IN</h1>
-      <p class="event-horizon-description">카지노 산업의 뉴스, 시장정보, 기업정보와 주요 데이터를 한곳에서 확인하세요.</p>
-      <div class="event-horizon-actions">
-        <a class="btn btn-primary" href="{{ url_for('casino_industry_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">시장정보 보기</a>
-        <a class="btn btn-outline event-horizon-secondary" href="{{ url_for('companies_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">기업정보 보기</a>
-      </div>
-      <p class="event-horizon-note">EXPERIMENTAL HERO PREVIEW · RADIANT EVENT HORIZON</p>
-    </div>
-    <p class="event-horizon-status" data-event-horizon-status aria-live="polite"></p>
-  </section>
+  {% set selected_home_tagline = ('카지노 산업의 흐름을 한발 먼저 읽다.', 'Read the casino industry one step ahead.') %}
+  {% include "_hero_event_horizon.html" %}
 </main>
 {% endblock %}
 {% block extra_scripts %}

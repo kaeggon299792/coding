@@ -22,7 +22,9 @@ def test_event_horizon_preview_is_public_and_noindex(client):
 
     assert response.status_code == 200
     assert b"<title>Event Horizon Hero Preview | Casino IN</title>" in response.data
-    assert b'id="event-horizon-title">CASINO IN' in response.data
+    assert b'class="event-horizon-wordmark"' in response.data
+    assert b'casino-in-wordmark-white-smooth.svg' in response.data
+    assert b'id="event-horizon-title">' in response.data
     assert b'content="noindex,nofollow"' in response.data
     assert "frame-src 'self' https://www.googletagmanager.com" in response.headers[
         "Content-Security-Policy"
@@ -41,7 +43,7 @@ def test_event_horizon_preview_uses_real_routes_and_local_asset(client):
     assert 'href="/market/casino-industry"' in page
     assert 'href="/companies"' in page
     assert 'data-effect-src="/static/hero-effects/event-horizon.html?v=20260807-1"' in page
-    assert 'href="/static/css/event-horizon-hero.css?v=20260808-home4"' in page
+    assert 'href="/static/css/event-horizon-hero.css?v=20260808-logo1"' in page
     assert 'src="/static/js/event-horizon-hero.js?v=20260808-fullbleed4"' in page
 
 
@@ -78,7 +80,7 @@ def test_homepage_exposes_lazy_random_hero_candidates(client):
     assert response.status_code == 200
     assert 'data-home-hero-template="spotlight"' in page
     assert 'data-home-hero-template="event-horizon"' in page
-    assert 'src="/static/js/home-hero-loader.js?v=20260808-random-hero3"' in page
+    assert 'src="/static/js/home-hero-loader.js?v=20260808-mesh-gradient-fix1"' in page
     assert "data-home-sitemap" not in page
     assert page.count("시장정보 보기") >= 2
     assert page.count("기업정보 보기") >= 2
@@ -116,8 +118,8 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'loadScript(slot.dataset.meshGradientSrc, "module")' in loader
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
-    assert "event-horizon-hero.css') }}?v=20260808-home5" in partial
-    assert "mesh-gradient-hero.css') }}?v=20260808-shared2" in partial
+    assert "event-horizon-hero.css') }}?v=20260808-logo1" in partial
+    assert "mesh-gradient-hero.css') }}?v=20260808-logo1" in partial
     assert 'html[data-home-hero="event-horizon"] .home-hero-slot::before' in event_horizon_css
     assert (
         'html[data-home-hero="event-horizon"] .page-container > .home-hero-slot::before'

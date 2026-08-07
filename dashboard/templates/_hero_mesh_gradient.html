@@ -5,10 +5,12 @@
   </div>
   <div class="mesh-gradient-scrim" aria-hidden="true"></div>
   <div class="mesh-gradient-content">
-    <p class="mesh-gradient-badge">CASINO INDUSTRY INTELLIGENCE</p>
+    <p class="mesh-gradient-badge">{% if current_locale == 'en' %}CASINO IN / INDUSTRY INTELLIGENCE{% else %}{{ selected_home_tagline[1] }}{% endif %}</p>
+    <div class="mesh-gradient-wordmark" aria-hidden="true">
+      <img src="{{ url_for('static', filename='img/casino-in-wordmark-white-smooth.svg') }}" alt="" width="1705" height="350" decoding="async">
+    </div>
     <h1 id="mesh-gradient-title">
-      <span data-stagger-text>산업의 흐름을</span>
-      <span data-stagger-text>한발 먼저 읽다</span>
+      <span data-stagger-text>{{ selected_home_tagline[1] if current_locale == 'en' else selected_home_tagline[0] }}</span>
     </h1>
     <p class="mesh-gradient-description">카지노 산업의 뉴스, 시장정보, 기업정보와 주요 데이터를 한곳에서 확인하세요.</p>
     <div class="mesh-gradient-actions">
