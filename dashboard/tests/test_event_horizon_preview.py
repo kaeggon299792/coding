@@ -77,7 +77,8 @@ def test_homepage_exposes_lazy_random_hero_candidates(client):
     assert response.status_code == 200
     assert 'data-home-hero-template="spotlight"' in page
     assert 'data-home-hero-template="event-horizon"' in page
-    assert 'src="/static/js/home-hero-loader.js?v=20260808-random-hero1"' in page
+    assert 'src="/static/js/home-hero-loader.js?v=20260808-random-hero2"' in page
+    assert "data-home-sitemap" in page
     assert '<script src="/static/js/event-horizon-hero.js' not in page
     assert re.search(
         r'<script[^>]+src="/static/vendor/three/three\.r149\.min\.js"', page
@@ -102,6 +103,7 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert '"casino-in-home-hero-v1"' in partial
     assert 'stylesheet.dataset.homeHeroAsset = selected' in partial
     assert 'selected === "event-horizon"' in loader
+    assert 'document.querySelector("[data-home-sitemap]")?.remove()' in loader
     assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader

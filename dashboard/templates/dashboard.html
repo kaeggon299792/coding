@@ -8,7 +8,7 @@
   {% set authenticated_home = true %}
   {% include "_home_hero_random.html" %}
 
-  <nav class="public-menu unified-home-menu" aria-label="주요 메뉴">
+  <nav class="public-menu unified-home-menu" aria-label="주요 메뉴" data-home-sitemap>
     <a href="{{ url_for('related_news_page') }}"><span>01</span><strong>뉴스</strong><small>국내·해외 카지노 산업 뉴스</small><i>→</i></a>
     <a href="{{ url_for('casino_industry_page') }}"><span>02</span><strong>시장 정보</strong><small>산업·관광객·주가·환율·연휴</small><i>→</i></a>
     <a href="{{ url_for('companies_page') }}"><span>03</span><strong>기업정보</strong><small>국내 주요 기업의 뉴스·공시·리포트</small><i>→</i></a>
@@ -21,4 +21,4 @@
 
 </div>
 {% endblock %}
-{% block extra_scripts %}<script src="{{ url_for('static', filename='js/home-hero-loader.js') }}?v=20260808-random-hero1"></script>{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/home-hero-loader.js') }}?v=20260808-random-hero2"></script>{% endblock %}
