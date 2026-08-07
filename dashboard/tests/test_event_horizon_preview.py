@@ -151,5 +151,6 @@ def test_dot_mobile_hero_keeps_footer_below_full_height_logo_layout():
     )
     assert 'html[data-home-hero="spotlight"] .home-hero-slot' in css
     assert "calc(92svh - var(--sticky-topbar-height, 0px))" in css
-    assert "width: min(88vw, 520px)" in css
-    assert "padding: clamp(68px, 10vh, 92px) 20px 96px" in css
+    assert "align-content: start" in css
+    assert "text-align: center" in css
+    assert "padding: clamp(148px, 20vh, 188px) 20px 96px" in css

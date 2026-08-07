@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 import config
 from auth import admin_required, login_required, validate_csrf
 from extensions import dashboard_db
-from services import comment_notifications, content_translation, security_audit, tips_content
+from services import comment_telegram_notifications, content_translation, security_audit, tips_content
 from utils import now_kst
 
 
@@ -777,20 +777,16 @@ def add_comment_page(slug):
         if not item:
             abort(404)
         try:
-            notification_email = comment_notifications.normalize_email(
-                request.form.get("notification_email")
-            )
             comment_id = tips_content.add_comment(
                 connection, item["id"], session["user_id"],
                 request.form.get("content", ""),
             )
             comment = tips_content.get_comment(connection, comment_id)
-            comment_notifications.notify_new_comment(
+            comment_telegram_notifications.notify_new_comment(
                 connection,
                 scope_type="tips_article",
                 scope_id=item["id"],
                 author_id=session["user_id"],
-                notification_email=notification_email,
                 comment_id=comment_id,
                 post_title=item.get("title") or "자료실",
                 comment_content=comment.get("content") if comment else "",

@@ -195,3 +195,23 @@ html[data-animations="off"] .my-account-page .account-avatar-wrap::before {
     animation: none !important;
   }
 }
+
+/* Accounts without an uploaded image use a flat neutral emoji placeholder. */
+.topbar-profile-menu .topbar-profile-avatar-wrap.is-default-avatar::before,
+.topbar-profile-menu .topbar-profile-avatar-wrap.is-default-avatar::after,
+.my-account-page .account-avatar-wrap.is-default-avatar::before,
+.my-account-page .account-avatar-wrap.is-default-avatar::after {
+  display: none !important;
+  content: none !important;
+}
+
+.topbar-profile-menu .is-default-avatar > .topbar-avatar-fallback,
+.topbar-profile-menu .is-default-avatar > .topbar-profile-photo-fallback,
+.member-avatar-wrap.is-default-avatar > .member-avatar-fallback,
+.my-account-page .account-avatar-wrap.is-default-avatar > span:first-child {
+  border: 1px solid var(--brand-border) !important;
+  background: var(--brand-surface-muted) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  animation: none !important;
+}

@@ -1,9 +1,9 @@
 {% macro identity(username, display_name, picture_url, icon_path, grade_label, compact=false) -%}
 <span class="member-identity{% if compact %} is-compact is-board-author{% endif %}" title="{{ '작성자 프로필' if compact else grade_label ~ ' 등급' }}">
   {% set grade_code = (icon_path or 'img/membership/silver.svg').split('/')[-1].split('-')[0].split('.')[0] %}
-  <span class="member-avatar-wrap{% if not compact %} grade-{{ grade_code }}{% endif %}">
+  <span class="member-avatar-wrap{% if not compact %} grade-{{ grade_code }}{% endif %}{% if not picture_url %} is-default-avatar{% endif %}">
     {% if picture_url %}<img class="member-avatar" src="{{ picture_url }}" alt="" width="28" height="28" loading="lazy" referrerpolicy="no-referrer">
-    {% else %}<span class="member-avatar member-avatar-fallback" aria-hidden="true">{{ (display_name or username or '?')[0]|upper }}</span>{% endif %}
+    {% else %}<span class="member-avatar member-avatar-fallback" aria-hidden="true">👤</span>{% endif %}
     {% if not compact %}<img class="membership-badge-icon" src="{{ url_for('static', filename=icon_path or 'img/membership/silver.svg') }}" alt="{{ grade_label }} 등급" width="14" height="14">{% endif %}
   </span>
   {% if not compact %}<span>{{ display_name or username or '탈퇴한 사용자' }}</span>{% endif %}

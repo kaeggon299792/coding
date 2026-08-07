@@ -14,11 +14,11 @@
 
   <section class="panel account-profile-panel">
     <div class="account-profile-head">
-      <div class="account-avatar-wrap">
+      <div class="account-avatar-wrap{% if not user.picture_url %} is-default-avatar{% endif %}">
       {% if user.picture_url %}
       <img src="{{ user.picture_url }}" alt="" width="64" height="64" referrerpolicy="no-referrer">
       {% else %}
-      <span aria-hidden="true">{{ (user.name or user.username)[0]|upper }}</span>
+      <span aria-hidden="true">👤</span>
       {% endif %}
       {% if user.membership_icon_path %}<img class="membership-badge-icon account-membership-badge" src="{{ url_for('static', filename=user.membership_icon_path) }}" alt="{{ user.membership_label }} 등급" width="22" height="22">{% endif %}
       </div>

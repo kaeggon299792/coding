@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import timedelta
 
@@ -11,6 +12,14 @@ import requests
 
 import config
 from utils import now_kst
+
+
+logger = logging.getLogger(__name__)
+NOTIFICATION_PREFERENCES = {
+    "comments": "notify_comments",
+    "news": "notify_news",
+    "recruitment": "notify_recruitment",
+}
 
 
 def configured():
@@ -91,11 +100,30 @@ def consume_link(connection, raw_token, chat_id, telegram_username=None, current
 
 def status(connection, user_id):
     row = connection.execute(
-        """SELECT telegram_username,connected_at,enabled
+        """SELECT telegram_username,connected_at,enabled,
+                  notify_comments,notify_news,notify_recruitment
            FROM member_telegram_connections WHERE user_id=?""",
         (int(user_id),),
     ).fetchone()
     return dict(row) if row and row["enabled"] else None
+
+
+def update_preferences(connection, user_id, preferences):
+    values = {
+        key: 1 if bool(preferences.get(key)) else 0
+        for key in NOTIFICATION_PREFERENCES
+    }
+    updated = connection.execute(
+        """UPDATE member_telegram_connections
+           SET notify_comments=?,notify_news=?,notify_recruitment=?,updated_at=?
+           WHERE user_id=? AND enabled=1""",
+        (
+            values["comments"], values["news"], values["recruitment"],
+            now_kst().isoformat(timespec="seconds"), int(user_id),
+        ),
+    )
+    connection.commit()
+    return bool(updated.rowcount)
 
 
 def disconnect(connection, user_id):
@@ -127,3 +155,30 @@ def send_to_user(connection, user_id, text):
         (int(user_id),),
     ).fetchone()
     return bool(row) and send_message(row["telegram_chat_id"], text)
+
+
+def broadcast(connection, preference, text, sender=None):
+    """Send to active connected members who enabled one notification kind."""
+    column = NOTIFICATION_PREFERENCES.get(str(preference))
+    if not column:
+        raise ValueError("지원하지 않는 Telegram 알림 종류입니다.")
+    recipients = connection.execute(
+        f"""SELECT c.telegram_chat_id
+            FROM member_telegram_connections AS c
+            JOIN dashboard_users AS u ON u.id=c.user_id
+            WHERE c.enabled=1 AND c.{column}=1
+              AND u.is_active=1 AND u.approval_status='approved'"""
+    ).fetchall()
+    send = sender or send_message
+    sent = 0
+    failed = 0
+    for recipient in recipients:
+        try:
+            if send(recipient["telegram_chat_id"], text):
+                sent += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+            logger.exception("Member Telegram broadcast failed preference=%s", preference)
+    return {"recipients": len(recipients), "sent": sent, "failed": failed}

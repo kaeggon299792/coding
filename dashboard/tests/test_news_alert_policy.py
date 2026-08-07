@@ -55,3 +55,38 @@ def test_policy_patches_legacy_worker_without_api_or_schema_changes():
     )
     assert message.startswith("📌 이슈\n중요도: 높음 | 영향: 부정")
     assert len([line for line in message.splitlines() if line.strip()]) <= 15
+
+
+def test_policy_routes_issue_alerts_to_member_news_preference(monkeypatch):
+    class Connection:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    connection = Connection()
+    broadcasts = []
+    monkeypatch.setattr(news_alert_policy, "dashboard_db", lambda: connection)
+    monkeypatch.setattr(
+        news_alert_policy.member_telegram,
+        "broadcast",
+        lambda conn, preference, text: broadcasts.append((conn, preference, text))
+        or {"recipients": 1, "sent": 1, "failed": 0},
+    )
+    analyzer = SimpleNamespace(DETAIL_SYSTEM_PROMPT="old")
+    sender = SimpleNamespace(escape_html=lambda value: str(value).replace("&", "&amp;"))
+    news_alert_policy.apply_news_alert_policy(analyzer, sender)
+    entry = {
+        "issue_title": "카지노 뉴스",
+        "detail_result": _detail(),
+        "articles": [SimpleNamespace(
+            title="기사", original_url="https://example.com/a?x=1&y=2"
+        )],
+        "is_update": False,
+    }
+
+    assert sender.send_issue_notifications([entry]) == [entry]
+    assert broadcasts[0][0] is connection
+    assert broadcasts[0][1] == "news"
+    assert "x=1&y=2" in broadcasts[0][2]
+    assert connection.closed

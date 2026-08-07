@@ -46,6 +46,16 @@ html[data-theme="light"] body.cinematic-home .casino-wave-fallback {
   background: radial-gradient(ellipse 62% 52% at 50% 42%, rgba(83, 89, 96, .07), rgba(200, 205, 210, .025) 48%, transparent 80%);
 }
 
+@media (min-width: 901px) {
+  html[data-home-hero="spotlight"] .public-hero-art-image {
+    width: min(96vw, 1360px);
+  }
+
+  html[data-home-hero="spotlight"] .public-hero-wordmark {
+    width: min(92vw, 1240px);
+  }
+}
+
 @media (max-width: 700px) {
   html[data-home-hero="spotlight"] .home-hero-slot,
   html[data-home-hero="spotlight"] .public-hero {

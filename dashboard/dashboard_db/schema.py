@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080709
+SCHEMA_VERSION = 2026080711
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -2446,6 +2446,18 @@ def migrate(connection):
         )
         """
     )
+    _ensure_column(
+        connection, "member_telegram_connections", "notify_comments",
+        "INTEGER NOT NULL DEFAULT 1",
+    )
+    _ensure_column(
+        connection, "member_telegram_connections", "notify_news",
+        "INTEGER NOT NULL DEFAULT 1",
+    )
+    _ensure_column(
+        connection, "member_telegram_connections", "notify_recruitment",
+        "INTEGER NOT NULL DEFAULT 1",
+    )
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS member_telegram_link_tokens (
@@ -2457,6 +2469,31 @@ def migrate(connection):
             created_at TEXT NOT NULL
         )
         """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_telegram_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scope_type TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(scope_type, scope_id, user_id)
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_comment_telegram_scope
+           ON comment_telegram_subscriptions(scope_type, scope_id, is_active)"""
+    )
+    connection.execute(
+        """INSERT OR IGNORE INTO comment_telegram_subscriptions
+           (scope_type,scope_id,user_id,is_active,created_at,updated_at)
+           SELECT s.scope_type,s.scope_id,s.author_id,s.is_active,s.created_at,s.updated_at
+           FROM comment_notification_subscriptions AS s
+           JOIN dashboard_users AS u ON u.id=s.author_id"""
     )
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_member_telegram_tokens_user "

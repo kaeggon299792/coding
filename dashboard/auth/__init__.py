@@ -1022,14 +1022,27 @@ def register():
                 "automatic_approval": auto_approved,
             },
         )
+        user_id = cursor.lastrowid
+        landing_page = "dashboard"
+        if auto_approved:
+            user = dict(connection.execute(
+                "SELECT * FROM dashboard_users WHERE id=?", (user_id,)
+            ).fetchone())
+            landing_page = _landing_page_for_user(connection, user)
+            _start_user_session(connection, user, primary_authenticated=True)
+            queries.touch_last_login(connection, user_id)
+            security_audit.log_event(
+                connection, "LOGIN_SUCCESS", "dashboard_user", user_id,
+                {"landing_page": landing_page, "automatic_registration": True},
+            )
         connection.commit()
         _send_registration_review_alert(
-            cursor.lastrowid, username, email, provider="local",
+            user_id, username, email, provider="local",
             auto_approved=auto_approved,
         )
-        return redirect(url_for(
-            "auth.login", registered="approved" if auto_approved else "1"
-        ))
+        if auto_approved:
+            return redirect(url_for("public_home", registration="approved"))
+        return redirect(url_for("auth.login", registered="1"))
     except sqlite3.IntegrityError:
         connection.rollback()
         return render_template(

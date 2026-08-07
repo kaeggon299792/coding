@@ -128,9 +128,9 @@ def test_benefit_and_guide_comment_routes_require_login_and_support_replies(monk
         assert "&lt;script&gt;운영 시간이 궁금합니다.&lt;/script&gt;" in benefit_html
         assert "평일 운영입니다." in benefit_html
         assert "private-comment@example.com" not in benefit_html
-        assert "이메일 주소는 댓글 알림 발송 목적으로만 사용되며 공개되지 않습니다." in benefit_html
+        assert "새 댓글 알림은 Telegram을 연결한 대화 참여자에게 전송됩니다." in benefit_html
 
-        invalid_email = client.post(
+        legacy_email_field = client.post(
             f"/companies/comments/benefit/{benefit_id}",
             data={
                 "csrf_token": "d" * 64,
@@ -138,8 +138,9 @@ def test_benefit_and_guide_comment_routes_require_login_and_support_replies(monk
                 "notification_email": "invalid-address",
             },
         )
-        assert invalid_email.status_code == 302
-        assert "등록되면 안 되는 댓글" not in client.get(
+        assert legacy_email_field.status_code == 302
+        # The retired email field is ignored; it no longer blocks a valid comment.
+        assert "등록되면 안 되는 댓글" in client.get(
             "/companies/benefits"
         ).get_data(as_text=True)
 

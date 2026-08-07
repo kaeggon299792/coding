@@ -4,6 +4,9 @@
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/home-hero-cta.css') }}?v=20260808-dot-cta2">{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
+{% if request.args.get('registration') == 'approved' %}
+<p class="account-notice home-registration-notice" role="status">가입과 자동 승인이 완료되어 바로 로그인되었습니다.</p>
+{% endif %}
 <div class="page-container">
 
   {% set authenticated_home = true %}

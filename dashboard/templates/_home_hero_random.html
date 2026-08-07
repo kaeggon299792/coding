@@ -3,6 +3,7 @@
 (() => {
   const queueKey = "casino-in-home-hero-queue-v2";
   const lastKey = "casino-in-home-hero-last-v2";
+  const introKey = "casino-in-home-hero-blackhole-intro-v1";
   const variants = {{ home_hero_variants | map(attribute='value') | list | tojson }};
   {% set preferred_home_hero = current_user.get('hero_preference') if current_user else none %}
   const preferred = {{ preferred_home_hero | tojson }};
@@ -19,6 +20,16 @@
     }
     return values;
   };
+
+  if (!selected) {
+    try {
+      if (!sessionStorage.getItem(introKey) && variants.includes("event-horizon")) {
+        selected = "event-horizon";
+        sessionStorage.setItem(introKey, "1");
+        sessionStorage.setItem(lastKey, selected);
+      }
+    } catch (error) {}
+  }
 
   if (!selected) {
     let queue = [];
@@ -53,7 +64,7 @@
     ? "{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-logo1"
     : selected === "mesh-gradient"
       ? "{{ url_for('static', filename='css/mesh-gradient-hero.css') }}?v=20260808-logo1"
-      : "{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260808-mobile-layout2";
+      : "{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260808-desktop-logo1";
   stylesheet.dataset.homeHeroAsset = selected;
   document.head.appendChild(stylesheet);
 })();

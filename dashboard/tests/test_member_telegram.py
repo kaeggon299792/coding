@@ -1,8 +1,12 @@
 from datetime import timedelta
+from pathlib import Path
 
 from dashboard_db import schema
 from services import member_telegram
 from utils import now_kst
+
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _user(connection, username):
@@ -61,3 +65,43 @@ def test_member_telegram_send_is_scoped_to_requested_user(tmp_path, monkeypatch)
     assert member_telegram.send_to_user(connection, first, "hello")
     assert sent == ["111"]
     connection.close()
+
+
+def test_member_telegram_preferences_filter_broadcasts(tmp_path):
+    connection = schema.connect(str(tmp_path / "preferences.db"))
+    first = _user(connection, "first")
+    second = _user(connection, "second")
+    now = now_kst().isoformat(timespec="seconds")
+    for user_id, chat_id in ((first, "111"), (second, "222")):
+        connection.execute(
+            """INSERT INTO member_telegram_connections
+               (user_id,telegram_chat_id,connected_at,updated_at,enabled)
+               VALUES (?,?,?,?,1)""", (user_id, chat_id, now, now)
+        )
+    connection.commit()
+
+    assert member_telegram.update_preferences(
+        connection, first,
+        {"comments": False, "news": True, "recruitment": False},
+    )
+    state = member_telegram.status(connection, first)
+    assert (state["notify_comments"], state["notify_news"], state["notify_recruitment"]) == (0, 1, 0)
+
+    sent = []
+    result = member_telegram.broadcast(
+        connection, "news", "news", sender=lambda chat_id, text: sent.append(chat_id) or True
+    )
+    assert result == {"recipients": 2, "sent": 2, "failed": 0}
+    result = member_telegram.broadcast(
+        connection, "recruitment", "job", sender=lambda chat_id, text: sent.append(chat_id) or True
+    )
+    assert result["recipients"] == 1
+    assert sent == ["111", "222", "222"]
+    connection.close()
+
+
+def test_member_telegram_page_opens_connect_and_exposes_three_preferences():
+    template = (ROOT / "templates" / "member_telegram.html").read_text("utf-8")
+    assert 'action="{{ url_for(\'member_area.telegram_connect\') }}" target="_blank"' in template
+    for field in ("notify_comments", "notify_news", "notify_recruitment"):
+        assert f'name="{field}"' in template

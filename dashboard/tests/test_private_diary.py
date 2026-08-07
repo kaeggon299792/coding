@@ -267,7 +267,7 @@ def test_review_board_defaults_to_timeline_and_is_separate(monkeypatch, tmp_path
         assert 'aria-current="page">타임라인</a>' in review_page
         assert "자유 게시판" in review_page
         assert "공지사항" in review_page
-        assert "아카이브" in review_page
+        assert '>아카이브</a>' not in review_page
         assert "리뷰 모음" in review_page
         assert "나의 기록" not in review_page
 

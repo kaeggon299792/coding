@@ -8,10 +8,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dashboard_db import queries  # noqa: E402
 import config  # noqa: E402
 from extensions import dashboard_db  # noqa: E402
-from services import recruitment_data, sync_alerts  # noqa: E402
+from services import member_telegram, recruitment_data, sync_alerts  # noqa: E402
 from utils import now_kst, setup_logger  # noqa: E402
 
 logger = setup_logger("recruitment_sync")
+
+
+def _recruitment_alert(item):
+    details = [
+        "💼 새 채용공고",
+        "",
+        f"회사: {item.get('company_name') or '-'}",
+        f"공고: {item.get('title') or '-'}",
+    ]
+    if item.get("deadline"):
+        details.append(f"마감: {item['deadline']}")
+    details.extend((
+        f"출처: {item.get('source_name') or '-'}",
+        "",
+        f"채용정보에서 확인 → {config.DASHBOARD_PUBLIC_URL.rstrip('/')}/companies/recruitment",
+        f"원문 → {item.get('source_url') or '-'}",
+    ))
+    return "\n".join(details)
 
 
 def run():
@@ -34,6 +52,10 @@ def run():
                 item["analyzed_at"] = now_kst().isoformat() if not error else None
                 ai_count += 1
             queries.upsert_recruitment_job(connection, item)
+            if not existing:
+                member_telegram.broadcast(
+                    connection, "recruitment", _recruitment_alert(item)
+                )
         errors = result["errors"]
         status = "success" if not errors else (
             "partial_failure" if result["items"] else "failed"

@@ -1,5 +1,5 @@
 <nav class="data-subnav member-subnav is-wide" data-align-subnav aria-label="회원전용 하위 메뉴">
-  <a href="{{ url_for('work_notes.board') }}"{% if request.blueprint == 'work_notes' %} class="active" aria-current="page"{% endif %}>업무노트</a>
-  <a href="{{ url_for('diary_board_page') }}"{% if request.endpoint in ('diary_board_page', 'diary_entry_page', 'edit_diary_entry_route') %} class="active" aria-current="page"{% endif %}>아카이브</a>
-  <a href="{{ url_for('source_download_page') }}"{% if request.endpoint == 'source_download_page' %} class="active" aria-current="page"{% endif %}>데이터 다운</a>
+  {% if member_nav_access.archive %}<a href="{{ url_for('diary_board_page') }}"{% if request.endpoint in ('diary_board_page', 'diary_entry_page', 'edit_diary_entry_route') %} class="active" aria-current="page"{% endif %}>아카이브</a>{% else %}<span class="member-subnav-disabled" aria-disabled="true" title="아카이브 읽기 권한이 필요합니다">아카이브</span>{% endif %}
+  {% if member_nav_access.work_notes %}<a href="{{ url_for('work_notes.board') }}"{% if request.blueprint == 'work_notes' %} class="active" aria-current="page"{% endif %}>업무노트</a>{% else %}<span class="member-subnav-disabled" aria-disabled="true" title="로그인 회원만 이용할 수 있습니다">업무노트</span>{% endif %}
+  {% if member_nav_access.source_data %}<a href="{{ url_for('source_download_page') }}"{% if request.endpoint == 'source_download_page' %} class="active" aria-current="page"{% endif %}>데이터 다운</a>{% else %}<span class="member-subnav-disabled" aria-disabled="true" title="데이터 다운로드 권한이 필요합니다">데이터 다운</span>{% endif %}
 </nav>

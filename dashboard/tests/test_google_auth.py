@@ -180,6 +180,12 @@ def test_existing_verified_email_is_linked_without_duplicate(
     connection.commit()
     connection.close()
 
+    alerts = []
+    monkeypatch.setattr(
+        auth_module.telegram_alert,
+        "send_alert",
+        lambda message, force=False: alerts.append(message) or True,
+    )
     _mock_callback(monkeypatch, auth_module, _userinfo())
     response = client.get("/auth/google/callback")
     assert response.status_code == 302
@@ -192,6 +198,7 @@ def test_existing_verified_email_is_linked_without_duplicate(
     connection.close()
     assert count == 1
     assert linked == (existing_id, "google-sub-123")
+    assert alerts == []
 
 
 def test_existing_google_sub_does_not_create_duplicate(google_client, monkeypatch):

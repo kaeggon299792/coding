@@ -28,6 +28,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from auth import (
+    MENU_PERMISSIONS,
     admin_required,
     auth_bp,
     current_menu_permissions,
@@ -46,7 +47,7 @@ from services import (
     casino_insights,
     casino_market_share,
     casino_statistics,
-    comment_notifications,
+    comment_telegram_notifications,
     company_comparison,
     company_expert,
     company_intelligence,
@@ -1161,7 +1162,7 @@ def enforce_menu_permission():
         finally:
             connection.close()
         if not allowed:
-            abort(403)
+            abort(403, description="공문·자료관리 다운로드 권한이 필요합니다. 관리자에게 해당 메뉴 권한을 요청해 주세요.")
         return None
     admin_area = (
         request.endpoint in {"paradian_portal_page", "performance_page"}
@@ -1177,7 +1178,7 @@ def enforce_menu_permission():
         finally:
             connection.close()
         if not account or not account["is_active"] or account["role"] != "admin":
-            abort(403)
+            abort(403, description="이 기능은 관리자 권한부터 이용할 수 있습니다.")
     if request.method in {"GET", "HEAD"} and request.endpoint in PUBLIC_READ_ENDPOINTS:
         return None
     # 공문·자료관리 화면과 변경 작업은 관리자 전용이다. 위에서 명시한
@@ -1192,7 +1193,11 @@ def enforce_menu_permission():
         else ENDPOINT_PERMISSIONS.get(request.endpoint)
     )
     if permission and not current_menu_permissions().get(permission, False):
-        abort(403)
+        label = MENU_PERMISSIONS.get(permission, permission)
+        abort(
+            403,
+            description=f"이 페이지는 ‘{label}’ 메뉴 권한부터 이용할 수 있습니다. 관리자에게 해당 권한을 요청해 주세요.",
+        )
     return None
 
 # 뉴스 이슈 카테고리를 경쟁사/정책·규제로 대략 매핑한다(뉴스 프로그램이 이미
@@ -1212,6 +1217,11 @@ def inject_globals():
     role = session.get("role")
     current_user = None
     account_active = not bool(session.get("user_id"))
+    member_nav_access = {
+        "archive": False,
+        "work_notes": False,
+        "source_data": False,
+    }
     localization_pending_count = 0
     if session.get("user_id"):
         cached_user = getattr(g, "current_user_record", None)
@@ -1242,6 +1252,15 @@ def inject_globals():
                 current_user["membership"] = membership.user_grade(
                     connection, current_user["id"], role
                 )
+                member_nav_access = {
+                    "archive": membership.can_board(
+                        connection, "diary", "read", current_user["id"], role
+                    ),
+                    "work_notes": True,
+                    "source_data": membership.can_board(
+                        connection, "source_data", "read", current_user["id"], role
+                    ),
+                }
                 if role == "admin" and request.path.startswith("/admin"):
                     if connection is None:
                         connection = dashboard_db()
@@ -1262,6 +1281,9 @@ def inject_globals():
                 # A few legacy unit tests use a session-only fixture.  Never
                 # apply this compatibility path in the deployed app.
                 account_active = True
+                member_nav_access = {
+                    "archive": True, "work_notes": True, "source_data": True,
+                }
             else:
                 role = None
         finally:
@@ -1405,6 +1427,7 @@ def inject_globals():
         "home_hero_variants": config.HOME_HERO_VARIANTS,
         "home_hero_taglines": config.HOME_HERO_TAGLINES,
         "menu_permissions": current_menu_permissions(),
+        "member_nav_access": member_nav_access,
         "localization_pending_count": localization_pending_count,
         "csp_nonce": getattr(g, "csp_nonce", ""),
         "global_csrf_token": get_csrf_token(),
@@ -2510,8 +2533,50 @@ ERROR_PAGE_CONTENT = {
 }
 
 
-def _render_error_page(status_code):
+def _board_grade_denial_message():
+    path_map = (
+        ("/community", "community", "커뮤니티"),
+        ("/notices", "notice", "공지 게시판"),
+        ("/action-items", "bug_reports", "버그 및 건의"),
+        ("/companies/benefits", "benefits", "복리후생"),
+        ("/companies/recruitment-guide", "recruitment_guide", "채용 족보"),
+        ("/source", "source_data", "데이터 다운로드"),
+        ("/diary", "diary", "다이어리"),
+        ("/reviews", "reviews", "리뷰"),
+    )
+    matched = next((item for item in path_map if request.path.startswith(item[0])), None)
+    if not matched or not session.get("user_id"):
+        return None
+    action = "read" if request.method in {"GET", "HEAD"} else (
+        "comment" if "comment" in str(request.endpoint or "") else "write"
+    )
+    connection = dashboard_db()
+    try:
+        row = connection.execute(
+            f"""SELECT g.label
+                FROM board_grade_permissions AS p
+                JOIN membership_grades AS g ON g.code=p.{action}_grade
+                WHERE p.board_key=?""",
+            (matched[1],),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        connection.close()
+    if not row:
+        return None
+    action_label = {"read": "열람", "write": "작성·수정", "comment": "댓글"}[action]
+    return f"{matched[2]} {action_label}은 {row['label']} 등급부터 이용할 수 있습니다."
+
+
+def _render_error_page(status_code, error=None):
     title, message = ERROR_PAGE_CONTENT[status_code]
+    if status_code == 403:
+        description = str(getattr(error, "description", "") or "").strip()
+        if description and re.search(r"[가-힣]", description):
+            message = description
+        else:
+            message = _board_grade_denial_message() or message
     locale = locale_from_environ(request.environ)
     title = translate_text(title, locale)
     message = translate_text(message, locale)
@@ -2534,7 +2599,7 @@ def _render_error_page(status_code):
 for _status_code in ERROR_PAGE_CONTENT:
     app.register_error_handler(
         _status_code,
-        lambda error, code=_status_code: _render_error_page(code),
+        lambda error, code=_status_code: _render_error_page(code, error),
     )
 
 
@@ -3360,9 +3425,6 @@ def add_action_item_comment(item_id):
         if not can_access_bug_report(item):
             abort(403)
         try:
-            notification_email = comment_notifications.normalize_email(
-                request.form.get("notification_email")
-            )
             comment_id = queries.create_action_item_comment(
                 connection,
                 item_id,
@@ -3370,12 +3432,11 @@ def add_action_item_comment(item_id):
                 request.form.get("content", ""),
             )
             comment = queries.get_action_item_comment(connection, comment_id)
-            comment_notifications.notify_new_comment(
+            comment_telegram_notifications.notify_new_comment(
                 connection,
                 scope_type="action_item",
                 scope_id=item_id,
                 author_id=session["user_id"],
-                notification_email=notification_email,
                 comment_id=comment_id,
                 post_title=item.get("title") or "버그 및 건의",
                 comment_content=comment.get("content") if comment else "",
@@ -5087,9 +5148,6 @@ def create_company_content_comment_route(target_type, target_id):
         if not target:
             abort(404)
         try:
-            notification_email = comment_notifications.normalize_email(
-                request.form.get("notification_email")
-            )
             comment_id = queries.create_company_content_comment(
                 connection,
                 target_type=target_type,
@@ -5119,12 +5177,11 @@ def create_company_content_comment_route(target_type, target_id):
                 target_title = f"{target['company_name']} · {target.get('benefit_name') or '복리후생'}"
             else:
                 target_title = f"{target['company_name']} · {target.get('question_text') or '채용 족보'}"
-            comment_notifications.notify_new_comment(
+            comment_telegram_notifications.notify_new_comment(
                 connection,
                 scope_type=f"company_{target_type}",
                 scope_id=target_id,
                 author_id=session["user_id"],
-                notification_email=notification_email,
                 comment_id=comment_id,
                 post_title=target_title,
                 comment_content=comment.get("content") if comment else "",
@@ -6458,9 +6515,6 @@ def create_community_comment_route(post_id):
             status = 400
         else:
             try:
-                notification_email = comment_notifications.normalize_email(
-                    request.form.get("notification_email")
-                )
                 comment_id = queries.create_community_comment(
                     connection,
                     post_id=post_id,
@@ -6481,12 +6535,11 @@ def create_community_comment_route(post_id):
                 )
                 connection.commit()
                 comment = queries.get_community_comment(connection, comment_id)
-                comment_notifications.notify_new_comment(
+                comment_telegram_notifications.notify_new_comment(
                     connection,
                     scope_type="community_post",
                     scope_id=post_id,
                     author_id=session["user_id"],
-                    notification_email=notification_email,
                     comment_id=comment_id,
                     post_title=post.get("title") or "게시판",
                     comment_content=comment.get("content") if comment else content,

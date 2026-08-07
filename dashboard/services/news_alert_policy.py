@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import html
 import re
+
+from extensions import dashboard_db
+from services import member_telegram
 
 
 DETAIL_SYSTEM_PROMPT = """\
@@ -103,3 +107,27 @@ def apply_news_alert_policy(openai_analyzer, telegram_sender):
 
     telegram_sender.build_issue_message = build_issue_message
 
+    def send_issue_notifications(entries):
+        """Deliver casino-news issues through the member assistant bot only."""
+        if not entries:
+            return []
+        connection = dashboard_db()
+        delivered = []
+        try:
+            for entry in entries:
+                message = build_issue_message(
+                    entry["issue_title"], entry["detail_result"],
+                    entry["articles"], entry.get("is_update", False),
+                )
+                result = member_telegram.broadcast(
+                    connection, "news", html.unescape(message)
+                )
+                # With no subscribers there is nothing to retry. When subscribers
+                # exist, retain the legacy retry behavior only if every send failed.
+                if result["recipients"] == 0 or result["sent"] > 0:
+                    delivered.append(entry)
+        finally:
+            connection.close()
+        return delivered
+
+    telegram_sender.send_issue_notifications = send_issue_notifications

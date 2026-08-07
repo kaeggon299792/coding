@@ -3,16 +3,29 @@
 {% block body %}
 {% include "_topbar.html" %}{% include "_member_subnav.html" %}
 <main class="page-container member-telegram-page">
-  <header class="page-header"><p class="page-eyebrow">MEMBER / NOTIFICATIONS</p><h1 class="page-title">Telegram 알림</h1><p class="page-description">회원 전용 Bot과 연결해 개인 업무 알림을 받을 준비를 합니다.</p></header>
+  <header class="page-header"><p class="page-eyebrow">MEMBER / NOTIFICATIONS</p><h1 class="page-title">Telegram 알림</h1><p class="page-description">회원 전용 Bot과 연결하고 받을 소식을 직접 선택합니다.</p></header>
   <section class="panel member-telegram-card">
     <div><span>Telegram 알림</span><strong>{{ '연결됨' if telegram_state else '연결되지 않음' }}</strong>{% if telegram_state and telegram_state.telegram_username %}<small>@{{ telegram_state.telegram_username }}</small>{% endif %}</div>
     {% if telegram_state %}
     <div class="member-telegram-actions"><form method="post" action="{{ url_for('member_area.telegram_test') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">테스트 메시지</button></form><form method="post" action="{{ url_for('member_area.telegram_disconnect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-ghost" type="submit">연결 해제</button></form></div>
     {% else %}
-    <form method="post" action="{{ url_for('member_area.telegram_connect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit"{% if not telegram_configured %} disabled{% endif %}>Telegram 연결</button></form>
+    <form method="post" action="{{ url_for('member_area.telegram_connect') }}" target="_blank"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit"{% if not telegram_configured %} disabled{% endif %}>Telegram 연결</button></form>
     {% if not telegram_configured %}<p class="page-note">운영 환경의 회원용 Bot 설정 후 연결할 수 있습니다.</p>{% endif %}
+    {% if telegram_configured %}<p class="page-note">새 창에서 <strong>START</strong>를 누르면 연결됩니다. 연결 후 이 페이지를 새로고침해 주세요.</p>{% endif %}
     {% endif %}
   </section>
+  {% if telegram_state %}
+  <section class="panel member-telegram-preferences" aria-labelledby="telegram-preferences-title">
+    <div class="section-heading"><div><h2 id="telegram-preferences-title">받을 알림</h2><p>설정을 끈 항목은 회원용 Bot으로 발송하지 않습니다.</p></div></div>
+    <form method="post" action="{{ url_for('member_area.telegram_preferences') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label><span><strong>새 댓글 알림</strong><small>내가 참여한 게시글에 새 댓글이 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_comments" value="1"{% if telegram_state.notify_comments %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
+      <label><span><strong>카지노 뉴스 소식</strong><small>새 카지노 산업 뉴스 분석이 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_news" value="1"{% if telegram_state.notify_news %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
+      <label><span><strong>채용 소식</strong><small>채용정보 게시판에 새 공고가 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_recruitment" value="1"{% if telegram_state.notify_recruitment %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
+      <button class="btn btn-primary" type="submit">알림 설정 저장</button>
+    </form>
+  </section>
+  {% endif %}
 </main>
 {% include "_footer.html" %}
 {% endblock %}

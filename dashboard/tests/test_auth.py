@@ -520,7 +520,9 @@ def test_registration_defaults_to_auto_approval(client, monkeypatch):
         follow_redirects=False,
     )
     assert response.status_code == 302
-    assert "registered=approved" in response.headers["Location"]
+    assert response.headers["Location"].endswith("/?registration=approved")
+    with client.session_transaction() as flask_session:
+        assert flask_session.get("user_id")
 
     from extensions import dashboard_db
 

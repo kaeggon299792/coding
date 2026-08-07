@@ -44,6 +44,31 @@ def telegram_connect():
     return redirect(deep_link)
 
 
+@member_area_bp.post("/telegram/preferences")
+@login_required
+def telegram_preferences():
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    preferences = {
+        "comments": request.form.get("notify_comments") == "1",
+        "news": request.form.get("notify_news") == "1",
+        "recruitment": request.form.get("notify_recruitment") == "1",
+    }
+    connection = dashboard_db()
+    try:
+        saved = member_telegram.update_preferences(
+            connection, session["user_id"], preferences
+        )
+    finally:
+        connection.close()
+    flash(
+        "Telegram 알림 설정을 저장했습니다."
+        if saved else "먼저 Telegram을 연결해주세요.",
+        "success" if saved else "error",
+    )
+    return redirect(url_for("member_area.telegram"))
+
+
 @member_area_bp.post("/telegram/disconnect")
 @login_required
 def telegram_disconnect():
