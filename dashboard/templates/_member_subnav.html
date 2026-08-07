@@ -1,4 +1,4 @@
-<nav class="data-subnav member-subnav is-compact" data-align-subnav aria-label="회원전용 하위 메뉴">
+<nav class="data-subnav member-subnav is-wide" data-align-subnav aria-label="회원전용 하위 메뉴">
   <a href="{{ url_for('work_notes.board') }}"{% if request.blueprint == 'work_notes' %} class="active" aria-current="page"{% endif %}>업무노트</a>
   <a href="{{ url_for('auth.my_account') }}#account-email"{% if request.endpoint == 'auth.my_account' %} class="active" aria-current="page"{% endif %}>메일</a>
   <a href="{{ url_for('diary_board_page') }}"{% if request.endpoint in ('diary_board_page', 'diary_entry_page', 'edit_diary_entry_route') %} class="active" aria-current="page"{% endif %}>아카이브</a>
