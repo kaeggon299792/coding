@@ -8,6 +8,29 @@
   overflow: clip;
 }
 
+/* Fill the home container gutters with black only when Event Horizon is selected. */
+html[data-home-hero="event-horizon"] .home-hero-slot {
+  position: relative;
+  background: #000;
+}
+
+html[data-home-hero="event-horizon"] .home-hero-slot::before {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  background: #000;
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+html[data-home-hero="event-horizon"] .home-hero-slot > .home-event-horizon {
+  z-index: 1;
+}
+
 .event-horizon-hero {
   position: relative;
   isolation: isolate;

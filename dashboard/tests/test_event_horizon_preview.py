@@ -96,6 +96,9 @@ def test_homepage_exposes_lazy_random_hero_candidates(client):
 def test_random_home_hero_loads_only_the_selected_effect_assets():
     partial = (ROOT / "templates" / "_home_hero_random.html").read_text(encoding="utf-8")
     loader = (ROOT / "static" / "js" / "home-hero-loader.js").read_text(encoding="utf-8")
+    event_horizon_css = (ROOT / "static" / "css" / "event-horizon-hero.css").read_text(
+        encoding="utf-8"
+    )
     base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
 
     assert 'sessionStorage.getItem(key)' in partial
@@ -107,6 +110,9 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader
     assert 'loadScript(slot.dataset.threeSrc)' in loader
     assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
+    assert "event-horizon-hero.css') }}?v=20260808-home2" in partial
+    assert 'html[data-home-hero="event-horizon"] .home-hero-slot::before' in event_horizon_css
+    assert "width: 100vw;" in event_horizon_css
     assert "casino-wave-webgl.css" not in base
     assert "three.r149.min.js" not in base
     assert "casino-wave-webgl-v2.js" not in base
