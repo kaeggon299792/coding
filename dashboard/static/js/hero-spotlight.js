@@ -69,7 +69,13 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function initAll() {
     document.querySelectorAll("[data-spotlight-hero]").forEach(initHeroSpotlight);
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll, { once: true });
+  } else {
+    initAll();
+  }
 })();

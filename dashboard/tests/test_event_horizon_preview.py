@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import pytest
 
@@ -69,9 +70,41 @@ def test_event_horizon_assets_preserve_fonts_and_original_shader_features():
     assert "Math.min(window.devicePixelRatio || 1, 1.5)" in shader
 
 
-def test_homepage_does_not_load_event_horizon_preview(client):
-    page = client.get("/").get_data(as_text=True)
+def test_homepage_exposes_lazy_random_hero_candidates(client):
+    response = client.get("/")
+    page = response.get_data(as_text=True)
 
-    assert "event-horizon-hero.js" not in page
-    assert "hero-effects/event-horizon.html" not in page
+    assert response.status_code == 200
+    assert 'data-home-hero-template="spotlight"' in page
+    assert 'data-home-hero-template="event-horizon"' in page
+    assert 'src="/static/js/home-hero-loader.js?v=20260808-random-hero1"' in page
+    assert '<script src="/static/js/event-horizon-hero.js' not in page
+    assert re.search(
+        r'<script[^>]+src="/static/vendor/three/three\.r149\.min\.js"', page
+    ) is None
+    assert re.search(
+        r'<script[^>]+src="/static/js/casino-wave-webgl-v2\.js', page
+    ) is None
+    assert '<iframe class="event-horizon-frame"' not in page
     assert "Event Horizon Hero Preview" not in page
+    assert "frame-src 'self' https://www.googletagmanager.com" in response.headers[
+        "Content-Security-Policy"
+    ]
+
+
+def test_random_home_hero_loads_only_the_selected_effect_assets():
+    partial = (ROOT / "templates" / "_home_hero_random.html").read_text(encoding="utf-8")
+    loader = (ROOT / "static" / "js" / "home-hero-loader.js").read_text(encoding="utf-8")
+    base = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
+
+    assert 'sessionStorage.getItem(key)' in partial
+    assert 'sessionStorage.setItem(key, selected)' in partial
+    assert '"casino-in-home-hero-v1"' in partial
+    assert 'stylesheet.dataset.homeHeroAsset = selected' in partial
+    assert 'selected === "event-horizon"' in loader
+    assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader
+    assert 'loadScript(slot.dataset.threeSrc)' in loader
+    assert '.then(() => loadScript(slot.dataset.waveSrc))' in loader
+    assert "casino-wave-webgl.css" not in base
+    assert "three.r149.min.js" not in base
+    assert "casino-wave-webgl-v2.js" not in base

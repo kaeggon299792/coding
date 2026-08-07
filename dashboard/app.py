@@ -853,7 +853,7 @@ def apply_security_headers(response):
         else f"'self' 'nonce-{nonce}' https://www.googletagmanager.com"
     )
     frame_sources = "https://www.googletagmanager.com"
-    if request.endpoint == "test_event_horizon_page":
+    if request.endpoint in {"test_event_horizon_page", "public_home"}:
         frame_sources = f"'self' {frame_sources}"
     frame_ancestors = "'self'" if is_event_horizon_asset else "'none'"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

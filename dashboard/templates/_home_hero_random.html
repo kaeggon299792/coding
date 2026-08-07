@@ -1,0 +1,41 @@
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const key = "casino-in-home-hero-v1";
+  const variants = ["spotlight", "event-horizon"];
+  let selected = null;
+  try {
+    selected = sessionStorage.getItem(key);
+  } catch (error) {
+    selected = null;
+  }
+  if (!variants.includes(selected)) {
+    const value = globalThis.crypto?.getRandomValues
+      ? globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296
+      : Math.random();
+    selected = variants[Math.floor(value * variants.length)];
+    try { sessionStorage.setItem(key, selected); } catch (error) {}
+  }
+  window.CasinoHomeHeroSelection = selected;
+  document.documentElement.dataset.homeHero = selected;
+
+  const stylesheet = document.createElement("link");
+  stylesheet.rel = "stylesheet";
+  stylesheet.href = selected === "event-horizon"
+    ? "{{ url_for('static', filename='css/event-horizon-hero.css') }}?v=20260808-home1"
+    : "{{ url_for('static', filename='css/casino-wave-webgl.css') }}?v=20260731-blackdots1";
+  stylesheet.dataset.homeHeroAsset = selected;
+  document.head.appendChild(stylesheet);
+})();
+</script>
+<div
+  class="home-hero-slot"
+  id="home-hero-slot"
+  data-three-src="{{ url_for('static', filename='vendor/three/three.r149.min.js') }}"
+  data-wave-src="{{ url_for('static', filename='js/casino-wave-webgl-v2.js') }}?v=20260731-lightmotion1"
+  data-spotlight-src="{{ url_for('static', filename='js/hero-spotlight.js') }}?v=20260808-random-hero1"
+  data-event-horizon-src="{{ url_for('static', filename='js/event-horizon-hero.js') }}?v=20260808-home1"
+>
+  <template data-home-hero-template="spotlight">{% include "_hero_spotlight.html" %}</template>
+  <template data-home-hero-template="event-horizon">{% include "_hero_event_horizon.html" %}</template>
+  <noscript>{% include "_hero_spotlight.html" %}</noscript>
+</div>

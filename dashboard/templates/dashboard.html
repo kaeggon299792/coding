@@ -6,7 +6,7 @@
 <div class="page-container">
 
   {% set authenticated_home = true %}
-  {% include "_hero_spotlight.html" %}
+  {% include "_home_hero_random.html" %}
 
   <nav class="public-menu unified-home-menu" aria-label="주요 메뉴">
     <a href="{{ url_for('related_news_page') }}"><span>01</span><strong>뉴스</strong><small>국내·해외 카지노 산업 뉴스</small><i>→</i></a>
@@ -21,3 +21,4 @@
 
 </div>
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/home-hero-loader.js') }}?v=20260808-random-hero1"></script>{% endblock %}
