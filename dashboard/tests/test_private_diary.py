@@ -332,3 +332,21 @@ def test_schema_upgrade_preserves_existing_diaries_as_private(tmp_path):
         "SELECT is_private FROM community_posts WHERE id=1"
     ).fetchone()[0] == 1
     connection.close()
+
+
+def test_schema_version_upgrade_adds_review_tags_column(tmp_path):
+    db_path = tmp_path / "legacy-review-tags.db"
+    connection = schema.connect(str(db_path))
+    connection.execute("ALTER TABLE community_posts DROP COLUMN tags_json")
+    connection.execute("PRAGMA user_version = 2026080704")
+    connection.commit()
+    connection.close()
+
+    upgraded = schema.connect(str(db_path))
+    columns = {
+        row[1]: row for row in upgraded.execute("PRAGMA table_info(community_posts)")
+    }
+    assert columns["tags_json"][3] == 1
+    assert columns["tags_json"][4] == "'[]'"
+    assert upgraded.execute("PRAGMA user_version").fetchone()[0] == schema.SCHEMA_VERSION
+    upgraded.close()
