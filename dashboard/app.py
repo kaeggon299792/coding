@@ -211,6 +211,10 @@ register_namespace("", SITEMAP_NAMESPACE)
 register_namespace("xhtml", XHTML_NAMESPACE)
 SEO_PAGE_COPY = {
     "ko": {
+        "test_event_horizon_page": (
+            "Event Horizon Hero Preview | Casino IN",
+            "Radiant Event Horizon WebGL 효과를 CASINO IN Hero 후보로 검증하는 비공개 테스트 페이지입니다.",
+        ),
         "public_home": (
             "Casino IN | 카지노 산업 정보와 인사이트",
             "국내외 카지노 기업, 관광객, 환율, 공시, 시장 동향과 산업 데이터를 한곳에서 확인하는 카지노 산업 인텔리전스 플랫폼입니다.",
@@ -337,6 +341,10 @@ SEO_PAGE_COPY = {
         ),
     },
     "en": {
+        "test_event_horizon_page": (
+            "Event Horizon Hero Preview | Casino IN",
+            "A private preview for evaluating Radiant Event Horizon as a Casino IN hero candidate.",
+        ),
         "public_home": (
             "Casino IN | Casino Industry Information and Insights",
             "An intelligence platform for casino companies, tourism flows, FX, disclosures, market trends, and industry data.",
@@ -838,11 +846,20 @@ def establish_request_security():
 @app.after_request
 def apply_security_headers(response):
     nonce = getattr(g, "csp_nonce", "")
+    is_event_horizon_asset = request.path == "/static/hero-effects/event-horizon.html"
+    script_sources = (
+        "'self' 'unsafe-inline'"
+        if is_event_horizon_asset
+        else f"'self' 'nonce-{nonce}' https://www.googletagmanager.com"
+    )
     frame_sources = "https://www.googletagmanager.com"
+    if request.endpoint == "test_event_horizon_page":
+        frame_sources = f"'self' {frame_sources}"
+    frame_ancestors = "'self'" if is_event_horizon_asset else "'none'"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "; ".join((
         "default-src 'self'",
-        f"script-src 'self' 'nonce-{nonce}' https://www.googletagmanager.com",
+        f"script-src {script_sources}",
         "script-src-attr 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
         "font-src 'self' https://cdn.jsdelivr.net data:",
@@ -854,11 +871,11 @@ def apply_security_headers(response):
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
-        "frame-ancestors 'none'",
+        f"frame-ancestors {frame_ancestors}",
         "upgrade-insecure-requests",
     ))
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_event_horizon_asset else "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
@@ -2434,6 +2451,14 @@ def _percent_delta(today_value, prev_value):
     if prev_value in (None, 0):
         return None
     return round(((today_value - prev_value) / prev_value) * 100)
+
+
+@app.get("/test/event-horizon")
+def test_event_horizon_page():
+    return render_template(
+        "test_event_horizon.html",
+        seo_robots="noindex,nofollow",
+    )
 
 
 @app.route("/")

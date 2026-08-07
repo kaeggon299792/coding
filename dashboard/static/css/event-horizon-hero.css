@@ -1,0 +1,199 @@
+.event-horizon-preview-page {
+  background: #050505;
+  overflow-x: clip;
+}
+
+.event-horizon-preview {
+  min-width: 0;
+  overflow: clip;
+}
+
+.event-horizon-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: max(720px, calc(100svh - var(--sticky-topbar-height, 0px)));
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 50%, rgba(124, 59, 18, 0.22), transparent 24%),
+    radial-gradient(circle at 72% 50%, #020202 0 12%, #090807 32%, #030303 68%);
+  color: #fafafa;
+}
+
+.event-horizon-visual,
+.event-horizon-scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.event-horizon-visual {
+  z-index: -3;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.event-horizon-hero.is-webgl-ready .event-horizon-visual {
+  opacity: 1;
+}
+
+.event-horizon-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.event-horizon-scrim {
+  z-index: -2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(2, 2, 2, 0.94) 0%, rgba(2, 2, 2, 0.78) 28%, rgba(2, 2, 2, 0.2) 58%, rgba(2, 2, 2, 0.08) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.16) 0%, transparent 55%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+.event-horizon-content {
+  width: min(100%, 1440px);
+  margin: auto;
+  padding: clamp(96px, 12vh, 152px) clamp(24px, 6vw, 92px);
+  align-self: center;
+}
+
+.event-horizon-eyebrow,
+.event-horizon-note {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.18em;
+}
+
+.event-horizon-content h1 {
+  max-width: 720px;
+  margin: 18px 0 0;
+  color: #fff;
+  font-size: clamp(4.4rem, 10vw, 9rem);
+  font-weight: 760;
+  line-height: 0.9;
+  letter-spacing: -0.065em;
+  text-wrap: balance;
+}
+
+.event-horizon-description {
+  max-width: 530px;
+  margin: 28px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: clamp(1rem, 1.4vw, 1.17rem);
+  font-weight: 440;
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.event-horizon-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 34px;
+}
+
+.event-horizon-actions .btn {
+  min-height: 42px;
+  padding-inline: 18px;
+}
+
+.event-horizon-secondary {
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: rgba(10, 10, 10, 0.34) !important;
+  color: #fff !important;
+  backdrop-filter: blur(8px);
+}
+
+.event-horizon-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.58) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.event-horizon-note {
+  margin-top: 42px;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 0.62rem;
+}
+
+.event-horizon-status {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.66rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .event-horizon-hero {
+    min-height: max(620px, calc(92svh - var(--sticky-topbar-height, 0px)));
+    background:
+      radial-gradient(circle at 50% 68%, rgba(124, 59, 18, 0.26), transparent 23%),
+      radial-gradient(circle at 50% 68%, #020202 0 10%, #090807 30%, #030303 68%);
+  }
+
+  .event-horizon-scrim {
+    background:
+      linear-gradient(180deg, rgba(2, 2, 2, 0.9) 0%, rgba(2, 2, 2, 0.65) 38%, rgba(2, 2, 2, 0.08) 68%, rgba(2, 2, 2, 0.34) 100%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent 50%, rgba(0, 0, 0, 0.18));
+  }
+
+  .event-horizon-content {
+    align-self: start;
+    padding: clamp(68px, 10vh, 92px) 20px 250px;
+    text-align: center;
+  }
+
+  .event-horizon-content h1 {
+    margin-top: 14px;
+    font-size: clamp(3.25rem, 16vw, 4.2rem);
+  }
+
+  .event-horizon-description {
+    max-width: 390px;
+    margin: 22px auto 0;
+    font-size: 0.97rem;
+    line-height: 1.68;
+  }
+
+  .event-horizon-actions {
+    justify-content: center;
+    margin-top: 26px;
+  }
+
+  .event-horizon-actions .btn {
+    flex: 1 1 145px;
+    max-width: 190px;
+  }
+
+  .event-horizon-note {
+    margin-top: 30px;
+  }
+}
+
+@media (max-width: 380px) {
+  .event-horizon-content {
+    padding-inline: 16px;
+  }
+
+  .event-horizon-actions {
+    gap: 8px;
+  }
+
+  .event-horizon-actions .btn {
+    padding-inline: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-horizon-visual {
+    transition: none;
+  }
+}
