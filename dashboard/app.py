@@ -5501,7 +5501,7 @@ def _community_board_context(
 _COMMUNITY_MARKDOWN_TAGS = {
     "p", "br", "strong", "em", "del", "blockquote", "code", "pre",
     "ul", "ol", "li", "h1", "h2", "h3", "h4", "hr", "table",
-    "thead", "tbody", "tr", "th", "td", "a", "img",
+    "thead", "tbody", "tr", "th", "td", "a", "img", "input",
 }
 _COMMUNITY_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"}
 
@@ -5512,10 +5512,20 @@ def _render_community_markdown(value):
         extensions=["fenced_code", "tables", "sane_lists", "nl2br"],
         output_format="html",
     )
+    rendered = re.sub(
+        r"<li>\s*\[([ xX])\]\s*",
+        lambda match: '<li class="task-list-item"><input type="checkbox" disabled{}> '.format(
+            " checked" if match.group(1).lower() == "x" else ""
+        ),
+        rendered,
+    )
     cleaned = bleach.clean(
         rendered,
         tags=_COMMUNITY_MARKDOWN_TAGS,
-        attributes={"a": ["href", "title"], "img": ["src", "alt", "title"]},
+        attributes={
+            "a": ["href", "title"], "img": ["src", "alt", "title"],
+            "input": ["type", "disabled", "checked"], "li": ["class"],
+        },
         protocols={"https", "mailto"},
         strip=True,
     )

@@ -282,12 +282,14 @@ def test_work_note_editor_has_required_tools_and_two_minute_autosave():
     root = Path(__file__).parents[1]
     template = (root / "templates" / "work_notes" / "form.html").read_text(encoding="utf-8")
     script = (root / "static" / "js" / "work-notes.js").read_text(encoding="utf-8")
-    for tool in ("heading", "bold", "list", "check", "table", "quote", "link", "code"):
-        assert f'data-md="{tool}"' in template
-    assert "data-image-upload-for" in template
-    assert "data-work-note-preview-open" in template
-    assert "data-work-note-preview-dialog" in template
-    assert 'textarea && textarea.addEventListener("input", requestPreview)' not in script
-    assert 'previewOpen.addEventListener("click", openPreview)' in script
+    editor_script = (root / "static" / "js" / "wysiwyg-editor.js").read_text(encoding="utf-8")
+    assert "data-wysiwyg-editor" in template
+    assert 'data-editor-context="work-note"' in template
+    for tool in ("heading", "bold", "check", "table", "quote", "link", "codeblock"):
+        assert f'"{tool}"' in editor_script
+    for work_command in ("meeting", "task", "status", "priority", "reminder"):
+        assert f'id: "{work_command}"' in editor_script
+    assert "data-work-note-preview-open" not in template
+    assert "data-work-note-preview-dialog" not in template
     assert "120000" in script
     assert "localStorage.setItem" in script

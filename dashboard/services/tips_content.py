@@ -19,7 +19,7 @@ CATEGORIES = (
 ALLOWED_TAGS = set(bleach.sanitizer.ALLOWED_TAGS).union({
     "p", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "code",
     "blockquote", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th",
-    "td", "img", "div", "span",
+    "td", "img", "div", "span", "input",
 })
 ALLOWED_ATTRIBUTES = {
     "a": ["href", "title", "rel"],
@@ -35,6 +35,8 @@ ALLOWED_ATTRIBUTES = {
     "span": ["class"],
     "th": ["align"],
     "td": ["align"],
+    "li": ["class"],
+    "input": ["type", "disabled", "checked"],
 }
 
 
@@ -49,6 +51,13 @@ def render_markdown(source):
         source or "",
         extensions=["extra", "sane_lists", "toc", "codehilite"],
         extension_configs={"codehilite": {"css_class": "codehilite", "guess_lang": False}},
+    )
+    raw = re.sub(
+        r"<li>\s*\[([ xX])\]\s*",
+        lambda match: '<li class="task-list-item"><input type="checkbox" disabled{}> '.format(
+            " checked" if match.group(1).lower() == "x" else ""
+        ),
+        raw,
     )
     clean = bleach.clean(
         raw, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES,

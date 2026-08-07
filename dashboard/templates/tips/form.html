@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if mode == 'new' %}새 자료 등록{% else %}자료 수정{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260805-danger-red1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/tips.css') }}?v=20260805-danger-red1">{% include "_wysiwyg_editor_head.html" %}{% endblock %}
 {% block body %}
 {% include "_topbar.html" %}
 {% include "_data_subnav.html" %}
@@ -21,18 +21,7 @@
     <label><span>카테고리</span><select name="category">{% for category in categories %}<option value="{{ category }}" {% if (tip.category or '기타') == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></label>
     <label><span>태그</span><input name="tags" value="{{ (tip.tags or [])|join(', ') }}" placeholder="쉼표로 구분"></label>
     <label><span>작성일</span><input type="date" name="published_date" value="{{ tip.published_date or '' }}"></label>
-    <section class="wide markdown-guide" aria-label="Markdown 도움말">
-      <div class="markdown-guide-head">
-        <strong>코드블록 사용 가이드</strong>
-        <span>본문에서 fenced code block 문법을 그대로 사용할 수 있습니다.</span>
-      </div>
-      <pre><code>```python
-def summarize_sales(amount):
-    return f"Today's sales: {amount:,} KRW"
-```</code></pre>
-      <small>백틱 3개로 시작하고 끝내면 코드블록으로 렌더링되며, 상세 화면에서는 복사 버튼도 자동으로 붙습니다.</small>
-    </section>
-    <label class="wide"><span>본문 (Markdown) <b>*</b></span><textarea id="tip-body-editor" name="body" rows="24" required data-image-paste data-image-paste-scope="tips" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ global_csrf_token }}">{{ tip.body or '' }}</textarea><small>본문에 이미지를 복사한 뒤 Ctrl+V로 바로 넣을 수 있습니다. PNG·JPG·GIF·WebP, 최대 5MB.</small><small class="image-paste-status" data-image-paste-status="tip-body-editor" role="status" aria-live="polite"></small></label>
+    <label class="wide"><span>본문 <b>*</b> <small>인라인 편집 · / 명령</small></span><textarea id="tip-body-editor" name="body" rows="24" required data-wysiwyg-editor data-editor-context="board" data-editor-today="{{ now_str }}" data-editor-min-height="520px" data-image-paste data-image-paste-scope="tips" data-image-paste-endpoint="{{ url_for('upload_editor_image_route') }}" data-image-paste-csrf="{{ global_csrf_token }}" placeholder="본문을 작성하세요. 빈 줄에서 /를 입력하면 블록을 선택할 수 있습니다.">{{ tip.body or '' }}</textarea><small>이미지 버튼·붙여넣기·드래그 앤 드롭을 지원합니다. PNG·JPG·GIF·WebP, 최대 5MB.</small><small class="image-paste-status" data-image-paste-status="tip-body-editor" role="status" aria-live="polite"></small></label>
     <label class="wide"><span>첨부파일</span><input type="file" name="attachments" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.xlsx,.xlsm,.docx,.pptx,.txt,.csv,.zip"><small>파일은 10MB 이하. 이미지, PDF, Office 문서, 텍스트, ZIP을 지원합니다.</small></label>
     <label class="check"><input type="checkbox" name="featured" value="1" {% if tip.featured %}checked{% endif %}><span>중요 게시물로 상단 고정</span></label>
     <label class="check"><input type="checkbox" name="draft" value="1" {% if tip.draft %}checked{% endif %}><span>비공개(관리자만 열람)</span></label>
@@ -40,4 +29,4 @@ def summarize_sales(amount):
   </form>
 </main>
 {% endblock %}
-{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260804-1" defer></script>{% endblock %}
+{% block extra_scripts %}{% include "_wysiwyg_editor_scripts.html" %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260804-1" defer></script>{% endblock %}

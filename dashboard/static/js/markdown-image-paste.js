@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("textarea[data-image-paste]").forEach((textarea) => {
+    if (textarea.dataset.wysiwygReady === "1") return;
     const status = document.querySelector(`[data-image-paste-status="${textarea.id}"]`);
     const setStatus = (message, isError = false) => {
       if (!status) return;

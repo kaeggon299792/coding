@@ -124,7 +124,7 @@ def test_dashboard_list_and_detail_routes(monkeypatch, tmp_path):
     assert "<script>의견</script>" not in detail.get_data(as_text=True)
 
 
-def test_new_tip_form_includes_code_block_guide(monkeypatch, tmp_path):
+def test_new_tip_form_includes_wysiwyg_code_block_support(monkeypatch, tmp_path):
     db_path = tmp_path / "tips-form-guide.db"
     monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
 
@@ -152,8 +152,9 @@ def test_new_tip_form_includes_code_block_guide(monkeypatch, tmp_path):
 
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "코드블록 사용 가이드" in html
-    assert "```python" in html
+    assert "data-wysiwyg-editor" in html
+    assert "toastui-editor.min.js?v=3.2.2" in html
+    assert "wysiwyg-editor.js?v=20260808-1" in html
 
 
 def test_related_sites_public_read_and_admin_management(monkeypatch, tmp_path):
