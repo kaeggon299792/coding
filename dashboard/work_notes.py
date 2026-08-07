@@ -1,4 +1,4 @@
-"""Administrator-only work-note board routes."""
+"""Private, per-member work-note board routes."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from flask import (
 from markupsafe import Markup
 
 import config
-from auth import admin_required, get_csrf_token, validate_csrf
+from auth import admin_required, get_csrf_token, login_required, validate_csrf
 from extensions import dashboard_db
 from services import editor_images, security_audit, work_notes
 from utils import now_kst
@@ -32,6 +32,11 @@ MARKDOWN_TAGS = {
     "ol", "li", "h1", "h2", "h3", "h4", "hr", "table", "thead", "tbody",
     "tr", "th", "td", "a", "img", "input",
 }
+
+
+def _owner_id():
+    """Admins retain the existing all-note view; members are scoped to themselves."""
+    return None if session.get("role") == "admin" else int(session["user_id"])
 
 
 def render_markdown(value):
@@ -112,7 +117,7 @@ def _save_file(connection, uploaded, owner_id, note_id=None):
 
 
 @work_notes_bp.route("", methods=["GET"])
-@admin_required
+@login_required
 def board():
     filters = {
         "status": request.args.get("status", ""),
@@ -128,20 +133,22 @@ def board():
     page_size = 15
     connection = dashboard_db()
     try:
-        total = work_notes.count_notes(connection, filters)
+        owner_id = _owner_id()
+        total = work_notes.count_notes(connection, filters, owner_id=owner_id)
         pages = max(1, (total + page_size - 1) // page_size)
         page = min(page, pages)
         notes = work_notes.list_notes(
-            connection, filters, page_size, (page - 1) * page_size
+            connection, filters, page_size, (page - 1) * page_size,
+            owner_id=owner_id,
         )
         for note in notes:
             note["content_html"] = render_markdown(note["content"])
         return render_template(
             "work_notes/board.html", notes=notes, total=total, page=page,
             total_pages=pages, filters=filters,
-            dashboard=work_notes.dashboard_counts(connection),
+            dashboard=work_notes.dashboard_counts(connection, owner_id=owner_id),
             categories=work_notes.list_categories(connection),
-            tags=work_notes.available_tags(connection), statuses=work_notes.STATUSES,
+            tags=work_notes.available_tags(connection, owner_id=owner_id), statuses=work_notes.STATUSES,
             priorities=work_notes.PRIORITIES, sorts={
                 "created_desc": "등록순", "work_date_desc": "작성일순",
                 "target_asc": "마감 임박순", "priority_desc": "중요도순",
@@ -153,7 +160,7 @@ def board():
 
 
 @work_notes_bp.route("/new", methods=["GET", "POST"])
-@admin_required
+@login_required
 def create():
     connection = dashboard_db()
     try:
@@ -191,11 +198,11 @@ def create():
 
 
 @work_notes_bp.get("/<int:note_id>")
-@admin_required
+@login_required
 def detail(note_id):
     connection = dashboard_db()
     try:
-        note = work_notes.get_note(connection, note_id)
+        note = work_notes.get_note(connection, note_id, owner_id=_owner_id())
         if not note:
             abort(404)
         return render_template(
@@ -209,11 +216,11 @@ def detail(note_id):
 
 
 @work_notes_bp.route("/<int:note_id>/edit", methods=["GET", "POST"])
-@admin_required
+@login_required
 def edit(note_id):
     connection = dashboard_db()
     try:
-        note = work_notes.get_note(connection, note_id)
+        note = work_notes.get_note(connection, note_id, owner_id=_owner_id())
         if not note:
             abort(404)
         if request.method == "GET":
@@ -255,12 +262,14 @@ def edit(note_id):
 
 
 @work_notes_bp.post("/<int:note_id>/pin")
-@admin_required
+@login_required
 def pin(note_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     connection = dashboard_db()
     try:
+        if not work_notes.get_note(connection, note_id, owner_id=_owner_id()):
+            abort(404)
         work_notes.toggle_pin(connection, note_id)
         connection.commit()
     finally:
@@ -269,12 +278,14 @@ def pin(note_id):
 
 
 @work_notes_bp.post("/<int:note_id>/delete")
-@admin_required
+@login_required
 def delete(note_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     connection = dashboard_db()
     try:
+        if not work_notes.get_note(connection, note_id, owner_id=_owner_id()):
+            abort(404)
         work_notes.delete_note(connection, note_id)
         security_audit.log_event(connection, "WORK_NOTE_DELETE", "work_note", note_id)
         connection.commit()
@@ -284,13 +295,13 @@ def delete(note_id):
 
 
 @work_notes_bp.post("/attachments/<int:attachment_id>/delete")
-@admin_required
+@login_required
 def delete_attachment(attachment_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     connection = dashboard_db()
     try:
-        attachment = work_notes.get_attachment(connection, attachment_id)
+        attachment = work_notes.get_attachment(connection, attachment_id, owner_id=_owner_id())
         if not attachment:
             abort(404)
         work_notes.soft_delete_attachment(connection, attachment_id)
@@ -302,11 +313,11 @@ def delete_attachment(attachment_id):
 
 
 @work_notes_bp.get("/files/<int:attachment_id>")
-@admin_required
+@login_required
 def file(attachment_id):
     connection = dashboard_db()
     try:
-        attachment = work_notes.get_attachment(connection, attachment_id)
+        attachment = work_notes.get_attachment(connection, attachment_id, owner_id=_owner_id())
         if not attachment:
             abort(404)
     finally:
@@ -322,7 +333,7 @@ def file(attachment_id):
 
 
 @work_notes_bp.post("/images")
-@admin_required
+@login_required
 def upload_image():
     if not validate_csrf(request.form.get("csrf_token", "")):
         return jsonify({"error": "요청이 만료되었습니다."}), 400
@@ -350,7 +361,7 @@ def upload_image():
 
 
 @work_notes_bp.post("/preview")
-@admin_required
+@login_required
 def preview():
     if not validate_csrf(request.form.get("csrf_token", "")):
         return jsonify({"error": "요청이 만료되었습니다."}), 400

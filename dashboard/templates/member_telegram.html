@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Telegram 알림{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}{% include "_member_subnav.html" %}
+<main class="page-container member-telegram-page">
+  <header class="page-header"><p class="page-eyebrow">MEMBER / NOTIFICATIONS</p><h1 class="page-title">Telegram 알림</h1><p class="page-description">회원 전용 Bot과 연결해 개인 업무 알림을 받을 준비를 합니다.</p></header>
+  <section class="panel member-telegram-card">
+    <div><span>Telegram 알림</span><strong>{{ '연결됨' if telegram_state else '연결되지 않음' }}</strong>{% if telegram_state and telegram_state.telegram_username %}<small>@{{ telegram_state.telegram_username }}</small>{% endif %}</div>
+    {% if telegram_state %}
+    <div class="member-telegram-actions"><form method="post" action="{{ url_for('member_area.telegram_test') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">테스트 메시지</button></form><form method="post" action="{{ url_for('member_area.telegram_disconnect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-ghost" type="submit">연결 해제</button></form></div>
+    {% else %}
+    <form method="post" action="{{ url_for('member_area.telegram_connect') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit"{% if not telegram_configured %} disabled{% endif %}>Telegram 연결</button></form>
+    {% if not telegram_configured %}<p class="page-note">운영 환경의 회원용 Bot 설정 후 연결할 수 있습니다.</p>{% endif %}
+    {% endif %}
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

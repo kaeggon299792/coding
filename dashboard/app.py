@@ -78,6 +78,7 @@ from official_docs import official_docs_bp
 from seo_content import LOCALIZED_SEO_PAGE_COPY
 from tips import tips_bp
 from work_notes import work_notes_bp
+from member_area import member_area_bp
 from localization import (
     LocalePrefixMiddleware,
     SUPPORTED_LOCALES,
@@ -509,6 +510,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(official_docs_bp)
 app.register_blueprint(tips_bp)
 app.register_blueprint(work_notes_bp)
+app.register_blueprint(member_area_bp)
 
 ENDPOINT_PERMISSIONS = {
     "action_items_page": "bug_reports",
@@ -1334,7 +1336,7 @@ def inject_globals():
         "salary_trend_page": "연봉·평점",
         "recruitment_page": "채용정보",
         "company_recruitment_guide_page": "족보",
-        "source_download_page": "원천 데이터 다운로드",
+        "source_download_page": "데이터 다운",
         "casino_industry_page": "국내 카지노 산업",
         "casino_insights_page": "카지노 인사이트",
         "casino_market_share_page": "산업 M/S",
@@ -1514,29 +1516,35 @@ def _site_map_links():
         },
         {
             "label": "자료실",
-            "description": "업무 자료·관련 사이트·원천 데이터",
+            "description": "업무 자료와 관련 사이트",
             "endpoint": "tips.list_page",
             "children": [
                 {"label": "자료실", "endpoint": "tips.list_page"},
                 {"label": "관련 사이트", "endpoint": "tips.sites_page"},
                 {"label": "카지노 용어집", "endpoint": "tips.glossary_page"},
-                {
-                    "label": "원천 데이터 다운로드",
-                    "endpoint": "source_download_page",
-                    "locked": not account_active,
-                },
             ],
         },
         {
             "label": "게시판",
-            "description": "자유 게시판, 리뷰, 아카이브와 버그 및 건의",
+            "description": "자유 게시판, 리뷰와 버그 및 건의",
             "endpoint": "community_board_page",
             "children": [
                 {"label": "자유 게시판", "endpoint": "community_board_page"},
                 {"label": "공지사항", "endpoint": "notice_board_page"},
                 {"label": "리뷰", "endpoint": "review_board_page"},
-                {"label": "아카이브", "endpoint": "diary_board_page"},
                 {"label": "버그 및 건의", "endpoint": "action_items_page"},
+            ],
+        },
+        {
+            "label": "회원전용",
+            "description": "개인 업무와 회원 데이터",
+            "endpoint": "work_notes.board",
+            "locked": not account_active,
+            "children": [
+                {"label": "업무노트", "endpoint": "work_notes.board", "locked": not account_active},
+                {"label": "메일", "endpoint": "auth.my_account", "locked": not account_active},
+                {"label": "아카이브", "endpoint": "diary_board_page", "locked": not account_active},
+                {"label": "데이터 다운", "endpoint": "source_download_page", "locked": not account_active},
             ],
         },
         {

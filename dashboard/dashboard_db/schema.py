@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080708
+SCHEMA_VERSION = 2026080709
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -2433,6 +2433,34 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_work_note_attachments_note "
         "ON work_note_attachments(note_id, is_deleted, created_at)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS member_telegram_connections (
+            user_id INTEGER PRIMARY KEY REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            telegram_chat_id TEXT NOT NULL UNIQUE,
+            telegram_username TEXT,
+            connected_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS member_telegram_link_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+            token_hash TEXT NOT NULL UNIQUE,
+            expires_at TEXT NOT NULL,
+            used_at TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_member_telegram_tokens_user "
+        "ON member_telegram_link_tokens(user_id, expires_at, used_at)"
     )
     work_note_categories = (
         ("주간회의", "📅", 10), ("월간회의", "🗓️", 20),

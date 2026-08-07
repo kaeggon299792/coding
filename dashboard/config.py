@@ -167,6 +167,9 @@ COMMENT_SMTP_TIMEOUT_SECONDS = _get_int("COMMENT_SMTP_TIMEOUT_SECONDS", 8)
 
 TELEGRAM_BOT_TOKEN = _get_str("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = _get_str("TELEGRAM_CHAT_ID")
+TELEGRAM_MEMBER_BOT_TOKEN = _get_str("TELEGRAM_MEMBER_BOT_TOKEN")
+TELEGRAM_MEMBER_BOT_USERNAME = _get_str("TELEGRAM_MEMBER_BOT_USERNAME", "casinoin_assistant_bot")
+TELEGRAM_MEMBER_LINK_TTL_MINUTES = _get_int("TELEGRAM_MEMBER_LINK_TTL_MINUTES", 15)
 
 # 대시보드가 새로 "발송"하는 유일한 경로(중요 공시 긴급 알림). 발송 전용 함수와
 # 완전히 분리되어 있으며, 기존 세 프로그램의 발송 로직과는 무관하다.
@@ -406,6 +409,7 @@ def known_secrets():
         value
         for value in (
             TELEGRAM_BOT_TOKEN,
+            TELEGRAM_MEMBER_BOT_TOKEN,
             OPENAI_API_KEY,
             GEMINI_API_KEY,
             DART_API_KEY,

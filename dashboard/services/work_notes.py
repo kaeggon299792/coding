@@ -184,22 +184,29 @@ def _decode_note(row):
     return item
 
 
-def dashboard_counts(connection, today=None):
+def dashboard_counts(connection, today=None, owner_id=None):
     today = today or now_kst().date().isoformat()
+    owner_clause = " AND author_id=?" if owner_id is not None else ""
+    params = [today, today]
+    if owner_id is not None:
+        params.append(int(owner_id))
     row = connection.execute(
         """SELECT
              SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
              SUM(CASE WHEN status='waiting' THEN 1 ELSE 0 END) AS waiting,
              SUM(CASE WHEN status<>'completed' AND target_date=? THEN 1 ELSE 0 END) AS due_today,
              SUM(CASE WHEN status<>'completed' AND target_date<? THEN 1 ELSE 0 END) AS overdue
-           FROM work_notes WHERE is_deleted=0""", (today, today)
+           FROM work_notes WHERE is_deleted=0""" + owner_clause, params
     ).fetchone()
     return {key: int(row[key] or 0) for key in row.keys()}
 
 
-def _note_filter_sql(filters):
+def _note_filter_sql(filters, owner_id=None):
     clauses = ["n.is_deleted=0"]
     params = []
+    if owner_id is not None:
+        clauses.append("n.author_id=?")
+        params.append(int(owner_id))
     status = (filters.get("status") or "").strip()
     if status in STATUSES:
         clauses.append("n.status=?")
@@ -220,8 +227,8 @@ def _note_filter_sql(filters):
     return clauses, params
 
 
-def list_notes(connection, filters, limit=20, offset=0):
-    clauses, params = _note_filter_sql(filters)
+def list_notes(connection, filters, limit=20, offset=0, owner_id=None):
+    clauses, params = _note_filter_sql(filters, owner_id)
     sort = filters.get("sort") if filters.get("sort") in SORTS else "created_desc"
     params.extend([max(1, min(int(limit), 100)), max(0, int(offset))])
     rows = connection.execute(
@@ -233,18 +240,21 @@ def list_notes(connection, filters, limit=20, offset=0):
     return [_decode_note(row) for row in rows]
 
 
-def count_notes(connection, filters):
-    clauses, params = _note_filter_sql(filters)
+def count_notes(connection, filters, owner_id=None):
+    clauses, params = _note_filter_sql(filters, owner_id)
     return connection.execute(
         f"SELECT COUNT(*) FROM work_notes n WHERE {' AND '.join(clauses)}", params
     ).fetchone()[0]
 
 
-def available_tags(connection):
+def available_tags(connection, owner_id=None):
     tags = set()
-    for row in connection.execute(
-        "SELECT tags_json FROM work_notes WHERE is_deleted=0"
-    ).fetchall():
+    sql = "SELECT tags_json FROM work_notes WHERE is_deleted=0"
+    params = []
+    if owner_id is not None:
+        sql += " AND author_id=?"
+        params.append(int(owner_id))
+    for row in connection.execute(sql, params).fetchall():
         try:
             tags.update(json.loads(row["tags_json"] or "[]"))
         except (TypeError, ValueError):
@@ -271,11 +281,15 @@ def create_note(connection, author_id, data, recurrence_parent_id=None):
     return cursor.lastrowid
 
 
-def get_note(connection, note_id):
+def get_note(connection, note_id, owner_id=None):
+    owner_clause = " AND n.author_id=?" if owner_id is not None else ""
+    params = [note_id]
+    if owner_id is not None:
+        params.append(int(owner_id))
     row = connection.execute(
         """SELECT n.*,c.name AS category_name,c.emoji AS category_emoji
            FROM work_notes n LEFT JOIN work_note_categories c ON c.id=n.category_id
-           WHERE n.id=? AND n.is_deleted=0""", (note_id,)
+           WHERE n.id=? AND n.is_deleted=0""" + owner_clause, params
     ).fetchone()
     if not row:
         return None
@@ -403,10 +417,14 @@ def attach_inline_images(connection, note_id, content, owner_id):
     )
 
 
-def get_attachment(connection, attachment_id):
+def get_attachment(connection, attachment_id, owner_id=None):
+    owner_clause = " AND owner_id=?" if owner_id is not None else ""
+    params = [attachment_id]
+    if owner_id is not None:
+        params.append(int(owner_id))
     row = connection.execute(
-        "SELECT * FROM work_note_attachments WHERE id=? AND is_deleted=0",
-        (attachment_id,),
+        "SELECT * FROM work_note_attachments WHERE id=? AND is_deleted=0" + owner_clause,
+        params,
     ).fetchone()
     return dict(row) if row else None
 
@@ -425,6 +443,7 @@ def due_reminders(connection, current=None):
     rows = connection.execute(
         """SELECT n.*,c.name AS category_name FROM work_notes n
            LEFT JOIN work_note_categories c ON c.id=n.category_id
+           JOIN dashboard_users u ON u.id=n.author_id AND u.role='admin'
            WHERE n.is_deleted=0 AND n.status<>'completed' AND n.reminder_at IS NOT NULL
              AND n.reminder_at<=? AND n.last_reminded_at IS NULL
            ORDER BY n.reminder_at,n.id""",

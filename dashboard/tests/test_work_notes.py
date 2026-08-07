@@ -158,11 +158,11 @@ def _login(client, user_id, role, token):
         )
 
 
-def test_work_note_routes_are_admin_only_and_render_timeline(work_note_client):
+def test_work_note_routes_require_login_and_render_member_timeline(work_note_client):
     client, _, _, admin, user = work_note_client
     assert client.get("/blog/work-notes").status_code == 302
     _login(client, user, "user", "u" * 64)
-    assert client.get("/blog/work-notes").status_code == 403
+    assert client.get("/blog/work-notes").status_code == 200
     _login(client, admin, "admin", "a" * 64)
     response = client.get("/blog/work-notes")
     html = response.get_data(as_text=True)
@@ -202,7 +202,25 @@ def test_admin_creates_note_with_protected_attachment_and_markdown_preview(work_
     assert 'type="checkbox"' in preview.get_json()["html"]
 
     _login(client, user, "user", "u" * 64)
-    assert client.get(f"/blog/work-notes/files/{attachment['id']}").status_code == 403
+    assert client.get(f"/blog/work-notes/files/{attachment['id']}").status_code == 404
+
+
+def test_member_cannot_read_change_or_delete_another_members_note(work_note_client):
+    client, db_path, _, admin, user = work_note_client
+    connection = schema.connect(str(db_path))
+    note_id = work_notes.create_note(connection, admin, _clean(title="관리자 개인 업무"))
+    connection.commit()
+    connection.close()
+    _login(client, user, "user", "u" * 64)
+
+    assert client.get(f"/blog/work-notes/{note_id}").status_code == 404
+    assert client.get(f"/blog/work-notes/{note_id}/edit").status_code == 404
+    assert client.post(
+        f"/blog/work-notes/{note_id}/pin", data={"csrf_token": "u" * 64}
+    ).status_code == 404
+    assert client.post(
+        f"/blog/work-notes/{note_id}/delete", data={"csrf_token": "u" * 64}
+    ).status_code == 404
 
 
 def test_work_note_editor_has_required_tools_and_two_minute_autosave():
@@ -214,5 +232,9 @@ def test_work_note_editor_has_required_tools_and_two_minute_autosave():
     for tool in ("heading", "bold", "list", "check", "table", "quote", "link", "code"):
         assert f'data-md="{tool}"' in template
     assert "data-image-upload-for" in template
+    assert "data-work-note-preview-open" in template
+    assert "data-work-note-preview-dialog" in template
+    assert 'textarea && textarea.addEventListener("input", requestPreview)' not in script
+    assert 'previewOpen.addEventListener("click", openPreview)' in script
     assert "120000" in script
     assert "localStorage.setItem" in script
