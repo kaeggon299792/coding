@@ -29,5 +29,9 @@
     {% else %}
     <h1 class="public-hero-title">{{ selected_tagline[0] }}</h1>
     {% endif %}
+    <div class="public-hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('casino_industry_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">시장정보 보기</a>
+      <a class="btn btn-outline public-hero-secondary" href="{{ url_for('companies_page') }}" data-ui-icon="arrow-right" data-ui-icon-position="end">기업정보 보기</a>
+    </div>
   </div>
 </section>

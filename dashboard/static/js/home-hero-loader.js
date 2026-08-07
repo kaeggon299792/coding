@@ -14,10 +14,6 @@
   slot.prepend(template.content.cloneNode(true));
   slot.querySelectorAll("template[data-home-hero-template]").forEach((item) => item.remove());
 
-  if (selected === "event-horizon") {
-    document.querySelector("[data-home-sitemap]")?.remove();
-  }
-
   const loadScript = (source) => new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = source;

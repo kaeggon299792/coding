@@ -1,0 +1,59 @@
+.public-hero-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: hero-copy-in .9s .72s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+
+.public-hero-actions .btn {
+  min-height: 42px;
+  padding-inline: 18px;
+}
+
+.public-hero-secondary {
+  border-color: rgba(255, 255, 255, .34) !important;
+  background: rgba(10, 10, 10, .34) !important;
+  color: #fff !important;
+  backdrop-filter: blur(8px);
+}
+
+.public-hero-secondary:hover {
+  border-color: rgba(255, 255, 255, .58) !important;
+  background: rgba(255, 255, 255, .1) !important;
+}
+
+html[data-theme="light"] .public-hero-secondary {
+  border-color: rgba(24, 24, 27, .26) !important;
+  background: rgba(255, 255, 255, .36) !important;
+  color: #18181b !important;
+}
+
+html[data-theme="light"] .public-hero-secondary:hover {
+  border-color: rgba(24, 24, 27, .44) !important;
+  background: rgba(24, 24, 27, .06) !important;
+}
+
+@media (max-width: 640px) {
+  .public-hero-actions {
+    width: min(100%, 320px);
+    flex-direction: column;
+  }
+
+  .public-hero-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-hero-actions {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
