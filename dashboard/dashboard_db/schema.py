@@ -604,6 +604,9 @@ def migrate(connection):
     )
     _ensure_column(connection, "community_posts", "diary_date", "TEXT")
     _ensure_column(connection, "community_posts", "mood_code", "TEXT")
+    _ensure_column(
+        connection, "community_posts", "tags_json", "TEXT NOT NULL DEFAULT '[]'"
+    )
     # Existing diary entries were created under an owner-only policy. Keep
     # them private during migration; new entries explicitly store their choice.
     _ensure_column(

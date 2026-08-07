@@ -5589,7 +5589,26 @@ _BLOG_CATEGORIES = {
 _BLOG_ENTRY_LABELS = {**_DIARY_MOODS, **_BLOG_CATEGORIES}
 
 
-def _diary_form_data(source):
+def _review_tags(raw_value):
+    tags = []
+    seen = set()
+    for raw_tag in re.split(r"[,\n]", raw_value or ""):
+        tag = re.sub(r"\s+", " ", raw_tag.strip().lstrip("#")).strip()
+        if not tag:
+            continue
+        if len(tag) > 20:
+            raise ValueError("태그는 각각 20자 이하로 입력해주세요.")
+        key = tag.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        tags.append(tag)
+    if len(tags) > 10:
+        raise ValueError("태그는 최대 10개까지 입력할 수 있습니다.")
+    return tags
+
+
+def _diary_form_data(source, allow_tags=False):
     diary_date = (source.get("diary_date") or "").strip()
     mood_code = (source.get("mood_code") or "").strip()
     title = (source.get("title") or "").strip()
@@ -5605,6 +5624,7 @@ def _diary_form_data(source):
         "mood_code": mood_code,
         "title": title,
         "content": content,
+        "tags": _review_tags(source.get("tags") or "") if allow_tags else [],
         "is_private": (source.get("is_private") or "").strip().lower()
         in {"1", "true", "yes", "on"},
     }
@@ -5638,7 +5658,10 @@ def _diary_board_context(
             _DIARY_IMAGE_URL_RE.findall(entry["content"] or "")
         ))
         gallery_items.extend(
-            {"entry_id": entry["id"], "title": entry["title"], "url": image_url}
+            {
+                "entry_id": entry["id"], "title": entry["title"],
+                "url": image_url, "tags": entry.get("tags") or [],
+            }
             for image_url in entry["image_urls"]
         )
     return {
@@ -5652,7 +5675,9 @@ def _diary_board_context(
         "entry_labels": _BLOG_ENTRY_LABELS,
         "csrf_token": get_csrf_token(),
         "error": error,
-        "form_data": form_data or {"diary_date": today_kst_str(), "mood_code": "daily"},
+        "form_data": form_data or {
+            "diary_date": today_kst_str(), "mood_code": "daily", "tags": [],
+        },
     }
 
 
@@ -5725,7 +5750,10 @@ def _archive_board_response(board_type):
             )
         raw_form = {
             key: (request.form.get(key) or "")
-            for key in ("diary_date", "mood_code", "title", "content", "is_private")
+            for key in (
+                "diary_date", "mood_code", "title", "content", "tags",
+                "is_private",
+            )
         }
         if not validate_csrf(request.form.get("csrf_token", "")):
             return render_template(
@@ -5738,7 +5766,7 @@ def _archive_board_response(board_type):
                 board_type=board_type,
             ), 400
         try:
-            form_data = _diary_form_data(raw_form)
+            form_data = _diary_form_data(raw_form, allow_tags=board_type == "review")
             entry_id = queries.create_diary_entry(
                 connection,
                 session["user_id"],
@@ -5840,7 +5868,8 @@ def _edit_archive_entry_response(entry_id, board_type):
             raw_form = {
                 key: (request.form.get(key) or "")
                 for key in (
-                    "diary_date", "mood_code", "title", "content", "is_private",
+                    "diary_date", "mood_code", "title", "content", "tags",
+                    "is_private",
                 )
             }
             form_data = raw_form
@@ -5849,7 +5878,9 @@ def _edit_archive_entry_response(entry_id, board_type):
                 status = 400
             else:
                 try:
-                    clean = _diary_form_data(raw_form)
+                    clean = _diary_form_data(
+                        raw_form, allow_tags=board_type == "review"
+                    )
                     queries.update_diary_entry(
                         connection, entry_id, session["user_id"],
                         board_type=board_type, **clean

@@ -464,7 +464,7 @@ def count_community_posts(connection, board_type="community"):
 
 def create_diary_entry(
     connection, author_id, author_username, diary_date, mood_code, title, content,
-    is_private=False, board_type="diary",
+    is_private=False, board_type="diary", tags=None,
 ):
     if board_type not in {"diary", "review"}:
         raise ValueError("올바른 기록 유형이 아닙니다.")
@@ -479,12 +479,12 @@ def create_diary_entry(
         """
         INSERT INTO community_posts
             (author_id, author_username, title, content, board_type,
-             diary_date, mood_code, is_private, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             diary_date, mood_code, tags_json, is_private, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             author_id, author_username, title, content, board_type,
-            diary_date, mood_code,
+            diary_date, mood_code, json.dumps(tags or [], ensure_ascii=False),
             1 if is_private else 0, now_iso, now_iso,
         ),
     )
@@ -499,8 +499,8 @@ def list_diary_entries(
         return []
     rows = connection.execute(
         """
-        SELECT id, author_id, title, content, diary_date, mood_code, is_private,
-               created_at, updated_at
+        SELECT id, author_id, title, content, diary_date, mood_code, tags_json,
+               is_private, created_at, updated_at
         FROM community_posts
         WHERE board_type=? AND is_deleted=0
           AND (is_private=0 OR author_id=?)
@@ -512,7 +512,15 @@ def list_diary_entries(
             max(1, min(int(limit), 100)), max(0, int(offset)),
         ),
     ).fetchall()
-    return [dict(row) for row in rows]
+    results = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["tags"] = json.loads(item.get("tags_json") or "[]")
+        except (TypeError, ValueError):
+            item["tags"] = []
+        results.append(item)
+    return results
 
 
 def count_diary_entries(connection, viewer_id=None, board_type="diary"):
@@ -537,7 +545,14 @@ def get_diary_entry(
              AND (is_private=0 OR author_id=?)""",
         (entry_id, board_type, viewer_id or -1),
     ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    item = dict(row)
+    try:
+        item["tags"] = json.loads(item.get("tags_json") or "[]")
+    except (TypeError, ValueError):
+        item["tags"] = []
+    return item
 
 
 def get_owned_diary_entry(
@@ -550,12 +565,19 @@ def get_owned_diary_entry(
            WHERE id=? AND author_id=? AND board_type=? AND is_deleted=0""",
         (entry_id, owner_id, board_type),
     ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    item = dict(row)
+    try:
+        item["tags"] = json.loads(item.get("tags_json") or "[]")
+    except (TypeError, ValueError):
+        item["tags"] = []
+    return item
 
 
 def update_diary_entry(
     connection, entry_id, owner_id, diary_date, mood_code, title, content,
-    is_private=False, board_type="diary",
+    is_private=False, board_type="diary", tags=None,
 ):
     if board_type not in {"diary", "review"}:
         raise ValueError("올바른 기록 유형이 아닙니다.")
@@ -567,10 +589,12 @@ def update_diary_entry(
         raise ValueError("내용은 1~10,000자로 입력해주세요.")
     cursor = connection.execute(
         """UPDATE community_posts
-           SET diary_date=?, mood_code=?, title=?, content=?, is_private=?, updated_at=?
+           SET diary_date=?, mood_code=?, title=?, content=?, tags_json=?,
+               is_private=?, updated_at=?
            WHERE id=? AND author_id=? AND board_type=? AND is_deleted=0""",
         (
-            diary_date, mood_code, title, content, 1 if is_private else 0,
+            diary_date, mood_code, title, content,
+            json.dumps(tags or [], ensure_ascii=False), 1 if is_private else 0,
             now_kst().isoformat(timespec="seconds"), entry_id, owner_id,
             board_type,
         ),
