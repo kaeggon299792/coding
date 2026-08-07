@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Black Hole WebGL Showcase' if current_locale == 'en' else '블랙홀 WebGL 쇼케이스' }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blackhole-hero.css') }}?v=20260806-blackhole1">
+{% endblock %}
+{% block body %}
+{% if current_username %}
+{% include "_topbar.html" %}
+{% else %}
+<header class="error-public-header">
+  <a class="public-brand" href="{{ url_for('public_home') }}"><img class="brand-logo public-brand-logo" src="{{ url_for('static', filename='img/casino-in-logo.png') }}" alt="CASINO IN" width="1765" height="410" decoding="async"><span>/ SHOWCASE</span></a>
+  <a class="public-login-link" href="{{ url_for('auth.login', next=request.script_root ~ request.full_path.rstrip('?')) }}">로그인</a>
+</header>
+{% endif %}
+
+<section class="blackhole-hero" data-blackhole-hero aria-label="블랙홀 실시간 WebGL 렌더링 쇼케이스">
+  <div class="blackhole-hero-canvas-wrap">
+    <canvas class="blackhole-hero-canvas" data-blackhole-canvas aria-hidden="true"></canvas>
+  </div>
+  <div class="blackhole-hero-content">
+    <p class="page-eyebrow">WebGL2 · Gravitational Lensing Renderer</p>
+    <h1 class="blackhole-hero-title">빛이 휘어지는 자리, 블랙홀을 그대로 계산합니다</h1>
+    <p class="blackhole-hero-description">
+      픽셀마다 광선 하나를 슈바르츠실트 곡률 공간으로 역추적하는 실시간 레이마칭 렌더러입니다.
+      강착원반·광자 링·중력 렌즈·도플러 효과가 합성이 아니라 동일한 물리 계산에서 함께 나옵니다.
+    </p>
+    <div class="blackhole-hero-actions">
+      <a class="btn btn-primary" href="#blackhole-hero-details">기술 설명 보기</a>
+      <a class="btn" href="{{ url_for('public_home') }}">홈으로</a>
+    </div>
+  </div>
+</section>
+
+<main class="page-container blackhole-showcase-page" id="blackhole-hero-details">
+  <header class="page-header">
+    <p class="page-eyebrow">Labs / WebGL Showcase</p>
+    <h1 class="page-title">렌더링 방식 설명</h1>
+    <p class="page-description">
+      이 페이지는 사이트 콘텐츠와 무관한 별도의 기술 데모입니다. 검색엔진 색인에는 포함되지 않습니다.
+    </p>
+  </header>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>무엇을 계산하는가</h2><p>화면에 보이는 모든 밝은 구조는 강착원반 하나를 휘어진 빛으로 여러 번 겹쳐 본 것입니다.</p></div></div>
+    <div class="credits-policy-grid">
+      <article><strong>강착원반과 가스 노이즈</strong><p>4옥타브 FBM 노이즈를 케플러 회전 좌표계에서 읽어 나선형 필라멘트를 만듭니다. 안쪽 궤도가 바깥보다 훨씬 빠르게 돌며 자연스럽게 전단됩니다.</p></article>
+      <article><strong>중력 렌즈와 광자 링</strong><p>레이마칭 중 광선의 각운동량을 보존하며 궤적을 적분합니다. 광자 구를 스치는 광선은 원반을 여러 번 겹쳐 보여주며, 이것이 그림자 가장자리의 얇은 광자 링이 됩니다.</p></article>
+      <article><strong>도플러 편이</strong><p>원반 안쪽 가스는 광속의 약 0.4배로 공전합니다. 다가오는 쪽은 g³ 상대론적 빔 효과로 더 밝고 푸르게, 멀어지는 쪽은 어둡고 붉게 표현됩니다.</p></article>
+      <article><strong>시간 누적과 bloom</strong><p>카메라가 고정되어 있어 프레임마다 같은 화소를 다시 보므로, 여러 프레임을 누적해 노이즈를 줄입니다. 밝은 영역만 추출해 블러한 뒤 ACES 톤매핑으로 합성합니다.</p></article>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading"><div><h2>동작 조건</h2><p>기기 성능과 접근성 설정에 따라 자동으로 낮은 사양으로 전환됩니다.</p></div></div>
+    <ul class="withdrawal-policy">
+      <li>WebGL2를 우선 사용하고, 지원하지 않는 환경에서는 WebGL1으로 전환합니다. 둘 다 없으면 캔버스를 숨기고 검은 배경과 텍스트만 표시합니다.</li>
+      <li>소프트웨어 렌더러(가상 데스크톱, GPU 없는 환경 등)를 감지하면 해상도와 스텝 수를 자동으로 낮춥니다.</li>
+      <li>운영체제에서 "동작 줄이기"를 설정한 경우 애니메이션 없이 정지된 한 장면만 렌더링합니다.</li>
+      <li>화면 밖으로 스크롤되거나 탭이 비활성화되면 렌더링을 멈춥니다.</li>
+    </ul>
+  </section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/blackhole-hero-renderer.js') }}?v=20260806-blackhole1" defer></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", () => {
+  const host = document.querySelector("[data-blackhole-hero]");
+  if (!host || !window.BlackHoleHeroRenderer) return;
+
+  // Mirrors the original demo's two breakpoint presets. Only the fields that
+  // differ between mobile and desktop are listed; everything else falls back
+  // to BlackHoleHeroRenderer's own defaults (identical to the source
+  // component's default props).
+  const DESKTOP_OPTIONS = {
+    focus: [0.72, 0.46], scrim: "left", scrimStrength: 0.9,
+    distance: 24, elevation: -5.5, fov: 42, glow: 1,
+    steps: 300, resolution: 0.7,
+  };
+  const MOBILE_OPTIONS = {
+    focus: [0.5, 0.76], scrim: "top", scrimStrength: 0.9,
+    distance: 24, elevation: -7, fov: 58, glow: 0.85,
+    steps: 200, resolution: 0.6,
+  };
+
+  const mobileQuery = window.matchMedia("(max-width: 767px)");
+  const renderer = new window.BlackHoleHeroRenderer(host, mobileQuery.matches ? MOBILE_OPTIONS : DESKTOP_OPTIONS);
+
+  // Breakpoint crossed: swap options and let the next resize pick up the new
+  // render-target scale. No new WebGL context is created.
+  const onBreakpointChange = (event) => {
+    renderer.updateOptions(event.matches ? MOBILE_OPTIONS : DESKTOP_OPTIONS);
+  };
+  if (typeof mobileQuery.addEventListener === "function") {
+    mobileQuery.addEventListener("change", onBreakpointChange);
+  } else if (typeof mobileQuery.addListener === "function") {
+    mobileQuery.addListener(onBreakpointChange);
+  }
+
+  window.addEventListener("pagehide", () => renderer.destroy(), { once: true });
+});
+</script>
+{% endblock %}

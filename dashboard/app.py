@@ -2493,6 +2493,15 @@ def credits_page():
     )
 
 
+@app.route("/showcase/black-hole")
+def blackhole_showcase_page():
+    # Standalone WebGL technical demo, unrelated to site content — kept out
+    # of INDEXABLE_ENDPOINTS/SITEMAP_STATIC_ENDPOINTS so it stays noindex and
+    # off the sitemap, and out of the profile-avatar singleton entirely (it
+    # renders its own dedicated canvas, not a ProfileAvatarWebGL candidate).
+    return render_template("blackhole_showcase.html")
+
+
 ERROR_PAGE_CONTENT = {
     400: ("요청을 처리할 수 없습니다", "입력값이 올바르지 않거나 요청이 만료되었습니다."),
     403: ("접근 권한이 없습니다", "현재 계정에는 이 페이지를 볼 수 있는 권한이 없습니다."),
