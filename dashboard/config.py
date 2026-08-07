@@ -150,6 +150,16 @@ PYTHONANYWHERE_DISK_TIMEOUT_SECONDS = _get_int(
     "PYTHONANYWHERE_DISK_TIMEOUT_SECONDS", 30
 )
 
+# 댓글 이메일 알림. 비밀값은 운영 .env에만 둔다.
+COMMENT_SMTP_HOST = _get_str("COMMENT_SMTP_HOST")
+COMMENT_SMTP_PORT = _get_int("COMMENT_SMTP_PORT", 587)
+COMMENT_SMTP_USERNAME = _get_str("COMMENT_SMTP_USERNAME")
+COMMENT_SMTP_PASSWORD = _get_str("COMMENT_SMTP_PASSWORD")
+COMMENT_EMAIL_FROM = _get_str("COMMENT_EMAIL_FROM")
+COMMENT_SMTP_STARTTLS = _get_bool("COMMENT_SMTP_STARTTLS", True)
+COMMENT_SMTP_USE_SSL = _get_bool("COMMENT_SMTP_USE_SSL", False)
+COMMENT_SMTP_TIMEOUT_SECONDS = _get_int("COMMENT_SMTP_TIMEOUT_SECONDS", 8)
+
 
 # ============================================================
 # 텔레그램 (기존 세 프로그램과 동일한 봇 재사용, 발송이 아닌 getUpdates 수신 전용)

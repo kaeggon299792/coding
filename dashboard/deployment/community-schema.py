@@ -1215,6 +1215,54 @@ def migrate(connection):
     )
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS comment_notification_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scope_type TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            author_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            email_hash TEXT NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(scope_type, scope_id, email_hash)
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_comment_notification_scope
+           ON comment_notification_subscriptions(scope_type, scope_id, is_active)"""
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_notification_rate_limits (
+            email_hash TEXT PRIMARY KEY,
+            last_success_at TEXT,
+            sending_started_at TEXT,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_notification_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient_hash TEXT NOT NULL,
+            scope_type TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            comment_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('sent', 'failed', 'rate_limited')),
+            attempted_at TEXT NOT NULL,
+            sent_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_comment_notification_deliveries_recipient
+           ON comment_notification_deliveries(recipient_hash, sent_at DESC)"""
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS tips_attachments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tip_id TEXT NOT NULL REFERENCES tips_articles(id) ON DELETE CASCADE,

@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 import config
 from auth import admin_required, login_required, validate_csrf
 from extensions import dashboard_db
-from services import content_translation, security_audit, tips_content
+from services import comment_notifications, content_translation, security_audit, tips_content
 from utils import now_kst
 
 
@@ -777,9 +777,28 @@ def add_comment_page(slug):
         if not item:
             abort(404)
         try:
-            tips_content.add_comment(
+            notification_email = comment_notifications.normalize_email(
+                request.form.get("notification_email")
+            )
+            comment_id = tips_content.add_comment(
                 connection, item["id"], session["user_id"],
                 request.form.get("content", ""),
+            )
+            comment = tips_content.get_comment(connection, comment_id)
+            comment_notifications.notify_new_comment(
+                connection,
+                scope_type="tips_article",
+                scope_id=item["id"],
+                author_id=session["user_id"],
+                notification_email=notification_email,
+                comment_id=comment_id,
+                post_title=item.get("title") or "자료실",
+                comment_content=comment.get("content") if comment else "",
+                created_at=comment.get("created_at") if comment else now_kst().isoformat(timespec="seconds"),
+                post_url=(
+                    f"{config.DASHBOARD_PUBLIC_URL.rstrip('/')}"
+                    f"{url_for('tips.detail_page', slug=slug)}#comments"
+                ),
             )
             flash("댓글을 등록했습니다.", "success")
         except ValueError as exc:

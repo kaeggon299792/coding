@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080707
+SCHEMA_VERSION = 2026080708
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -1888,6 +1888,54 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_tips_comments_tip "
         "ON tips_comments(tip_id, is_deleted, created_at)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_notification_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scope_type TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            author_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            email_hash TEXT NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(scope_type, scope_id, email_hash)
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_comment_notification_scope
+           ON comment_notification_subscriptions(scope_type, scope_id, is_active)"""
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_notification_rate_limits (
+            email_hash TEXT PRIMARY KEY,
+            last_success_at TEXT,
+            sending_started_at TEXT,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comment_notification_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient_hash TEXT NOT NULL,
+            scope_type TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            comment_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('sent', 'failed', 'rate_limited')),
+            attempted_at TEXT NOT NULL,
+            sent_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_comment_notification_deliveries_recipient
+           ON comment_notification_deliveries(recipient_hash, sent_at DESC)"""
     )
     connection.execute(
         """

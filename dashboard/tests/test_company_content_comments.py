@@ -103,7 +103,11 @@ def test_benefit_and_guide_comment_routes_require_login_and_support_replies(monk
 
         root_response = client.post(
             f"/companies/comments/benefit/{benefit_id}",
-            data={"csrf_token": "d" * 64, "content": "<script>운영 시간이 궁금합니다.</script>"},
+            data={
+                "csrf_token": "d" * 64,
+                "content": "<script>운영 시간이 궁금합니다.</script>",
+                "notification_email": "private-comment@example.com",
+            },
         )
         assert root_response.status_code == 302
         connection = schema.connect(str(db_path))
@@ -123,6 +127,21 @@ def test_benefit_and_guide_comment_routes_require_login_and_support_replies(monk
         benefit_html = client.get("/companies/benefits").get_data(as_text=True)
         assert "&lt;script&gt;운영 시간이 궁금합니다.&lt;/script&gt;" in benefit_html
         assert "평일 운영입니다." in benefit_html
+        assert "private-comment@example.com" not in benefit_html
+        assert "이메일 주소는 댓글 알림 발송 목적으로만 사용되며 공개되지 않습니다." in benefit_html
+
+        invalid_email = client.post(
+            f"/companies/comments/benefit/{benefit_id}",
+            data={
+                "csrf_token": "d" * 64,
+                "content": "등록되면 안 되는 댓글",
+                "notification_email": "invalid-address",
+            },
+        )
+        assert invalid_email.status_code == 302
+        assert "등록되면 안 되는 댓글" not in client.get(
+            "/companies/benefits"
+        ).get_data(as_text=True)
 
         guide_response = client.post(
             f"/companies/comments/recruitment_guide/{guide_id}",

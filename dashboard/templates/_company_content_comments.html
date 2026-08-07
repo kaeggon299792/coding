@@ -16,6 +16,7 @@
             <form method="post" action="{{ url_for('create_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="parent_id" value="{{ comment.id }}">
               <textarea name="content" rows="2" maxlength="1000" required placeholder="답글을 입력해주세요."></textarea>
+              {% include "_comment_notification_email.html" %}
               <button class="btn" type="submit">답글 등록</button>
             </form>
           </details>
@@ -51,6 +52,7 @@
     <form class="company-content-comment-form" method="post" action="{{ url_for('create_company_content_comment_route', target_type=comment_target_type, target_id=comment_target_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>{{ current_username }} 님의 댓글<textarea name="content" rows="3" maxlength="1000" required placeholder="의견이나 추가 정보를 남겨주세요."></textarea></label>
+      {% include "_comment_notification_email.html" %}
       <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
     </form>
     {% elif not current_username %}

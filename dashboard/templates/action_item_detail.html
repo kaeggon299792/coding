@@ -48,6 +48,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="bug-comment-content">댓글 작성</label>
       <textarea id="bug-comment-content" name="content" rows="4" maxlength="1000" required placeholder="답변이나 추가 내용을 입력해주세요."></textarea>
+      {% include "_comment_notification_email.html" %}
       <div><small>최대 1,000자</small><button class="btn" type="submit">댓글 등록</button></div>
     </form>{% else %}<p class="public-action-notice">현재 회원등급에서는 댓글을 작성할 수 없습니다.</p>{% endif %}
     {% if comments %}<div class="bug-comment-list">{% for comment in comments %}

@@ -59,6 +59,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="community-comment-content">{{ current_username }} 님의 댓글</label>
       <textarea id="community-comment-content" name="content" maxlength="1000" rows="4" required placeholder="댓글을 입력해주세요">{{ comment_content or '' }}</textarea>
+      {% include "_comment_notification_email.html" %}
       <div><small>최대 1,000자</small><button class="btn btn-primary" type="submit">댓글 등록</button></div>
     </form>
     {% else %}

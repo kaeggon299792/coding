@@ -46,6 +46,7 @@ from services import (
     casino_insights,
     casino_market_share,
     casino_statistics,
+    comment_notifications,
     company_comparison,
     company_expert,
     company_intelligence,
@@ -3351,11 +3352,27 @@ def add_action_item_comment(item_id):
         if not can_access_bug_report(item):
             abort(403)
         try:
-            queries.create_action_item_comment(
+            notification_email = comment_notifications.normalize_email(
+                request.form.get("notification_email")
+            )
+            comment_id = queries.create_action_item_comment(
                 connection,
                 item_id,
                 session["user_id"],
                 request.form.get("content", ""),
+            )
+            comment = queries.get_action_item_comment(connection, comment_id)
+            comment_notifications.notify_new_comment(
+                connection,
+                scope_type="action_item",
+                scope_id=item_id,
+                author_id=session["user_id"],
+                notification_email=notification_email,
+                comment_id=comment_id,
+                post_title=item.get("title") or "버그 및 건의",
+                comment_content=comment.get("content") if comment else "",
+                created_at=comment.get("created_at") if comment else now_kst().isoformat(timespec="seconds"),
+                post_url=f"{CANONICAL_URL}{url_for('action_item_detail', item_id=item_id)}#comments",
             )
             flash("댓글을 등록했습니다.", "success")
         except ValueError as error:
@@ -5062,6 +5079,9 @@ def create_company_content_comment_route(target_type, target_id):
         if not target:
             abort(404)
         try:
+            notification_email = comment_notifications.normalize_email(
+                request.form.get("notification_email")
+            )
             comment_id = queries.create_company_content_comment(
                 connection,
                 target_type=target_type,
@@ -5086,6 +5106,23 @@ def create_company_content_comment_route(target_type, target_id):
                 },
             )
             connection.commit()
+            comment = queries.get_company_content_comment(connection, comment_id)
+            if target_type == "benefit":
+                target_title = f"{target['company_name']} · {target.get('benefit_name') or '복리후생'}"
+            else:
+                target_title = f"{target['company_name']} · {target.get('question_text') or '채용 족보'}"
+            comment_notifications.notify_new_comment(
+                connection,
+                scope_type=f"company_{target_type}",
+                scope_id=target_id,
+                author_id=session["user_id"],
+                notification_email=notification_email,
+                comment_id=comment_id,
+                post_title=target_title,
+                comment_content=comment.get("content") if comment else "",
+                created_at=comment.get("created_at") if comment else now_kst().isoformat(timespec="seconds"),
+                post_url=f"{CANONICAL_URL}{_company_comment_redirect(target_type, target)}",
+            )
         return redirect(_company_comment_redirect(target_type, target))
     finally:
         connection.close()
@@ -6413,6 +6450,9 @@ def create_community_comment_route(post_id):
             status = 400
         else:
             try:
+                notification_email = comment_notifications.normalize_email(
+                    request.form.get("notification_email")
+                )
                 comment_id = queries.create_community_comment(
                     connection,
                     post_id=post_id,
@@ -6432,6 +6472,19 @@ def create_community_comment_route(post_id):
                     {"post_id": post_id, "content_length": len(content)},
                 )
                 connection.commit()
+                comment = queries.get_community_comment(connection, comment_id)
+                comment_notifications.notify_new_comment(
+                    connection,
+                    scope_type="community_post",
+                    scope_id=post_id,
+                    author_id=session["user_id"],
+                    notification_email=notification_email,
+                    comment_id=comment_id,
+                    post_title=post.get("title") or "게시판",
+                    comment_content=comment.get("content") if comment else content,
+                    created_at=comment.get("created_at") if comment else now_kst().isoformat(timespec="seconds"),
+                    post_url=f"{CANONICAL_URL}{url_for('community_post_page', post_id=post_id)}#comments",
+                )
                 return redirect(url_for("community_post_page", post_id=post_id) + "#comments")
         return render_template(
             "community_post.html",
