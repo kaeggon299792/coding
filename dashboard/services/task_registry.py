@@ -162,6 +162,20 @@ TASKS = (
         "failure": "한 번의 오류로 종료하지 않고 다음 폴링 주기에 다시 시도합니다.",
     },
     {
+        "key": "work_note_reminders",
+        "title": "업무노트 텔레그램 알림",
+        "location": "PythonAnywhere",
+        "kind": "Always-on",
+        "schedule": "상시 실행 · 기본 60초 간격",
+        "platform_schedule": "CASINOINBOT Always-on child",
+        "command": "scheduler/work_note_reminders.py",
+        "log_name": "work_note_reminders",
+        "source": "관리자가 업무노트에 설정한 알림일과 시간",
+        "process": "완료되지 않은 업무의 알림 시각을 1분마다 확인하고 한 번만 전송합니다.",
+        "destination": "관리자 텔레그램과 해당 업무노트 링크",
+        "failure": "전송 실패 시 발송 완료로 기록하지 않아 다음 확인 주기에 다시 시도합니다.",
+    },
+    {
         "key": "local_board_watch",
         "title": "Brity 게시판 알림",
         "location": "로컬 PC",
@@ -219,6 +233,7 @@ EXECUTION_META = {
     "email_monitor": {"mode": "상시 실행", "steps": ["신규 이메일 반복 확인"]},
     "casino_news_watch": {"mode": "상시 실행", "steps": ["카지노 뉴스 반복 수집·분석"]},
     "telegram_ingest": {"mode": "상시 실행", "steps": ["텔레그램 실적 메시지 반복 수신·파싱"]},
+    "work_note_reminders": {"mode": "상시 실행", "steps": ["업무노트 알림 시각 확인", "미완료 업무 텔레그램 발송"]},
     "local_board_watch": {
         "mode": "동일 스크립트 다중 예약",
         "steps": ["06시부터 22시까지 17개 예약이 같은 board_watch.py를 실행"],

@@ -75,6 +75,7 @@ from services import (
 from official_docs import official_docs_bp
 from seo_content import LOCALIZED_SEO_PAGE_COPY
 from tips import tips_bp
+from work_notes import work_notes_bp
 from localization import (
     LocalePrefixMiddleware,
     SUPPORTED_LOCALES,
@@ -494,6 +495,7 @@ app.config.update(
         config.RESEARCH_MAX_FILE_BYTES,
         config.OFFICIAL_DOC_MAX_UPLOAD_MB * 1024 * 1024,
         config.TIPS_MAX_ATTACHMENT_BYTES,
+        config.WORK_NOTE_MAX_FILE_BYTES,
     ) + (512 * 1024),
 )
 app.wsgi_app = LocalePrefixMiddleware(
@@ -504,6 +506,7 @@ init_oauth(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(official_docs_bp)
 app.register_blueprint(tips_bp)
+app.register_blueprint(work_notes_bp)
 
 ENDPOINT_PERMISSIONS = {
     "action_items_page": "bug_reports",
@@ -1175,7 +1178,9 @@ def enforce_menu_permission():
         return None
     # 공문·자료관리 화면과 변경 작업은 관리자 전용이다. 위에서 명시한
     # 다운로드만 DB 승인 상태와 official_docs 권한을 확인해 일반 사용자에게 허용한다.
-    if request.blueprint == "official_docs":
+    if request.blueprint == "work_notes":
+        current_menu_name = "업무노트"
+    elif request.blueprint == "official_docs":
         return None
     permission = (
         "official_docs" if request.blueprint == "official_docs"

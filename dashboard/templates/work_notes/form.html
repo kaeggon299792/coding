@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ '업무노트 수정' if note else '업무 등록' }}{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+<main class="page-container work-notes-page">
+  <header class="page-header"><p class="page-eyebrow">ADMIN / WORK NOTES</p><h1 class="page-title">{{ '업무노트 수정' if note else '새 업무 등록' }}</h1></header>
+  {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+  <form class="panel work-note-form" method="post" enctype="multipart/form-data" data-work-note-form data-draft-key="work-note-{{ note.id if note else 'new' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="work-note-form-grid">
+      <label><span>작성일 *</span><div class="clearable-date"><input type="date" name="work_date" value="{{ form_data.work_date or '' }}" required></div></label>
+      <label><span>카테고리</span><select name="category_id"><option value="">미분류</option>{% for category in categories %}<option value="{{ category.id }}"{% if form_data.category_id|string == category.id|string %} selected{% endif %}>{{ category.emoji }} {{ category.name }}</option>{% endfor %}</select></label>
+      <label><span>중요도</span><select name="priority">{% for code,label in priorities.items() %}<option value="{{ code }}"{% if form_data.priority == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span>상태</span><select name="status">{% for code,label in statuses.items() %}<option value="{{ code }}"{% if form_data.status == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span>알림일 <em>선택 시 기본 08:50</em></span><div class="clearable-date"><input type="date" name="reminder_date" value="{{ form_data.reminder_date or '' }}"><button type="button" data-clear-field="reminder_date" aria-label="알림일 삭제">×</button></div></label>
+      <label><span>알림 시간</span><input type="time" name="reminder_time" value="{{ form_data.reminder_time or '08:50' }}"></label>
+      <label><span>완료목표일</span><div class="clearable-date"><input type="date" name="target_date" value="{{ form_data.target_date or '' }}"><button type="button" data-clear-field="target_date" aria-label="완료목표일 삭제">×</button></div></label>
+      <label><span>완료일</span><div class="clearable-date"><input type="date" name="completed_at" value="{{ form_data.completed_at or '' }}"><button type="button" data-clear-field="completed_at" aria-label="완료일 삭제">×</button></div></label>
+      <label><span>버전</span><input type="text" name="version_label" maxlength="40" value="{{ form_data.version_label or '' }}" placeholder="예: 1.0 / 2026-Q3"></label>
+      <label><span>반복</span><select name="recurrence_type" data-recurrence-select>{% for code,label in recurrences.items() %}<option value="{{ code }}"{% if form_data.recurrence_type == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label data-custom-recurrence><span>사용자 지정 주기</span><div class="work-note-interval"><input type="number" name="recurrence_interval_days" min="1" max="365" value="{{ form_data.recurrence_interval_days or '' }}"><span>일마다</span></div></label>
+      <label class="work-note-pin-toggle"><input type="checkbox" name="is_pinned" value="1"{% if form_data.is_pinned %} checked{% endif %}><span>상단 고정</span></label>
+    </div>
+    <label><span>제목 *</span><input type="text" name="title" maxlength="150" required value="{{ form_data.title or '' }}" placeholder="업무 제목"></label>
+    {% set tag_value = form_data.tags if form_data.tags is string else (form_data.tags or [])|join(', ') %}<label><span>태그 <em>쉼표로 구분 · 최대 10개</em></span><input type="text" name="tags" maxlength="220" value="{{ tag_value }}" placeholder="예: 회의, 보고, 3분기"></label>
+    <section class="work-note-editor" data-markdown-editor>
+      <div class="markdown-toolbar" role="toolbar" aria-label="Markdown 도구">
+        <button type="button" data-md="heading">제목</button><button type="button" data-md="bold"><b>굵게</b></button><button type="button" data-md="list">리스트</button><button type="button" data-md="check">체크박스</button><button type="button" data-md="table">표</button><button type="button" data-md="quote">인용</button><button type="button" data-md="link">링크</button><button type="button" data-md="code">코드블록</button><label class="markdown-image-button">이미지<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-image-upload-for="work-note-content"></label>
+      </div>
+      <div class="work-note-editor-grid">
+        <label><span>내용 * <em>Markdown · 이미지 붙여넣기 지원</em></span><textarea id="work-note-content" name="content" maxlength="50000" rows="18" required data-image-paste data-image-paste-scope="work-note" data-image-paste-endpoint="{{ url_for('work_notes.upload_image') }}" data-image-paste-csrf="{{ csrf_token }}">{{ form_data.content or '' }}</textarea><small class="image-paste-status" data-image-paste-status="work-note-content" role="status" aria-live="polite"></small></label>
+        <div class="work-note-preview-wrap"><span>미리보기</span><div class="community-markdown work-note-preview" data-markdown-preview data-preview-endpoint="{{ url_for('work_notes.preview') }}" data-preview-csrf="{{ csrf_token }}"></div></div>
+      </div>
+    </section>
+    <label><span>파일 첨부 <em>개별 20MB · 여러 파일 가능</em></span><input type="file" name="attachments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx,.txt,.csv,.zip,.png,.jpg,.jpeg,.gif,.webp"></label>
+    {% if note %}{% set file_attachments = note.attachments|selectattr('kind', 'ne', 'image')|list %}{% if file_attachments %}<div class="work-note-attachments"><strong>기존 첨부</strong>{% for attachment in file_attachments %}<div><a href="{{ url_for('work_notes.file', attachment_id=attachment.id) }}">{{ attachment.original_name }}</a><form method="post" action="{{ url_for('work_notes.delete_attachment', attachment_id=attachment.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small danger-button" type="submit">삭제</button></form></div>{% endfor %}</div>{% endif %}{% endif %}
+    <div class="work-note-form-footer"><span data-autosave-status>자동저장 대기</span><div><a class="btn" href="{{ url_for('work_notes.detail', note_id=note.id) if note else url_for('work_notes.board') }}">취소</a><button class="btn btn-primary" type="submit">{{ '수정 저장' if note else '업무 등록' }}</button></div></div>
+  </form>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/markdown-image-paste.js') }}?v=20260808-work-notes1" defer></script><script src="{{ url_for('static', filename='js/work-notes.js') }}?v=20260808-work-notes1" defer></script>{% endblock %}

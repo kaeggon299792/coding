@@ -17,6 +17,7 @@ RUNTIME_PREFIXES = (
     "dashboard/logs/",
     "dashboard/static/uploads/",
     "dashboard/data/diary_images/",
+    "dashboard/data/work_note_files/",
     "dashboard/data/research_library/",
 )
 RUNTIME_FILES = {

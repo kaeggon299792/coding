@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ note.title }} · 업무노트{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+<main class="page-container work-notes-page work-note-detail-page">
+  <nav class="community-detail-toolbar"><a href="{{ url_for('work_notes.board') }}">← 업무노트</a></nav>
+  <article class="panel work-note-detail">
+    <header>
+      <div class="work-note-meta"><span class="work-note-priority priority-{{ note.priority }}">{{ priorities[note.priority] }}</span><span class="work-note-status status-{{ note.status }}">{{ statuses[note.status] }}</span><span>{{ note.category_emoji or '📁' }} {{ note.category_name or '미분류' }}</span>{% if note.is_pinned %}<span class="work-note-pin">상단 고정</span>{% endif %}</div>
+      <h1>{{ note.title }}</h1>
+      {% if note.tags %}<div class="review-tags" aria-label="태그">{% for tag in note.tags %}<a href="{{ url_for('work_notes.board', tag=tag) }}">#{{ tag }}</a>{% endfor %}</div>{% endif %}
+    </header>
+    <dl class="work-note-detail-data">
+      <div><dt>작성일</dt><dd>{{ note.work_date }}</dd></div><div><dt>알림</dt><dd>{{ note.reminder_at[:16]|replace('T',' ') if note.reminder_at else '미설정' }}</dd></div><div><dt>완료목표일</dt><dd>{{ note.target_date or '미설정' }}</dd></div><div><dt>완료일</dt><dd>{{ note.completed_at or '미설정' }}</dd></div><div><dt>버전</dt><dd>{{ note.version_label or '미입력' }}</dd></div><div><dt>반복</dt><dd>{{ recurrences[note.recurrence_type] }}{% if note.recurrence_type == 'custom' %} · {{ note.recurrence_interval_days }}일{% endif %}</dd></div>
+    </dl>
+    <div class="community-post-content community-markdown">{{ note_html }}</div>
+    {% if note.attachments %}<section class="work-note-downloads"><h2>첨부파일</h2>{% for attachment in note.attachments if attachment.kind != 'image' %}<a href="{{ url_for('work_notes.file', attachment_id=attachment.id) }}" data-ui-icon="download">{{ attachment.original_name }} <small>{{ (attachment.file_size / 1024)|round(1) }}KB</small></a>{% endfor %}</section>{% endif %}
+    <footer><form method="post" action="{{ url_for('work_notes.pin', note_id=note.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn" type="submit">{{ '고정 해제' if note.is_pinned else '상단 고정' }}</button></form><a class="btn btn-primary" href="{{ url_for('work_notes.edit', note_id=note.id) }}">수정</a><form method="post" action="{{ url_for('work_notes.delete', note_id=note.id) }}" onsubmit="return confirm('이 업무노트를 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger-button" type="submit">삭제</button></form></footer>
+  </article>
+</main>
+{% include "_footer.html" %}
+{% endblock %}

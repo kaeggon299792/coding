@@ -13,6 +13,7 @@ DEFAULTS = {
     "email_monitor": {"enabled": True, "timing": "continuous", "interval_minutes": 5, "notify_error": True, "notify_success": False},
     "casino_news_watch": {"enabled": True, "timing": "continuous", "interval_minutes": 15, "notify_error": True, "notify_success": False},
     "telegram_ingest": {"enabled": True, "timing": "continuous", "interval_minutes": 1, "notify_error": True, "notify_success": False},
+    "work_note_reminders": {"enabled": True, "timing": "continuous", "interval_minutes": 1, "notify_error": True, "notify_success": False},
     "law_sync": {"enabled": True, "timing": "daily", "hour_utc": 12, "minute_utc": 0, "notify_error": True, "notify_success": False},
     "daily_insight": {"enabled": True, "timing": "daily", "hour_utc": 12, "minute_utc": 5, "notify_error": True, "notify_success": False},
     "dart_sync": {"enabled": True, "timing": "hourly", "minute_utc": 30, "notify_error": True, "notify_success": False},

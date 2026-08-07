@@ -116,6 +116,12 @@ DIARY_IMAGE_DIR = _get_str(
     "DIARY_IMAGE_DIR", str(BASE_DIR / "data" / "diary_images")
 )
 DIARY_IMAGE_MAX_BYTES = _get_int("DIARY_IMAGE_MAX_BYTES", 5 * 1024 * 1024)
+WORK_NOTE_FILE_DIR = _get_str(
+    "WORK_NOTE_FILE_DIR", str(BASE_DIR / "data" / "work_note_files")
+)
+WORK_NOTE_MAX_FILE_BYTES = _get_int(
+    "WORK_NOTE_MAX_FILE_BYTES", 20 * 1024 * 1024
+)
 PORTFOLIO_SHAREPOINT_DIR = _get_str(
     "PORTFOLIO_SHAREPOINT_DIR", "/home/kaekun/Sharepoint"
 )

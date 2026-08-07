@@ -77,6 +77,11 @@ WORKERS = (
         (MGMT_PYTHON, str(PROJECT_ROOT / "scheduler/poll_telegram_performance.py")),
         str(PROJECT_ROOT),
     ),
+    Worker(
+        "work_note_reminders",
+        (MGMT_PYTHON, str(PROJECT_ROOT / "scheduler/work_note_reminders.py")),
+        str(PROJECT_ROOT),
+    ),
 )
 
 
@@ -210,6 +215,8 @@ class Supervisor:
                 environment["CASINO_NEWS_INTERVAL_SECONDS"] = seconds
             elif name == "telegram_ingest":
                 environment["TELEGRAM_POLL_INTERVAL_SECONDS"] = seconds
+            elif name == "work_note_reminders":
+                environment["WORK_NOTE_REMINDER_INTERVAL_SECONDS"] = seconds
         return environment
 
     def _start(self, item: Worker | Schedule, setting) -> subprocess.Popen:

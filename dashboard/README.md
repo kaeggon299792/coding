@@ -122,6 +122,7 @@ python manage.py seed-default-laws
 | 스크립트 | 등록 방식 | 주기 |
 |---|---|---|
 | `scheduler/poll_telegram_performance.py` | **Always-on Task** | 상시(내부적으로 60초 간격 폴링) |
+| `scheduler/work_note_reminders.py` | **CASINOINBOT worker** | 상시(업무노트 알림을 60초 간격 확인) |
 | `scheduler/sync_dart_disclosures.py` | Scheduled Task | 평일 업무시간 1시간 간격 |
 | `scheduler/sync_law_updates.py` | Scheduled Task | 1일 1회 |
 | `scheduler/daily_insight_batch.py` | Scheduled Task | 1일 1회(뉴스 수집 이후) |

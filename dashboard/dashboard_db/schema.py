@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080705
+SCHEMA_VERSION = 2026080706
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -2310,6 +2310,91 @@ def migrate(connection):
                 """,
                 (kind, code, label, order, now_iso, now_iso),
             )
+
+    # ---- administrator work notes ----
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS work_note_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            emoji TEXT NOT NULL DEFAULT '📁',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS work_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+            category_id INTEGER REFERENCES work_note_categories(id),
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            work_date TEXT NOT NULL,
+            reminder_at TEXT,
+            target_date TEXT,
+            completed_at TEXT,
+            priority TEXT NOT NULL DEFAULT 'normal',
+            status TEXT NOT NULL DEFAULT 'planned',
+            version_label TEXT,
+            tags_json TEXT NOT NULL DEFAULT '[]',
+            is_pinned INTEGER NOT NULL DEFAULT 0,
+            recurrence_type TEXT NOT NULL DEFAULT 'none',
+            recurrence_interval_days INTEGER,
+            recurrence_parent_id INTEGER REFERENCES work_notes(id),
+            last_reminded_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            deleted_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS work_note_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_id INTEGER REFERENCES work_notes(id) ON DELETE SET NULL,
+            owner_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+            stored_name TEXT NOT NULL UNIQUE,
+            original_name TEXT NOT NULL,
+            content_type TEXT,
+            file_size INTEGER NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'file',
+            created_at TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            deleted_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_work_notes_status_target "
+        "ON work_notes(is_deleted, status, target_date, is_pinned DESC)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_work_notes_reminder "
+        "ON work_notes(is_deleted, status, reminder_at, last_reminded_at)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_work_note_attachments_note "
+        "ON work_note_attachments(note_id, is_deleted, created_at)"
+    )
+    work_note_categories = (
+        ("주간회의", "📅", 10), ("월간회의", "🗓️", 20),
+        ("경영회의", "📊", 30), ("프로젝트", "🚀", 40),
+        ("보고자료", "📝", 50), ("업무점검", "✅", 60),
+    )
+    category_now = datetime.now(timezone.utc).isoformat()
+    for category_name, category_emoji, category_order in work_note_categories:
+        connection.execute(
+            """INSERT OR IGNORE INTO work_note_categories
+               (name, emoji, is_active, sort_order, created_at, updated_at)
+               VALUES (?, ?, 1, ?, ?, ?)""",
+            (category_name, category_emoji, category_order, category_now, category_now),
+        )
 
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     connection.commit()

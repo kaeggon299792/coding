@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}업무노트 카테고리 관리{% endblock %}
+{% block body %}
+{% include "_topbar.html" %}{% include "_blog_subnav.html" %}
+<main class="page-container work-notes-page">
+  <header class="page-header work-notes-header"><div><p class="page-eyebrow">ADMIN / WORK NOTES</p><h1 class="page-title">카테고리 관리</h1><p class="page-description">업무 성격에 맞게 카테고리를 추가하거나 이름과 사용 여부를 변경합니다.</p></div><a class="btn" href="{{ url_for('work_notes.board') }}">업무노트로 돌아가기</a></header>
+  {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+  <section class="panel work-note-category-create"><h2>새 카테고리</h2><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label><span>아이콘</span><input type="text" name="emoji" maxlength="8" value="📁"></label><label><span>카테고리명</span><input type="text" name="name" maxlength="40" required placeholder="예: 주간회의"></label><button class="btn btn-primary" type="submit">추가</button></form></section>
+  <section class="panel"><div class="section-heading"><div><p class="page-eyebrow">CATEGORY</p><h2>등록 카테고리</h2></div><span>{{ categories|length }}개</span></div><div class="work-note-category-list">{% for category in categories %}<form method="post" action="{{ url_for('work_notes.update_category', category_id=category.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="text" name="emoji" maxlength="8" value="{{ category.emoji }}" aria-label="아이콘"><input type="text" name="name" maxlength="40" required value="{{ category.name }}" aria-label="카테고리명"><label><input type="checkbox" name="is_active" value="1"{% if category.is_active %} checked{% endif %}><span>사용</span></label><button class="btn btn-small" type="submit">저장</button></form>{% endfor %}</div></section>
+</main>
+{% include "_footer.html" %}
+{% endblock %}
