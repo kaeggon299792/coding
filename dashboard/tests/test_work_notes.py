@@ -222,6 +222,7 @@ def test_work_note_board_remembers_last_sort(work_note_client):
     restored = client.get("/blog/work-notes").get_data(as_text=True)
 
     assert '<option value="priority_desc" selected>' in restored
+    assert 'work-note-view-timeline' in restored
 
 
 def test_admin_creates_note_with_protected_attachment_and_markdown_preview(work_note_client):

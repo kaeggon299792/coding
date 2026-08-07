@@ -94,14 +94,9 @@ def _default_form():
 
 
 def _selected_board_state():
-    requested_view = request.args.get("view")
-    if requested_view in WORK_NOTE_VIEWS:
-        selected_view = requested_view
-        session["work_notes_view"] = selected_view
-    else:
-        selected_view = session.get("work_notes_view", "timeline")
-        if selected_view not in WORK_NOTE_VIEWS:
-            selected_view = "timeline"
+    selected_view = request.args.get("view", "timeline")
+    if selected_view not in WORK_NOTE_VIEWS:
+        selected_view = "timeline"
 
     requested_sort = request.args.get("sort")
     if requested_sort in WORK_NOTE_SORTS:
