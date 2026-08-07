@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}업무노트{% endblock %}
+{% macro work_note_url(view_name, month='') -%}
+{{ url_for('work_notes.board', view=view_name, month=month or None, status=filters.status or None, category=filters.category_id or None, tag=filters.tag or None, q=filters.q or None, sort=filters.sort) }}
+{%- endmacro %}
 {% block body %}
 {% include "_topbar.html" %}{% include "_member_subnav.html" %}
 <main class="page-container work-notes-page">
@@ -15,46 +18,111 @@
     <article class="is-overdue"><span>기한 초과</span><strong>{{ dashboard.overdue }}</strong></article>
   </section>
 
+  <nav class="work-note-view-switch" aria-label="업무노트 보기 방식">
+    {% for code, label in views.items() %}<a href="{{ work_note_url(code, calendar_month if code == 'calendar' else '') }}"{% if selected_view == code %} class="is-active" aria-current="page"{% endif %}{% if code == 'calendar' %} data-ui-icon="calendar"{% elif code == 'table' %} data-ui-icon="file-text"{% elif code == 'board' %} data-ui-icon="layout-dashboard"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+
   <form class="work-note-filter panel" method="get">
+    <input type="hidden" name="view" value="{{ selected_view }}">
+    {% if selected_view == 'calendar' %}<input type="hidden" name="month" value="{{ calendar_month }}">{% endif %}
     <label><span>검색</span><input type="search" name="q" value="{{ filters.q }}" placeholder="제목·내용·버전 검색"></label>
     <label><span>상태</span><select name="status"><option value="">전체 상태</option>{% for code,label in statuses.items() %}<option value="{{ code }}"{% if filters.status == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     <label><span>카테고리</span><select name="category"><option value="">전체 카테고리</option>{% for category in categories %}<option value="{{ category.id }}"{% if filters.category_id|string == category.id|string %} selected{% endif %}>{{ category.emoji }} {{ category.name }}</option>{% endfor %}</select></label>
     <label><span>태그</span><select name="tag"><option value="">전체 태그</option>{% for tag in tags %}<option value="{{ tag }}"{% if filters.tag == tag %} selected{% endif %}>#{{ tag }}</option>{% endfor %}</select></label>
     <label><span>정렬</span><select name="sort">{% for code,label in sorts.items() %}<option value="{{ code }}"{% if filters.sort == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">조회</button>
-    <a class="btn btn-ghost" href="{{ url_for('work_notes.board') }}">초기화</a>
+    <a class="btn btn-ghost" href="{{ url_for('work_notes.board', view=selected_view, sort='created_desc', month=calendar_month if selected_view == 'calendar' else None) }}">초기화</a>
   </form>
 
-  <section class="panel work-note-list-panel">
-    <div class="diary-archive-heading"><div><p class="section-kicker">TIMELINE</p><h2>업무 기록</h2></div><span>{{ total }}건</span></div>
-    {% if notes %}<div class="work-note-timeline">
-      {% for note in notes %}
-      <article class="work-note-entry status-{{ note.status }}{% if note.is_pinned %} is-pinned{% endif %}">
-        <time datetime="{{ note.work_date }}"><strong>{{ note.work_date[8:10] }}</strong><span>{{ note.work_date[:7] }}</span></time>
-        <div class="work-note-rail"><span aria-hidden="true">{{ note.category_emoji or '📁' }}</span></div>
-        <div class="work-note-content">
-          <div class="work-note-meta">
-            {% if note.is_pinned %}<span class="work-note-pin">상단 고정</span>{% endif %}
-            <span class="work-note-priority priority-{{ note.priority }}">{{ priorities[note.priority] }}</span>
-            <span class="work-note-status status-{{ note.status }}">{{ statuses[note.status] }}</span>
-            <span>{{ note.category_name or '미분류' }}</span>
-            {% if note.version_label %}<span>v{{ note.version_label }}</span>{% endif %}
-          </div>
-          <h3><a href="{{ url_for('work_notes.detail', note_id=note.id) }}">{{ note.title }}</a></h3>
-          {% if note.tags %}<div class="review-tags" aria-label="태그">{% for tag in note.tags %}<a href="{{ url_for('work_notes.board', tag=tag) }}">#{{ tag }}</a>{% endfor %}</div>{% endif %}
-          <div class="community-markdown work-note-excerpt">{{ note.content_html }}</div>
-          <div class="work-note-dates">
-            {% if note.reminder_at %}<span>알림 {{ note.reminder_at[:16]|replace('T',' ') }}</span>{% endif %}
-            {% if note.target_date %}<span{% if note.status != 'completed' and note.target_date < now_str %} class="is-overdue"{% endif %}>목표 {{ note.target_date }}</span>{% endif %}
-            {% if note.completed_at %}<span>완료 {{ note.completed_at }}</span>{% endif %}
-          </div>
-          <div class="work-note-entry-actions"><a class="btn btn-small" href="{{ url_for('work_notes.detail', note_id=note.id) }}">업무 열기</a><form method="post" action="{{ url_for('work_notes.pin', note_id=note.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small btn-ghost" type="submit">{{ '고정 해제' if note.is_pinned else '상단 고정' }}</button></form></div>
+  <section class="panel work-note-list-panel work-note-view-{{ selected_view }}">
+    <div class="diary-archive-heading">
+      <div><p class="section-kicker">{{ selected_view|upper }}</p><h2>{% if selected_view == 'calendar' %}마감 달력{% elif selected_view == 'table' %}업무 목록{% elif selected_view == 'board' %}상태 보드{% else %}업무 기록{% endif %}</h2></div>
+      <span>{{ total }}건</span>
+    </div>
+
+    {% if selected_view == 'calendar' %}
+      <div class="work-note-calendar-toolbar">
+        <a class="btn btn-small" href="{{ work_note_url('calendar', previous_month) }}" aria-label="이전 달">이전</a>
+        <strong>{{ calendar_label }}</strong>
+        <a class="btn btn-small" href="{{ work_note_url('calendar', next_month) }}" aria-label="다음 달">다음</a>
+      </div>
+      <div class="work-note-calendar-scroll">
+        <div class="work-note-calendar" role="grid" aria-label="{{ calendar_label }} 업무 마감 달력">
+          {% for weekday in ('일','월','화','수','목','금','토') %}<div class="work-note-calendar-weekday" role="columnheader">{{ weekday }}</div>{% endfor %}
+          {% for week in calendar_weeks %}{% for day in week %}
+          <section class="work-note-calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.is_today %} is-today{% endif %}" role="gridcell" aria-label="{{ day.date }}{% if day.notes %}, 마감 업무 {{ day.notes|length }}건{% endif %}">
+            <time datetime="{{ day.date }}">{{ day.day }}</time>
+            <div>{% for note in day.notes[:4] %}<a class="work-note-calendar-item status-{{ note.status }}" href="{{ url_for('work_notes.detail', note_id=note.id) }}" title="{{ note.title }}"><span>{{ note.category_emoji or '📁' }}</span><b>{{ note.title }}</b></a>{% endfor %}{% if day.notes|length > 4 %}<small>+{{ day.notes|length - 4 }}건</small>{% endif %}</div>
+          </section>
+          {% endfor %}{% endfor %}
         </div>
-      </article>
-      {% endfor %}
-    </div>{% else %}<div class="community-empty"><span aria-hidden="true">📋</span><h3>조건에 맞는 업무가 없습니다</h3><p>새 업무를 등록하거나 필터를 변경해보세요.</p></div>{% endif %}
-    {% if total_pages > 1 %}<nav class="news-pagination" aria-label="페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('work_notes.board', page=page-1, status=filters.status, category=filters.category_id, tag=filters.tag, q=filters.q, sort=filters.sort) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for('work_notes.board', page=page+1, status=filters.status, category=filters.category_id, tag=filters.tag, q=filters.q, sort=filters.sort) }}">다음</a>{% endif %}</nav>{% endif %}
+      </div>
+      {% if not calendar_note_count %}<div class="community-empty"><span aria-hidden="true">📅</span><h3>이 달에 마감되는 업무가 없습니다</h3><p>마감일을 지정한 업무가 달력에 표시됩니다.</p></div>{% endif %}
+
+    {% elif selected_view == 'table' %}
+      {% if notes %}<div class="table-wrap work-note-table-wrap"><table class="data-table work-note-table">
+        <thead><tr><th>업무</th><th>상태</th><th>중요도</th><th>카테고리</th><th>작성일</th><th>마감일</th><th>버전</th></tr></thead>
+        <tbody>{% for note in notes %}<tr{% if note.is_pinned %} class="is-pinned"{% endif %}>
+          <td><a href="{{ url_for('work_notes.detail', note_id=note.id) }}">{% if note.is_pinned %}<span aria-label="상단 고정">📌</span> {% endif %}{{ note.title }}</a>{% if note.tags %}<small>{% for tag in note.tags %}{% if not loop.first %} · {% endif %}#{{ tag }}{% endfor %}</small>{% endif %}</td>
+          <td><span class="work-note-status status-{{ note.status }}">{{ statuses[note.status] }}</span></td>
+          <td><span class="work-note-priority priority-{{ note.priority }}">{{ priorities[note.priority] }}</span></td>
+          <td>{{ note.category_emoji or '📁' }} {{ note.category_name or '미분류' }}</td>
+          <td><time datetime="{{ note.work_date }}">{{ note.work_date }}</time></td>
+          <td>{% if note.target_date %}<time datetime="{{ note.target_date }}"{% if note.status != 'completed' and note.target_date < now_str %} class="is-overdue"{% endif %}>{{ note.target_date }}</time>{% else %}<span class="is-muted">미지정</span>{% endif %}</td>
+          <td>{{ note.version_label or '—' }}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>{% else %}<div class="community-empty"><span aria-hidden="true">📋</span><h3>조건에 맞는 업무가 없습니다</h3><p>새 업무를 등록하거나 필터를 변경해보세요.</p></div>{% endif %}
+
+    {% elif selected_view == 'board' %}
+      <div class="work-note-board-scroll"><div class="work-note-board">
+        {% for status_code, status_label in statuses.items() %}
+        <section class="work-note-board-column status-{{ status_code }}">
+          <header><span>{{ status_label }}</span><strong>{{ board_columns[status_code]|length }}</strong></header>
+          <div>{% for note in board_columns[status_code] %}<article class="work-note-board-card{% if note.is_pinned %} is-pinned{% endif %}">
+            <div><span class="work-note-priority priority-{{ note.priority }}">{{ priorities[note.priority] }}</span><small>{{ note.category_emoji or '📁' }} {{ note.category_name or '미분류' }}</small></div>
+            <h3><a href="{{ url_for('work_notes.detail', note_id=note.id) }}">{{ note.title }}</a></h3>
+            {% if note.target_date %}<time datetime="{{ note.target_date }}"{% if note.status != 'completed' and note.target_date < now_str %} class="is-overdue"{% endif %}>마감 {{ note.target_date }}</time>{% else %}<span class="is-muted">마감일 미지정</span>{% endif %}
+            {% if note.tags %}<div class="review-tags">{% for tag in note.tags[:3] %}<span>#{{ tag }}</span>{% endfor %}</div>{% endif %}
+          </article>{% else %}<p class="work-note-board-empty">등록된 업무 없음</p>{% endfor %}</div>
+        </section>
+        {% endfor %}
+      </div></div>
+
+    {% else %}
+      {% if notes %}<div class="work-note-timeline">
+        {% for note in notes %}
+        <article class="work-note-entry status-{{ note.status }}{% if note.is_pinned %} is-pinned{% endif %}">
+          <time datetime="{{ note.work_date }}"><strong>{{ note.work_date[8:10] }}</strong><span>{{ note.work_date[:7] }}</span></time>
+          <div class="work-note-rail"><span aria-hidden="true">{{ note.category_emoji or '📁' }}</span></div>
+          <div class="work-note-content">
+            <div class="work-note-meta">
+              {% if note.is_pinned %}<span class="work-note-pin">상단 고정</span>{% endif %}
+              <span class="work-note-priority priority-{{ note.priority }}">{{ priorities[note.priority] }}</span>
+              <span class="work-note-status status-{{ note.status }}">{{ statuses[note.status] }}</span>
+              <span>{{ note.category_name or '미분류' }}</span>
+              {% if note.version_label %}<span>v{{ note.version_label }}</span>{% endif %}
+            </div>
+            <h3><a href="{{ url_for('work_notes.detail', note_id=note.id) }}">{{ note.title }}</a></h3>
+            {% if note.tags %}<div class="review-tags" aria-label="태그">{% for tag in note.tags %}<a href="{{ url_for('work_notes.board', view='timeline', tag=tag, sort=filters.sort) }}">#{{ tag }}</a>{% endfor %}</div>{% endif %}
+            <div class="diary-timeline-excerpt work-note-excerpt" data-diary-timeline-excerpt>
+              <div class="community-markdown" id="work-note-timeline-body-{{ note.id }}">{{ note.content_html }}</div>
+              <button class="btn btn-ghost diary-timeline-expand" type="button" data-diary-timeline-expand aria-controls="work-note-timeline-body-{{ note.id }}" aria-expanded="false" hidden><span data-diary-timeline-expand-label>전체 보기</span><span data-ui-icon="chevron-down" aria-hidden="true"></span></button>
+            </div>
+            <div class="work-note-dates">
+              {% if note.reminder_at %}<span>알림 {{ note.reminder_at[:16]|replace('T',' ') }}</span>{% endif %}
+              {% if note.target_date %}<span{% if note.status != 'completed' and note.target_date < now_str %} class="is-overdue"{% endif %}>목표 {{ note.target_date }}</span>{% endif %}
+              {% if note.completed_at %}<span>완료 {{ note.completed_at }}</span>{% endif %}
+            </div>
+            <div class="work-note-entry-actions"><a class="btn btn-small" href="{{ url_for('work_notes.detail', note_id=note.id) }}">업무 열기</a><form method="post" action="{{ url_for('work_notes.pin', note_id=note.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-small btn-ghost" type="submit">{{ '고정 해제' if note.is_pinned else '상단 고정' }}</button></form></div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>{% else %}<div class="community-empty"><span aria-hidden="true">📋</span><h3>조건에 맞는 업무가 없습니다</h3><p>새 업무를 등록하거나 필터를 변경해보세요.</p></div>{% endif %}
+    {% endif %}
+
+    {% if total_pages > 1 %}<nav class="news-pagination" aria-label="페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for('work_notes.board', view=selected_view, page=page-1, status=filters.status, category=filters.category_id, tag=filters.tag, q=filters.q, sort=filters.sort) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for('work_notes.board', view=selected_view, page=page+1, status=filters.status, category=filters.category_id, tag=filters.tag, q=filters.q, sort=filters.sort) }}">다음</a>{% endif %}</nav>{% endif %}
   </section>
 </main>
 {% include "_footer.html" %}
 {% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/diary.js') }}?v=20260808-work-note-expand1" defer></script>{% endblock %}

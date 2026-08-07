@@ -169,7 +169,59 @@ def test_work_note_routes_require_login_and_render_member_timeline(work_note_cli
     assert response.status_code == 200
     assert "업무노트" in html
     assert "work-note-dashboard" in html
+    assert "work-note-view-switch" in html
+    assert "data-diary-timeline-excerpt" in html or "조건에 맞는 업무가 없습니다" in html
     assert "갤러리" not in html
+
+
+def test_work_note_calendar_table_and_status_board_views(work_note_client):
+    client, db_path, _, admin, _ = work_note_client
+    connection = schema.connect(str(db_path))
+    work_notes.create_note(
+        connection, admin, _clean(
+            title="달력 마감 업무", target_date="2026-08-10", status="in_progress",
+        ),
+    )
+    work_notes.create_note(
+        connection, admin, _clean(
+            title="완료 보드 업무", target_date="2026-08-12", status="completed",
+            completed_at="2026-08-11", is_pinned="",
+        ),
+    )
+    connection.commit()
+    connection.close()
+    _login(client, admin, "admin", "a" * 64)
+
+    calendar_response = client.get("/blog/work-notes?view=calendar&month=2026-08")
+    calendar_html = calendar_response.get_data(as_text=True)
+    assert calendar_response.status_code == 200
+    assert 'class="work-note-calendar"' in calendar_html
+    assert "2026년 8월" in calendar_html
+    assert "달력 마감 업무" in calendar_html
+
+    table_response = client.get("/blog/work-notes?view=table")
+    table_html = table_response.get_data(as_text=True)
+    assert table_response.status_code == 200
+    assert 'class="data-table work-note-table"' in table_html
+    assert "달력 마감 업무" in table_html
+
+    board_response = client.get("/blog/work-notes?view=board")
+    board_html = board_response.get_data(as_text=True)
+    assert board_response.status_code == 200
+    assert 'class="work-note-board"' in board_html
+    for status_label in work_notes.STATUSES.values():
+        assert status_label in board_html
+    assert "완료 보드 업무" in board_html
+
+
+def test_work_note_board_remembers_last_sort(work_note_client):
+    client, _, _, admin, _ = work_note_client
+    _login(client, admin, "admin", "a" * 64)
+
+    assert client.get("/blog/work-notes?sort=priority_desc").status_code == 200
+    restored = client.get("/blog/work-notes").get_data(as_text=True)
+
+    assert '<option value="priority_desc" selected>' in restored
 
 
 def test_admin_creates_note_with_protected_attachment_and_markdown_preview(work_note_client):

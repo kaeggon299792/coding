@@ -240,6 +240,20 @@ def list_notes(connection, filters, limit=20, offset=0, owner_id=None):
     return [_decode_note(row) for row in rows]
 
 
+def list_notes_for_view(connection, filters, owner_id=None, limit=500):
+    """Return a bounded complete set for calendar and status-board layouts."""
+    clauses, params = _note_filter_sql(filters, owner_id)
+    sort = filters.get("sort") if filters.get("sort") in SORTS else "created_desc"
+    params.append(max(1, min(int(limit), 500)))
+    rows = connection.execute(
+        f"""SELECT n.*,c.name AS category_name,c.emoji AS category_emoji
+            FROM work_notes n LEFT JOIN work_note_categories c ON c.id=n.category_id
+            WHERE {' AND '.join(clauses)} ORDER BY {SORTS[sort]} LIMIT ?""",
+        params,
+    ).fetchall()
+    return [_decode_note(row) for row in rows]
+
+
 def count_notes(connection, filters, owner_id=None):
     clauses, params = _note_filter_sql(filters, owner_id)
     return connection.execute(

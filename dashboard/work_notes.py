@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import calendar
 import mimetypes
 import re
 import uuid
+from datetime import date, timedelta
 from pathlib import Path
 
 import bleach
@@ -31,6 +33,17 @@ MARKDOWN_TAGS = {
     "p", "br", "strong", "em", "del", "blockquote", "code", "pre", "ul",
     "ol", "li", "h1", "h2", "h3", "h4", "hr", "table", "thead", "tbody",
     "tr", "th", "td", "a", "img", "input",
+}
+WORK_NOTE_VIEWS = {
+    "timeline": "타임라인",
+    "calendar": "달력",
+    "table": "테이블",
+    "board": "보드",
+}
+WORK_NOTE_SORTS = {
+    "created_desc": "등록순", "work_date_desc": "작성일순",
+    "target_asc": "마감 임박순", "priority_desc": "중요도순",
+    "status": "상태순",
 }
 
 
@@ -80,6 +93,61 @@ def _default_form():
     }
 
 
+def _selected_board_state():
+    requested_view = request.args.get("view")
+    if requested_view in WORK_NOTE_VIEWS:
+        selected_view = requested_view
+        session["work_notes_view"] = selected_view
+    else:
+        selected_view = session.get("work_notes_view", "timeline")
+        if selected_view not in WORK_NOTE_VIEWS:
+            selected_view = "timeline"
+
+    requested_sort = request.args.get("sort")
+    if requested_sort in WORK_NOTE_SORTS:
+        selected_sort = requested_sort
+        session["work_notes_sort"] = selected_sort
+    else:
+        selected_sort = session.get("work_notes_sort", "created_desc")
+        if selected_sort not in WORK_NOTE_SORTS:
+            selected_sort = "created_desc"
+    return selected_view, selected_sort
+
+
+def _selected_calendar_month():
+    raw = (request.args.get("month") or "").strip()
+    try:
+        selected = date.fromisoformat(f"{raw}-01") if raw else now_kst().date().replace(day=1)
+    except ValueError:
+        selected = now_kst().date().replace(day=1)
+    previous = (selected.replace(day=1) - timedelta(days=1)).replace(day=1)
+    next_year = selected.year + (1 if selected.month == 12 else 0)
+    next_month = 1 if selected.month == 12 else selected.month + 1
+    following = date(next_year, next_month, 1)
+    return selected, previous, following
+
+
+def _calendar_weeks(notes, selected_month):
+    notes_by_day = {}
+    month_prefix = selected_month.strftime("%Y-%m")
+    for note in notes:
+        target_date = note.get("target_date")
+        if target_date and target_date.startswith(month_prefix):
+            notes_by_day.setdefault(target_date, []).append(note)
+    weeks = []
+    for week in calendar.Calendar(firstweekday=6).monthdatescalendar(
+        selected_month.year, selected_month.month
+    ):
+        weeks.append([{
+            "date": day.isoformat(),
+            "day": day.day,
+            "in_month": day.month == selected_month.month,
+            "is_today": day == now_kst().date(),
+            "notes": notes_by_day.get(day.isoformat(), []),
+        } for day in week])
+    return weeks
+
+
 def _form_context(connection, form_data=None, note=None, error=None):
     return {
         "form_data": form_data or _default_form(), "note": note, "error": error,
@@ -119,41 +187,62 @@ def _save_file(connection, uploaded, owner_id, note_id=None):
 @work_notes_bp.route("", methods=["GET"])
 @login_required
 def board():
+    selected_view, selected_sort = _selected_board_state()
     filters = {
         "status": request.args.get("status", ""),
         "category_id": request.args.get("category", ""),
         "tag": request.args.get("tag", ""),
         "q": request.args.get("q", "")[:100],
-        "sort": request.args.get("sort", "created_desc"),
+        "sort": selected_sort,
     }
     try:
         page = max(1, int(request.args.get("page", 1)))
     except (TypeError, ValueError):
         page = 1
-    page_size = 15
+    page_size = 30 if selected_view == "table" else 15
     connection = dashboard_db()
     try:
         owner_id = _owner_id()
         total = work_notes.count_notes(connection, filters, owner_id=owner_id)
         pages = max(1, (total + page_size - 1) // page_size)
         page = min(page, pages)
-        notes = work_notes.list_notes(
-            connection, filters, page_size, (page - 1) * page_size,
-            owner_id=owner_id,
-        )
-        for note in notes:
-            note["content_html"] = render_markdown(note["content"])
+        if selected_view in ("calendar", "board"):
+            notes = work_notes.list_notes_for_view(
+                connection, filters, owner_id=owner_id,
+            )
+            page = 1
+            pages = 1
+        else:
+            notes = work_notes.list_notes(
+                connection, filters, page_size, (page - 1) * page_size,
+                owner_id=owner_id,
+            )
+        if selected_view == "timeline":
+            for note in notes:
+                note["content_html"] = render_markdown(note["content"])
+        selected_month, previous_month, next_month = _selected_calendar_month()
+        board_columns = {
+            status: [note for note in notes if note["status"] == status]
+            for status in work_notes.STATUSES
+        }
         return render_template(
             "work_notes/board.html", notes=notes, total=total, page=page,
-            total_pages=pages, filters=filters,
+            total_pages=pages, filters=filters, selected_view=selected_view,
+            views=WORK_NOTE_VIEWS, board_columns=board_columns,
+            calendar_weeks=_calendar_weeks(notes, selected_month),
+            calendar_note_count=sum(
+                1 for note in notes
+                if (note.get("target_date") or "").startswith(selected_month.strftime("%Y-%m"))
+            ),
+            calendar_month=selected_month.strftime("%Y-%m"),
+            calendar_label=f"{selected_month.year}년 {selected_month.month}월",
+            previous_month=previous_month.strftime("%Y-%m"),
+            next_month=next_month.strftime("%Y-%m"),
             dashboard=work_notes.dashboard_counts(connection, owner_id=owner_id),
             categories=work_notes.list_categories(connection),
             tags=work_notes.available_tags(connection, owner_id=owner_id), statuses=work_notes.STATUSES,
-            priorities=work_notes.PRIORITIES, sorts={
-                "created_desc": "등록순", "work_date_desc": "작성일순",
-                "target_asc": "마감 임박순", "priority_desc": "중요도순",
-                "status": "상태순",
-            }, csrf_token=get_csrf_token(),
+            priorities=work_notes.PRIORITIES, sorts=WORK_NOTE_SORTS,
+            csrf_token=get_csrf_token(),
         )
     finally:
         connection.close()
