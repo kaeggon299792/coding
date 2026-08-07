@@ -22,6 +22,15 @@ def test_migrate_creates_all_expected_tables(db_connection):
     assert EXPECTED_TABLES.issubset(table_names)
 
 
+def test_dashboard_users_support_persistent_home_hero_preference(db_connection):
+    columns = {
+        row["name"]: row
+        for row in db_connection.execute("PRAGMA table_info(dashboard_users)")
+    }
+    assert "hero_preference" in columns
+    assert columns["hero_preference"]["notnull"] == 0
+
+
 def test_migrate_is_idempotent(tmp_path):
     db_path = tmp_path / "idempotent.db"
     conn1 = schema.connect(str(db_path))

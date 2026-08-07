@@ -1209,7 +1209,7 @@ def inject_globals():
                     """
                     SELECT id, username, role, name, picture_url, is_active,
                            membership_level, animations_enabled,
-                           animations_use_site_default
+                           animations_use_site_default, hero_preference
                     FROM dashboard_users WHERE id=?
                     """,
                     (session["user_id"],),
@@ -1219,6 +1219,7 @@ def inject_globals():
                 current_user = dict(row)
                 current_user.setdefault("animations_enabled", 1)
                 current_user.setdefault("animations_use_site_default", 1)
+                current_user.setdefault("hero_preference", None)
                 role = current_user.get("role") or "user"
                 session["role"] = role
                 if connection is None:
@@ -1386,6 +1387,7 @@ def inject_globals():
         "site_font": site_font,
         "number_font": number_font,
         "animations_enabled": effective_animations_enabled,
+        "home_hero_variants": config.HOME_HERO_VARIANTS,
         "menu_permissions": current_menu_permissions(),
         "localization_pending_count": localization_pending_count,
         "csp_nonce": getattr(g, "csp_nonce", ""),

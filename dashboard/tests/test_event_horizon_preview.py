@@ -108,6 +108,8 @@ def test_random_home_hero_loads_only_the_selected_effect_assets():
     assert 'sessionStorage.setItem(key, selected)' in partial
     assert '"casino-in-home-hero-v1"' in partial
     assert 'stylesheet.dataset.homeHeroAsset = selected' in partial
+    assert "home_hero_variants | map(attribute='value')" in partial
+    assert "variants.includes(preferred)" in partial
     assert 'selected === "event-horizon"' in loader
     assert "data-home-sitemap" not in loader
     assert 'loadScript(slot.dataset.eventHorizonSrc)' in loader

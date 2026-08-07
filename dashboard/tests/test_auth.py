@@ -239,6 +239,95 @@ def test_animation_preference_requires_login(client):
     assert "/login" in response.headers["Location"]
 
 
+def test_home_hero_preference_persists_per_account(client):
+    from dashboard_db import queries
+    from extensions import dashboard_db
+
+    connection = dashboard_db()
+    queries.create_user(
+        connection, "other-user", generate_password_hash("another-secure-password")
+    )
+    connection.close()
+
+    anonymous = client.get("/").get_data(as_text=True)
+    assert "const preferred = null;" in anonymous
+    assert "sessionStorage.getItem(key)" in anonymous
+
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    signed_in = client.get("/").get_data(as_text=True)
+    csrf = re.search(r'name="csrf_token" value="([a-f0-9]+)"', signed_in).group(1)
+    assert 'name="hero_preference" value="" checked' in signed_in
+
+    invalid = client.post(
+        "/account/hero-preference",
+        data={"csrf_token": csrf, "hero_preference": "unknown-hero"},
+    )
+    assert invalid.status_code == 400
+    rejected = client.post(
+        "/account/hero-preference",
+        data={"csrf_token": "wrong", "hero_preference": "spotlight"},
+    )
+    assert rejected.status_code == 400
+
+    selected = client.post(
+        "/account/hero-preference",
+        data={"csrf_token": csrf, "hero_preference": "event-horizon"},
+    )
+    assert selected.status_code == 200
+    assert selected.get_json() == {
+        "success": True,
+        "hero_preference": "event-horizon",
+    }
+
+    connection = dashboard_db()
+    stored = {
+        row["username"]: row["hero_preference"]
+        for row in connection.execute(
+            "SELECT username, hero_preference FROM dashboard_users "
+            "WHERE username IN ('admin', 'other-user')"
+        ).fetchall()
+    }
+    connection.close()
+    assert stored == {"admin": "event-horizon", "other-user": None}
+
+    rendered = client.get("/").get_data(as_text=True)
+    assert 'const preferred = "event-horizon";' in rendered
+    assert 'value="event-horizon" checked' in rendered
+
+    logout_csrf = re.search(
+        r'name="csrf_token" value="([a-f0-9]+)"', rendered
+    ).group(1)
+    client.post("/logout", data={"csrf_token": logout_csrf})
+    csrf = _get_csrf(client, "/login")
+    client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "correct-horse-battery-staple",
+            "csrf_token": csrf,
+        },
+    )
+    assert 'const preferred = "event-horizon";' in client.get("/").get_data(as_text=True)
+
+
+def test_home_hero_preference_requires_login(client):
+    response = client.post(
+        "/account/hero-preference",
+        data={"csrf_token": "unused", "hero_preference": "spotlight"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
 def test_admin_controls_default_animation_without_overriding_personal_choice(client):
     from extensions import dashboard_db
 

@@ -17,6 +17,11 @@ ENV_FILE = BASE_DIR / ".env"
 
 KST = ZoneInfo("Asia/Seoul")
 
+HOME_HERO_VARIANTS = (
+    {"value": "spotlight", "label": "Spotlight"},
+    {"value": "event-horizon", "label": "Event Horizon"},
+)
+
 load_dotenv(ENV_FILE)
 
 

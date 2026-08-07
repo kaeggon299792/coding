@@ -1,12 +1,16 @@
 <script nonce="{{ csp_nonce }}">
 (() => {
   const key = "casino-in-home-hero-v1";
-  const variants = ["spotlight", "event-horizon"];
-  let selected = null;
-  try {
-    selected = sessionStorage.getItem(key);
-  } catch (error) {
-    selected = null;
+  const variants = {{ home_hero_variants | map(attribute='value') | list | tojson }};
+  {% set preferred_home_hero = current_user.get('hero_preference') if current_user else none %}
+  const preferred = {{ preferred_home_hero | tojson }};
+  let selected = variants.includes(preferred) ? preferred : null;
+  if (!selected) {
+    try {
+      selected = sessionStorage.getItem(key);
+    } catch (error) {
+      selected = null;
+    }
   }
   if (!variants.includes(selected)) {
     const value = globalThis.crypto?.getRandomValues

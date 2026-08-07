@@ -459,7 +459,8 @@ def refresh_current_session():
             """
             SELECT id, username, role, name, picture_url, approval_status,
                    is_active, password_changed_at, membership_level,
-                   animations_enabled, animations_use_site_default
+                   animations_enabled, animations_use_site_default,
+                   hero_preference
             FROM dashboard_users WHERE id = ?
             """,
             (session["user_id"],),
@@ -1186,6 +1187,7 @@ def my_account():
                    dashboard_users.role, dashboard_users.membership_level,
                    dashboard_users.animations_enabled,
                    dashboard_users.animations_use_site_default,
+                   dashboard_users.hero_preference,
                    dashboard_users.created_at, dashboard_users.updated_at,
                    dashboard_users.last_login_at, dashboard_users.approval_status,
                    dashboard_users.deletion_requested_at,
@@ -1251,6 +1253,46 @@ def update_animation_preference():
     finally:
         connection.close()
     return jsonify({"success": True, "animations_enabled": bool(enabled)})
+
+
+@auth_bp.post("/account/hero-preference")
+@login_required
+def update_hero_preference():
+    """Persist or clear the signed-in user's preferred home Hero."""
+
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        return jsonify({"success": False, "message": "요청이 만료되었습니다."}), 400
+    preference = (request.form.get("hero_preference") or "").strip()
+    allowed = {item["value"] for item in config.HOME_HERO_VARIANTS}
+    if preference and preference not in allowed:
+        return jsonify({"success": False, "message": "Hero 설정값이 올바르지 않습니다."}), 400
+
+    stored_value = preference or None
+    connection = dashboard_db()
+    try:
+        result = connection.execute(
+            """UPDATE dashboard_users
+               SET hero_preference=?, updated_at=?
+               WHERE id=? AND is_active=1""",
+            (stored_value, now_kst().isoformat(), session["user_id"]),
+        )
+        if result.rowcount != 1:
+            connection.rollback()
+            session.clear()
+            return jsonify({"success": False, "message": "계정을 확인할 수 없습니다."}), 401
+        security_audit.log_event(
+            connection,
+            "ACCOUNT_HERO_PREFERENCE_UPDATED",
+            "dashboard_user",
+            session["user_id"],
+            {"hero_preference": stored_value},
+        )
+        connection.commit()
+        if hasattr(g, "current_user_record"):
+            g.current_user_record["hero_preference"] = stored_value
+    finally:
+        connection.close()
+    return jsonify({"success": True, "hero_preference": stored_value})
 
 
 @auth_bp.post("/account/email")

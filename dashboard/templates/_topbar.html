@@ -61,6 +61,17 @@
             <span>애니메이션 끄기</span>
           </label>
         </form>
+        <form id="profile-hero-preference-form" class="topbar-profile-hero-form" method="post" action="{{ url_for('auth.update_hero_preference') }}">
+          <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
+          <fieldset>
+            <legend>홈 Hero</legend>
+            <label><input type="radio" name="hero_preference" value=""{% if not current_user.get('hero_preference') %} checked{% endif %}><span>랜덤</span></label>
+            {% for hero in home_hero_variants %}
+            <label><input type="radio" name="hero_preference" value="{{ hero.value }}"{% if current_user.get('hero_preference') == hero.value %} checked{% endif %}><span>{{ hero.label }}</span></label>
+            {% endfor %}
+          </fieldset>
+          <small class="topbar-profile-hero-status" data-hero-preference-status aria-live="polite"></small>
+        </form>
         <form method="post" action="{{ url_for('auth.logout', next=request.script_root ~ request.full_path.rstrip('?')) }}">
           <input type="hidden" name="csrf_token" value="{{ global_csrf_token }}">
           <button type="submit">로그아웃</button>
