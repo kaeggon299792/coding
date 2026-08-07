@@ -238,9 +238,8 @@ html[data-theme="light"] .page-loader{background:rgba(255,255,255,.97)}
   border-color: var(--brand-text-primary);
 }
 .theme-toggle-icon { font: 14px/1 var(--font-body); }
-.back-to-top {
+.scroll-edge-button {
   position: fixed;
-  right: 18px;
   bottom: 64px;
   z-index: 1200;
   display: grid;
@@ -260,9 +259,11 @@ html[data-theme="light"] .page-loader{background:rgba(255,255,255,.97)}
   backdrop-filter: blur(8px);
   transition: opacity var(--transition-fast), transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
-.back-to-top[hidden] { display: none; }
-.back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
-.back-to-top:hover { color: var(--brand-text-primary); border-color: var(--brand-text-primary); }
+.back-to-top { right: 18px; }
+.back-to-bottom { right: 62px; }
+.scroll-edge-button[hidden] { display: none; }
+.scroll-edge-button.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.scroll-edge-button:hover { color: var(--brand-text-primary); border-color: var(--brand-text-primary); }
 html[data-theme="light"] .item-list li:hover,
 html[data-theme="light"] table.data-table tbody tr:hover { background: rgba(24,24,27,.035); }
 

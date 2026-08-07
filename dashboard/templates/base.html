@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-work-notes1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-scroll-edge1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-admin-sidebar1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-1">
 <script src="{{ url_for('static', filename='js/ui-icons.js') }}?v=20260808-ui-system" defer></script>
@@ -104,7 +104,8 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>
 </button>
-<button class="back-to-top" id="back-to-top" type="button" data-ui-icon="arrow-up" aria-label="맨 위로 이동" hidden>↑</button>
+<button class="scroll-edge-button back-to-bottom" id="back-to-bottom" type="button" data-ui-icon="arrow-down" aria-label="맨 아래로 이동" hidden>↓</button>
+<button class="scroll-edge-button back-to-top" id="back-to-top" type="button" data-ui-icon="arrow-up" aria-label="맨 위로 이동" hidden>↑</button>
 {% include "_legal_footer.html" %}
 {% if current_locale == 'en' %}
 <script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
@@ -316,20 +317,34 @@ document.addEventListener("keydown", (event) => {
 })();
 
 (() => {
-  const button = document.getElementById("back-to-top");
+  const topButton = document.getElementById("back-to-top");
+  const bottomButton = document.getElementById("back-to-bottom");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const onScroll = () => {
-    if (window.scrollY > 480) {
+  const setVisible = (button, visible) => {
+    if (!button) return;
+    if (visible) {
       button.hidden = false;
       requestAnimationFrame(() => button.classList.add("is-visible"));
     } else {
       button.classList.remove("is-visible");
     }
   };
+  const onScroll = () => {
+    const documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    const remaining = documentHeight - (window.scrollY + window.innerHeight);
+    setVisible(topButton, window.scrollY > 480);
+    setVisible(bottomButton, remaining > 48);
+  };
   window.addEventListener("scroll", onScroll, {passive: true});
+  window.addEventListener("resize", onScroll, {passive: true});
+  window.addEventListener("load", onScroll, {once: true});
   onScroll();
-  button.addEventListener("click", () => {
+  topButton?.addEventListener("click", () => {
     window.scrollTo({top: 0, behavior: reduceMotion ? "auto" : "smooth"});
+  });
+  bottomButton?.addEventListener("click", () => {
+    const documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    window.scrollTo({top: documentHeight, behavior: reduceMotion ? "auto" : "smooth"});
   });
 })();
 
