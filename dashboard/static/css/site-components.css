@@ -452,6 +452,14 @@ table.data-table tbody tr:hover,
 .topbar-profile-popover,
 .topbar-private-menu > div { border-color: var(--ui-border); box-shadow: var(--ui-shadow-popover); }
 
+/* The primary navigation and language control stay flat against the top bar. */
+.topbar,
+.topbar-nav,
+.topbar-nav a,
+.global-language-switch,
+.global-language-switch summary { box-shadow: none; }
+.global-language-switch nav { box-shadow: none; }
+
 .casino-chart-tooltip,
 [role="tooltip"] { border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-popover); }
 

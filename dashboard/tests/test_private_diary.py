@@ -262,6 +262,8 @@ def test_review_board_defaults_to_gallery_and_is_separate(monkeypatch, tmp_path)
         assert 'aria-current="page">갤러리</a>' in review_page
         assert "블로그" in review_page
         assert "아카이브" in review_page
+        assert "리뷰 모음" in review_page
+        assert "나의 기록" not in review_page
 
 
 def test_archive_read_grade_is_member_by_default_and_admin_configurable(

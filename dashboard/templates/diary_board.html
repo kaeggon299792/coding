@@ -25,7 +25,7 @@
   </details>{% else %}<section class="panel diary-login-notice"><p>기록 작성은 로그인 후 이용할 수 있습니다.</p><a class="btn" href="{{ url_for('auth.login', next=request.path) }}">로그인</a></section>{% endif %}
   <section class="panel diary-list-panel">
     <div class="diary-archive-heading">
-      <div><p class="section-kicker">ARCHIVE</p><h2>나의 기록</h2></div>
+      <div><p class="section-kicker">{{ archive_settings.list_kicker }}</p><h2>{{ archive_settings.list_title }}</h2></div>
       <div class="diary-archive-actions"><span>{{ total }}건</span><nav class="diary-view-switch" aria-label="보기 방식"><a href="{{ url_for(archive_settings.board_endpoint, view='timeline') }}"{% if view_mode == 'timeline' %} class="is-active" aria-current="page"{% endif %}>타임라인</a><a href="{{ url_for(archive_settings.board_endpoint, view='gallery') }}"{% if view_mode == 'gallery' %} class="is-active" aria-current="page"{% endif %}>갤러리</a></nav></div>
     </div>
     {% if entries %}
@@ -34,7 +34,7 @@
       {% else %}
         <div class="diary-timeline">{% for entry in entries %}{% set mood = moods.get(entry.mood_code, ('•','미선택')) %}<article class="diary-timeline-entry"><time datetime="{{ entry.diary_date }}"><strong>{{ entry.diary_date[8:10] }}</strong><span>{{ entry.diary_date[:7] }}</span></time><div class="diary-timeline-rail"><span aria-label="{{ mood[1] }}" title="{{ mood[1] }}">{{ mood[0] }}</span></div><div class="diary-timeline-content"><h3><a href="{{ url_for(archive_settings.entry_endpoint, entry_id=entry.id) }}">{{ entry.title }}</a>{% if entry.is_private %}<small class="diary-visibility-badge">비밀글</small>{% endif %}</h3><div class="community-markdown">{{ entry.content_html }}</div><a class="diary-timeline-more" href="{{ url_for(archive_settings.entry_endpoint, entry_id=entry.id) }}">기록 열기 →</a></div></article>{% endfor %}</div>
       {% endif %}
-    {% else %}<div class="community-empty"><span aria-hidden="true">✦</span><h3>아직 남긴 기록이 없습니다</h3><p>첫 일기를 작성해보세요.</p></div>{% endif %}
+    {% else %}<div class="community-empty"><span aria-hidden="true">✦</span><h3>{{ archive_settings.empty_title }}</h3><p>{{ archive_settings.empty_description }}</p></div>{% endif %}
     {% if total_pages > 1 %}<nav class="news-pagination" aria-label="페이지 이동">{% if page > 1 %}<a class="btn" href="{{ url_for(archive_settings.board_endpoint, page=page-1, view=view_mode) }}">이전</a>{% endif %}<span>{{ page }} / {{ total_pages }}</span>{% if page < total_pages %}<a class="btn" href="{{ url_for(archive_settings.board_endpoint, page=page+1, view=view_mode) }}">다음</a>{% endif %}</nav>{% endif %}
   </section>
 </main>
