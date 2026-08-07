@@ -441,6 +441,15 @@ table.data-table tbody tr:hover,
 .official-subnav a:hover,
 .tips-subnav a:hover { background: var(--ui-accent); text-decoration: none; }
 
+/* Keep the top navigation flat: active/hover state is conveyed by color, not a heavy underline. */
+.topbar-nav > a:hover,
+.topbar-nav > a.active { border-bottom-color: transparent; }
+
+/* Language options sit inside .topbar-nav, but must not inherit its link underline or margins. */
+.topbar-nav .global-language-switch a,
+.topbar-nav .global-language-switch a:hover,
+.topbar-nav .global-language-switch a.active { margin: 0; border: 0; }
+
 .global-language-switch summary,
 .global-language-switch nav,
 .topbar-profile-popover,

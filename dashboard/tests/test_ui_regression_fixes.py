@@ -21,6 +21,8 @@ def test_navigation_shadows_and_alignment_animation_are_removed():
     assert ".global-language-switch nav { box-shadow: none; }" in site_css
     assert ".global-language-switch { backdrop-filter: none; }" in site_css
     assert ".topbar-private-menu > div { box-shadow: none; }" in site_css
+    assert ".topbar-nav > a.active { border-bottom-color: transparent; }" in site_css
+    assert ".topbar-nav .global-language-switch a.active { margin: 0; border: 0; }" in site_css
     assert "transition:margin-left" not in dashboard_css
 
 
