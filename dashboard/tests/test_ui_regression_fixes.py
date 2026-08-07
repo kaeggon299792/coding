@@ -34,14 +34,15 @@ def test_page_width_regressions_are_bounded_and_centered():
     assert ".fund-scenario-page,.bug-report-page{width:calc(100% - 32px)" in css
 
 
-def test_account_picture_uses_the_existing_button_system_around_native_upload():
+def test_account_picture_uses_the_shared_file_upload_component():
     template = (ROOT / "templates" / "account.html").read_text(encoding="utf-8")
     css = (ROOT / "static" / "css" / "site-components.css").read_text(encoding="utf-8")
+    script = (ROOT / "static" / "js" / "file-upload.js").read_text(encoding="utf-8")
 
     assert 'type="file" name="picture"' in template
-    assert 'class="btn btn-outline account-picture-button"' in template
-    assert 'data-account-picture-name' in template
-    assert '.account-picture-picker > input[type="file"]' in css
+    assert 'data-account-picture-input' in template
+    assert ".file-upload-control" in css
+    assert 'input[type="file"]' in script
 
 
 def test_source_data_controls_are_collapsed_until_a_query_is_active():

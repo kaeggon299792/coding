@@ -41,10 +41,6 @@
       <label class="account-picture-picker">
         <span>새 프로필 사진</span>
         <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required data-account-picture-input>
-        <span class="account-picture-control">
-          <span class="btn btn-outline account-picture-button" data-ui-icon="upload">사진 선택</span>
-          <small data-account-picture-name>선택된 파일 없음</small>
-        </span>
       </label>
       <button class="btn btn-primary" type="submit">사진 변경</button>
     </form>
@@ -91,16 +87,4 @@
   </section>
 </main>
 {% include "_footer.html" %}
-{% endblock %}
-{% block extra_scripts %}
-<script nonce="{{ csp_nonce }}">
-(() => {
-  const input = document.querySelector("[data-account-picture-input]");
-  const name = document.querySelector("[data-account-picture-name]");
-  if (!input || !name) return;
-  input.addEventListener("change", () => {
-    name.textContent = input.files?.[0]?.name || "선택된 파일 없음";
-  });
-})();
-</script>
 {% endblock %}

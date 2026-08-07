@@ -431,45 +431,74 @@ table.data-table tbody tr:hover,
 .news-empty,
 .community-empty { border-radius: var(--ui-radius); }
 
-/* Account profile image picker: keep the native file input for upload and
-   accessibility while presenting the same Vega button language as the site. */
+/* Shared file picker: the original input retains its name, validation and form
+   ownership while a label-driven control replaces the browser chrome. */
 .account-picture-form {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.account-picture-picker {
+.account-picture-picker,
+.file-upload-control,
+.file-upload-display {
   min-width: 0;
 }
 
-.account-picture-picker > input[type="file"] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.account-picture-control {
-  display: flex;
-  min-width: 0;
-  min-height: 42px;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 12px 4px 4px;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius);
-  background: var(--ui-background);
-}
-
-.account-picture-button {
-  flex: 0 0 auto;
+.file-upload-control {
+  position: relative;
+  display: block;
+  width: 100%;
+  color: var(--ui-foreground);
   cursor: pointer;
 }
 
-.account-picture-control small {
+.file-upload-control > .file-upload-input {
+  position: absolute;
+  width: 1px !important;
+  min-width: 0 !important;
+  max-width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.file-upload-display {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--ui-control-height, 42px);
+  align-items: center;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-background);
+  overflow: hidden;
+  transition: border-color var(--ui-transition), box-shadow var(--ui-transition), background var(--ui-transition);
+}
+
+.file-upload-button.btn {
+  flex: 0 0 auto;
+  height: 100%;
+  min-height: 0;
+  padding: 0 14px;
+  border: 0;
+  border-right: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: var(--ui-muted);
+  color: var(--ui-foreground);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.file-upload-name {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
+  padding: 0 12px;
   overflow: hidden;
   color: var(--ui-muted-foreground);
   font-size: var(--text-xs);
@@ -477,16 +506,22 @@ table.data-table tbody tr:hover,
   white-space: nowrap;
 }
 
-.account-picture-picker > input[type="file"]:focus-visible + .account-picture-control {
-  outline: 2px solid var(--ui-ring);
-  outline-offset: 2px;
+.file-upload-name.has-file { color: var(--ui-foreground); }
+.file-upload-control:hover .file-upload-display { border-color: var(--ui-border-strong); }
+.file-upload-control:hover .file-upload-button { background: var(--ui-accent); }
+.file-upload-input:focus-visible + .file-upload-display {
+  border-color: var(--ui-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-ring) 20%, transparent);
+}
+.file-upload-input:disabled + .file-upload-display {
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 700px) {
   .account-picture-form { grid-template-columns: 1fr; }
-  .account-picture-control { align-items: stretch; flex-direction: column; padding: 7px; }
-  .account-picture-button { width: 100%; }
-  .account-picture-control small { padding: 2px 5px; }
+  .file-upload-button.btn { padding: 0 12px; }
+  .file-upload-name { padding: 0 10px; }
 }
 
 /* Shared administrator workspace navigation. It remains a bounded rail and
