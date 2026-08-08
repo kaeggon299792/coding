@@ -1,3 +1,14 @@
+.wysiwyg-editor-field {
+  /* The field is a grid/flex item on every page that embeds this editor.
+     Without an explicit min-width, its automatic minimum size defaults to
+     the toolbar's min-content width, which forces the item (and the page)
+     wider than the viewport on mobile instead of letting the toolbar's own
+     overflow-x:auto handle it. */
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .wysiwyg-editor-host {
   --editor-border: var(--ui-border, var(--brand-border));
   --editor-surface: var(--ui-card, var(--brand-surface));
@@ -132,6 +143,38 @@
   background: #111318;
   color: #edf0f5;
 }
+.community-markdown pre,
+.tip-body pre {
+  position: relative;
+}
+.code-copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .08);
+  color: #d7dbe3;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.code-copy-button:hover { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .3); color: #fff; }
+.code-copy-button:focus-visible { outline: 2px solid var(--ui-ring, var(--brand-accent)); outline-offset: 2px; }
+.code-copy-button svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.code-copy-button.is-copied { border-color: #3ecf7f; color: #3ecf7f; }
+.code-copy-button.is-error { border-color: #ef6671; color: #ef6671; }
+@media (prefers-reduced-motion: reduce) {
+  .code-copy-button { transition: none; }
+}
 .wysiwyg-editor-host .toastui-editor-contents code,
 .community-markdown code,
 .tip-body code { overflow-wrap: anywhere; }
@@ -179,6 +222,8 @@
   box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: 6px;
   border: 1px solid var(--ui-border, var(--brand-border));
   border-radius: 8px;

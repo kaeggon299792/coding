@@ -53,6 +53,21 @@
     return menu;
   }
 
+  function viewportBox() {
+    // window.innerHeight/innerWidth stay at the layout viewport size even
+    // while an on-screen keyboard is open on mobile Safari/Chrome, so a menu
+    // positioned against them can render (and accept touches) underneath the
+    // keyboard. visualViewport tracks the actually-visible area instead.
+    var vv = window.visualViewport;
+    if (!vv) return { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    return {
+      left: vv.offsetLeft,
+      top: vv.offsetTop,
+      right: vv.offsetLeft + vv.width,
+      bottom: vv.offsetTop + vv.height,
+    };
+  }
+
   function caretRect(editable) {
     var selection = window.getSelection();
     if (selection && selection.rangeCount && editable.contains(selection.anchorNode)) {
@@ -131,6 +146,12 @@
       field.parentNode.replaceChild(fieldWrapper, field);
       field = fieldWrapper;
     }
+    // Grid/flex form layouts give items an "auto" minimum size equal to their
+    // content's min-content width, so a wide toolbar can force the whole
+    // field (and with it the page) past the viewport on narrow screens even
+    // though the toolbar itself already scrolls internally. Without this the
+    // field never shrinks below the toolbar's natural width.
+    if (field) field.classList.add("wysiwyg-editor-field");
     var statusNode = document.querySelector('[data-image-paste-status="' + source.id + '"]');
     var required = source.required;
     var maxLength = source.maxLength > 0 ? source.maxLength : 0;
@@ -236,18 +257,19 @@
       var editable = host.querySelector(".toastui-editor-ww-container .ProseMirror");
       if (!editable) return;
       var rect = caretRect(editable);
+      var view = viewportBox();
       var gap = 7;
-      var width = Math.min(330, window.innerWidth - 16);
+      var width = Math.min(330, view.right - view.left - 16);
       menu.style.width = width + "px";
-      var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      var left = Math.max(view.left + 8, Math.min(rect.left, view.right - width - 8));
       var desiredTop = rect.bottom + gap;
-      var maxHeight = Math.min(380, window.innerHeight - 16);
+      var maxHeight = Math.min(380, view.bottom - view.top - 16);
       menu.style.maxHeight = maxHeight + "px";
       menu.hidden = false;
       var measured = menu.getBoundingClientRect().height;
       var top = desiredTop;
-      if (top + measured > window.innerHeight - 8) {
-        top = Math.max(8, rect.top - measured - gap);
+      if (top + measured > view.bottom - 8) {
+        top = Math.max(view.top + 8, rect.top - measured - gap);
       }
       menu.style.left = left + "px";
       menu.style.top = top + "px";
@@ -548,6 +570,11 @@
     });
     window.addEventListener("resize", function () { if (open) positionMenu(); }, { passive: true });
     document.addEventListener("scroll", function () { if (open) positionMenu(); }, true);
+    if (window.visualViewport) {
+      // Repositions the menu when the on-screen keyboard opens/closes/resizes,
+      // since window.innerHeight alone doesn't reflect that on mobile.
+      window.visualViewport.addEventListener("resize", function () { if (open) positionMenu(); }, { passive: true });
+    }
 
     source.dispatchEvent(new CustomEvent("wysiwyg:ready", {
       bubbles: true,
