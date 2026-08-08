@@ -51,7 +51,7 @@
         <small>백만원</small>
       </article>
       <article><span>외국인전용 사업장</span><strong>{{ casino_industry.summary.venue_count }}</strong><small>개 업체</small></article>
-      <article><span>입장객</span><strong>{{ "{:,.1f}".format(casino_industry.summary.visitors_2025 / 1000) }}</strong><small>{% if current_locale == 'en' %}thousand visitors{% elif current_locale == 'ja' %}千人{% elif current_locale == 'yue-HK' %}千人{% else %}천명{% endif %}</small></article>
+      <article><span>입장객</span><strong>{{ "{:,.1f}".format(casino_industry.summary.visitors_2025 / 1000) }}</strong><small>{% if current_locale == 'en' %}thousand visitors{% elif current_locale in ('ja', 'zh-CN', 'yue-HK') %}千人{% else %}천명{% endif %}</small></article>
       <article><span>허가증 면적</span><strong>{{ "{:,.2f}".format(casino_industry.summary.area_sqm) }}</strong><small>㎡</small></article>
       <article><span>운영 형태</span><strong>{{ casino_industry.summary.direct_count }} / {{ casino_industry.summary.leased_count }}</strong><small>직영 / 임대</small></article>
     </div>

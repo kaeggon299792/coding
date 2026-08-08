@@ -40,6 +40,7 @@ TRANSLATION_STYLES = {
 PROMPT_LANGUAGES = {
     "en": {"target_name": "영어", "output_label": "EN"},
     "ja": {"target_name": "일본어", "output_label": "JA"},
+    "zh-CN": {"target_name": "중국어(간체)", "output_label": "ZH-CN"},
     "yue-HK": {"target_name": "광둥어(홍콩 번체)", "output_label": "YUE"},
 }
 PROMPT_MAX_ITEMS = 150

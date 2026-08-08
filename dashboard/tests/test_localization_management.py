@@ -53,6 +53,7 @@ def connection():
         INSERT INTO localization_languages VALUES ('ko','한국어',1,1,'now');
         INSERT INTO localization_languages VALUES ('en','English',0,1,'now');
         INSERT INTO localization_languages VALUES ('ja','日本語',0,1,'now');
+        INSERT INTO localization_languages VALUES ('zh-CN','简体中文',0,1,'now');
         INSERT INTO localization_languages VALUES ('yue-HK','廣東話',0,1,'now');
         """
     )
@@ -80,6 +81,27 @@ def test_translation_completion_and_qa_variable_check():
     assert summary["completed"] == 1
     assert summary["coverage"] == 100.0
     assert any(item["issue"] == "변수 누락 또는 변경" for item in lms.qa_report(db))
+
+
+def test_simplified_chinese_has_independent_pending_and_completed_state():
+    db = connection()
+    string_id = lms.register_string(
+        db, "기업정보", page="Header", component="Menu",
+        language_key="MENU_COMPANY_ZH_CN",
+    )
+
+    pending = lms.dashboard_summary(db, "zh-CN")
+    assert pending["pending"] == 1
+    assert db.execute(
+        "SELECT COUNT(*) FROM localization_translations WHERE language_code='zh-CN'"
+    ).fetchone()[0] == 0
+
+    lms.save_translation(db, string_id, "zh-CN", "企业信息")
+    db.commit()
+    completed = lms.dashboard_summary(db, "zh-CN")
+    assert completed["completed"] == 1
+    assert completed["pending"] == 0
+    assert lms.list_strings(db, language_code="yue-HK")[0][0]["translated_text"] is None
 
 
 def test_csv_export_and_import_round_trip():
@@ -226,6 +248,7 @@ Unknown
     ("language_code", "target_name", "output_label", "translated"),
     (
         ("ja", "일본어", "JA", "ホーム"),
+        ("zh-CN", "중국어(간체)", "ZH-CN", "首页"),
         ("yue-HK", "광둥어(홍콩 번체)", "YUE", "首頁"),
     ),
 )
@@ -390,7 +413,7 @@ def test_all_language_prompt_and_import_use_one_combined_clipboard_payload():
     )
     assert len(chunks) == 1
     assert chunks[0].count("ID=MENU_COMPANY_ALL") == 1
-    for label in ("EN:", "JA:", "YUE:"):
+    for label in ("EN:", "JA:", "ZH-CN:", "YUE:"):
         assert label in chunks[0]
 
     result = lms.import_ai_translation_text_all(
@@ -401,13 +424,15 @@ EN:
 Company Information
 JA:
 企業情報
+ZH-CN:
+公司信息
 YUE:
 公司資料""",
     )
     assert result == {
-        "updated": 3,
+        "updated": 4,
         "errors": 0,
-        "languages": {"en": 1, "ja": 1, "yue-HK": 1},
+        "languages": {"en": 1, "ja": 1, "zh-CN": 1, "yue-HK": 1},
     }
     rows = db.execute(
         """SELECT language_code, translated_text FROM localization_translations
@@ -418,11 +443,12 @@ YUE:
         ("en", "Company Information"),
         ("ja", "企業情報"),
         ("yue-HK", "公司資料"),
+        ("zh-CN", "公司信息"),
     ]
     assert lms.detect_ai_translation_languages(db, "JA:\n企業情報") == {"ja"}
     assert lms.detect_ai_translation_languages(
-        db, "EN:\nCompany\nJA:\n企業\nYUE:\n公司"
-    ) == {"en", "ja", "yue-HK"}
+        db, "EN:\nCompany\nJA:\n企業\nZH-CN:\n公司\nYUE:\n公司"
+    ) == {"en", "ja", "zh-CN", "yue-HK"}
 
 
 def test_schema_version_upgrade_creates_glossary_for_existing_database(tmp_path):
@@ -632,6 +658,7 @@ def test_admin_routes_enforce_role_and_csrf(monkeypatch, tmp_path):
         assert '<option value="all" selected>전체 언어</option>' in all_languages_html
         assert "English (en)" in all_languages_html
         assert "日本語 (ja)" in all_languages_html
+        assert "简体中文 (zh-CN)" in all_languages_html
         assert "廣東話 (yue-HK)" in all_languages_html
         assert 'name="language_code" value="all"' not in all_languages_html
         all_statuses = client.get("/admin/localization?status=")

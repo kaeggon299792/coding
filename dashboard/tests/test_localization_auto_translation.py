@@ -95,13 +95,24 @@ def test_translation_prompt_requires_literal_numeric_preservation():
 
 def test_english_is_supported_and_rejects_untranslated_hangul(monkeypatch):
     monkeypatch.setattr(
-        auto.config, "LOCALIZATION_TRANSLATION_LANGUAGES", "en,ja,yue-HK"
+        auto.config, "LOCALIZATION_TRANSLATION_LANGUAGES", "en,ja,zh-CN,yue-HK"
     )
 
-    assert auto.configured_languages() == ["en", "ja", "yue-HK"]
+    assert auto.configured_languages() == ["en", "ja", "zh-CN", "yue-HK"]
     assert auto._validation_error("홈", "Home", "en") is None
     assert auto._validation_error("홈", "홈", "en") == "CJK text remains in English translation"
     assert auto._validation_error("기업", "企業", "en") == "CJK text remains in English translation"
+
+
+def test_simplified_chinese_is_a_distinct_translation_target(monkeypatch):
+    monkeypatch.setattr(
+        auto.config, "LOCALIZATION_TRANSLATION_LANGUAGES", "zh-CN,yue-HK"
+    )
+
+    assert auto.configured_languages() == ["zh-CN", "yue-HK"]
+    assert auto.TARGETS["zh-CN"]["name"] == "Simplified Chinese for mainland China"
+    assert "Traditional Chinese" in auto.TARGETS["zh-CN"]["rule"]
+    assert auto._validation_error("홈", "首页", "zh-CN") is None
 
 
 def test_manual_translation_runs_all_pending_rows_in_batches(

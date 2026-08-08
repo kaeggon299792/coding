@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080804
+SCHEMA_VERSION = 2026080805
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -2250,7 +2250,8 @@ def migrate(connection):
     localization_now = datetime.now(timezone.utc).isoformat()
     for language_code, display_name, is_source in (
         ('ko', '한국어', 1), ('en', 'English', 0),
-        ('ja', '日本語', 0), ('yue-HK', '廣東話', 0),
+        ('ja', '日本語', 0), ('zh-CN', '简体中文', 0),
+        ('yue-HK', '廣東話', 0),
     ):
         connection.execute(
             """INSERT OR IGNORE INTO localization_languages

@@ -482,6 +482,10 @@ SEO_PAGE_COPY = {
 }
 for _seo_locale, _seo_pages in LOCALIZED_SEO_PAGE_COPY.items():
     SEO_PAGE_COPY.setdefault(_seo_locale, {}).update(_seo_pages)
+# Keep Simplified Chinese independent from Cantonese. Until an administrator
+# completes each zh-CN localization row, the Korean source remains the visible
+# fallback instead of incorrectly marking copied Cantonese text as translated.
+SEO_PAGE_COPY.setdefault("zh-CN", dict(SEO_PAGE_COPY["ko"]))
 _STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 
@@ -736,11 +740,15 @@ def _seo_defaults():
         endpoint,
         (fallback_title, fallback_description),
     )
+    if locale == "zh-CN":
+        title = translate_text(title, locale)
+        description = translate_text(description, locale)
     robots = "index,follow" if endpoint in INDEXABLE_ENDPOINTS else "noindex,nofollow"
     language_tag = {
         "ko": "ko-KR",
         "en": "en-US",
         "ja": "ja-JP",
+        "zh-CN": "zh-CN",
         "yue-HK": "yue-HK",
     }.get(locale, locale)
     page_schema = {
@@ -807,6 +815,7 @@ def _seo_defaults():
             "ko": "ko_KR",
             "en": "en_US",
             "ja": "ja_JP",
+            "zh-CN": "zh_CN",
             "yue-HK": "yue_HK",
         }.get(locale, "ko_KR"),
         "seo_og_locale_alternates": [
@@ -815,6 +824,7 @@ def _seo_defaults():
                 "ko": "ko_KR",
                 "en": "en_US",
                 "ja": "ja_JP",
+                "zh-CN": "zh_CN",
                 "yue-HK": "yue_HK",
             }.items()
             if key != locale
@@ -1450,10 +1460,11 @@ def inject_globals():
         "current_locale": locale,
         "locale_prefix": "" if locale == "ko" else f"/{locale.lower()}",
         "locale_options": (
-            {"code": "ko", "name": "한국어", "flag": "img/flags/kr.svg"},
-            {"code": "en", "name": "English", "flag": "img/flags/us.svg"},
-            {"code": "ja", "name": "日本語", "flag": "img/flags/jp.svg"},
-            {"code": "yue-HK", "name": "廣東話", "flag": "img/flags/hk.svg"},
+            {"code": "ko", "name": "한국어", "flag": "🇰🇷"},
+            {"code": "en", "name": "English", "flag": "🇺🇸"},
+            {"code": "ja", "name": "日本語", "flag": "🇯🇵"},
+            {"code": "zh-CN", "name": "简体中文", "flag": "🇨🇳"},
+            {"code": "yue-HK", "name": "廣東話", "flag": "🇭🇰"},
         ),
         "locale_urls": switch_paths,
         "canonical_url": seo_defaults["seo_canonical_url"],
@@ -1760,7 +1771,10 @@ def robots_txt():
         "/admin", "/login", "/logout", "/register", "/api/",
         "/official-docs/", "/board",
     )
-    for locale_prefix in ("", "/en", "/ja", "/yue-hk"):
+    locale_prefixes = ("",) + tuple(
+        f"/{locale.lower()}" for locale in SUPPORTED_LOCALES if locale != "ko"
+    )
+    for locale_prefix in locale_prefixes:
         lines.extend(
             f"Disallow: {locale_prefix}{path}" for path in protected_paths
         )

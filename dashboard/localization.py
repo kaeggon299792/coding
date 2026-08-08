@@ -23,7 +23,7 @@ from typing import Any, Callable, Iterable
 from urllib.parse import parse_qsl, urlencode
 
 
-SUPPORTED_LOCALES = ("ko", "en", "ja", "yue-HK")
+SUPPORTED_LOCALES = ("ko", "en", "ja", "zh-CN", "yue-HK")
 LOCALE_PREFIXES = {locale.lower(): locale for locale in SUPPORTED_LOCALES if locale != "ko"}
 DEFAULT_LOCALE = "ko"
 CATALOG_FILE = Path(__file__).resolve().parent / "translations" / "catalog.json"
@@ -83,7 +83,9 @@ def locale_for_country(country_code: str | None) -> str | None:
         return "ko"
     if country == "JP":
         return "ja"
-    if country in {"CN", "HK", "MO"}:
+    if country == "CN":
+        return "zh-CN"
+    if country in {"HK", "MO"}:
         return "yue-HK"
     return "en"
 
@@ -222,6 +224,12 @@ def translate_source_label(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
             "분기별": "四半期別", "연간": "年間", "월별": "月別",
             "전체 입장객": "総入場者数", "입장객": "入場者数",
             "데이터 표": "データ表",
+        },
+        "zh-CN": {
+            "분기누계": "季度累计", "연누계": "年度累计",
+            "분기별": "季度", "연간": "年度", "월별": "每月",
+            "전체 입장객": "总访客数", "입장객": "访客数",
+            "데이터 표": "数据表",
         },
         "yue-HK": {
             "분기누계": "季度累計", "연누계": "年初至今累計",

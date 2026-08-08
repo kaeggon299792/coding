@@ -2376,7 +2376,7 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
 }
 .global-language-switch summary{display:flex;align-items:center;justify-content:center;min-width:38px;min-height:30px;padding:5px 8px;cursor:pointer;list-style:none;color:var(--brand-text-primary);font-family:var(--font-body);font-size:11px;font-weight:600;line-height:1;letter-spacing:0;outline:none}
 .global-language-switch summary::-webkit-details-marker{display:none}
-.global-language-switch summary img,.global-language-switch a img{display:block;width:22px;height:16px;border:1px solid color-mix(in srgb,var(--brand-border-strong) 70%,transparent);border-radius:3px;object-fit:cover}
+.global-language-switch .locale-flag{display:inline-grid;width:22px;height:20px;place-items:center;font-size:20px;font-weight:400;line-height:1}
 .global-language-switch nav{position:absolute;z-index:1300;top:calc(100% + 7px);right:0;display:grid;min-width:140px;padding:5px;border:1px solid var(--brand-border-strong);border-radius:12px;background-color:var(--brand-surface);box-shadow:0 12px 32px rgba(0,0,0,.18);font-family:var(--font-body);letter-spacing:0;backdrop-filter:none}
 .global-language-switch:not([open])>nav{display:none!important}
 .global-language-switch a{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;color:var(--brand-text-muted);text-decoration:none}

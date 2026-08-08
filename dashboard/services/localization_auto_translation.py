@@ -27,6 +27,13 @@ TARGETS = {
             "Do not return English-only text when the Korean source requires translation."
         ),
     },
+    "zh-CN": {
+        "name": "Simplified Chinese for mainland China",
+        "rule": (
+            "Use natural professional Simplified Chinese for mainland Chinese readers. "
+            "Do not use Traditional Chinese, Cantonese wording, or English-only text."
+        ),
+    },
     "yue-HK": {
         "name": "Hong Kong Cantonese in Traditional Chinese",
         "rule": (
@@ -41,6 +48,7 @@ NUMBER_RE = re.compile(r"[-+]?\d[\d,.]*%?")
 TARGET_SCRIPT_RE = {
     "en": re.compile(r"[A-Za-z]"),
     "ja": re.compile(r"[ぁ-ゖァ-ヺ一-龯]"),
+    "zh-CN": re.compile(r"[一-龯]"),
     "yue-HK": re.compile(r"[一-龯]"),
 }
 ENGLISH_CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]")

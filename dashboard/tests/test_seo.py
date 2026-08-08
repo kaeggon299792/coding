@@ -131,6 +131,7 @@ def test_robots_txt(client):
     assert "Disallow: /official-docs/" in body
     assert "Disallow: /en/official-docs/" in body
     assert "Disallow: /ja/official-docs/" in body
+    assert "Disallow: /zh-cn/official-docs/" in body
     assert "Disallow: /yue-hk/official-docs/" in body
     assert "Disallow: /admin" in body
     assert "Sitemap: https://www.casinoin.kr/sitemap.xml" in body
@@ -164,6 +165,7 @@ def test_sitemap_xml(client):
     urls = [node.text for node in root.findall("sm:url/sm:loc", ns)]
     assert "https://www.casinoin.kr/" in urls
     assert "https://www.casinoin.kr/ja/" in urls
+    assert "https://www.casinoin.kr/zh-cn/" in urls
     assert "https://www.casinoin.kr/yue-hk/" in urls
     assert all(url.startswith("https://www.casinoin.kr/") for url in urls)
     assert len(urls) == len(set(urls))
@@ -191,7 +193,7 @@ def test_sitemap_xml(client):
     xhtml_ns = "{http://www.w3.org/1999/xhtml}link"
     alternates = public_tip.findall(xhtml_ns)
     assert {item.attrib["hreflang"] for item in alternates} == {
-        "ko", "en", "ja", "yue-HK", "x-default",
+        "ko", "en", "ja", "zh-CN", "yue-HK", "x-default",
     }
     assert all(item.attrib["href"].startswith("https://www.casinoin.kr/") for item in alternates)
 
@@ -310,6 +312,7 @@ def test_sitemap_representative_urls_are_public_and_canonical(client):
         if not location.startswith((
             "https://www.casinoin.kr/en/",
             "https://www.casinoin.kr/ja/",
+            "https://www.casinoin.kr/zh-cn/",
             "https://www.casinoin.kr/yue-hk/",
         ))
     ]
@@ -318,6 +321,7 @@ def test_sitemap_representative_urls_are_public_and_canonical(client):
         assert response.status_code == 200, path
     for path in (
         "/en/", "/ja/market/casino-industry/market-share",
+        "/zh-cn/companies",
         "/yue-hk/resources/seo-test-tip",
     ):
         response = client.get(path, follow_redirects=False)
@@ -328,7 +332,7 @@ def test_every_static_indexable_page_has_locale_specific_search_copy():
     import app as app_module
 
     static_endpoints = app_module.INDEXABLE_ENDPOINTS - {"tips.detail_page"}
-    for locale in ("ko", "en", "ja", "yue-HK"):
+    for locale in ("ko", "en", "ja", "zh-CN", "yue-HK"):
         missing = static_endpoints - set(app_module.SEO_PAGE_COPY[locale])
         assert not missing, f"{locale} SEO copy missing: {sorted(missing)}"
         descriptions = [
@@ -355,6 +359,18 @@ def test_japanese_and_cantonese_pages_explain_their_content(client):
     assert "津貼金額或水平" in cantonese_html
     assert 'property="og:locale" content="yue_HK"' in cantonese_html
     assert '"inLanguage": "yue-HK"' in cantonese_html
+
+
+def test_simplified_chinese_page_has_distinct_seo_locale(client):
+    response = client.get("/zh-cn/companies")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<html lang="zh-CN"' in html
+    assert 'rel="canonical" href="https://www.casinoin.kr/zh-cn/companies"' in html
+    assert 'hreflang="zh-CN"' in html
+    assert 'property="og:locale" content="zh_CN"' in html
+    assert '"inLanguage": "zh-CN"' in html
 
 
 def test_indexable_section_has_webpage_structured_data(client):

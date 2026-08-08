@@ -3,6 +3,7 @@
     ko: {button: "파일 선택", empty: "선택된 파일 없음", more: (count) => `외 ${count}개`},
     en: {button: "Choose file", empty: "No file selected", more: (count) => `and ${count} more`},
     ja: {button: "ファイルを選択", empty: "ファイルが選択されていません", more: (count) => `ほか${count}件`},
+    "zh-cn": {button: "选择文件", empty: "未选择文件", more: (count) => `另有${count}个`},
     "yue-hk": {button: "選擇檔案", empty: "未選擇檔案", more: (count) => `另有${count}個`},
   };
 

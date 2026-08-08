@@ -24,7 +24,7 @@ class FileUpload:
 
 
 def import_translations(database_path, csv_path, language_code):
-    if language_code not in {"en", "ja", "yue-HK"}:
+    if language_code not in {"en", "ja", "zh-CN", "yue-HK"}:
         raise ValueError(f"Unsupported language code: {language_code}")
 
     connection = schema.connect(str(database_path))
@@ -65,7 +65,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("csv_file", type=Path)
     parser.add_argument("--database", type=Path, required=True)
-    parser.add_argument("--language", required=True, choices=("en", "ja", "yue-HK"))
+    parser.add_argument(
+        "--language", required=True, choices=("en", "ja", "zh-CN", "yue-HK")
+    )
     args = parser.parse_args()
     print(json.dumps(
         import_translations(args.database, args.csv_file, args.language),

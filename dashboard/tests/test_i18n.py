@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_country_locale_mapping():
     assert locale_for_country("KR") == "ko"
     assert locale_for_country("JP") == "ja"
-    assert locale_for_country("CN") == "yue-HK"
+    assert locale_for_country("CN") == "zh-CN"
     assert locale_for_country("HK") == "yue-HK"
     assert locale_for_country("MO") == "yue-HK"
     assert locale_for_country("US") == "en"
@@ -27,6 +27,7 @@ def test_source_series_compound_labels_translate_korean_frequency_tokens():
         "(Year-to-date·As of July 2026)"
     )
     assert "연누계" not in translate_source_label(source, "ja")
+    assert "입장객" not in translate_source_label(source, "zh-CN")
     assert "입장객" not in translate_source_label(source, "yue-HK")
     assert translate_source_label("월별 데이터 표", "ja") == "月別 データ表"
 
@@ -77,6 +78,7 @@ def test_korean_home_remains_default(client):
     assert "DATA" not in html
     assert 'href="/en/" data-locale-link="en"' in html
     assert 'href="/ja/" data-locale-link="ja"' in html
+    assert 'href="/zh-cn/" data-locale-link="zh-CN"' in html
     assert 'href="/yue-hk/" data-locale-link="yue-HK"' in html
     assert 'id="dashboard-i18n-catalog"' not in html
     assert "dashboard-i18n.js" not in html
@@ -96,7 +98,7 @@ def test_korean_home_remains_default(client):
     ("country", "location", "cookie_value"),
     (
         ("JP", "/ja/", "ja"),
-        ("CN", "/yue-hk/", "yue-HK"),
+        ("CN", "/zh-cn/", "zh-CN"),
         ("MO", "/yue-hk/", "yue-HK"),
         ("US", "/en/", "en"),
     ),
@@ -187,14 +189,15 @@ def test_language_switch_preserves_path_and_query(client):
         in html
     )
     assert 'href="/ja/market/holidays?year=2027" data-locale-link="ja"' in html
+    assert 'href="/zh-cn/market/holidays?year=2027" data-locale-link="zh-CN"' in html
     assert 'href="/yue-hk/market/holidays?year=2027" data-locale-link="yue-HK"' in html
 
 
-@pytest.mark.parametrize("locale", ("ja", "yue-hk"))
+@pytest.mark.parametrize("locale", ("ja", "zh-cn", "yue-hk"))
 def test_additional_locale_prefixes_use_same_routes(client, locale):
     response = client.get(f"/{locale}/news")
     assert response.status_code == 200
-    expected = "yue-HK" if locale == "yue-hk" else locale
+    expected = {"zh-cn": "zh-CN", "yue-hk": "yue-HK"}.get(locale, locale)
     assert response.headers["Content-Language"] == expected
     html = response.get_data(as_text=True)
     assert f'<html lang="{expected}"' in html
@@ -322,8 +325,10 @@ def test_language_picker_uses_local_flags_and_fixed_native_labels():
 
     with app_module.app.test_request_context("/"):
         options = app_module.inject_globals()["locale_options"]
-    assert [item["name"] for item in options] == ["한국어", "English", "日本語", "廣東話"]
-    assert all(item["flag"].startswith("img/flags/") for item in options)
+    assert [item["name"] for item in options] == [
+        "한국어", "English", "日本語", "简体中文", "廣東話",
+    ]
+    assert [item["flag"] for item in options] == ["🇰🇷", "🇺🇸", "🇯🇵", "🇨🇳", "🇭🇰"]
     template = (ROOT / "templates" / "base.html").read_text("utf-8")
-    assert "current_locale_option.flag" in template
+    assert 'class="locale-flag"' in template
     assert "item.name" in template
