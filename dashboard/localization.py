@@ -29,6 +29,29 @@ DEFAULT_LOCALE = "ko"
 CATALOG_FILE = Path(__file__).resolve().parent / "translations" / "catalog.json"
 _LMS_CACHE = {"expires": 0.0, "db_path": "", "text": {}}
 
+# Small, release-critical UI labels that must be available immediately in all
+# locales even before the localization management cache has been populated.
+_CORE_UI_TRANSLATIONS = {
+    "텔레그램 알림": {
+        "en": "Telegram Notifications",
+        "ja": "Telegram通知",
+        "zh-CN": "Telegram 通知",
+        "yue-HK": "Telegram 通知",
+    },
+    "좋아요": {
+        "en": "Like",
+        "ja": "いいね",
+        "zh-CN": "点赞",
+        "yue-HK": "讚好",
+    },
+    "좋아요 취소": {
+        "en": "Unlike",
+        "ja": "いいねを取り消す",
+        "zh-CN": "取消点赞",
+        "yue-HK": "取消讚好",
+    },
+}
+
 _PROTECTED_HTML_RE = re.compile(
     r"(<(?:pre|code|textarea)\b[^>]*>.*?</(?:pre|code|textarea)\s*>|<[^>]+>)",
     re.IGNORECASE | re.DOTALL,
@@ -171,7 +194,9 @@ def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     if not match:
         return value
     leading, core, trailing = match.groups()
-    translated = _lms_text_map(locale).get(core)
+    translated = _CORE_UI_TRANSLATIONS.get(core, {}).get(locale)
+    if translated is None:
+        translated = _lms_text_map(locale).get(core)
     if translated is None and locale == "en":
         translated = catalog["text"].get(core)
     if translated is None and locale == "en":

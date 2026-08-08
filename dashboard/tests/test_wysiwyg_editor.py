@@ -51,6 +51,11 @@ def test_editor_uses_markdown_storage_slash_search_and_existing_upload_api():
     assert "editor.getHTML()" not in script
     assert "source.hidden = true" in script
     assert 'source.setAttribute("aria-hidden", "true")' in script
+    assert 'field.tagName === "LABEL"' in script
+    assert "field.parentNode.replaceChild(fieldWrapper, field)" in script
+    assert "field.parentNode.insertBefore(source, field.nextSibling)" not in script
+    assert 'event.target.closest(".toastui-editor-ww-container .ProseMirror")' in script
+    assert "hideEditorPopups();" in script
     assert 'addImageBlobHook' in script
     assert 'payload.append("csrf_token"' in script
     assert 'payload.append("scope"' in script

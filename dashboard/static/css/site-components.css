@@ -1033,6 +1033,19 @@ body > .admin-global-sidebar ~ :is(main.page-container, main.page-shell, div.pag
   transform: rotate(180deg);
 }
 
+.diary-timeline-expanded-actions {
+  display: none;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.diary-timeline-excerpt.is-expanded .diary-timeline-expanded-actions {
+  display: flex;
+}
+
+.diary-timeline-expanded-actions form { margin: 0; }
+.diary-timeline-expanded-actions .btn { min-height: 34px; font-size: 11px; }
+
 @media (max-width: 620px) {
   .diary-timeline-excerpt { --diary-timeline-collapse-height: 280px; }
   .diary-timeline-excerpt > .community-markdown { font-size: 12px; }

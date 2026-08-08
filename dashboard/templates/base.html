@@ -73,8 +73,8 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-zh-cn1">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-expand1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-flag-images1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-like1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wysiwyg-editor.css') }}?v=20260808-1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-2">
 <script src="{{ url_for('static', filename='js/file-upload.js') }}?v=20260808-zh-cn1" defer></script>
@@ -98,9 +98,9 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 {% block body %}{% endblock %}
 <details class="global-language-switch">
   {% set current_locale_option = (locale_options | selectattr('code', 'equalto', current_locale) | list | first) %}
-  <summary aria-label="{{ t('언어 선택') }} · {{ current_locale_option.name }}" title="{{ current_locale_option.name }}" aria-haspopup="listbox"><span class="locale-flag" aria-hidden="true">{{ current_locale_option.flag }}</span></summary>
+  <summary aria-label="{{ t('언어 선택') }} · {{ current_locale_option.name }}" title="{{ current_locale_option.name }}" aria-haspopup="listbox"><img class="locale-flag" src="{{ url_for('static', filename=current_locale_option.flag) }}" alt="" width="22" height="22" aria-hidden="true"></summary>
   <nav aria-label="{{ t('언어 선택') }}">
-    {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><span class="locale-flag" aria-hidden="true">{{ item.flag }}</span><span>{{ item.name }}</span></a>{% endfor %}
+    {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><img class="locale-flag" src="{{ url_for('static', filename=item.flag) }}" alt="" width="22" height="22" aria-hidden="true"><span>{{ item.name }}</span></a>{% endfor %}
   </nav>
 </details>
 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="화이트 테마로 변경" aria-pressed="false">
@@ -294,6 +294,9 @@ document.addEventListener("keydown", (event) => {
     window.clearTimeout(closeTimer);
     panels.forEach((item) => { item.hidden = item !== panel; });
     document.body.classList.add("topbar-submenu-preview-active");
+    window.requestAnimationFrame(() => {
+      document.dispatchEvent(new Event("casino:align-submenus"));
+    });
   };
   const scheduleRestore = () => {
     window.clearTimeout(closeTimer);
@@ -343,15 +346,19 @@ document.addEventListener("keydown", (event) => {
   const alignSubmenus = () => {
     const desktop = window.matchMedia("(min-width: 761px)").matches;
     document.querySelectorAll("[data-align-subnav]").forEach((nav) => {
-      const first = nav.querySelector(":scope > a");
+      const first = nav.querySelector(":scope > a, :scope > span");
       if (!first) return;
       first.style.marginLeft = "";
-      if (!desktop || !nav.classList.contains("is-compact")) return;
-      const activeMain = document.querySelector(".topbar-nav > a.active");
+      if (!desktop || nav.hidden || !nav.classList.contains("is-compact")) return;
+      const submenuLabel = nav.dataset.topbarSubmenu;
+      const activeMain = submenuLabel
+        ? [...document.querySelectorAll(".topbar-nav > [data-topbar-menu]")]
+            .find((item) => item.dataset.topbarMenu === submenuLabel)
+        : document.querySelector(".topbar-nav > a.active");
       if (!activeMain) return;
       const navBox = nav.getBoundingClientRect();
       const mainBox = activeMain.getBoundingClientRect();
-      const links = [...nav.querySelectorAll(":scope > a")];
+      const links = [...nav.querySelectorAll(":scope > a, :scope > span.member-subnav-disabled")];
       const linksWidth = links.reduce((sum, link) => sum + link.getBoundingClientRect().width, 0);
       const toggle = nav.querySelector(".sticky-nav-toggle");
       const available = navBox.width - (toggle?.getBoundingClientRect().width || 0);
@@ -361,6 +368,7 @@ document.addEventListener("keydown", (event) => {
   };
   window.addEventListener("resize", alignSubmenus, {passive: true});
   document.addEventListener("DOMContentLoaded", alignSubmenus);
+  document.addEventListener("casino:align-submenus", alignSubmenus);
   if (document.fonts?.ready) document.fonts.ready.then(alignSubmenus);
 })();
 

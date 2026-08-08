@@ -117,6 +117,20 @@
 
     var form = source.closest("form");
     var field = source.closest("label") || source.parentElement;
+    // A rich contenteditable must not live inside a <label>. Browsers forward
+    // clicks anywhere in a label to its labelled control; TOAST UI can then
+    // receive that synthetic click on the heading control instead of placing
+    // the caret. Preserve the field wrapper and its classes, but remove the
+    // native label semantics before mounting the editor.
+    if (field && field.tagName === "LABEL" && field.parentNode) {
+      var fieldWrapper = document.createElement("div");
+      Array.from(field.attributes).forEach(function (attribute) {
+        if (attribute.name !== "for") fieldWrapper.setAttribute(attribute.name, attribute.value);
+      });
+      while (field.firstChild) fieldWrapper.appendChild(field.firstChild);
+      field.parentNode.replaceChild(fieldWrapper, field);
+      field = fieldWrapper;
+    }
     var statusNode = document.querySelector('[data-image-paste-status="' + source.id + '"]');
     var required = source.required;
     var maxLength = source.maxLength > 0 ? source.maxLength : 0;
@@ -158,12 +172,6 @@
     source.hidden = true;
     source.tabIndex = -1;
     source.setAttribute("aria-hidden", "true");
-    // A contenteditable nested in a label can lose every click back to the
-    // label's hidden textarea. Keep the editor in the field, but move the
-    // synchronized form control beside it so the caret and IME remain active.
-    if (field && field.tagName === "LABEL" && field.parentNode) {
-      field.parentNode.insertBefore(source, field.nextSibling);
-    }
     host._casinoEditor = editor;
     var editableElement = host.querySelector(".toastui-editor-ww-container .ProseMirror");
     var fieldCaption = field && field.querySelector(":scope > span");
@@ -467,6 +475,11 @@
       }
     }, true);
     host.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeMenu();
+          hideEditorPopups();
+          return;
+        }
         var editable = event.target && event.target.closest(".toastui-editor-ww-container .ProseMirror");
         if (!editable) return;
         if (applyBlockMarkdownShortcut(event, editable)) return;
@@ -485,13 +498,18 @@
           event.preventDefault();
           event.stopPropagation();
           executeCommand(visibleCommands[activeIndex]);
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          closeMenu();
         } else if (event.key === "Backspace") {
           window.requestAnimationFrame(updateSlashMenu);
         }
+    }, true);
+
+    host.addEventListener("pointerdown", function (event) {
+      if (event.target && event.target.closest(".toastui-editor-ww-container .ProseMirror")) {
+        closeMenu();
+        hideEditorPopups();
+      } else if (event.target && event.target.closest(".toastui-editor-toolbar button")) {
+        hideEditorPopups();
+      }
     }, true);
 
     imagePicker.addEventListener("change", function () {
@@ -526,6 +544,7 @@
 
     document.addEventListener("pointerdown", function (event) {
       if (open && !menu.contains(event.target) && !host.contains(event.target)) closeMenu();
+      if (!host.contains(event.target) && !menu.contains(event.target)) hideEditorPopups();
     });
     window.addEventListener("resize", function () { if (open) positionMenu(); }, { passive: true });
     document.addEventListener("scroll", function () { if (open) positionMenu(); }, true);

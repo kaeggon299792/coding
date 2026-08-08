@@ -23,6 +23,8 @@ def test_timeline_long_content_uses_progressive_expand_control():
     assert 'aria-expanded="false" hidden' in template
     assert "diary-timeline-collapse-height: 360px" in css
     assert ".diary-timeline-excerpt.is-collapsible:not(.is-expanded)::after" in css
+    assert "diary-timeline-expanded-actions" in template
+    assert ".diary-timeline-excerpt.is-expanded .diary-timeline-expanded-actions" in css
     assert 'label.textContent = expanded ? "접기" : "전체 보기"' in script
     assert 'content.scrollHeight > limit + 8' in script
 

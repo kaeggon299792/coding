@@ -2365,6 +2365,7 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
   white-space:nowrap;
   backdrop-filter:blur(8px);
 }
+.global-language-switch:not([open]){border-color:transparent}
 .global-language-switch.is-embedded{
   position:relative;
   top:auto;
@@ -2376,7 +2377,7 @@ html[data-theme="light"] .casino-map-panel .korea-map-grid{stroke:#a8bcc8;opacit
 }
 .global-language-switch summary{display:flex;align-items:center;justify-content:center;min-width:38px;min-height:30px;padding:5px 8px;cursor:pointer;list-style:none;color:var(--brand-text-primary);font-family:var(--font-body);font-size:11px;font-weight:600;line-height:1;letter-spacing:0;outline:none}
 .global-language-switch summary::-webkit-details-marker{display:none}
-.global-language-switch .locale-flag{display:inline-grid;width:22px;height:20px;place-items:center;font-size:20px;font-weight:400;line-height:1}
+.global-language-switch .locale-flag{display:block;width:22px;height:22px;flex:0 0 22px;border:0;border-radius:50%;object-fit:cover}
 .global-language-switch nav{position:absolute;z-index:1300;top:calc(100% + 7px);right:0;display:grid;min-width:140px;padding:5px;border:1px solid var(--brand-border-strong);border-radius:12px;background-color:var(--brand-surface);box-shadow:0 12px 32px rgba(0,0,0,.18);font-family:var(--font-body);letter-spacing:0;backdrop-filter:none}
 .global-language-switch:not([open])>nav{display:none!important}
 .global-language-switch a{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;color:var(--brand-text-muted);text-decoration:none}
@@ -2906,10 +2907,10 @@ html[data-theme="light"] .account-notice{border-color:#7aa58b;background:#edf7f0
 /* Rich profile aura: aurora for Platinum/Diamond, solar glow for Gold/Black. */
 .topbar-profile-menu .member-avatar-wrap,.account-avatar-wrap{--aura-primary:var(--grade-glow);--aura-secondary:#eef3f8;--aura-highlight:#fff;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--aura-primary) 45%,transparent))}.topbar-profile-menu .member-avatar-wrap.grade-gold,.account-avatar-wrap.grade-gold{--aura-primary:#ffd65a;--aura-secondary:#f29b2f;--aura-highlight:#fff4ba}.topbar-profile-menu .member-avatar-wrap.grade-platinum,.account-avatar-wrap.grade-platinum{--aura-primary:#d84cff;--aura-secondary:#675cff;--aura-highlight:#ff9eea}.topbar-profile-menu .member-avatar-wrap.grade-diamond,.account-avatar-wrap.grade-diamond{--aura-primary:#0056f1;--aura-secondary:#26d9ff;--aura-highlight:#b8f3ff}.topbar-profile-menu .member-avatar-wrap.grade-black,.account-avatar-wrap.grade-black{--aura-primary:#ff9d2e;--aura-secondary:#ffcf58;--aura-highlight:#fff0ad}.topbar-profile-menu .member-avatar-wrap:before,.account-avatar-wrap:before{border-color:color-mix(in srgb,var(--aura-primary) 74%,#fff);box-shadow:0 0 5px 1px color-mix(in srgb,var(--aura-highlight) 72%,transparent),0 0 13px 4px color-mix(in srgb,var(--aura-primary) 52%,transparent),0 0 25px 8px color-mix(in srgb,var(--aura-secondary) 26%,transparent)!important}.topbar-profile-menu .member-avatar-wrap:after,.account-avatar-wrap:after{background:conic-gradient(from 18deg,transparent 0 10%,var(--aura-highlight) 14%,var(--aura-primary) 17%,transparent 22% 43%,var(--aura-secondary) 47%,var(--aura-highlight) 50%,transparent 55% 76%,var(--aura-primary) 80%,var(--aura-highlight) 83%,transparent 88%);filter:drop-shadow(0 0 4px var(--aura-primary));opacity:.92}.topbar-profile-menu .member-avatar-wrap.grade-gold:after,.account-avatar-wrap.grade-gold:after,.topbar-profile-menu .member-avatar-wrap.grade-black:after,.account-avatar-wrap.grade-black:after{filter:drop-shadow(0 0 3px var(--aura-primary)) drop-shadow(0 0 7px var(--aura-secondary))}
 /* Work-note multi-view layouts and member submenu alignment. */
-.member-subnav.data-subnav[data-align-subnav]{justify-content:center;scrollbar-width:none}
+.member-subnav.data-subnav[data-align-subnav]{justify-content:flex-start;scrollbar-width:none}
 .member-subnav.data-subnav[data-align-subnav]::-webkit-scrollbar{display:none}
 .member-subnav .member-subnav-disabled{display:inline-flex;align-items:center;padding:14px 20px;color:color-mix(in srgb,var(--brand-text-muted) 52%,transparent);font-size:var(--text-sm);cursor:not-allowed;user-select:none}
-.topbar-hover-subnav{background:var(--brand-bg);justify-content:center}
+.topbar-hover-subnav{background:var(--brand-bg);justify-content:flex-start}
 .topbar-hover-subnav[hidden]{display:none!important}
 .topbar-hover-subnav .member-subnav-disabled{display:inline-flex;align-items:center;padding:14px 20px;color:color-mix(in srgb,var(--brand-text-muted) 52%,transparent);font-size:var(--text-sm);cursor:not-allowed}
 body.topbar-submenu-preview-active nav[data-align-subnav]:not(.topbar-hover-subnav),body.topbar-submenu-preview-active .casino-subnav,body.topbar-submenu-preview-active .tips-subnav{display:none!important}

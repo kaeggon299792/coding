@@ -27,9 +27,11 @@ def test_primary_navigation_matches_confirmed_ia():
     member_subnav = (ROOT / "templates" / "_member_subnav.html").read_text(encoding="utf-8")
     for label in ("업무노트", "아카이브", "데이터 다운"):
         assert f">{label}</a>" in member_subnav
+    assert "member_area.telegram" in member_subnav
+    assert "t('텔레그램 알림')" in member_subnav
     assert ">메일</a>" not in member_subnav
     dashboard_css = (ROOT / "static" / "css" / "dashboard.css").read_text(encoding="utf-8")
-    assert ".member-subnav.data-subnav[data-align-subnav]{justify-content:center" in dashboard_css
+    assert ".member-subnav.data-subnav[data-align-subnav]{justify-content:flex-start" in dashboard_css
     assert ".member-subnav.data-subnav[data-align-subnav]::-webkit-scrollbar{display:none}" in dashboard_css
     assert not (ROOT / "templates" / "_blog_subnav.html").exists()
     assert ">관리자 전용</a>" not in topbar_nav

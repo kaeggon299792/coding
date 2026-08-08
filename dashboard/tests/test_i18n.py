@@ -320,7 +320,7 @@ def test_changing_korean_financial_and_people_units_translate_without_exact_entr
     assert translate_text("+1,883,952명", "en") == "+1,883,952 people"
 
 
-def test_language_picker_uses_emoji_flags_and_fixed_native_labels():
+def test_language_picker_uses_local_flag_images_and_fixed_native_labels():
     import app as app_module
 
     with app_module.app.test_request_context("/"):
@@ -328,8 +328,30 @@ def test_language_picker_uses_emoji_flags_and_fixed_native_labels():
     assert [item["name"] for item in options] == [
         "한국어", "English", "日本語", "简体中文", "廣東話",
     ]
-    assert [item["flag"] for item in options] == ["🇰🇷", "🇺🇸", "🇯🇵", "🇨🇳", "🇭🇰"]
+    assert [item["flag"] for item in options] == [
+        "img/flags/kr-round.png",
+        "img/flags/us-round.png",
+        "img/flags/jp-round.png",
+        "img/flags/cn.svg",
+        "img/flags/mo-round.png",
+    ]
+    for item in options:
+        assert (ROOT / "static" / item["flag"]).is_file()
     template = (ROOT / "templates" / "base.html").read_text("utf-8")
     assert 'class="locale-flag"' in template
+    assert '<img class="locale-flag"' in template
     assert "item.name" in template
     assert "current_locale_option.flag }}</span><span class=\"sr-only\"" not in template
+
+
+def test_release_critical_ui_labels_have_complete_locale_values():
+    from localization import translate_text
+
+    expected = {
+        "ko": "텔레그램 알림",
+        "en": "Telegram Notifications",
+        "ja": "Telegram通知",
+        "zh-CN": "Telegram 通知",
+        "yue-HK": "Telegram 通知",
+    }
+    assert {locale: translate_text("텔레그램 알림", locale) for locale in expected} == expected

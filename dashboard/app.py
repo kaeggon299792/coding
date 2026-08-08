@@ -1242,6 +1242,7 @@ def inject_globals():
         "archive": True,
         "work_notes": False,
         "source_data": False,
+        "telegram": False,
     }
     localization_pending_count = 0
     if session.get("user_id"):
@@ -1279,6 +1280,7 @@ def inject_globals():
                 member_nav_access = {
                     "archive": True,
                     "work_notes": True,
+                    "telegram": True,
                     "source_data": membership.can_board(
                         connection, "source_data", "read", current_user["id"], role,
                         grades=membership_grades,
@@ -1307,6 +1309,7 @@ def inject_globals():
                 account_active = True
                 member_nav_access = {
                     "archive": True, "work_notes": True, "source_data": True,
+                    "telegram": True,
                 }
             else:
                 role = None
@@ -1460,11 +1463,11 @@ def inject_globals():
         "current_locale": locale,
         "locale_prefix": "" if locale == "ko" else f"/{locale.lower()}",
         "locale_options": (
-            {"code": "ko", "name": "한국어", "flag": "🇰🇷"},
-            {"code": "en", "name": "English", "flag": "🇺🇸"},
-            {"code": "ja", "name": "日本語", "flag": "🇯🇵"},
-            {"code": "zh-CN", "name": "简体中文", "flag": "🇨🇳"},
-            {"code": "yue-HK", "name": "廣東話", "flag": "🇭🇰"},
+            {"code": "ko", "name": "한국어", "flag": "img/flags/kr-round.png"},
+            {"code": "en", "name": "English", "flag": "img/flags/us-round.png"},
+            {"code": "ja", "name": "日本語", "flag": "img/flags/jp-round.png"},
+            {"code": "zh-CN", "name": "简体中文", "flag": "img/flags/cn.svg"},
+            {"code": "yue-HK", "name": "廣東話", "flag": "img/flags/mo-round.png"},
         ),
         "locale_urls": switch_paths,
         "canonical_url": seo_defaults["seo_canonical_url"],
@@ -1591,6 +1594,7 @@ def _site_map_links():
             "children": [
                 {"label": "아카이브", "endpoint": "diary_board_page"},
                 {"label": "업무노트", "endpoint": "work_notes.board", "locked": not account_active},
+                {"label": "텔레그램 알림", "endpoint": "member_area.telegram", "locked": not account_active},
                 {"label": "데이터 다운", "endpoint": "source_download_page", "locked": not account_active},
             ],
         },
