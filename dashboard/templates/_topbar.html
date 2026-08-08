@@ -99,6 +99,3 @@
 {% endfor %}
 {% set show_admin_sidebar = current_user_role == 'admin' and (request.path.startswith('/admin') or request.blueprint == 'official_docs') %}
 {% if show_admin_sidebar %}{% include "_admin_sidebar.html" %}{% endif %}
-{% if current_user_role == 'admin' and request.path.startswith('/admin') and localization_pending_count %}
-<a class="localization-global-alert" data-i18n-ignore href="{{ url_for('auth.localization_dashboard', status='Pending') }}" aria-label="전체 언어 번역이 필요한 항목 {{ localization_pending_count }}건">🔴 전체 번역 필요 {{ localization_pending_count }}건</a>
-{% endif %}
