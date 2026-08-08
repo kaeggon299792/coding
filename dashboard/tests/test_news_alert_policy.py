@@ -90,3 +90,77 @@ def test_policy_routes_issue_alerts_to_member_news_preference(monkeypatch):
     assert broadcasts[0][1] == "news"
     assert "x=1&y=2" in broadcasts[0][2]
     assert connection.closed
+
+
+def _legacy_sender(**overrides):
+    values = {
+        "escape_html": lambda value: str(value).replace("&", "&amp;"),
+        "build_daily_limit_message": lambda reason: f"🚦 일일 GPT 호출/비용 한도 도달\n\n{reason}",
+        "build_error_alert_message": lambda stage, error_message, occurred_at, retry_result, needs_user_check: (
+            f"⚠️ 뉴스 모니터링 오류\n\n발생 단계: {stage}\n오류 내용: {error_message}"
+        ),
+        "now_kst": lambda: SimpleNamespace(strftime=lambda fmt: "2026-08-08 09:00:00"),
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def test_policy_routes_daily_limit_notice_to_admin_bot_not_members(monkeypatch):
+    alerts = []
+    broadcasts = []
+    monkeypatch.setattr(
+        news_alert_policy.telegram_alert, "send_alert",
+        lambda text, **kwargs: alerts.append(text) or True,
+    )
+    monkeypatch.setattr(
+        news_alert_policy.member_telegram, "broadcast",
+        lambda *a, **k: broadcasts.append((a, k)) or {"recipients": 0, "sent": 0, "failed": 0},
+    )
+    analyzer = SimpleNamespace(DETAIL_SYSTEM_PROMPT="old")
+    sender = _legacy_sender()
+    news_alert_policy.apply_news_alert_policy(analyzer, sender)
+
+    sender.send_daily_limit_notice("하루 GPT 호출 한도(50회)에 도달했습니다. 현재 50회 호출됨.")
+
+    assert len(alerts) == 1
+    assert "일일 GPT 호출/비용 한도 도달" in alerts[0]
+    assert "하루 GPT 호출 한도" in alerts[0]
+    assert not broadcasts
+
+
+def test_policy_routes_fatal_error_alert_to_admin_bot_not_members(monkeypatch):
+    alerts = []
+    broadcasts = []
+    monkeypatch.setattr(
+        news_alert_policy.telegram_alert, "send_alert",
+        lambda text, **kwargs: alerts.append(text) or True,
+    )
+    monkeypatch.setattr(
+        news_alert_policy.member_telegram, "broadcast",
+        lambda *a, **k: broadcasts.append((a, k)) or {"recipients": 0, "sent": 0, "failed": 0},
+    )
+    analyzer = SimpleNamespace(DETAIL_SYSTEM_PROMPT="old")
+    sender = _legacy_sender()
+    news_alert_policy.apply_news_alert_policy(analyzer, sender)
+
+    sender.send_error_alert(
+        stage="전체 실행(main)", error_message="RequestException",
+        retry_result="자동 재시도 없음 - 다음 정기 실행에서 다시 시도됩니다.", needs_user_check=True,
+    )
+
+    assert len(alerts) == 1
+    assert "뉴스 모니터링 오류" in alerts[0]
+    assert "전체 실행(main)" in alerts[0]
+    assert not broadcasts
+
+
+def test_policy_daily_limit_alert_failure_does_not_raise(monkeypatch):
+    monkeypatch.setattr(
+        news_alert_policy.telegram_alert, "send_alert",
+        lambda text, **kwargs: (_ for _ in ()).throw(RuntimeError("network down")),
+    )
+    analyzer = SimpleNamespace(DETAIL_SYSTEM_PROMPT="old")
+    sender = _legacy_sender()
+    news_alert_policy.apply_news_alert_policy(analyzer, sender)
+
+    sender.send_daily_limit_notice("한도 도달")  # must not raise
