@@ -99,6 +99,15 @@
 
 .wysiwyg-editor-host .toastui-editor-ww-container {
   min-height: 360px;
+  /* .toastui-editor-toolbar is this element's SIBLING, not its ancestor
+     (both live directly under .toastui-editor-defaultUI), so capping only
+     this content pane's height keeps the toolbar permanently visible at
+     the top of the editor instead of receding down the page as a long
+     post grows -- the content scrolls internally past this height instead
+     of growing the whole page. */
+  max-height: min(620px, 62vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 0 0 var(--ui-radius, 7px) var(--ui-radius, 7px);
 }
 
@@ -317,7 +326,7 @@
   .wysiwyg-editor-host .toastui-editor-toolbar-group { flex: 0 0 auto; }
   .wysiwyg-editor-host .toastui-editor-contents,
   .wysiwyg-editor-host .ProseMirror { min-height: 300px; padding: 20px 16px !important; font-size: 14px; }
-  .wysiwyg-editor-host .toastui-editor-ww-container { min-height: 300px; }
+  .wysiwyg-editor-host .toastui-editor-ww-container { min-height: 300px; max-height: 48vh; }
   .wysiwyg-slash-menu { max-width: calc(100vw - 16px); }
 }
 
