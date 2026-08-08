@@ -35,6 +35,10 @@
     { id: "reminder", group: "work", icon: "◷", label: "알림", description: "이 업무의 알림일과 시간을 설정합니다", aliases: "reminder alarm notification 알림", workOnly: true },
   ];
 
+  // Beyond this many CSS pixels of pointer travel, a press on a command
+  // item is treated as the start of a menu scroll rather than a tap.
+  var SLASH_TAP_MAX_MOVEMENT = 10;
+
   function normalize(value) {
     return String(value || "").trim().toLocaleLowerCase();
   }
@@ -206,6 +210,57 @@
     }
 
     var menu = createMenu();
+    var slashPointer = null;
+
+    function resetSlashPointer() {
+      slashPointer = null;
+    }
+
+    // Distinguishes a tap on a command item from the start of a menu-scroll
+    // drag. The item is never activated on pointerdown (that would fire
+    // before any movement could be observed); it only runs on pointerup, and
+    // only if the pointer never traveled beyond the tap threshold. This lets
+    // touch-action: pan-y drive a natural scroll while the gesture is still
+    // being tracked, and pointercancel (fired when the browser takes the
+    // gesture over as a scroll) simply drops the tracked pointer instead of
+    // executing anything.
+    menu.addEventListener("pointerdown", function (event) {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      var item = event.target.closest(".wysiwyg-slash-item");
+      if (!item) return;
+      slashPointer = {
+        id: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false,
+        item: item,
+      };
+      // Safe with touch-action: pan-y already on the menu: this only
+      // suppresses the item's default focus/click behavior, it does not
+      // block the browser's native vertical pan.
+      event.preventDefault();
+    });
+    menu.addEventListener("pointermove", function (event) {
+      if (!slashPointer || event.pointerId !== slashPointer.id) return;
+      var dx = event.clientX - slashPointer.startX;
+      var dy = event.clientY - slashPointer.startY;
+      if (Math.sqrt(dx * dx + dy * dy) > SLASH_TAP_MAX_MOVEMENT) {
+        slashPointer.moved = true;
+      }
+    });
+    menu.addEventListener("pointerup", function (event) {
+      if (!slashPointer || event.pointerId !== slashPointer.id) return;
+      var gesture = slashPointer;
+      slashPointer = null;
+      if (gesture.moved) return;
+      var index = Number(gesture.item.dataset.commandIndex);
+      var command = visibleCommands[index];
+      if (!command) return;
+      event.preventDefault();
+      executeCommand(command);
+    });
+    menu.addEventListener("pointercancel", resetSlashPointer);
+
     var imagePicker = document.createElement("input");
     imagePicker.type = "file";
     imagePicker.accept = "image/png,image/jpeg,image/gif,image/webp";
@@ -311,10 +366,6 @@
         description.textContent = command.description;
         copy.append(title, description);
         button.append(icon, copy);
-        button.addEventListener("pointerdown", function (event) {
-          event.preventDefault();
-          executeCommand(command);
-        });
         menu.appendChild(button);
       });
       positionMenu();

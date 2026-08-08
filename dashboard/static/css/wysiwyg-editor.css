@@ -255,7 +255,11 @@
   cursor: pointer;
 }
 .wysiwyg-slash-item:hover,
-.wysiwyg-slash-item.is-active { background: var(--ui-accent, var(--brand-surface-strong)); }
+.wysiwyg-slash-item.is-active { background: var(--ui-accent, var(--brand-surface-muted)); }
+.wysiwyg-slash-item:hover strong,
+.wysiwyg-slash-item:hover small,
+.wysiwyg-slash-item.is-active strong,
+.wysiwyg-slash-item.is-active small { color: var(--ui-foreground, var(--brand-text-primary)); }
 .wysiwyg-slash-item > i {
   display: grid;
   place-items: center;
@@ -269,7 +273,7 @@
   font-weight: 800;
 }
 .wysiwyg-slash-item > span { display: grid; min-width: 0; gap: 2px; }
-.wysiwyg-slash-item strong { font-size: 13px; line-height: 1.2; }
+.wysiwyg-slash-item strong { color: var(--ui-foreground, var(--brand-text-primary)); font-size: 13px; line-height: 1.2; }
 .wysiwyg-slash-item small { overflow: hidden; color: var(--ui-muted-foreground, var(--brand-text-muted)); font-size: 11px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .wysiwyg-slash-empty { margin: 0; padding: 18px 12px; color: var(--ui-muted-foreground, var(--brand-text-muted)); font-size: 12px; text-align: center; }
 
