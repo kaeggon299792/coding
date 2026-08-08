@@ -24,8 +24,19 @@ from urllib.parse import parse_qsl, urlencode
 
 
 SUPPORTED_LOCALES = ("ko", "en", "ja", "zh-CN", "yue-HK")
-LOCALE_PREFIXES = {locale.lower(): locale for locale in SUPPORTED_LOCALES if locale != "ko"}
 DEFAULT_LOCALE = "ko"
+_LOCALE_ALIASES = {
+    "ko": "ko",
+    "en": "en",
+    "ja": "ja",
+    "zh": "zh-CN",
+    "zh-cn": "zh-CN",
+    "yue": "yue-HK",
+    "yue-hk": "yue-HK",
+}
+LOCALE_PREFIXES = {
+    locale.lower(): locale for locale in SUPPORTED_LOCALES if locale != DEFAULT_LOCALE
+}
 CATALOG_FILE = Path(__file__).resolve().parent / "translations" / "catalog.json"
 _LMS_CACHE = {"expires": 0.0, "db_path": "", "text": {}}
 
@@ -131,6 +142,13 @@ def locale_for_country(country_code: str | None) -> str | None:
     return "en"
 
 
+def normalize_locale(value: Any, default: str = DEFAULT_LOCALE) -> str:
+    """Return one canonical locale for URL, cookie, DB and cache inputs."""
+
+    raw = str(value or "").strip().replace("_", "-").lower()
+    return _LOCALE_ALIASES.get(raw, default)
+
+
 class LocalePrefixMiddleware:
     """Expose the complete Flask application below every supported locale prefix."""
 
@@ -140,9 +158,9 @@ class LocalePrefixMiddleware:
     def __call__(self, environ: dict, start_response: Callable):
         path = environ.get("PATH_INFO", "") or "/"
         locale = DEFAULT_LOCALE
-        first_segment = path.lstrip("/").split("/", 1)[0].lower()
+        first_segment = path.lstrip("/").split("/", 1)[0].replace("_", "-").lower()
         if first_segment in LOCALE_PREFIXES:
-            locale = LOCALE_PREFIXES[first_segment]
+            locale = normalize_locale(first_segment)
             prefix = f"/{first_segment}"
             script_name = (environ.get("SCRIPT_NAME", "") or "").rstrip("/")
             environ["SCRIPT_NAME"] = f"{script_name}{prefix}"
@@ -166,11 +184,11 @@ def load_catalog() -> dict[str, Any]:
 
 
 def locale_from_environ(environ: dict) -> str:
-    locale = environ.get("DASHBOARD_LOCALE", DEFAULT_LOCALE)
-    return locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
+    return normalize_locale(environ.get("DASHBOARD_LOCALE"))
 
 
 def meta_for(locale: str) -> dict[str, str]:
+    locale = normalize_locale(locale)
     catalog = load_catalog()
     default_meta = catalog["meta"].get(DEFAULT_LOCALE, {})
     selected = catalog["meta"].get(locale, {})
@@ -205,6 +223,7 @@ def _apply_patterns(text: str, patterns: Iterable[tuple[str, str]]) -> str:
 def translate_text(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     """Translate one UI value while preserving whitespace and non-strings."""
 
+    locale = normalize_locale(locale)
     if locale == DEFAULT_LOCALE or not isinstance(value, str) or not value:
         return value
     catalog = load_catalog()
@@ -236,6 +255,7 @@ def translate_source_label(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     Korean frequency suffix. Keep the stored source untouched and translate
     only those well-defined display tokens.
     """
+    locale = normalize_locale(locale)
     translated = translate_text(value, locale)
     if locale == DEFAULT_LOCALE or not isinstance(translated, str):
         return translated
@@ -305,6 +325,7 @@ def _translate_numeric_unit(text: str) -> str | None:
 
 def _lms_text_map(locale: str) -> dict[str, str]:
     """Return completed manual LMS translations with a short process cache."""
+    locale = normalize_locale(locale)
     if locale == DEFAULT_LOCALE:
         return {}
     now = time.monotonic()
@@ -324,7 +345,9 @@ def _lms_text_map(locale: str) -> dict[str, str]:
                      AND t.translated_text IS NOT NULL"""
             ).fetchall()
             for source, language_code, target in rows:
-                translations.setdefault(language_code, {})[source] = target
+                canonical = normalize_locale(language_code, default="")
+                if canonical:
+                    translations.setdefault(canonical, {})[source] = target
         finally:
             connection.close()
     except (ImportError, OSError, sqlite3.Error):
@@ -338,6 +361,7 @@ def _lms_text_map(locale: str) -> dict[str, str]:
 def translate_structure(value: Any, locale: str = DEFAULT_LOCALE) -> Any:
     """Translate message-like JSON structures without changing source datasets."""
 
+    locale = normalize_locale(locale)
     if locale == DEFAULT_LOCALE:
         return value
     if isinstance(value, list):
@@ -379,6 +403,7 @@ def _translate_js_strings(script: str, locale: str) -> str:
 def _translate_inline_phrases(value: str, locale: str) -> str:
     """Translate known phrases inside compound strings such as document titles."""
 
+    locale = normalize_locale(locale)
     if locale == DEFAULT_LOCALE:
         return value
     text_map = _lms_text_map(locale)
@@ -393,6 +418,7 @@ def _translate_inline_phrases(value: str, locale: str) -> str:
 def translate_html(html: str, locale: str = DEFAULT_LOCALE) -> str:
     """Translate rendered HTML without duplicating any Jinja template."""
 
+    locale = normalize_locale(locale)
     if locale == DEFAULT_LOCALE or not html:
         return html
 

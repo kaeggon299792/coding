@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import config
 from dashboard_db import queries
 from services import ai_insights, ai_runtime_settings, localization_management
+from localization import normalize_locale
 from utils import now_kst
 
 
@@ -82,14 +83,15 @@ TRANSLATION_SCHEMA = {
 
 def configured_languages():
     values = [
-        value.strip()
+        normalize_locale(value, default="")
         for value in config.LOCALIZATION_TRANSLATION_LANGUAGES.split(",")
         if value.strip()
     ]
-    return [value for value in values if value in TARGETS]
+    return list(dict.fromkeys(value for value in values if value in TARGETS))
 
 
 def pending_rows(connection, language_code, limit=None, *, all_rows=False):
+    language_code = normalize_locale(language_code, default="")
     query = """SELECT s.id, s.language_key, s.source_text, s.page_name, s.string_type
            FROM localization_strings s
            LEFT JOIN localization_translations t
@@ -113,6 +115,7 @@ def pending_rows(connection, language_code, limit=None, *, all_rows=False):
 
 
 def pending_count(connection, language_code):
+    language_code = normalize_locale(language_code, default="")
     row = connection.execute(
         """SELECT COUNT(*)
            FROM localization_strings s
@@ -302,6 +305,7 @@ def run_manual_batch(
     connection, project_root, language_code, *, actor_id=None, call_openai=None
 ):
     """Scan and immediately translate all pending rows for an admin request."""
+    language_code = normalize_locale(language_code, default="")
     if language_code not in configured_languages():
         raise ValueError("자동 번역이 설정된 일본어 또는 광둥어를 선택해주세요.")
     runtime_settings = ai_runtime_settings.get_request_settings(

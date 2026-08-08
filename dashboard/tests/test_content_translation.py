@@ -42,6 +42,24 @@ def test_apply_cached_uses_only_matching_successful_translation():
     assert content_translation.apply_one(connection, "tip", changed)["title"] == "새 제목"
 
 
+def test_apply_cached_normalizes_chinese_locale_and_keeps_locale_caches_separate():
+    connection = _connection()
+    item = {"id": 1, "title": "제목", "summary": "요약", "body": "본문",
+            "category": "기타", "tags_json": "[]"}
+    entry = content_translation.make_entry("tip", 1, item)
+    connection.execute(
+        """INSERT INTO content_translations
+           VALUES (1, 'tip', '1', 'zh-CN', ?, ?, 'success', NULL, '', '')""",
+        (entry["source_hash"], json.dumps({"title": "标题"}, ensure_ascii=False)),
+    )
+    assert content_translation.apply_one(
+        connection, "tip", item, locale="zh_CN"
+    )["title"] == "标题"
+    assert content_translation.apply_one(
+        connection, "tip", item, locale="en"
+    )["title"] == "제목"
+
+
 def test_failed_refresh_preserves_previous_json_but_marks_error():
     connection = _connection()
     old = {"content_type": "tip", "content_id": "1", "source_hash": "old"}

@@ -1,10 +1,12 @@
 import re
+import sqlite3
 from pathlib import Path
 
 import pytest
 from werkzeug.security import generate_password_hash
 
-from localization import locale_for_country, translate_source_label
+import localization
+from localization import locale_for_country, normalize_locale, translate_source_label
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,45 @@ def test_country_locale_mapping():
     assert locale_for_country("MO") == "yue-HK"
     assert locale_for_country("US") == "en"
     assert locale_for_country("XX") is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    (
+        ("zh-CN", "zh-CN"),
+        ("zh-cn", "zh-CN"),
+        ("zh_CN", "zh-CN"),
+        ("ZH-CN", "zh-CN"),
+        ("yue", "yue-HK"),
+        ("YUE_hk", "yue-HK"),
+    ),
+)
+def test_locale_variants_normalize_to_canonical_codes(value, expected):
+    assert normalize_locale(value) == expected
+
+
+def test_translation_lookup_reuses_legacy_chinese_locale_code(monkeypatch, tmp_path):
+    db_path = tmp_path / "legacy-locale.db"
+    connection = sqlite3.connect(db_path)
+    connection.executescript(
+        """
+        CREATE TABLE localization_strings (
+            id INTEGER PRIMARY KEY, source_text TEXT, deleted_at TEXT
+        );
+        CREATE TABLE localization_translations (
+            string_id INTEGER, language_code TEXT, translated_text TEXT, status TEXT
+        );
+        INSERT INTO localization_strings VALUES (1, '기업정보', NULL);
+        INSERT INTO localization_translations
+            VALUES (1, 'zh_CN', '企业信息', 'Completed');
+        """
+    )
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr("config.DASHBOARD_DB_FILE", str(db_path))
+    localization._LMS_CACHE.update({"expires": 0.0, "db_path": "", "text": {}})
+
+    assert localization.translate_text("기업정보", "zh-cn") == "企业信息"
 
 
 def test_source_series_compound_labels_translate_korean_frequency_tokens():

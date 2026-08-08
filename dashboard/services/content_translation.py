@@ -1,10 +1,11 @@
-"""Daily cached English translations for public dynamic content."""
+"""Cached translations for public dynamic content."""
 
 import hashlib
 import json
 import re
 
 import config
+from localization import normalize_locale
 from services import ai_insights, news_reader
 from utils import now_kst
 
@@ -41,8 +42,11 @@ def make_entry(content_type, content_id, item):
     }
 
 
-def apply_cached(connection, content_type, items, id_field="id"):
-    """Overlay matching English cache entries; stale translations are not displayed."""
+def apply_cached(connection, content_type, items, id_field="id", locale="en"):
+    """Overlay matching locale cache entries; stale translations are not displayed."""
+    locale = normalize_locale(locale, default="")
+    if not locale or locale == "ko":
+        return [_as_dict(item) for item in items or []]
     results = []
     for original in items or []:
         item = _as_dict(original)
@@ -53,9 +57,9 @@ def apply_cached(connection, content_type, items, id_field="id"):
         entry = make_entry(content_type, content_id, item)
         row = connection.execute(
             """SELECT translated_json FROM content_translations
-               WHERE content_type=? AND content_id=? AND locale='en'
+               WHERE content_type=? AND content_id=? AND locale=?
                  AND status='success' AND source_hash=?""",
-            (content_type, str(content_id), entry["source_hash"]),
+            (content_type, str(content_id), locale, entry["source_hash"]),
         ).fetchone()
         if row and row["translated_json"]:
             try:
@@ -66,8 +70,10 @@ def apply_cached(connection, content_type, items, id_field="id"):
     return results
 
 
-def apply_one(connection, content_type, item, id_field="id"):
-    translated = apply_cached(connection, content_type, [item], id_field=id_field)
+def apply_one(connection, content_type, item, id_field="id", locale="en"):
+    translated = apply_cached(
+        connection, content_type, [item], id_field=id_field, locale=locale
+    )
     return translated[0] if translated else item
 
 

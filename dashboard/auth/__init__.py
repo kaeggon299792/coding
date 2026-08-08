@@ -31,6 +31,7 @@ from services import (
     security_audit, security_monitor, site_preferences, task_registry, telegram_alert,
 )
 from services.client_ip import get_client_ip, normalize_ip
+from localization import normalize_locale
 import config
 from utils import now_kst
 
@@ -75,6 +76,13 @@ LANDING_ENDPOINTS = {
     "unified_search": "unified_search_page",
     "tips": "tips.list_page",
 }
+
+
+def _canonical_language_code(value, default="en", *, allow_all=False):
+    raw = str(value or "").strip()
+    if allow_all and raw.lower() == "all":
+        return "all"
+    return normalize_locale(raw, default=default)
 
 
 def init_oauth(app):
@@ -2130,7 +2138,9 @@ def localization_dashboard():
     page_size = 500
     configured_languages = localization_auto_translation.configured_languages()
     default_language = configured_languages[0] if configured_languages else "en"
-    language_code = (request.args.get("language") or default_language).strip()
+    language_code = _canonical_language_code(
+        request.args.get("language"), default_language, allow_all=True
+    )
     query = (request.args.get("q") or "").strip()
     status = (
         (request.args.get("status") or "").strip()
@@ -2204,7 +2214,7 @@ def localization_work():
     """Small, deterministic translation batches for an hourly browser workflow."""
 
     limit = 50
-    language_code = (request.args.get("language") or "en").strip()
+    language_code = _canonical_language_code(request.args.get("language"))
     connection = dashboard_db()
     try:
         languages = [dict(row) for row in connection.execute(
@@ -2256,10 +2266,10 @@ def localization_work():
 def localization_update(string_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
-    return_language_code = (
-        request.form.get("return_language_code") or language_code
-    ).strip()
+    language_code = _canonical_language_code(request.form.get("language_code"))
+    return_language_code = _canonical_language_code(
+        request.form.get("return_language_code"), language_code, allow_all=True
+    )
     status = (request.form.get("status") or "Completed").strip()
     connection = dashboard_db()
     try:
@@ -2302,7 +2312,9 @@ def localization_scan():
 def localization_api_translate():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "").strip()
+    language_code = _canonical_language_code(
+        request.form.get("language_code"), default=""
+    )
     connection = dashboard_db()
     try:
         try:
@@ -2343,7 +2355,7 @@ def localization_api_translate():
 @auth_bp.get("/admin/localization/qa")
 @admin_required
 def localization_qa():
-    language_code = (request.args.get("language") or "en").strip()
+    language_code = _canonical_language_code(request.args.get("language"))
     connection = dashboard_db()
     try:
         findings = localization_management.qa_report(connection, language_code)
@@ -2359,7 +2371,7 @@ def localization_qa():
 def localization_export(file_type):
     if file_type not in {"csv", "xlsx"}:
         abort(404)
-    language_code = (request.args.get("language") or "en").strip()
+    language_code = _canonical_language_code(request.args.get("language"))
     connection = dashboard_db()
     try:
         payload, mimetype = localization_management.export_file(
@@ -2383,7 +2395,7 @@ def localization_import():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
+    language_code = _canonical_language_code(request.form.get("language_code"))
     connection = dashboard_db()
     try:
         try:
@@ -2406,7 +2418,9 @@ def localization_import():
 def localization_prompt():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
+    language_code = _canonical_language_code(
+        request.form.get("language_code"), allow_all=True
+    )
     mode = (request.form.get("export_mode") or "prompt").strip()
     if mode not in {"data", "prompt"}:
         abort(400)
@@ -2442,7 +2456,9 @@ def localization_prompt():
 def localization_import_ai():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
+    language_code = _canonical_language_code(
+        request.form.get("language_code"), allow_all=True
+    )
     translation_payload = request.form.get("translation_payload") or ""
     chunk_payloads = request.form.getlist("translation_chunk")
     if chunk_payloads:
@@ -2503,7 +2519,7 @@ def localization_import_ai():
 def localization_glossary_save():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
+    language_code = _canonical_language_code(request.form.get("language_code"))
     connection = dashboard_db()
     try:
         try:
@@ -2529,7 +2545,7 @@ def localization_glossary_save():
 def localization_glossary_delete(glossary_id):
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
-    language_code = (request.form.get("language_code") or "en").strip()
+    language_code = _canonical_language_code(request.form.get("language_code"))
     connection = dashboard_db()
     try:
         try:

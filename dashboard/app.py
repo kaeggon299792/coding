@@ -89,6 +89,7 @@ from localization import (
     locale_for_country,
     locale_from_environ,
     meta_for,
+    normalize_locale,
     translate_html,
     translate_structure,
     translate_source_label,
@@ -854,9 +855,11 @@ def establish_request_security():
         ):
             return redirect(_canonical_request_url(canonical_path), code=301)
     if request.method in {"GET", "HEAD"} and request.path == "/" and g.locale == "ko":
-        saved_locale = request.cookies.get("casino_locale", "")
+        saved_locale = normalize_locale(
+            request.cookies.get("casino_locale", ""), default=""
+        )
         detected_locale = (
-            saved_locale if saved_locale in SUPPORTED_LOCALES
+            saved_locale if saved_locale
             else locale_for_country(request.headers.get("CF-IPCountry"))
         )
         if detected_locale and detected_locale != "ko":
@@ -3891,10 +3894,12 @@ def related_news_page():
     )
     connection = dashboard_db()
     try:
-        if g.locale == "en":
+        if g.locale != "ko":
             articles = content_translation.apply_cached(
-                connection, "news", articles, id_field="article_id"
+                connection, "news", articles,
+                id_field="article_id", locale=g.locale,
             )
+        if g.locale == "en":
             articles = content_translation.mask_cjk_fallbacks(
                 articles,
                 {
@@ -5371,13 +5376,14 @@ def company_news_page():
         company_news = company_intelligence.build_company_news_dashboard(
             connection, days=days
         )
-        if g.locale == "en":
+        if g.locale != "ko":
             for company in company_news:
                 company["articles"] = content_translation.apply_cached(
                     connection,
                     "news",
                     company["articles"],
                     id_field="article_id",
+                    locale=g.locale,
                 )
         company_names = [company["name"] for company in company_news]
         company_name_labels = {
@@ -6974,8 +6980,10 @@ def set_community_post_pinned_route(post_id):
 
 def _library_context(connection, error=None):
     documents = queries.list_research_documents(connection)
-    if g.locale == "en":
-        documents = content_translation.apply_cached(connection, "research", documents)
+    if g.locale != "ko":
+        documents = content_translation.apply_cached(
+            connection, "research", documents, locale=g.locale
+        )
     return {
         "documents": documents,
         "companies": queries.list_monitored_companies(connection),
