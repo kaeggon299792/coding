@@ -16,6 +16,17 @@ sys.path.insert(1, str(PROJECT_ROOT))
 import always_on_runner  # noqa: E402
 import openai_analyzer  # noqa: E402
 import telegram_sender  # noqa: E402
+from scheduler.config_binding import bind_dashboard_config  # noqa: E402
+
+# `always_on_runner` (via news_watch, database, telegram_sender, ...) already
+# imported casino_news_watch's own config.py and cached it under the bare
+# module name "config" above, so the legacy pipeline keeps using it
+# unaffected. Rebind "config" to the dashboard's own config.py *before*
+# importing anything from the dashboard below, so extensions/member_telegram/
+# telegram_alert resolve to the correct module instead of reusing the
+# legacy one still cached under the same name.
+bind_dashboard_config(PROJECT_ROOT)
+
 from services.news_alert_policy import apply_news_alert_policy  # noqa: E402
 
 
