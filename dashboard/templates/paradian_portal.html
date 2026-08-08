@@ -57,6 +57,11 @@
         <div class="admin-metric-value"><strong data-metric="dashboard-domain-visitors">{{ admin_metrics.dashboard_domain_visitors }}</strong><em>명</em></div>
         <p><b>오늘</b> 고유 방문자</p>
       </article>
+      <a class="admin-metric-card is-translation{% if not localization_pending_count %} is-complete{% endif %}" href="{{ url_for('auth.localization_dashboard', status='Pending') }}">
+        <div class="admin-metric-top"><span>Translation Status</span><i aria-hidden="true">語</i></div>
+        <div class="admin-metric-value"><strong data-metric="translation-pending">{{ localization_pending_count }}</strong><em>건</em></div>
+        <p><b>{{ '번역 완료' if not localization_pending_count else '번역 필요' }}</b>{{ '미번역 항목 없음' if not localization_pending_count else '전체 언어 미번역 항목' }}</p>
+      </a>
     </div>
     <section class="admin-activity-panel" aria-labelledby="admin-activity-title">
       <header>

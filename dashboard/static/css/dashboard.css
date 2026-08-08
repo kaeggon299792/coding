@@ -1940,8 +1940,7 @@ body.cinematic-home .topbar,
 body.cinematic-home .page-container,
 body.cinematic-home .public-home,
 body.cinematic-home .legal-footer,
-body.cinematic-home .global-language-switch,
-body.cinematic-home .theme-toggle{
+body.cinematic-home .global-language-switch{
   z-index:1;
 }
 body.cinematic-home .public-home,
@@ -2542,8 +2541,6 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 .localization-alert{position:relative;display:flex;align-items:center;min-height:52px;padding:14px 18px 14px 52px;border-color:rgba(239,102,113,.48);background:linear-gradient(90deg,rgba(239,102,113,.12),rgba(239,102,113,.035));font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.05)}
 .localization-alert:before{position:absolute;left:17px;display:grid;width:24px;height:24px;place-items:center;border:1px solid rgba(239,102,113,.55);border-radius:50%;color:#ef6671;content:"!";font-size:13px;font-weight:800}
 .localization-notice{display:flex;align-items:center;min-height:48px;border-left:3px solid #22bd58}
-.localization-global-alert{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border-left:3px solid #ef6671;background:var(--brand-surface-elevated);font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.2)}
-.localization-global-alert:before{width:7px;height:7px;border-radius:50%;background:#ef6671;content:"";box-shadow:0 0 0 4px rgba(239,102,113,.13)}
 @media(max-width:560px){.localization-toolbar,.localization-prompt-builder,.localization-ai-import,.localization-glossary,.localization-timeline,.localization-prompt-chunk{padding:16px}.localization-item-body{padding:14px}.localization-columns>div,.localization-columns>form{padding:11px}}
 .task-admin-page{display:grid;gap:28px}.task-verified-note{margin:14px 0 0;color:var(--brand-text-muted);font-size:var(--text-sm)}.task-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.task-summary-grid article{padding:20px;border:1px solid var(--brand-border-strong);background:var(--brand-surface)}.task-summary-grid span,.task-summary-grid small{display:block;color:var(--brand-text-muted)}.task-summary-grid strong{display:block;margin:6px 0;font-size:32px}.task-explainer{padding:22px;border-left:3px solid var(--brand-accent)}.task-explainer ol{display:grid;gap:9px;margin:16px 0 0;padding-left:22px;color:var(--brand-text-secondary)}.task-section{display:grid;gap:16px}.task-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.task-card{min-width:0;padding:22px;border:1px solid var(--brand-border-strong);background:var(--brand-surface);box-shadow:0 10px 28px rgba(0,0,0,.05)}.task-card>header{padding-bottom:16px;border-bottom:1px solid var(--brand-border)}.task-card>header>div{display:flex;flex-wrap:wrap;gap:7px}.task-location,.task-kind{padding:4px 7px;border:1px solid var(--brand-border);color:var(--brand-text-muted);font-size:10px;letter-spacing:.05em}.task-card h3{margin:12px 0 4px;font-size:20px}.task-schedule{margin:0;color:var(--brand-accent);font-weight:700}.task-card header small{display:block;margin-top:5px;color:var(--brand-text-muted)}.task-status-list{display:grid;margin:0}.task-status-list>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--brand-border)}.task-status-list dt{color:var(--brand-text-muted)}.task-status-list dd{margin:0;overflow-wrap:anywhere}.status-dot{display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%}.status-dot.is-ok{background:#35bd77}.task-error dd{color:#df5964}.task-flow{display:grid;gap:10px;padding:16px 0}.task-flow>div{padding:12px;border-left:2px solid var(--brand-border-strong);background:var(--brand-bg)}.task-flow b{font-size:12px}.task-flow p{margin:5px 0 0;color:var(--brand-text-secondary);line-height:1.65}.task-card details{padding-top:12px;border-top:1px solid var(--brand-border)}.task-card summary{cursor:pointer;color:var(--brand-text-muted)}.task-card details code{display:block;margin-top:10px;padding:10px;overflow-wrap:anywhere;background:var(--brand-bg)}
 @media(max-width:900px){.task-card-grid{grid-template-columns:1fr}}@media(max-width:640px){.task-summary-grid{grid-template-columns:1fr}.task-status-list>div{grid-template-columns:1fr;gap:4px}.task-card{padding:16px}}
@@ -2584,8 +2581,6 @@ html[data-theme="light"] .employment-인턴{color:#0058a8;border-color:#2677b9;b
 .market-fetch-warning{border-color:color-mix(in srgb,var(--brand-danger) 45%,transparent)}
 .market-fetch-warning,
 .task-failure{background:color-mix(in srgb,var(--brand-danger) 6%,var(--brand-surface))}
-.localization-global-alert{border-left-color:var(--brand-danger)}
-.localization-global-alert:before{background:var(--brand-danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-danger) 13%,transparent)}
 .industry-impact.impact-긍정,
 .market-change.is-up,
 .market-sparkline.is-up,
@@ -2780,6 +2775,9 @@ html[data-theme="light"] .member-avatar-wrap,html[data-theme="light"] .account-a
 .admin-metric-card.is-withdrawals{--metric-color:#8b5cf6}
 .admin-metric-card.is-domain-casino{--metric-color:#15803d}
 .admin-metric-card.is-domain-dashboard{--metric-color:#7c3aed}
+a.admin-metric-card{display:block;color:inherit;text-decoration:none}
+.admin-metric-card.is-translation{--metric-color:var(--brand-warning)}
+.admin-metric-card.is-translation.is-complete{--metric-color:var(--brand-success)}
 .admin-activity-legend .is-withdrawals{color:#8b5cf6}
 .admin-activity-bars i.is-withdrawals{--bar-color:#8b5cf6}
 .comment-notification-field{display:grid!important;gap:6px!important;margin-top:10px;color:var(--brand-text-secondary);font-size:11px}.comment-notification-field>span{font-weight:700}.comment-notification-field>input{box-sizing:border-box;width:100%;min-height:40px;padding:0 11px;border:1px solid var(--brand-border-strong);border-radius:var(--radius-md);background:var(--brand-bg);color:var(--brand-text-primary);font:inherit}.comment-notification-field>input:focus-visible{border-color:var(--brand-highlight);outline:2px solid color-mix(in srgb,var(--brand-highlight) 30%,transparent);outline-offset:1px}.comment-notification-field>small{color:var(--brand-text-muted);font-size:10px;line-height:1.5}.company-content-comment-actions .comment-notification-field{min-width:min(320px,100%)}
