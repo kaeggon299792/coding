@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import html
+import logging
 import re
 
 from extensions import dashboard_db
-from services import member_telegram
+from services import member_telegram, telegram_alert
+
+logger = logging.getLogger("dashboard")
 
 
 DETAIL_SYSTEM_PROMPT = """\
@@ -131,3 +134,29 @@ def apply_news_alert_policy(openai_analyzer, telegram_sender):
         return delivered
 
     telegram_sender.send_issue_notifications = send_issue_notifications
+
+    def send_daily_limit_notice(reason):
+        """Route the news-watcher's own daily GPT-limit notice to the admin bot."""
+        message = telegram_sender.build_daily_limit_message(reason)
+        try:
+            telegram_alert.send_alert(message)
+        except Exception:
+            logger.exception("일일 GPT 한도 알림 전송 실패")
+
+    telegram_sender.send_daily_limit_notice = send_daily_limit_notice
+
+    def send_error_alert(stage, error_message, retry_result="재시도 없음", needs_user_check=True):
+        """Route the news-watcher's own fatal-error notice to the admin bot."""
+        message = telegram_sender.build_error_alert_message(
+            stage,
+            error_message,
+            telegram_sender.now_kst().strftime("%Y-%m-%d %H:%M:%S"),
+            retry_result,
+            needs_user_check,
+        )
+        try:
+            telegram_alert.send_alert(message)
+        except Exception:
+            logger.exception("뉴스워처 오류 알림 전송 실패")
+
+    telegram_sender.send_error_alert = send_error_alert
