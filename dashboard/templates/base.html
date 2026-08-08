@@ -360,6 +360,11 @@ document.addEventListener("keydown", (event) => {
             .find((item) => item.dataset.topbarMenu === submenuLabel)
         : document.querySelector(".topbar-nav > a.active");
       if (!activeMain) return;
+      const topbarStrip = activeMain.parentElement;
+      if (window.matchMedia("(max-width: 760px)").matches && topbarStrip?.classList.contains("topbar-nav")) {
+        const centeredScroll = activeMain.offsetLeft - (topbarStrip.clientWidth - activeMain.offsetWidth) / 2;
+        topbarStrip.scrollLeft = Math.max(0, Math.min(centeredScroll, topbarStrip.scrollWidth - topbarStrip.clientWidth));
+      }
       const navBox = nav.getBoundingClientRect();
       const mainBox = activeMain.getBoundingClientRect();
       const links = [...nav.querySelectorAll(":scope > a, :scope > span.member-subnav-disabled")];

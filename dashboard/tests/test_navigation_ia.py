@@ -37,6 +37,8 @@ def test_primary_navigation_matches_confirmed_ia():
     base_template = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
     assert 'if (nav.hidden || !nav.classList.contains("is-compact")) return;' in base_template
     assert 'const desktop = window.matchMedia("(min-width: 761px)").matches;' not in base_template
+    assert 'window.matchMedia("(max-width: 760px)").matches' in base_template
+    assert "topbarStrip.scrollLeft = Math.max" in base_template
     assert "languageSwitch?.open && !languageSwitch.contains(event.target)" in base_template
     assert 'languageSwitch.removeAttribute("open")' in base_template
     assert not (ROOT / "templates" / "_blog_subnav.html").exists()
