@@ -111,6 +111,41 @@
   caret-color: var(--editor-foreground);
 }
 
+/* The vendored TOAST UI editor CSS hardcodes color:#222 (and similar fixed
+   colors) directly on these content tags. That's a direct, non-inherited
+   match, so it always wins over the theme-aware color our ancestor-level
+   .toastui-editor-contents/.ProseMirror rule sets above -- the typed text
+   itself stays near-black regardless of theme. Re-declare color on the
+   actual tags typed content lives in, using the same editor tokens. */
+.wysiwyg-editor-host .toastui-editor-contents p,
+.wysiwyg-editor-host .toastui-editor-contents h1,
+.wysiwyg-editor-host .toastui-editor-contents h2,
+.wysiwyg-editor-host .toastui-editor-contents h3,
+.wysiwyg-editor-host .toastui-editor-contents h4,
+.wysiwyg-editor-host .toastui-editor-contents h5,
+.wysiwyg-editor-host .toastui-editor-contents h6,
+.wysiwyg-editor-host .toastui-editor-contents ul,
+.wysiwyg-editor-host .toastui-editor-contents ol,
+.wysiwyg-editor-host .toastui-editor-contents table { color: var(--editor-foreground) !important; }
+.wysiwyg-editor-host .toastui-editor-contents blockquote p,
+.wysiwyg-editor-host .toastui-editor-contents blockquote ul,
+.wysiwyg-editor-host .toastui-editor-contents blockquote ol,
+.wysiwyg-editor-host .toastui-editor-contents del,
+.wysiwyg-editor-host .ProseMirror .placeholder,
+.wysiwyg-editor-host .toastui-editor-contents-placeholder::before { color: var(--brand-text-secondary) !important; }
+.wysiwyg-editor-host .toastui-editor-contents code {
+  color: var(--editor-foreground);
+  background-color: var(--editor-surface);
+}
+/* Keep code BLOCKS (pre > code) on the existing fixed dark scheme the pre
+   rule below already sets -- the inline-code rule above is more specific
+   than the vendor's own "pre code { color: inherit }" and would otherwise
+   override it. */
+.wysiwyg-editor-host .toastui-editor-contents pre code {
+  color: inherit;
+  background-color: transparent;
+}
+
 .wysiwyg-editor-host .toastui-editor-contents p,
 .community-markdown p,
 .tip-body p { margin: 0 0 1em; line-height: 1.75; }
