@@ -499,11 +499,34 @@
       renderMenu(match[1]);
     }
 
+    // Checked in order: unambiguous double-character markers (~~, `) first,
+    // then **bold** before single-*italic* so a completed **bold** run can
+    // never be mistaken for a nested italic run (the lookaround on the
+    // italic/underscore patterns keeps them from matching inside a
+    // **...** span even if bold were checked second, but ordering this way
+    // keeps the intent obvious).
+    var INLINE_MARKDOWN_RULES = [
+      { pattern: /~~([^~\n]+)~~$/u, command: "strike" },
+      { pattern: /`([^`\n]+)`$/u, command: "code" },
+      { pattern: /\*\*([^*\n]+)\*\*$/u, command: "bold" },
+      { pattern: /(?<!\*)\*([^*\n]+)\*(?!\*)$/u, command: "italic" },
+      { pattern: /(?<!_)_([^_\n]+)_(?!_)$/u, command: "italic" },
+    ];
+
     function applyInlineMarkdownShortcut() {
       if (applyingInlineShortcut) return;
       var editable = host.querySelector(".toastui-editor-ww-container .ProseMirror");
       if (!editable) return;
-      var match = textBeforeCaret(editable).match(/\*\*([^*\n]+)\*\*$/u);
+      var before = textBeforeCaret(editable);
+      var command = null;
+      var match = null;
+      for (var i = 0; i < INLINE_MARKDOWN_RULES.length; i++) {
+        match = before.match(INLINE_MARKDOWN_RULES[i].pattern);
+        if (match) {
+          command = INLINE_MARKDOWN_RULES[i].command;
+          break;
+        }
+      }
       if (!match) return;
       var selection = editor.getSelection();
       var end = selection[1];
@@ -512,34 +535,51 @@
       editor.setSelection(start, end);
       editor.replaceSelection(match[1]);
       editor.setSelection(start, start + match[1].length);
-      editor.exec("bold");
+      editor.exec(command);
       editor.setSelection(start + match[1].length, start + match[1].length);
       applyingInlineShortcut = false;
       syncSource();
     }
 
     function applyBlockMarkdownShortcut(event, editable) {
-      if (event.key !== " " || event.isComposing) return false;
+      if (event.isComposing) return false;
       var marker = textBeforeCaret(editable);
-      var shortcut = {
-        "#": ["heading", { level: 1 }],
-        "##": ["heading", { level: 2 }],
-        "###": ["heading", { level: 3 }],
-        "-": ["bulletList"],
-        "1.": ["orderedList"],
-        ">": ["blockQuote"],
-      }[marker];
-      if (!shortcut) return false;
-      event.preventDefault();
-      event.stopPropagation();
-      var selection = editor.getSelection();
-      var end = selection[1];
-      editor.setSelection(end - marker.length, end);
-      editor.replaceSelection("");
-      editor.exec(shortcut[0], shortcut[1]);
-      hideEditorPopups();
-      syncSource();
-      return true;
+      if (event.key === " ") {
+        var shortcut = {
+          "#": ["heading", { level: 1 }],
+          "##": ["heading", { level: 2 }],
+          "###": ["heading", { level: 3 }],
+          "-": ["bulletList"],
+          "1.": ["orderedList"],
+          ">": ["blockQuote"],
+        }[marker];
+        if (!shortcut) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        var selection = editor.getSelection();
+        var end = selection[1];
+        editor.setSelection(end - marker.length, end);
+        editor.replaceSelection("");
+        editor.exec(shortcut[0], shortcut[1]);
+        hideEditorPopups();
+        syncSource();
+        return true;
+      }
+      // Fenced code blocks are conventionally opened with ``` (optionally
+      // followed by a language hint) then Enter, not a trailing space.
+      if (event.key === "Enter" && /^```[a-z0-9]*$/i.test(marker)) {
+        event.preventDefault();
+        event.stopPropagation();
+        var codeSelection = editor.getSelection();
+        var codeEnd = codeSelection[1];
+        editor.setSelection(codeEnd - marker.length, codeEnd);
+        editor.replaceSelection("");
+        editor.exec("codeBlock");
+        hideEditorPopups();
+        syncSource();
+        return true;
+      }
+      return false;
     }
 
     host.addEventListener("input", function (event) {
