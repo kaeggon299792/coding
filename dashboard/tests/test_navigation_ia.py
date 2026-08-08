@@ -156,6 +156,17 @@ def test_page_loader_has_no_forced_completion_delay():
     assert 'loader.classList.add("is-hidden")' in base
 
 
+def test_desktop_topbar_hover_reuses_submenu_container_without_changing_mobile():
+    topbar = (ROOT / "templates" / "_topbar.html").read_text("utf-8")
+    base = (ROOT / "templates" / "base.html").read_text("utf-8")
+    css = (ROOT / "static" / "css" / "dashboard.css").read_text("utf-8")
+    assert "data-topbar-menu" in topbar
+    assert "data-topbar-submenu" in topbar
+    assert "topbar-submenu-preview-active" in base
+    assert '(min-width: 761px) and (hover: hover)' in base
+    assert "@media(max-width:760px){.topbar-hover-subnav{display:none!important}}" in css
+
+
 def test_legacy_footer_does_not_duplicate_the_shared_legal_footer():
     footer = (ROOT / "templates" / "_footer.html").read_text(encoding="utf-8")
     legal_footer = (ROOT / "templates" / "_legal_footer.html").read_text(encoding="utf-8")

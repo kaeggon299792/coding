@@ -20,7 +20,7 @@ from markupsafe import Markup
 import config
 from auth import admin_required, get_csrf_token, login_required, validate_csrf
 from extensions import dashboard_db
-from services import editor_images, security_audit, work_notes
+from services import comment_telegram_notifications, editor_images, security_audit, work_notes
 from utils import now_kst
 
 
@@ -286,12 +286,18 @@ def create():
 def detail(note_id):
     connection = dashboard_db()
     try:
-        note = work_notes.get_note(connection, note_id, owner_id=_owner_id())
+        note = work_notes.get_note(
+            connection, note_id, owner_id=_owner_id(), viewer_id=session["user_id"]
+        )
         if not note:
             abort(404)
+        comments = work_notes.list_comments(connection, note_id)
+        for comment in comments:
+            comment["content_html"] = render_markdown(comment["content"])
         return render_template(
             "work_notes/detail.html", note=note,
             note_html=render_markdown(note["content"]),
+            comments=comments,
             statuses=work_notes.STATUSES, priorities=work_notes.PRIORITIES,
             recurrences=work_notes.RECURRENCES, csrf_token=get_csrf_token(),
         )
@@ -421,6 +427,8 @@ def file(attachment_id):
 def upload_image():
     if not validate_csrf(request.form.get("csrf_token", "")):
         return jsonify({"error": "요청이 만료되었습니다."}), 400
+    target_raw = (request.form.get("target_id") or "").strip()
+    target_id = int(target_raw) if target_raw.isdigit() else None
     try:
         filename = editor_images.save_pasted_image(
             request.files.get("image"), config.WORK_NOTE_FILE_DIR,
@@ -429,9 +437,15 @@ def upload_image():
         path = Path(config.WORK_NOTE_FILE_DIR) / filename
         connection = dashboard_db()
         try:
+            if target_id and not work_notes.get_note(
+                connection, target_id, owner_id=_owner_id()
+            ):
+                path.unlink(missing_ok=True)
+                abort(404)
             attachment_id = work_notes.register_attachment(
                 connection, session["user_id"], filename, filename,
                 mimetypes.guess_type(filename)[0], path.stat().st_size, kind="image",
+                note_id=target_id,
             )
             connection.commit()
         except Exception:
@@ -442,6 +456,86 @@ def upload_image():
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     return jsonify({"url": url_for("work_notes.file", attachment_id=attachment_id)})
+
+
+@work_notes_bp.post("/<int:note_id>/recommend")
+@login_required
+def recommend(note_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not work_notes.get_note(connection, note_id, owner_id=_owner_id()):
+            abort(404)
+        work_notes.toggle_recommendation(connection, note_id, session["user_id"])
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("work_notes.detail", note_id=note_id) + "#work-note-actions")
+
+
+@work_notes_bp.post("/<int:note_id>/comments")
+@login_required
+def add_comment(note_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not work_notes.get_note(connection, note_id, owner_id=_owner_id()):
+            abort(404)
+        parent_raw = (request.form.get("parent_id") or "").strip()
+        parent_id = int(parent_raw) if parent_raw.isdigit() else None
+        try:
+            comment_id = work_notes.create_comment(
+                connection, note_id, session["user_id"],
+                session.get("username") or "", request.form.get("content"), parent_id,
+            )
+            work_notes.attach_inline_images(
+                connection, note_id, request.form.get("content"), session["user_id"]
+            )
+            note = work_notes.get_note(connection, note_id)
+            now_iso = now_kst().isoformat(timespec="seconds")
+            connection.execute(
+                """INSERT INTO comment_telegram_subscriptions
+                   (scope_type,scope_id,user_id,is_active,created_at,updated_at)
+                   VALUES ('work_note',?,?,1,?,?)
+                   ON CONFLICT(scope_type,scope_id,user_id) DO UPDATE SET is_active=1""",
+                (str(note_id), int(note["author_id"]), now_iso, now_iso),
+            )
+            comment_telegram_notifications.notify_new_comment(
+                connection, scope_type="work_note", scope_id=note_id,
+                author_id=session["user_id"], comment_id=comment_id,
+                post_title=note["title"], comment_content=request.form.get("content"),
+                created_at=now_iso,
+                post_url=f"{request.url_root.rstrip('/')}{url_for('work_notes.detail', note_id=note_id)}#comments",
+            )
+        except ValueError as error:
+            connection.rollback()
+            flash(str(error), "error")
+    finally:
+        connection.close()
+    return redirect(url_for("work_notes.detail", note_id=note_id) + "#comments")
+
+
+@work_notes_bp.post("/<int:note_id>/comments/<int:comment_id>/delete")
+@login_required
+def delete_comment(note_id, comment_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        if not work_notes.get_note(connection, note_id, owner_id=_owner_id()):
+            abort(404)
+        comment = work_notes.get_comment(connection, comment_id)
+        if not comment or int(comment["note_id"]) != note_id:
+            abort(404)
+        if session.get("role") != "admin" and int(comment["author_id"]) != int(session["user_id"]):
+            abort(403)
+        work_notes.delete_comment(connection, comment_id, session["user_id"])
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("work_notes.detail", note_id=note_id) + "#comments")
 
 
 @work_notes_bp.post("/preview")

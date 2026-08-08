@@ -11,6 +11,14 @@ def _read(relative_path):
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
+def test_comment_image_upload_has_preview_and_removal_support():
+    script = _read("static/js/markdown-image-paste.js")
+    assert "comment-image-preview" in script
+    assert "이미지 제거" in script
+    assert "community-comment-list" in script
+    assert "imagePastePurpose" in script
+
+
 def test_all_post_editors_use_the_shared_wysiwyg_assets():
     templates = (
         "templates/community_board.html",

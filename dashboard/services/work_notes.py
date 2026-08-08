@@ -295,7 +295,7 @@ def create_note(connection, author_id, data, recurrence_parent_id=None):
     return cursor.lastrowid
 
 
-def get_note(connection, note_id, owner_id=None):
+def get_note(connection, note_id, owner_id=None, viewer_id=None):
     owner_clause = " AND n.author_id=?" if owner_id is not None else ""
     params = [note_id]
     if owner_id is not None:
@@ -312,7 +312,87 @@ def get_note(connection, note_id, owner_id=None):
         """SELECT * FROM work_note_attachments
            WHERE note_id=? AND is_deleted=0 ORDER BY created_at,id""", (note_id,)
     ).fetchall()]
+    item["recommendation_count"] = connection.execute(
+        "SELECT COUNT(*) FROM work_note_recommendations WHERE note_id=?", (note_id,)
+    ).fetchone()[0]
+    viewer_id = viewer_id if viewer_id is not None else owner_id
+    item["recommended_by_current_user"] = bool(viewer_id) and connection.execute(
+        "SELECT 1 FROM work_note_recommendations WHERE note_id=? AND user_id=?",
+        (note_id, int(viewer_id)),
+    ).fetchone() is not None
+    item["comment_count"] = connection.execute(
+        "SELECT COUNT(*) FROM work_note_comments WHERE note_id=? AND is_deleted=0", (note_id,)
+    ).fetchone()[0]
     return item
+
+
+def toggle_recommendation(connection, note_id, user_id):
+    existing = connection.execute(
+        "SELECT 1 FROM work_note_recommendations WHERE note_id=? AND user_id=?",
+        (note_id, user_id),
+    ).fetchone()
+    if existing:
+        connection.execute(
+            "DELETE FROM work_note_recommendations WHERE note_id=? AND user_id=?",
+            (note_id, user_id),
+        )
+        active = False
+    else:
+        connection.execute(
+            "INSERT INTO work_note_recommendations(note_id,user_id,created_at) VALUES (?,?,?)",
+            (note_id, user_id, now_kst().isoformat(timespec="seconds")),
+        )
+        active = True
+    return active
+
+
+def create_comment(connection, note_id, author_id, author_username, content, parent_id=None):
+    content = (content or "").strip()
+    if not content or len(content) > 2000:
+        raise ValueError("댓글은 1~2,000자로 입력해주세요.")
+    if parent_id is not None:
+        parent = connection.execute(
+            "SELECT note_id,parent_id FROM work_note_comments WHERE id=? AND is_deleted=0",
+            (int(parent_id),),
+        ).fetchone()
+        if not parent or int(parent["note_id"]) != int(note_id) or parent["parent_id"] is not None:
+            raise ValueError("답글을 작성할 댓글을 찾을 수 없습니다.")
+    now = now_kst().isoformat(timespec="seconds")
+    cursor = connection.execute(
+        """INSERT INTO work_note_comments
+           (note_id,parent_id,author_id,author_username,content,created_at,updated_at)
+           VALUES (?,?,?,?,?,?,?)""",
+        (note_id, parent_id, author_id, author_username, content, now, now),
+    )
+    return cursor.lastrowid
+
+
+def list_comments(connection, note_id):
+    return [dict(row) for row in connection.execute(
+        """SELECT c.*,u.name AS author_display_name,u.picture_url AS author_picture_url
+           FROM work_note_comments c
+           LEFT JOIN dashboard_users u ON u.id=c.author_id
+           WHERE c.note_id=? AND c.is_deleted=0
+           ORDER BY COALESCE(c.parent_id,c.id),
+             CASE WHEN c.parent_id IS NULL THEN 0 ELSE 1 END,c.created_at,c.id""",
+        (note_id,),
+    ).fetchall()]
+
+
+def get_comment(connection, comment_id):
+    row = connection.execute(
+        "SELECT * FROM work_note_comments WHERE id=? AND is_deleted=0", (comment_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_comment(connection, comment_id, deleted_by):
+    now = now_kst().isoformat(timespec="seconds")
+    connection.execute(
+        """UPDATE work_note_comments SET is_deleted=1,deleted_at=?,deleted_by=?,updated_at=?
+           WHERE id=? AND is_deleted=0""",
+        (now, deleted_by, now, comment_id),
+    )
 
 
 def _advance(value, recurrence_type, interval_days=None):
@@ -432,12 +512,16 @@ def attach_inline_images(connection, note_id, content, owner_id):
 
 
 def get_attachment(connection, attachment_id, owner_id=None):
-    owner_clause = " AND owner_id=?" if owner_id is not None else ""
+    owner_clause = (
+        " AND (attachment.owner_id=? OR EXISTS(SELECT 1 FROM work_notes note "
+        "WHERE note.id=attachment.note_id AND note.author_id=? AND note.is_deleted=0))"
+        if owner_id is not None else ""
+    )
     params = [attachment_id]
     if owner_id is not None:
-        params.append(int(owner_id))
+        params.extend([int(owner_id), int(owner_id)])
     row = connection.execute(
-        "SELECT * FROM work_note_attachments WHERE id=? AND is_deleted=0" + owner_clause,
+        "SELECT attachment.* FROM work_note_attachments attachment WHERE attachment.id=? AND attachment.is_deleted=0" + owner_clause,
         params,
     ).fetchone()
     return dict(row) if row else None

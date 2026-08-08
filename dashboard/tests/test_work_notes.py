@@ -98,6 +98,30 @@ def test_optional_dates_can_be_cleared_even_when_completed():
     assert cleaned["completed_at"] is None
 
 
+def test_work_note_comments_replies_and_recommendations_are_scoped(tmp_path):
+    connection = schema.connect(str(tmp_path / "discussion.db"))
+    owner = _user(connection, "owner", "user")
+    other = _user(connection, "other", "user")
+    note_id = work_notes.create_note(connection, owner, _clean())
+    parent_id = work_notes.create_comment(connection, note_id, owner, "owner", "첫 댓글")
+    reply_id = work_notes.create_comment(
+        connection, note_id, other, "other", "답글", parent_id=parent_id
+    )
+    with pytest.raises(ValueError):
+        work_notes.create_comment(
+            connection, note_id, other, "other", "2단계 답글", parent_id=reply_id
+        )
+    active = work_notes.toggle_recommendation(connection, note_id, owner)
+    connection.commit()
+
+    assert active is True
+    assert [item["id"] for item in work_notes.list_comments(connection, note_id)] == [parent_id, reply_id]
+    assert work_notes.get_note(connection, note_id, owner_id=owner, viewer_id=owner)["recommendation_count"] == 1
+    assert work_notes.get_note(connection, note_id, owner_id=other) is None
+    assert work_notes.toggle_recommendation(connection, note_id, owner) is False
+    connection.close()
+
+
 def test_reminder_message_marks_overdue_and_skips_completed(tmp_path):
     connection = schema.connect(str(tmp_path / "reminder.db"))
     admin = _user(connection, "admin")

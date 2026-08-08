@@ -16,7 +16,7 @@ from dashboard_db.glossary_operations_terms import CASINO_GLOSSARY_OPERATIONS_TE
 
 # 새 비파괴 마이그레이션을 추가할 때 반드시 증가시킨다. SQLite 자체 메타데이터라
 # 요청마다 수십 개 PRAGMA table_info를 반복하지 않고도 최신 여부를 한 번에 확인한다.
-SCHEMA_VERSION = 2026080802
+SCHEMA_VERSION = 2026080804
 
 TIPS_CATEGORY_SEEDS = (
     "Excel", "VBA", "Python", "AI 활용", "업무 자동화", "보고서·PPT",
@@ -697,6 +697,11 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_community_comments_author_created "
         "ON community_comments(author_id, created_at DESC)"
+    )
+    _ensure_column(connection, "community_comments", "parent_id", "INTEGER REFERENCES community_comments(id)")
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_community_comments_parent "
+        "ON community_comments(post_id,parent_id,is_deleted,created_at,id)"
     )
 
     # ---- community_post_recommendations ----
@@ -2466,6 +2471,47 @@ def migrate(connection):
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_work_note_attachments_note "
         "ON work_note_attachments(note_id, is_deleted, created_at)"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS work_note_comments (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               note_id INTEGER NOT NULL REFERENCES work_notes(id) ON DELETE CASCADE,
+               parent_id INTEGER REFERENCES work_note_comments(id),
+               author_id INTEGER NOT NULL REFERENCES dashboard_users(id),
+               author_username TEXT NOT NULL,
+               content TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL,
+               is_deleted INTEGER NOT NULL DEFAULT 0,
+               deleted_at TEXT,
+               deleted_by INTEGER REFERENCES dashboard_users(id)
+           )"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_work_note_comments_note "
+        "ON work_note_comments(note_id,parent_id,is_deleted,created_at,id)"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS work_note_recommendations (
+               note_id INTEGER NOT NULL REFERENCES work_notes(id) ON DELETE CASCADE,
+               user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+               created_at TEXT NOT NULL,
+               PRIMARY KEY (note_id,user_id)
+           )"""
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS content_recommendations (
+               scope_type TEXT NOT NULL,
+               scope_id TEXT NOT NULL,
+               user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+               created_at TEXT NOT NULL,
+               PRIMARY KEY (scope_type,scope_id,user_id),
+               CHECK (scope_type IN ('tips','bug_report'))
+           )"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_content_recommendations_target "
+        "ON content_recommendations(scope_type,scope_id,created_at DESC)"
     )
     connection.execute(
         """

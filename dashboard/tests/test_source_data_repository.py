@@ -30,6 +30,37 @@ def test_internal_series_is_hidden_from_regular_users(db_connection):
     assert queries.list_source_data_series(db_connection, include_internal=True)[0]["series_key"] == "private.metric"
 
 
+def test_broken_company_expert_labels_are_recovered_without_changing_values(db_connection):
+    key = "company_expert.paradise.ev_ebitda.fy1"
+    queries.upsert_source_data_series(
+        db_connection, series_key=key, category="????", label="???? EV/EBITDA FY+1 ?",
+        unit="배", frequency="daily", aggregation="last", source_name="테스트",
+    )
+    queries.upsert_source_data_point(
+        db_connection, series_key=key, observation_date="2026-08-08", value=12.345,
+        commit=True,
+    )
+    view = source_data_repository.build_view(
+        db_connection, selected_keys=[key], start_date="2026-08-01", end_date="2026-08-31",
+    )
+    meta = next(item for item in view["series"] if item["series_key"] == key)
+    assert meta["label"] == "파라다이스 EV/EBITDA FY+1"
+    assert meta["category"] == "기업 전문정보"
+    assert view["rows"][0]["values"] == [12.345]
+    assert view["unidentified_series"] == []
+
+
+def test_unrecoverable_broken_label_is_isolated_by_stable_key(db_connection):
+    queries.upsert_source_data_series(
+        db_connection, series_key="legacy.unknown", category="????", label="????",
+        unit="건", frequency="daily", aggregation="last", source_name="테스트",
+        commit=True,
+    )
+    view = source_data_repository.build_view(db_connection)
+    assert [item["series_key"] for item in view["unidentified_series"]] == ["legacy.unknown"]
+    assert all("????" not in item["label"] for item in view["series"])
+
+
 def test_existing_static_statistics_are_idempotently_backfilled(db_connection):
     assert source_data_repository.synchronize_existing_data(db_connection, force=True) is True
     first = queries.source_data_repository_stats(db_connection, include_internal=True)

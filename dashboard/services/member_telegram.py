@@ -15,11 +15,35 @@ from utils import now_kst
 
 
 logger = logging.getLogger(__name__)
-NOTIFICATION_PREFERENCES = {
-    "comments": "notify_comments",
-    "news": "notify_news",
-    "recruitment": "notify_recruitment",
+NOTIFICATION_TYPES = {
+    "comments": {
+        "column": "notify_comments", "label": "새 댓글 알림",
+        "description": "내가 참여한 게시글에 새 댓글이 등록될 때",
+    },
+    "news": {
+        "column": "notify_news", "label": "카지노 뉴스 소식",
+        "description": "새 카지노 산업 뉴스 분석이 등록될 때",
+    },
+    "recruitment": {
+        "column": "notify_recruitment", "label": "채용 소식",
+        "description": "채용정보 게시판에 새 공고가 등록될 때",
+    },
 }
+NOTIFICATION_PREFERENCES = {
+    key: value["column"] for key, value in NOTIFICATION_TYPES.items()
+}
+
+
+def notification_options(state=None):
+    state = state or {}
+    return [
+        {
+            "key": key, "field": item["column"], "label": item["label"],
+            "description": item["description"],
+            "enabled": bool(state.get(item["column"], 1)),
+        }
+        for key, item in NOTIFICATION_TYPES.items()
+    ]
 
 
 def configured():
@@ -116,7 +140,7 @@ def status(connection, user_id):
            FROM member_telegram_connections WHERE user_id=?""",
         (int(user_id),),
     ).fetchone()
-    return dict(row) if row and row["enabled"] else None
+    return dict(row) if row and int(row["enabled"] or 0) == 1 else None
 
 
 def update_preferences(connection, user_id, preferences):

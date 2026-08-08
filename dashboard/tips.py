@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 import config
 from auth import admin_required, login_required, validate_csrf
 from extensions import dashboard_db
+from dashboard_db import queries
 from services import comment_telegram_notifications, content_translation, security_audit, tips_content
 from utils import now_kst
 
@@ -708,6 +709,9 @@ def detail_page(slug):
                 connection, "tip_comment", item_comments
             )
         rendered = tips_content.render_markdown(item["body"])
+        item.update(queries.content_recommendation_state(
+            connection, "tips", item["id"], session.get("user_id")
+        ))
     finally:
         connection.close()
     public_url = config.DASHBOARD_PUBLIC_URL.rstrip("/")
@@ -762,6 +766,25 @@ def detail_page(slug):
             ],
         }],
     )
+
+
+@tips_bp.post("/<slug>/recommend")
+@login_required
+def recommend_page(slug):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = tips_content.get_tip(connection, slug, include_drafts=_is_admin())
+        if not item:
+            abort(404)
+        queries.toggle_content_recommendation(
+            connection, "tips", item["id"], session["user_id"]
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("tips.detail_page", slug=slug) + "#tip-actions")
 
 
 @tips_bp.post("/<slug>/comments")

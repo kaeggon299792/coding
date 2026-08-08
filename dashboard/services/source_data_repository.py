@@ -3,16 +3,46 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from dashboard_db import queries
-from services import casino_industry, casino_statistics
+from services import casino_industry, casino_statistics, company_expert
 from utils import now_kst
 
 
 BACKFILL_STATE_KEY = "source_repository_backfill_v1"
 ALLOWED_GRAINS = {"daily", "monthly", "yearly"}
+logger = logging.getLogger(__name__)
+_BROKEN_LABEL_RE = re.compile(r"\?{2,}|\ufffd")
+
+
+def _safe_series_metadata(item):
+    """Recover deterministic labels from a stable key without changing data."""
+    clean = dict(item)
+    label = str(clean.get("label") or "").strip()
+    category = str(clean.get("category") or "").strip()
+    if not (_BROKEN_LABEL_RE.search(label) or _BROKEN_LABEL_RE.search(category)):
+        clean["unidentified"] = False
+        return clean
+    parts = str(clean.get("series_key") or "").split(".")
+    if len(parts) == 4 and parts[0] == "company_expert":
+        _, company_code, metric_code, field_code = parts
+        company = company_expert.COMPANIES.get(company_code)
+        metric = dict(company_expert.METRICS).get(metric_code)
+        field = dict(company_expert.FIELDS).get(field_code)
+        if company and metric and field:
+            clean.update({
+                "category": "기업 전문정보",
+                "label": f"{company} {metric} {field}",
+                "unidentified": False,
+            })
+            return clean
+    clean["label"] = clean.get("series_key") or "식별되지 않은 데이터 항목"
+    clean["unidentified"] = True
+    return clean
 
 
 def _date(value):
@@ -202,7 +232,10 @@ def build_view(connection, *, grain="monthly", start_date=None, end_date=None, s
         earliest = (datetime.fromisoformat(end_date).date() - timedelta(days=366)).isoformat()
         start_date = max(start_date, earliest)
 
-    series = queries.list_source_data_series(connection, include_internal=include_internal)
+    series = [
+        _safe_series_metadata(item)
+        for item in queries.list_source_data_series(connection, include_internal=include_internal)
+    ]
     series_map = {item["series_key"]: item for item in series}
     selected_keys = [key for key in (selected_keys or []) if key in series_map][:30]
     if not selected_keys:
@@ -246,11 +279,21 @@ def build_view(connection, *, grain="monthly", start_date=None, end_date=None, s
                 values.append(sorted(bucket, key=lambda item: item["observation_date"])[-1]["value"])
         rows.append({**meta, "values": values})
     categories = defaultdict(list)
+    unidentified = []
     for item in series:
-        categories[item["category"]].append(item)
+        if item.get("unidentified"):
+            unidentified.append(item)
+        else:
+            categories[item["category"]].append(item)
+    if unidentified:
+        logger.warning(
+            "Source data contains %d unidentified labels; keys=%s",
+            len(unidentified), ",".join(item["series_key"] for item in unidentified[:30]),
+        )
     return {
         "grain": grain, "start_date": start_date, "end_date": end_date,
         "series": series, "categories": dict(categories), "selected_keys": selected_keys,
         "periods": periods, "rows": rows, "raw_rows": raw_rows,
         "stats": queries.source_data_repository_stats(connection, include_internal=include_internal),
+        "unidentified_series": unidentified,
     }

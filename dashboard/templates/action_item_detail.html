@@ -23,6 +23,7 @@
       <div><dt>처리 담당자</dt><dd>{{ item.owner or '-' }}</dd></div>
     </dl>
     <section class="bug-detail-content"><h2>내용</h2><div class="community-markdown">{{ description_html }}</div></section>
+    <div class="community-post-actions" id="post-actions"><form method="post" action="{{ url_for('recommend_action_item', item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn community-recommend-button{% if item.recommended_by_current_user %} is-active{% endif %}" type="submit" aria-pressed="{{ 'true' if item.recommended_by_current_user else 'false' }}">♥ {{ '좋아요 취소' if item.recommended_by_current_user else '좋아요' }} <strong>{{ item.recommendation_count }}</strong></button></form></div>
 
     <details class="bug-edit-panel">
       <summary>게시글 수정</summary>

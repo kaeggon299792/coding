@@ -1450,10 +1450,10 @@ def inject_globals():
         "current_locale": locale,
         "locale_prefix": "" if locale == "ko" else f"/{locale.lower()}",
         "locale_options": (
-            {"code": "ko", "label": "KO", "name": "한국어"},
-            {"code": "en", "label": "EN", "name": "English"},
-            {"code": "ja", "label": "JA", "name": "日本語"},
-            {"code": "yue-HK", "label": "YUE", "name": "廣東話"},
+            {"code": "ko", "name": "한국어", "flag": "img/flags/kr.svg"},
+            {"code": "en", "name": "English", "flag": "img/flags/us.svg"},
+            {"code": "ja", "name": "日本語", "flag": "img/flags/jp.svg"},
+            {"code": "yue-HK", "name": "廣東話", "flag": "img/flags/hk.svg"},
         ),
         "locale_urls": switch_paths,
         "canonical_url": seo_defaults["seo_canonical_url"],
@@ -1462,6 +1462,7 @@ def inject_globals():
         "i18n_catalog": catalog if locale == "en" else {},
         "t": lambda value: translate_text(value, locale),
         "t_source": lambda value: translate_source_label(value, locale),
+        "topbar_menu_links": _site_map_links(),
         **seo_defaults,
     }
 
@@ -1575,12 +1576,10 @@ def _site_map_links():
         {
             "label": "회원전용",
             "description": "개인 업무와 회원 데이터",
-            "endpoint": "work_notes.board",
-            "locked": not account_active,
+            "endpoint": "diary_board_page",
             "children": [
+                {"label": "아카이브", "endpoint": "diary_board_page"},
                 {"label": "업무노트", "endpoint": "work_notes.board", "locked": not account_active},
-                {"label": "메일", "endpoint": "auth.my_account", "locked": not account_active},
-                {"label": "아카이브", "endpoint": "diary_board_page", "locked": not account_active},
                 {"label": "데이터 다운", "endpoint": "source_download_page", "locked": not account_active},
             ],
         },
@@ -3375,6 +3374,9 @@ def action_item_detail(item_id):
             connection, item_id, _community_viewer_hash()
         )
         item = queries.get_action_item(connection, item_id)
+        item.update(queries.content_recommendation_state(
+            connection, "bug_report", item_id, session.get("user_id")
+        ))
         comments = queries.list_action_item_comments(connection, item_id)
         return render_template(
             "action_item_detail.html",
@@ -3738,6 +3740,29 @@ def casino_insights_page():
         )
     finally:
         connection.close()
+
+
+@app.post("/board/bug-reports/<int:item_id>/recommend")
+@login_required
+def recommend_action_item(item_id):
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        item = queries.get_action_item(connection, item_id)
+        if not item or not can_access_bug_report(item):
+            abort(404)
+        if not membership.can_board(
+            connection, "bug_reports", "read", session.get("user_id"), session.get("role")
+        ):
+            abort(403)
+        queries.toggle_content_recommendation(
+            connection, "bug_report", item_id, session["user_id"]
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(url_for("action_item_detail", item_id=item_id) + "#post-actions")
 
 
 @app.route("/market/casino-industry/market-share")
@@ -5974,6 +5999,9 @@ _ARCHIVE_BOARDS = {
         "entry_endpoint": "diary_entry_page",
         "edit_endpoint": "edit_diary_entry_route",
         "delete_endpoint": "delete_diary_entry_route",
+        "comment_endpoint": "create_diary_comment_route",
+        "comment_delete_endpoint": "delete_diary_comment_route",
+        "recommend_endpoint": "recommend_diary_entry_route",
     },
     "review": {
         "permission_key": "reviews",
@@ -5991,6 +6019,9 @@ _ARCHIVE_BOARDS = {
         "entry_endpoint": "review_entry_page",
         "edit_endpoint": "edit_review_entry_route",
         "delete_endpoint": "delete_review_entry_route",
+        "comment_endpoint": "create_review_comment_route",
+        "comment_delete_endpoint": "delete_review_comment_route",
+        "recommend_endpoint": "recommend_review_entry_route",
     },
 }
 
@@ -6050,7 +6081,7 @@ def _archive_board_response(board_type):
                 board_type=board_type,
             ), 400
         try:
-            form_data = _diary_form_data(raw_form, allow_tags=board_type == "review")
+            form_data = _diary_form_data(raw_form, allow_tags=board_type in {"review", "diary"})
             entry_id = queries.create_diary_entry(
                 connection,
                 session["user_id"],
@@ -6109,6 +6140,15 @@ def _archive_entry_response(entry_id, board_type):
         )
         if not entry:
             abort(404)
+        comments = queries.list_community_comments(connection, entry_id)
+        for comment in comments:
+            comment["content_html"] = _render_community_markdown(comment["content"])
+        can_comment = bool(session.get("user_id")) and (
+            board_type == "diary" or membership.can_board(
+                connection, settings["permission_key"], "comment",
+                session.get("user_id"), session.get("role"),
+            )
+        )
         return render_template(
             "diary_entry.html", entry=entry,
             mood=_BLOG_ENTRY_LABELS.get(entry.get("mood_code"), ("•", "미선택")),
@@ -6116,6 +6156,7 @@ def _archive_entry_response(entry_id, board_type):
             csrf_token=get_csrf_token(),
             archive_settings=settings,
             board_type=board_type,
+            comments=comments, can_comment=can_comment,
         )
     finally:
         connection.close()
@@ -6129,6 +6170,127 @@ def diary_entry_page(entry_id):
 @app.get("/blog/reviews/<int:entry_id>")
 def review_entry_page(entry_id):
     return _archive_entry_response(entry_id, "review")
+
+
+def _archive_comment_response(entry_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
+    connection = dashboard_db()
+    try:
+        entry = queries.get_diary_entry(
+            connection, entry_id, session.get("user_id"), board_type=board_type
+        )
+        if not entry:
+            abort(404)
+        if board_type != "diary" and not membership.can_board(
+            connection, settings["permission_key"], "comment",
+            session.get("user_id"), session.get("role"),
+        ):
+            abort(403)
+        if not validate_csrf(request.form.get("csrf_token", "")):
+            abort(400)
+        parent_raw = (request.form.get("parent_id") or "").strip()
+        parent_id = int(parent_raw) if parent_raw.isdigit() else None
+        try:
+            comment_id = queries.create_community_comment(
+                connection, entry_id, session["user_id"],
+                session.get("username") or "", request.form.get("content"), parent_id,
+            )
+        except ValueError as error:
+            flash(str(error), "error")
+        else:
+            now_iso = now_kst().isoformat(timespec="seconds")
+            connection.execute(
+                """INSERT INTO comment_telegram_subscriptions
+                   (scope_type,scope_id,user_id,is_active,created_at,updated_at)
+                   VALUES ('archive_entry',?,?,1,?,?)
+                   ON CONFLICT(scope_type,scope_id,user_id) DO UPDATE SET is_active=1""",
+                (str(entry_id), int(entry["author_id"]), now_iso, now_iso),
+            )
+            comment_telegram_notifications.notify_new_comment(
+                connection, scope_type="archive_entry", scope_id=entry_id,
+                author_id=session["user_id"], comment_id=comment_id,
+                post_title=entry["title"], comment_content=request.form.get("content"),
+                created_at=now_iso,
+                post_url=f"{CANONICAL_URL}{url_for(settings['entry_endpoint'], entry_id=entry_id)}#comments",
+            )
+    finally:
+        connection.close()
+    return redirect(url_for(settings["entry_endpoint"], entry_id=entry_id) + "#comments")
+
+
+@app.post("/board/diary/<int:entry_id>/comments")
+@login_required
+def create_diary_comment_route(entry_id):
+    return _archive_comment_response(entry_id, "diary")
+
+
+@app.post("/blog/reviews/<int:entry_id>/comments")
+@login_required
+def create_review_comment_route(entry_id):
+    return _archive_comment_response(entry_id, "review")
+
+
+def _delete_archive_comment_response(entry_id, comment_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        entry = queries.get_diary_entry(
+            connection, entry_id, session.get("user_id"), board_type=board_type
+        )
+        comment = queries.get_community_comment(connection, comment_id)
+        if not entry or not comment or int(comment["post_id"]) != entry_id:
+            abort(404)
+        if session.get("role") != "admin" and int(comment["author_id"]) != int(session["user_id"]):
+            abort(403)
+        queries.soft_delete_community_comment(connection, comment_id, session["user_id"])
+    finally:
+        connection.close()
+    return redirect(url_for(settings["entry_endpoint"], entry_id=entry_id) + "#comments")
+
+
+@app.post("/board/diary/<int:entry_id>/comments/<int:comment_id>/delete")
+@login_required
+def delete_diary_comment_route(entry_id, comment_id):
+    return _delete_archive_comment_response(entry_id, comment_id, "diary")
+
+
+@app.post("/blog/reviews/<int:entry_id>/comments/<int:comment_id>/delete")
+@login_required
+def delete_review_comment_route(entry_id, comment_id):
+    return _delete_archive_comment_response(entry_id, comment_id, "review")
+
+
+def _recommend_archive_entry(entry_id, board_type):
+    settings = _ARCHIVE_BOARDS[board_type]
+    if not validate_csrf(request.form.get("csrf_token", "")):
+        abort(400)
+    connection = dashboard_db()
+    try:
+        entry = queries.get_diary_entry(
+            connection, entry_id, session.get("user_id"), board_type=board_type
+        )
+        if not entry:
+            abort(404)
+        queries.toggle_community_post_recommendation(
+            connection, entry_id, session["user_id"]
+        )
+    finally:
+        connection.close()
+    return redirect(url_for(settings["entry_endpoint"], entry_id=entry_id) + "#post-actions")
+
+
+@app.post("/board/diary/<int:entry_id>/recommend")
+@login_required
+def recommend_diary_entry_route(entry_id):
+    return _recommend_archive_entry(entry_id, "diary")
+
+
+@app.post("/blog/reviews/<int:entry_id>/recommend")
+@login_required
+def recommend_review_entry_route(entry_id):
+    return _recommend_archive_entry(entry_id, "review")
 
 
 def _edit_archive_entry_response(entry_id, board_type):
@@ -6167,7 +6329,7 @@ def _edit_archive_entry_response(entry_id, board_type):
             else:
                 try:
                     clean = _diary_form_data(
-                        raw_form, allow_tags=board_type == "review"
+                        raw_form, allow_tags=board_type in {"review", "diary"}
                     )
                     queries.update_diary_entry(
                         connection, entry_id, session["user_id"],
@@ -6258,12 +6420,14 @@ def upload_diary_image_route():
         return jsonify({"error": "허용되지 않은 기록 유형입니다."}), 400
     permission_connection = dashboard_db()
     try:
+        purpose = (request.form.get("purpose") or "").strip().lower()
         if (
-            scope == "diary" and session.get("role") != "admin"
+            scope == "diary" and session.get("role") != "admin" and purpose != "comment"
         ) or (
             scope != "diary" and not membership.can_board(
             permission_connection,
-            _ARCHIVE_BOARDS[scope]["permission_key"], "write",
+            _ARCHIVE_BOARDS[scope]["permission_key"],
+            "comment" if purpose == "comment" else "write",
             session.get("user_id"), session.get("role"),
             )
         ):
@@ -7080,12 +7244,9 @@ def unified_search_page():
         days = 365
 
     all_source_labels = unified_search.SOURCE_LABELS
-    if session.get("role") == "admin":
-        allowed_sources = set(all_source_labels)
-    elif session.get("user_id"):
-        allowed_sources = set(all_source_labels) - {"insight", "performance"}
-    else:
-        allowed_sources = {"news", "disclosure", "law", "research"}
+    allowed_sources = {"news", "disclosure", "law", "research", "archive", "tips"}
+    if session.get("user_id"):
+        allowed_sources.update({"recruitment", "community", "notice", "work_note"})
     source_labels = {
         source: label
         for source, label in all_source_labels.items()
@@ -7101,6 +7262,17 @@ def unified_search_page():
 
     connection = dashboard_db()
     try:
+        if session.get("user_id") and membership.can_board(
+            connection, "reviews", "read", session.get("user_id"), session.get("role")
+        ):
+            allowed_sources.add("review")
+            source_labels = {
+                source: label for source, label in all_source_labels.items()
+                if source in allowed_sources
+            }
+            selected_sources = [
+                source for source in requested_sources if source in allowed_sources
+            ] or list(source_labels)
         # SQL LIKE의 '%'와 '_'를 검색어로 직접 허용하면 빈 문자열에 가까운
         # 전체 열람 쿼리가 된다. 사용자 입력 경계에서 막아 자료 열거를 방지한다.
         if "%" in term or "_" in term:
@@ -7112,13 +7284,8 @@ def unified_search_page():
                 days=days,
                 sources=selected_sources,
                 limit=250,
+                user_id=session.get("user_id"),
             )
-        if session.get("role") != "admin":
-            username = session.get("username") or ""
-            results = [
-                item for item in results
-                if item["source"] != "action" or item.get("reported_by") == username
-            ]
         counts = {
             source: sum(item["source"] == source for item in results)
             for source in source_labels

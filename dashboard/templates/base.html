@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-ui-tune2-member-alerts1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-member-boards1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-expand1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wysiwyg-editor.css') }}?v=20260808-1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-2">
@@ -97,17 +97,18 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 </div>
 {% block body %}{% endblock %}
 <details class="global-language-switch">
-  <summary aria-label="{{ t('언어 선택') }}" aria-haspopup="listbox">{{ current_locale.upper() if current_locale != 'yue-HK' else 'YUE' }}<span aria-hidden="true">⌄</span></summary>
+  {% set current_locale_option = (locale_options | selectattr('code', 'equalto', current_locale) | list | first) %}
+  <summary aria-label="{{ t('언어 선택') }} · {{ current_locale_option.name }}" title="{{ current_locale_option.name }}" aria-haspopup="listbox"><img src="{{ url_for('static', filename=current_locale_option.flag) }}" alt="" width="22" height="16" aria-hidden="true"><span class="sr-only">{{ current_locale_option.name }}</span></summary>
   <nav aria-label="{{ t('언어 선택') }}">
-    {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><b>{{ item.label }}</b><span>{{ item.name }}</span></a>{% endfor %}
+    {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><img src="{{ url_for('static', filename=item.flag) }}" alt="" width="22" height="16" aria-hidden="true"><span>{{ item.name }}</span></a>{% endfor %}
   </nav>
 </details>
 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="화이트 테마로 변경" aria-pressed="false">
   <span class="theme-toggle-icon" aria-hidden="true">☀</span>
   <span class="theme-toggle-label">WHITE</span>
 </button>
-<button class="scroll-edge-button back-to-bottom" id="back-to-bottom" type="button" data-ui-icon="arrow-down" aria-label="맨 아래로 이동" hidden>↓</button>
 <button class="scroll-edge-button back-to-top" id="back-to-top" type="button" data-ui-icon="arrow-up" aria-label="맨 위로 이동" hidden>↑</button>
+<button class="scroll-edge-button back-to-bottom" id="back-to-bottom" type="button" data-ui-icon="arrow-down" aria-label="맨 아래로 이동" hidden>↓</button>
 {% include "_legal_footer.html" %}
 {% if current_locale == 'en' %}
 <script type="application/json" id="dashboard-i18n-catalog">{{ i18n_catalog | tojson }}</script>
@@ -274,6 +275,47 @@ document.addEventListener("keydown", (event) => {
   media?.addEventListener?.("change", (event) => {
     if (!hasManualPreference) apply(event.matches ? "dark" : "light");
   });
+})();
+
+(() => {
+  const desktopQuery = window.matchMedia("(min-width: 761px) and (hover: hover)");
+  const triggers = [...document.querySelectorAll(".topbar-nav > [data-topbar-menu]")];
+  const panels = [...document.querySelectorAll("[data-topbar-submenu]")];
+  let closeTimer = 0;
+  const restore = () => {
+    window.clearTimeout(closeTimer);
+    panels.forEach((panel) => { panel.hidden = true; });
+    document.body.classList.remove("topbar-submenu-preview-active");
+  };
+  const preview = (label) => {
+    if (!desktopQuery.matches) return;
+    const panel = panels.find((item) => item.dataset.topbarSubmenu === label);
+    if (!panel) { restore(); return; }
+    window.clearTimeout(closeTimer);
+    panels.forEach((item) => { item.hidden = item !== panel; });
+    document.body.classList.add("topbar-submenu-preview-active");
+  };
+  const scheduleRestore = () => {
+    window.clearTimeout(closeTimer);
+    closeTimer = window.setTimeout(restore, 120);
+  };
+  triggers.forEach((trigger) => {
+    trigger.addEventListener("pointerenter", () => preview(trigger.dataset.topbarMenu));
+    trigger.addEventListener("focus", () => preview(trigger.dataset.topbarMenu));
+    trigger.addEventListener("pointerleave", scheduleRestore);
+  });
+  panels.forEach((panel) => {
+    panel.addEventListener("pointerenter", () => window.clearTimeout(closeTimer));
+    panel.addEventListener("pointerleave", scheduleRestore);
+    panel.addEventListener("focusin", () => window.clearTimeout(closeTimer));
+    panel.addEventListener("focusout", (event) => {
+      if (!panel.contains(event.relatedTarget)) scheduleRestore();
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") restore();
+  });
+  desktopQuery.addEventListener?.("change", restore);
 })();
 
 (() => {

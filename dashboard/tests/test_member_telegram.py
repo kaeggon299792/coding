@@ -122,8 +122,11 @@ def test_member_telegram_page_uses_direct_deep_link_and_exposes_three_preference
     assert 'target="_blank"' not in template
     assert "data-telegram-awaiting" in template
     assert "member-telegram.js" in template
-    for field in ("notify_comments", "notify_news", "notify_recruitment"):
-        assert f'name="{field}"' in template
+    assert 'name="{{ option.field }}"' in template
+    assert "telegram_notification_options" in template
+    assert set(member_telegram.NOTIFICATION_PREFERENCES.values()) == {
+        "notify_comments", "notify_news", "notify_recruitment",
+    }
 
 
 def test_member_telegram_status_endpoint_is_scoped_to_logged_in_user(tmp_path, monkeypatch):

@@ -499,12 +499,14 @@ def list_diary_entries(
         return []
     rows = connection.execute(
         """
-        SELECT id, author_id, title, content, diary_date, mood_code, tags_json,
-               is_private, created_at, updated_at
-        FROM community_posts
-        WHERE board_type=? AND is_deleted=0
-          AND (is_private=0 OR author_id=?)
-        ORDER BY diary_date DESC, id DESC
+        SELECT post.id,post.author_id,post.title,post.content,post.diary_date,
+               post.mood_code,post.tags_json,post.is_private,post.created_at,post.updated_at,
+               (SELECT COUNT(*) FROM community_post_recommendations r WHERE r.post_id=post.id) AS recommendation_count,
+               (SELECT COUNT(*) FROM community_comments c WHERE c.post_id=post.id AND c.is_deleted=0) AS comment_count
+        FROM community_posts post
+        WHERE post.board_type=? AND post.is_deleted=0
+          AND (post.is_private=0 OR post.author_id=?)
+        ORDER BY post.diary_date DESC, post.id DESC
         LIMIT ? OFFSET ?
         """,
         (
@@ -540,10 +542,16 @@ def get_diary_entry(
     if board_type not in {"diary", "review"}:
         return None
     row = connection.execute(
-        """SELECT * FROM community_posts
-           WHERE id=? AND board_type=? AND is_deleted=0
-             AND (is_private=0 OR author_id=?)""",
-        (entry_id, board_type, viewer_id or -1),
+        """SELECT post.*,
+                  (SELECT COUNT(*) FROM community_post_recommendations r WHERE r.post_id=post.id) AS recommendation_count,
+                  CASE WHEN ? IS NULL THEN 0 ELSE EXISTS(
+                    SELECT 1 FROM community_post_recommendations r WHERE r.post_id=post.id AND r.user_id=?
+                  ) END AS recommended_by_current_user,
+                  (SELECT COUNT(*) FROM community_comments c WHERE c.post_id=post.id AND c.is_deleted=0) AS comment_count
+           FROM community_posts post
+           WHERE post.id=? AND post.board_type=? AND post.is_deleted=0
+             AND (post.is_private=0 OR post.author_id=?)""",
+        (viewer_id, viewer_id, entry_id, board_type, viewer_id or -1),
     ).fetchone()
     if not row:
         return None
@@ -657,8 +665,17 @@ def diary_image_accessible(
                    AND post.is_private=0
                    AND instr(post.content, image.filename)>0
                )
+               OR EXISTS (
+                 SELECT 1 FROM community_comments AS comment
+                 JOIN community_posts AS post ON post.id=comment.post_id
+                 WHERE comment.author_id=image.owner_id
+                   AND comment.is_deleted=0
+                   AND post.board_type IN ({placeholders})
+                   AND post.is_deleted=0 AND post.is_private=0
+                   AND instr(comment.content,image.filename)>0
+               )
              )""",
-        (filename, viewer_id or -1, *allowed_board_types),
+        (filename, viewer_id or -1, *allowed_board_types, *allowed_board_types),
     ).fetchone()
     return row is not None
 
@@ -913,12 +930,54 @@ def toggle_community_post_recommendation(connection, post_id, user_id):
     return recommended, count
 
 
-def create_community_comment(connection, post_id, author_id, author_username, content):
+def content_recommendation_state(connection, scope_type, scope_id, user_id=None):
+    if scope_type not in {"tips", "bug_report"}:
+        raise ValueError("지원하지 않는 추천 대상입니다.")
+    count = connection.execute(
+        "SELECT COUNT(*) FROM content_recommendations WHERE scope_type=? AND scope_id=?",
+        (scope_type, str(scope_id)),
+    ).fetchone()[0]
+    selected = bool(user_id) and connection.execute(
+        "SELECT 1 FROM content_recommendations WHERE scope_type=? AND scope_id=? AND user_id=?",
+        (scope_type, str(scope_id), int(user_id)),
+    ).fetchone() is not None
+    return {"recommendation_count": int(count), "recommended_by_current_user": bool(selected)}
+
+
+def toggle_content_recommendation(connection, scope_type, scope_id, user_id):
+    state = content_recommendation_state(connection, scope_type, scope_id, user_id)
+    if state["recommended_by_current_user"]:
+        connection.execute(
+            "DELETE FROM content_recommendations WHERE scope_type=? AND scope_id=? AND user_id=?",
+            (scope_type, str(scope_id), int(user_id)),
+        )
+        active = False
+    else:
+        connection.execute(
+            "INSERT INTO content_recommendations(scope_type,scope_id,user_id,created_at) VALUES (?,?,?,?)",
+            (scope_type, str(scope_id), int(user_id), now_kst().isoformat(timespec="seconds")),
+        )
+        active = True
+    count = connection.execute(
+        "SELECT COUNT(*) FROM content_recommendations WHERE scope_type=? AND scope_id=?",
+        (scope_type, str(scope_id)),
+    ).fetchone()[0]
+    return active, int(count)
+
+
+def create_community_comment(connection, post_id, author_id, author_username, content, parent_id=None):
     content = (content or "").strip()
     if not content or len(content) > 1000:
         raise ValueError("댓글은 1~1,000자로 입력해주세요.")
     if not get_community_post(connection, post_id):
         raise ValueError("게시글을 찾을 수 없습니다.")
+    if parent_id is not None:
+        parent = connection.execute(
+            "SELECT post_id,parent_id FROM community_comments WHERE id=? AND is_deleted=0",
+            (int(parent_id),),
+        ).fetchone()
+        if not parent or int(parent["post_id"]) != int(post_id) or parent["parent_id"] is not None:
+            raise ValueError("답글을 작성할 댓글을 찾을 수 없습니다.")
 
     now = now_kst()
     ten_minutes_ago = (now - timedelta(minutes=10)).isoformat(timespec="seconds")
@@ -940,10 +999,10 @@ def create_community_comment(connection, post_id, author_id, author_username, co
     cursor = connection.execute(
         """
         INSERT INTO community_comments
-            (post_id, author_id, author_username, content, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+            (post_id, parent_id, author_id, author_username, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (post_id, author_id, author_username, content, now_iso, now_iso),
+        (post_id, parent_id, author_id, author_username, content, now_iso, now_iso),
     )
     connection.commit()
     return cursor.lastrowid
@@ -963,7 +1022,9 @@ def list_community_comments(connection, post_id):
         LEFT JOIN membership_grades AS grade
                ON grade.code = COALESCE(author.membership_level, 'silver')
         WHERE comment.post_id=? AND comment.is_deleted=0
-        ORDER BY comment.created_at ASC, comment.id ASC
+        ORDER BY COALESCE(comment.parent_id,comment.id),
+                 CASE WHEN comment.parent_id IS NULL THEN 0 ELSE 1 END,
+                 comment.created_at ASC,comment.id ASC
         """,
         (post_id,),
     ).fetchall()

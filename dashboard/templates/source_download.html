@@ -77,6 +77,14 @@
         </div>
       </details>
       {% endif %}
+      {% if source_view.unidentified_series %}
+      <details class="source-series-more source-series-unidentified">
+        <summary>원문 확인이 필요한 항목 <span>{{ source_view.unidentified_series|length }}개</span></summary>
+        <div class="source-series-more-grid"><fieldset><legend>식별되지 않은 데이터 항목</legend><div class="source-series-options">
+        {% for item in source_view.unidentified_series %}<label title="{{ item.series_key }}"><input type="checkbox" name="series" value="{{ item.series_key }}"{% if item.series_key in source_view.selected_keys %} checked{% endif %}><span>{{ item.series_key }} <small>{{ t(item.unit) }}</small></span></label>{% endfor %}
+        </div></fieldset></div>
+      </details>
+      {% endif %}
     </div>
   </form>
 

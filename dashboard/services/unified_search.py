@@ -1,4 +1,4 @@
-"""서로 다른 세 DB의 검색 결과를 단일 시간순 타임라인으로 변환한다."""
+"""검색이 허용된 사용자 콘텐츠만 단일 시간순 타임라인으로 변환한다."""
 
 from datetime import datetime, timezone
 
@@ -9,11 +9,14 @@ SOURCE_LABELS = {
     "news": "뉴스",
     "disclosure": "공시",
     "law": "법령",
-    "performance": "실적",
-    "action": "의견",
-    "insight": "AI 분석",
     "research": "리서치",
     "recruitment": "채용",
+    "community": "자유 게시판",
+    "notice": "공지사항",
+    "review": "리뷰",
+    "archive": "아카이브",
+    "work_note": "업무노트",
+    "tips": "자료실",
 }
 
 
@@ -28,7 +31,7 @@ def _sort_key(item):
         return 0
 
 
-def search(connection, term, days=365, sources=None, limit=200):
+def search(connection, term, days=365, sources=None, limit=200, user_id=None):
     term = (term or "").strip()
     if not term:
         return []
@@ -49,9 +52,6 @@ def search(connection, term, days=365, sources=None, limit=200):
     dashboard_sources = {
         "disclosure": queries.search_disclosures,
         "law": queries.search_law_updates,
-        "performance": queries.search_performance_reports,
-        "action": queries.search_action_items,
-        "insight": queries.search_executive_insights,
         "research": queries.search_research_documents,
         "recruitment": queries.search_recruitment_jobs,
     }
@@ -60,6 +60,72 @@ def search(connection, term, days=365, sources=None, limit=200):
             continue
         for row in search_func(connection, term, days=days, limit=limit):
             items.append(_normalize_dashboard_item(source, row))
+
+    like = f"%{term}%"
+    community_sources = {
+        "community": ("community", "community_board_page", "/board"),
+        "notice": ("notice", "notice_board_page", "/board"),
+        "review": ("review", "review_board_page", "/blog/reviews"),
+        "archive": ("diary", "diary_board_page", "/board/diary"),
+    }
+    for source, (board_type, _endpoint, base_url) in community_sources.items():
+        if source not in enabled:
+            continue
+        rows = connection.execute(
+            """SELECT id,title,content,tags_json,author_username,created_at,diary_date
+               FROM community_posts
+               WHERE board_type=? AND is_deleted=0
+                 AND (is_private=0 OR author_id=?)
+                 AND (title LIKE ? OR content LIKE ? OR tags_json LIKE ?)
+               ORDER BY created_at DESC,id DESC LIMIT ?""",
+            (board_type, int(user_id or -1), like, like, like, max(1, min(int(limit), 250))),
+        ).fetchall()
+        for row in rows:
+            path = (
+                f"{base_url}/{row['id']}"
+                if source in {"review", "archive"}
+                else f"/board/posts/{row['id']}"
+            )
+            items.append({
+                "source": source, "source_label": SOURCE_LABELS[source],
+                "title": row["title"], "summary": (row["content"] or "")[:500],
+                "occurred_at": row["diary_date"] or row["created_at"],
+                "meta": row["author_username"], "url": path, "importance": None,
+            })
+
+    if "work_note" in enabled and user_id:
+        rows = connection.execute(
+            """SELECT id,title,content,tags_json,status,updated_at
+               FROM work_notes
+               WHERE author_id=? AND is_deleted=0
+                 AND (title LIKE ? OR content LIKE ? OR tags_json LIKE ?)
+               ORDER BY updated_at DESC,id DESC LIMIT ?""",
+            (int(user_id), like, like, like, max(1, min(int(limit), 250))),
+        ).fetchall()
+        for row in rows:
+            items.append({
+                "source": "work_note", "source_label": SOURCE_LABELS["work_note"],
+                "title": row["title"], "summary": (row["content"] or "")[:500],
+                "occurred_at": row["updated_at"], "meta": row["status"],
+                "url": f"/blog/work-notes/{row['id']}", "importance": None,
+            })
+
+    if "tips" in enabled:
+        rows = connection.execute(
+            """SELECT slug,title,summary,body,category,tags_json,updated_at
+               FROM tips_articles
+               WHERE is_deleted=0 AND draft=0
+                 AND (title LIKE ? OR summary LIKE ? OR body LIKE ? OR tags_json LIKE ?)
+               ORDER BY updated_at DESC LIMIT ?""",
+            (like, like, like, like, max(1, min(int(limit), 250))),
+        ).fetchall()
+        for row in rows:
+            items.append({
+                "source": "tips", "source_label": SOURCE_LABELS["tips"],
+                "title": row["title"], "summary": row["summary"] or (row["body"] or "")[:500],
+                "occurred_at": row["updated_at"], "meta": row["category"],
+                "url": f"/resources/{row['slug']}", "importance": None,
+            })
 
     items.sort(key=_sort_key, reverse=True)
     return items[: max(1, int(limit))]
@@ -104,28 +170,4 @@ def _normalize_dashboard_item(source, row):
             "occurred_at": row.get("effective_date") or row.get("fetched_at"),
             "meta": row.get("status"), "url": None, "importance": None,
         }
-    if source == "performance":
-        return {
-            "source": source, "source_label": SOURCE_LABELS[source],
-            "title": row.get("header_type") or "실적 보고",
-            "summary": row.get("raw_text"),
-            "occurred_at": row.get("received_at") or row.get("report_date"),
-            "meta": row.get("report_date"), "url": None, "importance": None,
-        }
-    if source == "action":
-        return {
-            "source": source, "source_label": SOURCE_LABELS[source],
-            "title": row.get("title") or "의견",
-            "summary": row.get("description") or row.get("memo") or row.get("ai_recommended_action"),
-            "occurred_at": row.get("updated_at") or row.get("created_at"),
-            "meta": " · ".join(filter(None, [row.get("owner"), row.get("status"), row.get("due_date")])),
-            "url": f"/board/bug-reports/{row['id']}", "importance": row.get("priority"),
-            "reported_by": row.get("reported_by"),
-        }
-    return {
-        "source": source, "source_label": SOURCE_LABELS[source],
-        "title": row.get("title") or "AI 분석",
-        "summary": row.get("ai_interpretation") or row.get("facts") or row.get("recommended_action"),
-        "occurred_at": row.get("created_at") or row.get("insight_date"),
-        "meta": row.get("category"), "url": None, "importance": row.get("importance"),
-    }
+    raise ValueError(f"허용되지 않은 검색 소스: {source}")

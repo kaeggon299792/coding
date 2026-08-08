@@ -32,6 +32,7 @@ def telegram():
         connection.close()
     return render_template(
         "member_telegram.html", telegram_state=state,
+        telegram_notification_options=member_telegram.notification_options(state),
         telegram_configured=member_telegram.configured(),
         telegram_deep_link=deep_link,
         csrf_token=get_csrf_token(),
@@ -74,9 +75,8 @@ def telegram_preferences():
     if not validate_csrf(request.form.get("csrf_token", "")):
         abort(400)
     preferences = {
-        "comments": request.form.get("notify_comments") == "1",
-        "news": request.form.get("notify_news") == "1",
-        "recruitment": request.form.get("notify_recruitment") == "1",
+        key: request.form.get(item["column"]) == "1"
+        for key, item in member_telegram.NOTIFICATION_TYPES.items()
     }
     connection = dashboard_db()
     try:

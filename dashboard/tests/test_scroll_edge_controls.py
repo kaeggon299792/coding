@@ -15,5 +15,6 @@ def test_scroll_edge_controls_include_conditional_top_and_bottom_actions():
     assert "setVisible(topButton, window.scrollY > 480)" in base
     assert "setVisible(bottomButton, remaining > 48)" in base
     assert "window.scrollTo({top: documentHeight" in base
-    assert ".back-to-top { right: 18px; }" in css
-    assert ".back-to-bottom { right: 62px; }" in css
+    assert ".back-to-top { right: 18px; bottom: 106px; }" in css
+    assert ".back-to-bottom { right: 18px; bottom: 64px; }" in css
+    assert base.index('id="back-to-top"') < base.index('id="back-to-bottom"')

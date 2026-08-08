@@ -14,18 +14,16 @@
     {% if telegram_configured %}<p class="page-note">Telegram 앱에서 <strong>START</strong>를 누른 뒤 이 페이지로 돌아오면 연결 상태가 자동으로 반영됩니다.</p>{% endif %}
     {% endif %}
   </section>
-  {% if telegram_state %}
   <section class="panel member-telegram-preferences" aria-labelledby="telegram-preferences-title">
     <div class="section-heading"><div><h2 id="telegram-preferences-title">받을 알림</h2><p>설정을 끈 항목은 회원용 Bot으로 발송하지 않습니다.</p></div></div>
     <form method="post" action="{{ url_for('member_area.telegram_preferences') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label><span><strong>새 댓글 알림</strong><small>내가 참여한 게시글에 새 댓글이 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_comments" value="1"{% if telegram_state.notify_comments %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
-      <label><span><strong>카지노 뉴스 소식</strong><small>새 카지노 산업 뉴스 분석이 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_news" value="1"{% if telegram_state.notify_news %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
-      <label><span><strong>채용 소식</strong><small>채용정보 게시판에 새 공고가 등록될 때</small></span><span class="member-telegram-toggle"><input type="checkbox" name="notify_recruitment" value="1"{% if telegram_state.notify_recruitment %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>
-      <button class="btn btn-primary" type="submit">알림 설정 저장</button>
+      <fieldset{% if not telegram_state %} disabled{% endif %}>
+      {% for option in telegram_notification_options %}<label><span><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span><span class="member-telegram-toggle"><input type="checkbox" name="{{ option.field }}" value="1"{% if option.enabled %} checked{% endif %}><i aria-hidden="true"></i><b aria-hidden="true"></b></span></label>{% endfor %}
+      <button class="btn btn-primary" type="submit">{{ '알림 설정 저장' if telegram_state else 'Telegram 연결 후 설정 가능' }}</button>
+      </fieldset>
     </form>
   </section>
-  {% endif %}
 </main>
 {% include "_footer.html" %}
 {% endblock %}

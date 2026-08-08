@@ -1,6 +1,8 @@
 from io import BytesIO
 import sqlite3
 
+import pytest
+
 from dashboard_db import queries, schema
 from services import membership
 
@@ -265,9 +267,43 @@ def test_review_board_defaults_to_timeline_and_is_separate(monkeypatch, tmp_path
         assert 'aria-current="page">타임라인</a>' in review_page
         assert "자유 게시판" in review_page
         assert "공지사항" in review_page
-        assert '>아카이브</a>' not in review_page
+        assert 'href="/board/diary">아카이브</a>' in review_page
         assert "리뷰 모음" in review_page
         assert "나의 기록" not in review_page
+
+
+def test_archive_comment_reply_target_and_like_are_bound_to_the_same_post(tmp_path):
+    connection = schema.connect(str(tmp_path / "archive-discussion.db"))
+    author_id = _user(connection, "archive-author")
+    other_id = _user(connection, "archive-reader")
+    first = queries.create_diary_entry(
+        connection, author_id, "archive-author", "2026-08-08", "calm",
+        "첫 기록", "본문", board_type="diary",
+    )
+    second = queries.create_diary_entry(
+        connection, author_id, "archive-author", "2026-08-08", "calm",
+        "둘째 기록", "본문", board_type="diary",
+    )
+    parent = queries.create_community_comment(
+        connection, first, author_id, "archive-author", "댓글"
+    )
+    with pytest.raises(ValueError):
+        queries.create_community_comment(
+            connection, second, other_id, "archive-reader", "잘못 연결한 답글", parent
+        )
+    reply = queries.create_community_comment(
+        connection, first, other_id, "archive-reader", "정상 답글", parent
+    )
+    recommended, count = queries.toggle_community_post_recommendation(
+        connection, first, other_id
+    )
+    entry = queries.get_diary_entry(connection, first, other_id, board_type="diary")
+
+    assert recommended is True and count == 1
+    assert entry["recommendation_count"] == 1
+    assert entry["comment_count"] == 2
+    assert [row["id"] for row in queries.list_community_comments(connection, first)] == [parent, reply]
+    connection.close()
 
 
 def test_private_review_cannot_be_reached_through_generic_board_routes(

@@ -1,9 +1,13 @@
 import re
+from pathlib import Path
 
 import pytest
 from werkzeug.security import generate_password_hash
 
 from localization import locale_for_country, translate_source_label
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_country_locale_mapping():
@@ -311,3 +315,15 @@ def test_changing_korean_financial_and_people_units_translate_without_exact_entr
     assert translate_text("11,499억원", "en") == "KRW 1,149.9B"
     assert translate_text("3,450만원", "en") == "KRW 34.50M"
     assert translate_text("+1,883,952명", "en") == "+1,883,952 people"
+
+
+def test_language_picker_uses_local_flags_and_fixed_native_labels():
+    import app as app_module
+
+    with app_module.app.test_request_context("/"):
+        options = app_module.inject_globals()["locale_options"]
+    assert [item["name"] for item in options] == ["한국어", "English", "日本語", "廣東話"]
+    assert all(item["flag"].startswith("img/flags/") for item in options)
+    template = (ROOT / "templates" / "base.html").read_text("utf-8")
+    assert "current_locale_option.flag" in template
+    assert "item.name" in template

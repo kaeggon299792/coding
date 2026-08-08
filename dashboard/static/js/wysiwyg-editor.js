@@ -158,6 +158,12 @@
     source.hidden = true;
     source.tabIndex = -1;
     source.setAttribute("aria-hidden", "true");
+    // A contenteditable nested in a label can lose every click back to the
+    // label's hidden textarea. Keep the editor in the field, but move the
+    // synchronized form control beside it so the caret and IME remain active.
+    if (field && field.tagName === "LABEL" && field.parentNode) {
+      field.parentNode.insertBefore(source, field.nextSibling);
+    }
     host._casinoEditor = editor;
     var editableElement = host.querySelector(".toastui-editor-ww-container .ProseMirror");
     var fieldCaption = field && field.querySelector(":scope > span");
@@ -176,7 +182,7 @@
     imagePicker.accept = "image/png,image/jpeg,image/gif,image/webp";
     imagePicker.className = "wysiwyg-image-picker";
     imagePicker.tabIndex = -1;
-    field.appendChild(imagePicker);
+    host.appendChild(imagePicker);
 
     var open = false;
     var activeIndex = 0;

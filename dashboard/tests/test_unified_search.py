@@ -28,10 +28,9 @@ def test_dashboard_search_sources_are_normalized_and_sorted(db_connection, monke
         sources=["news", "action"],
     )
 
-    assert {item["source"] for item in results} == {"news", "action"}
+    # 관리자 내부 버그·업무 데이터는 통합검색에 절대 노출하지 않는다.
+    assert {item["source"] for item in results} == {"news"}
     assert all(item["title"] for item in results)
-    action = next(item for item in results if item["source"] == "action")
-    assert action["url"].startswith("/board/bug-reports/")
     assert results == sorted(results, key=unified_search._sort_key, reverse=True)
 
 
