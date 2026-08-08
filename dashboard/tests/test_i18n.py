@@ -320,7 +320,7 @@ def test_changing_korean_financial_and_people_units_translate_without_exact_entr
     assert translate_text("+1,883,952명", "en") == "+1,883,952 people"
 
 
-def test_language_picker_uses_local_flags_and_fixed_native_labels():
+def test_language_picker_uses_emoji_flags_and_fixed_native_labels():
     import app as app_module
 
     with app_module.app.test_request_context("/"):
@@ -332,3 +332,4 @@ def test_language_picker_uses_local_flags_and_fixed_native_labels():
     template = (ROOT / "templates" / "base.html").read_text("utf-8")
     assert 'class="locale-flag"' in template
     assert "item.name" in template
+    assert "current_locale_option.flag }}</span><span class=\"sr-only\"" not in template

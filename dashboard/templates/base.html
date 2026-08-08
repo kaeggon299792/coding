@@ -98,7 +98,7 @@ height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Ma
 {% block body %}{% endblock %}
 <details class="global-language-switch">
   {% set current_locale_option = (locale_options | selectattr('code', 'equalto', current_locale) | list | first) %}
-  <summary aria-label="{{ t('언어 선택') }} · {{ current_locale_option.name }}" title="{{ current_locale_option.name }}" aria-haspopup="listbox"><span class="locale-flag" aria-hidden="true">{{ current_locale_option.flag }}</span><span class="sr-only">{{ current_locale_option.name }}</span></summary>
+  <summary aria-label="{{ t('언어 선택') }} · {{ current_locale_option.name }}" title="{{ current_locale_option.name }}" aria-haspopup="listbox"><span class="locale-flag" aria-hidden="true">{{ current_locale_option.flag }}</span></summary>
   <nav aria-label="{{ t('언어 선택') }}">
     {% for item in locale_options %}<a href="{{ locale_urls[item.code] }}" data-locale-link="{{ item.code }}"{% if current_locale == item.code %} class="active" aria-current="page"{% endif %}><span class="locale-flag" aria-hidden="true">{{ item.flag }}</span><span>{{ item.name }}</span></a>{% endfor %}
   </nav>
