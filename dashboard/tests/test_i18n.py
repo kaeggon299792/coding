@@ -348,10 +348,35 @@ def test_release_critical_ui_labels_have_complete_locale_values():
     from localization import translate_text
 
     expected = {
-        "ko": "텔레그램 알림",
-        "en": "Telegram Notifications",
-        "ja": "Telegram通知",
-        "zh-CN": "Telegram 通知",
-        "yue-HK": "Telegram 通知",
+        "텔레그램 알림": {
+            "ko": "텔레그램 알림", "en": "Telegram Notifications",
+            "ja": "Telegram通知", "zh-CN": "Telegram 通知", "yue-HK": "Telegram 通知",
+        },
+        "좋아요": {
+            "ko": "좋아요", "en": "Like", "ja": "いいね",
+            "zh-CN": "点赞", "yue-HK": "讚好",
+        },
+        "좋아요 취소": {
+            "ko": "좋아요 취소", "en": "Unlike", "ja": "いいねを取り消す",
+            "zh-CN": "取消点赞", "yue-HK": "取消讚好",
+        },
+        "회원전용": {
+            "ko": "회원전용", "en": "Members", "ja": "会員専用",
+            "zh-CN": "会员专区", "yue-HK": "會員專區",
+        },
+        "하위 메뉴": {
+            "ko": "하위 메뉴", "en": "Submenu", "ja": "サブメニュー",
+            "zh-CN": "子菜单", "yue-HK": "子選單",
+        },
+        "로그인 회원만 이용할 수 있습니다": {
+            "ko": "로그인 회원만 이용할 수 있습니다",
+            "en": "Available to signed-in members only.",
+            "ja": "ログイン会員のみご利用いただけます。",
+            "zh-CN": "仅限已登录会员使用。",
+            "yue-HK": "只限已登入會員使用。",
+        },
     }
-    assert {locale: translate_text("텔레그램 알림", locale) for locale in expected} == expected
+    for source, translations in expected.items():
+        assert {
+            locale: translate_text(source, locale) for locale in translations
+        } == translations

@@ -32,6 +32,24 @@ _LMS_CACHE = {"expires": 0.0, "db_path": "", "text": {}}
 # Small, release-critical UI labels that must be available immediately in all
 # locales even before the localization management cache has been populated.
 _CORE_UI_TRANSLATIONS = {
+    "회원전용": {
+        "en": "Members",
+        "ja": "会員専用",
+        "zh-CN": "会员专区",
+        "yue-HK": "會員專區",
+    },
+    "하위 메뉴": {
+        "en": "Submenu",
+        "ja": "サブメニュー",
+        "zh-CN": "子菜单",
+        "yue-HK": "子選單",
+    },
+    "로그인 회원만 이용할 수 있습니다": {
+        "en": "Available to signed-in members only.",
+        "ja": "ログイン会員のみご利用いただけます。",
+        "zh-CN": "仅限已登录会员使用。",
+        "yue-HK": "只限已登入會員使用。",
+    },
     "텔레그램 알림": {
         "en": "Telegram Notifications",
         "ja": "Telegram通知",

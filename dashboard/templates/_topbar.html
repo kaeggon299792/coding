@@ -91,7 +91,7 @@
   </div>
 </div>
 {% for menu in topbar_menu_links if menu.children %}
-<nav class="data-subnav topbar-hover-subnav is-compact" data-align-subnav data-topbar-submenu="{{ menu.label }}" aria-label="{{ menu.label }} 하위 메뉴" hidden>
+<nav class="data-subnav topbar-hover-subnav is-compact" data-align-subnav data-topbar-submenu="{{ menu.label }}" aria-label="{{ t(menu.label) }} {{ t('하위 메뉴') }}" hidden>
   {% for child in menu.children %}
     {% if child.locked %}<span class="member-subnav-disabled" aria-disabled="true">{{ child.label }}</span>{% else %}<a href="{{ url_for(child.endpoint) }}"{% if request.endpoint == child.endpoint %} class="active"{% endif %}>{{ child.label }}</a>{% endif %}
   {% endfor %}

@@ -73,7 +73,7 @@ gtag('config', 'G-PTRL0XC53Z');
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-hk@5.3.0/index.css">
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-flag-images1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=20260808-locale-border2">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/site-components.css') }}?v=20260808-timeline-like1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wysiwyg-editor.css') }}?v=20260808-1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-hero-preference.css') }}?v=20260808-2">
@@ -344,12 +344,11 @@ document.addEventListener("keydown", (event) => {
 
 (() => {
   const alignSubmenus = () => {
-    const desktop = window.matchMedia("(min-width: 761px)").matches;
     document.querySelectorAll("[data-align-subnav]").forEach((nav) => {
       const first = nav.querySelector(":scope > a, :scope > span");
       if (!first) return;
       first.style.marginLeft = "";
-      if (!desktop || nav.hidden || !nav.classList.contains("is-compact")) return;
+      if (nav.hidden || !nav.classList.contains("is-compact")) return;
       const submenuLabel = nav.dataset.topbarSubmenu;
       const activeMain = submenuLabel
         ? [...document.querySelectorAll(".topbar-nav > [data-topbar-menu]")]

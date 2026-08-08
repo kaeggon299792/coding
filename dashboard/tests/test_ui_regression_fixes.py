@@ -39,6 +39,8 @@ def test_navigation_shadows_and_alignment_animation_are_removed():
     assert ".topbar-nav > a.active { border-bottom-color: transparent; }" in site_css
     assert ".topbar-nav .global-language-switch a.active { margin: 0; border: 0; }" in site_css
     assert "transition:margin-left" not in dashboard_css
+    assert "border:1px solid transparent" in dashboard_css
+    assert ".global-language-switch:not([open]){border-color:transparent}" not in dashboard_css
 
 
 def test_page_width_regressions_are_bounded_and_centered():
