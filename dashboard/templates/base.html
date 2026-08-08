@@ -238,6 +238,11 @@ document.querySelectorAll("[data-locale-link]").forEach((link) => {
     window.location.assign(link.href + window.location.hash);
   });
 });
+document.addEventListener("pointerdown", (event) => {
+  if (languageSwitch?.open && !languageSwitch.contains(event.target)) {
+    languageSwitch.removeAttribute("open");
+  }
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && languageSwitch?.open) {
     languageSwitch.open = false;
